@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d1a17">
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.1 Cloud Sync</title>
+<style>
+:root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
+button,input,textarea,select{font:inherit}button{cursor:pointer}
+header{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#1d1a17,#302820);color:white;padding:14px 16px;border-bottom:1px solid #5a4430}
+.brand{font:700 27px Georgia,serif;color:#f1c698}.brand small{display:block;font:11px Segoe UI,Arial;color:#bcb1a7;letter-spacing:1.5px;margin-top:2px}
+.context{font-size:12px;color:#d3c9c0;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+main{max-width:950px;margin:auto;padding:13px 13px 86px}
+.screen{display:none}.screen.active{display:block}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:12px;box-shadow:0 8px 24px rgba(74,47,22,.06)}
+h2{font:27px Georgia,serif;margin:0 0 10px}h3{margin:0 0 8px}.muted{font-size:12px;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:10px 12px}.primary{background:var(--bronze);border-color:var(--bronze);color:white}.danger{color:var(--red)}
+label{display:block;font-size:13px;font-weight:700}input,textarea,select{width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:9px;background:white}textarea{min-height:76px;resize:vertical}
+.job{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:9px;background:white}.job-title{font-size:19px;font-weight:800}.job-meta{font-size:12px;color:var(--muted);line-height:1.5}
+.wardrobe-tabs{display:flex;gap:7px;overflow:auto;padding-bottom:5px}.wardrobe-tab{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px}.wardrobe-tab.active{background:#2e2822;color:#fff}
+.drawing-shell{background:#ded6cd;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.drawing-tools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:8px;background:#f8f0e7;border-bottom:1px solid var(--line)}
+.drawing-tools .btn{padding:8px 10px}.zoom-label{font-weight:900;font-size:12px;min-width:45px;text-align:center}
+.drawing{position:relative;min-height:340px;max-height:72vh;background:#ded6cd;overflow:hidden;touch-action:none;display:block}
+.drawing-content{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.drawing-content img{display:block;width:100%;height:auto;max-width:none;user-select:none;-webkit-user-drag:none}
+.pin{position:absolute;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;border:2px solid white;background:var(--green);color:white;font-size:0;font-weight:900;box-shadow:0 2px 7px #0005;z-index:4}
+.pin:before{content:"+";font:900 17px/1 Arial;transform:translateY(-1px)}
+.pin.active{width:54px;height:54px;font-size:19px;border-width:4px;background:var(--green);box-shadow:0 0 0 11px rgba(93,135,77,.25),0 3px 10px #0007;z-index:8}.pin.active:before{content:none}
+.panel-photo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.panel-photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}
+.panel-photo-tile{border:1px solid var(--line);border-radius:10px;padding:6px;background:#fff}.panel-photo-tile img{width:100%;border-radius:8px;display:block}
+.location-note{background:#fff8ed;border-left:4px solid var(--bronze);padding:10px;border-radius:7px;line-height:1.4;margin:9px 0}
+
+.panel-card{margin-top:12px;border:2px solid var(--green);border-radius:13px;padding:13px;background:#f8fff5}.panel-code{font-size:30px;font-weight:900}.panel-size{font-size:20px;font-weight:800}
+.statuses{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.status-btn{border:1px solid var(--line);border-radius:9px;background:#fff;padding:11px 4px;font-size:12px}.status-btn.on{outline:3px solid rgba(183,121,60,.28);font-weight:900;background:#fff8ef}
+.measure-row,.photo-row{border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px;background:white}.measure-main{font-weight:900;font-size:17px}
+.photo{width:100%;border-radius:10px;display:block;margin-top:8px}.photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.photo-tile{border:1px solid var(--line);border-radius:10px;padding:7px;background:#fff}
+.notice{border-left:4px solid var(--bronze);background:#fff7ed;border-radius:6px;padding:10px;font-size:13px;line-height:1.45}
+video{width:100%;max-height:480px;border-radius:12px;background:#111}.hidden{display:none!important}
+.scan-result{margin-top:10px;font-weight:800}.scan-frame{position:relative}.scan-frame:after{content:"";position:absolute;inset:18%;border:3px solid #f1c698;border-radius:16px;pointer-events:none}
+nav{position:fixed;z-index:30;left:0;right:0;bottom:0;background:#1d1a17;display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom)}
+.nav{border:0;background:transparent;color:#d9d1ca;padding:10px 2px 8px;font-size:10px}.nav b{display:block;font-size:20px;margin-bottom:2px}.nav.active{color:#f0bd83;background:#302a25}
+@media(min-width:700px){main{padding:18px 18px 92px;max-width:1400px}.tablet-two{display:grid;grid-template-columns:360px minmax(0,1fr);gap:13px}.photo-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.drawing{min-height:560px}.drawing-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(310px,.75fr);gap:13px;align-items:start}.drawing-side{position:sticky;top:92px}.panel-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.grid{grid-template-columns:1fr}.statuses{grid-template-columns:1fr}.photo-grid{grid-template-columns:1fr}}
+
+/* Version 4.3 compact photo markup */
+.markup-app{height:calc(100dvh - 140px);min-height:540px;display:flex;flex-direction:column;gap:5px}.markup-topbar{display:flex;gap:4px;align-items:center;overflow-x:auto;white-space:nowrap;padding:2px 0}.mini-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 9px;font-weight:800;font-size:12px;white-space:nowrap}.mini-btn.primary,.mini-btn.active{background:var(--bronze);border-color:var(--bronze);color:#fff}.zoom-mini{font-weight:900;font-size:11px;min-width:38px;text-align:center}.quick-measure-types{display:flex;gap:4px;overflow-x:auto;padding:1px 0 3px}.measure-kind{min-width:76px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 5px;color:var(--ink)}.measure-kind b{display:block;font-size:21px;line-height:20px}.measure-kind span{display:block;font-size:10px;font-weight:800;line-height:12px}.measure-kind.active{background:#2e2822;color:#fff;border-color:#2e2822}.markup-stage{position:relative;flex:1;min-height:350px;height:min(68dvh,720px);max-height:720px;overflow:hidden;background:#d8d0c7;border:1px solid var(--line);border-radius:11px;touch-action:none;contain:layout paint}.markup-world{position:absolute;left:0;top:0;transform-origin:0 0;display:none;overflow:hidden}.markup-world img{position:absolute;left:0;top:0;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;user-select:none;-webkit-user-drag:none;pointer-events:none}.measure-photo-status{font-size:11px;font-weight:800;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.markup-stage.drag-ready{outline:4px solid var(--gold);outline-offset:-4px}.markup-stage.drag-ready::after{content:"Drop photo here";position:absolute;inset:12px;z-index:20;display:flex;align-items:center;justify-content:center;border:3px dashed var(--gold);border-radius:12px;background:rgba(255,255,255,.86);color:var(--ink);font-size:22px;font-weight:900;pointer-events:none}.markup-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;color:#b33;touch-action:none}.markup-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);text-align:center;gap:5px}.markup-empty b{font-size:21px}.markup-hint{font-size:11px;color:var(--muted);padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.measure-editor{position:fixed;inset:0;z-index:100;background:#0007;display:flex;align-items:flex-end;justify-content:center}.measure-sheet{width:min(560px,100%);background:var(--paper);border-radius:16px 16px 0 0;padding:15px;padding-bottom:calc(15px + env(safe-area-inset-bottom))}.measure-sheet-title{display:flex;justify-content:space-between;align-items:center;font:700 21px Georgia,serif;margin-bottom:10px}.measure-sheet-title button{border:0;background:transparent;font-size:30px}.measure-sheet label{margin-top:8px}.measure-sheet input{font-size:20px;font-weight:800}.editor-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.markup-label-bg{fill:#fffdfa;stroke:#704b2c;stroke-width:1}.markup-label-value{font-weight:900;font-size:22px;fill:#2b241e}.markup-label-name{font-weight:800;font-size:13px;fill:#704b2c}.markup-measure-line{stroke:#b33;stroke-width:4;fill:none;marker-start:url(#arrowStart);marker-end:url(#arrowEnd);vector-effect:non-scaling-stroke}.markup-straight-line{stroke:#b33;stroke-width:4;fill:none;vector-effect:non-scaling-stroke}.markup-curve{stroke:#b33;stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.markup-selected{filter:drop-shadow(0 0 4px #ffd27a)}
+@media(max-width:520px){header{padding:7px 10px}.brand{font-size:21px}.brand small{font-size:9px}.context{margin-top:2px}main{padding:5px 5px 76px}.markup-app{height:calc(100dvh - 113px);min-height:430px}.mini-btn{padding:6px 7px}.measure-kind{min-width:70px}.markup-hint{font-size:10px}}
+
+/* Version 4.4: maximum drawing space and three everyday measurements */
+.slim-header{height:42px;padding:0 10px;display:flex;align-items:center;gap:9px;white-space:nowrap}
+.slim-header .brand{font-size:21px;line-height:1;flex:0 0 auto}
+.slim-header .context{margin:0;min-width:0;font-size:11px;color:#d3c9c0;flex:1;text-align:right}
+.quick-measure-types{display:grid;grid-template-columns:1.2fr 1.35fr .9fr .72fr;gap:4px;overflow:visible;padding:0}
+.measure-kind{min-width:0;width:100%;height:49px;padding:3px 3px;display:flex;align-items:center;justify-content:center;gap:5px}
+.measure-kind b{font-size:22px;line-height:1}.measure-kind span{font-size:10px;line-height:11px;text-align:left}
+.other-kinds{position:absolute;z-index:45;top:103px;right:7px;width:min(330px,calc(100vw - 14px));background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:9px;box-shadow:0 12px 35px #0004}
+.other-kinds-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}.other-kinds-head button{border:0;background:transparent;font-size:25px;line-height:1}
+.other-kinds-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.other-kinds-grid button{border:1px solid var(--line);border-radius:9px;background:#fff;min-height:55px;padding:7px;display:flex;align-items:center;gap:8px;text-align:left;font-weight:800}.other-kinds-grid button b{font-size:25px}.other-kinds-grid button span{font-size:12px}.other-kinds-grid .other-wide{grid-column:1/-1}
+#measure.screen{position:relative}.markup-app{height:calc(100dvh - 123px);gap:4px}.markup-topbar{padding:0;min-height:34px}.mini-btn{padding:5px 7px;font-size:11px}.markup-stage{min-height:390px}.markup-hint{height:14px;padding:0 3px}
+@media(max-width:520px){.slim-header{height:38px;padding:0 7px}.slim-header .brand{font-size:19px}.slim-header .context{font-size:9px}main{padding-top:3px}.markup-app{height:calc(100dvh - 103px);min-height:445px}.markup-topbar{gap:3px}.mini-btn{padding:5px 6px}.quick-measure-types{gap:3px}.measure-kind{height:46px;gap:3px}.measure-kind b{font-size:20px}.measure-kind span{font-size:9px;line-height:10px}.other-kinds{top:91px}.markup-stage{min-height:390px}}
+
+/* Version 4.5: simple, friendly floor-plan trade board */
+#site main{max-width:1100px;padding-top:6px}
+.site45-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.site45-head h2{font-size:23px;margin:0}.site45-head .mini-btn{flex:0 0 auto}
+.site45-plan-card{padding:9px}.site45-plan{position:relative;min-height:48vh;max-height:68vh;background:#e1d9d0;border:1px solid var(--line);border-radius:12px;overflow:hidden;touch-action:manipulation}
+.site45-plan img{display:block;width:100%;height:100%;max-height:68vh;object-fit:contain;user-select:none;-webkit-user-drag:none}
+.site45-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:25px;color:var(--muted);gap:10px}.site45-empty b{font-size:25px;color:var(--ink)}
+.site45-pin{position:absolute;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 9px #0006;font-size:20px;display:flex;align-items:center;justify-content:center;z-index:4}.site45-pin.notstarted{background:#a9a39d}.site45-pin.working{background:#e1b64c}.site45-pin.finished{background:#63a35b}.site45-pin.problem{background:#c75a4e}.site45-pin.selected{outline:5px solid rgba(183,121,60,.35)}
+.site45-help{text-align:center;font-weight:800;font-size:12px;margin-top:6px;color:var(--muted)}
+.site45-controls{padding:10px}.site45-label{font-size:12px;font-weight:900;margin:4px 0 5px}.trade-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.trade-choice,.status-choice{border:1px solid var(--line);background:#fff;border-radius:10px;min-height:55px;padding:5px 3px;font-weight:800;font-size:11px}.trade-choice b{display:block;font-size:23px;line-height:1.1}.trade-choice.active{background:#2e2822;color:#fff;border-color:#2e2822}.status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.status-choice{min-height:48px;font-size:12px}.status-choice b{display:block;font-size:17px}.status-choice.active{outline:3px solid rgba(183,121,60,.28);font-weight:900}.status-choice[data-status="notstarted"].active{background:#eee}.status-choice[data-status="working"].active{background:#fff2c9}.status-choice[data-status="finished"].active{background:#e6f5e3}.status-choice[data-status="problem"].active{background:#fae2df}
+.site45-area{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:end}.site45-area input{margin-top:0}.site45-save{min-height:42px}.site45-problem{margin-top:7px;padding:8px;background:#fff4ef;border-radius:9px;border-left:4px solid var(--red)}
+.site45-update{border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:7px;background:#fff}.site45-update-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.site45-update strong{font-size:15px}.site45-badge{border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900}.site45-badge.notstarted{background:#eee}.site45-badge.working{background:#fff0bd}.site45-badge.finished{background:#dff1dc}.site45-badge.problem{background:#f5d8d4}.site45-update img{width:100%;border-radius:8px;margin-top:7px}
+@media(max-width:520px){#site main{padding:4px 5px 76px}.site45-plan-card,.site45-controls{padding:7px}.site45-plan{min-height:44vh;max-height:58vh}.site45-plan img{max-height:58vh}.trade-grid{grid-template-columns:repeat(4,1fr)}.trade-choice{min-height:50px;font-size:9px}.trade-choice b{font-size:20px}.status-choice{font-size:10px;padding:4px 1px}.site45-head h2{font-size:20px}}
+
+
+
+/* Version 8.4: pin conversations and full trade list */
+.site52-more{margin-top:6px}.site52-more summary{list-style:none;border:1px solid var(--line);border-radius:10px;padding:9px;text-align:center;font-weight:850;background:#fff}.site52-more summary::-webkit-details-marker{display:none}
+.site52-thread{margin-top:9px;border-top:1px solid var(--line);padding-top:8px}.site52-message{background:#F4F4F8;border-radius:9px;padding:8px;margin:6px 0;font-size:13px}.site52-message strong{display:block;margin-bottom:3px}.site52-compose{display:grid;grid-template-columns:1fr;gap:6px}
+.site52-note{margin-top:7px}.site52-note input{margin:0}.site52-selected{background:#FFF8D8;border:1px solid #FFC600;border-radius:9px;padding:7px;margin-top:7px;font-weight:800}
+
+/* AssembleOne 4.6 Professional Light theme */
+:root{--ink:#2E294E;--muted:#696779;--paper:#FFFFFF;--cream:#F7F7F9;--line:#DDDCE5;--bronze:#FFC600;--dark:#2E294E;--green:#4CAF50;--red:#E53935;--orange:#FFC600}
+html,body{background:#F1F2F6;color:var(--ink)}
+header,.slim-header{background:linear-gradient(135deg,#2E294E,#201C3B);border-bottom-color:#FFC600}
+.brand{color:#fff}.brand small{color:#FFC600}.context{color:#E8E6F0}
+.card{background:#fff;border-color:var(--line);box-shadow:0 8px 24px rgba(46,41,78,.08)}
+.btn{border-color:#D7D5E1;color:#2E294E}.primary,.mini-btn.primary,.mini-btn.active{background:#FFC600!important;border-color:#E5B200!important;color:#2E294E!important}
+input,textarea,select{border-color:#D7D5E1;color:#2E294E}input:focus,textarea:focus,select:focus{outline:3px solid rgba(255,198,0,.24);border-color:#FFC600}
+.wardrobe-tab.active,.measure-kind.active{background:#2E294E;color:#fff;border-color:#2E294E}
+.drawing-shell,.markup-stage{border-color:#D7D5E1;background:#E8E9EF}.drawing-tools{background:#F7F7FA}
+.notice,.location-note{border-left-color:#FFC600;background:#FFF8D8;color:#2E294E}
+.panel-card{border-color:#FFC600;background:#FFFDF2}
+nav{background:#2E294E}.nav{color:#DCD9E8}.nav.active{color:#2E294E;background:#FFC600}
+.markup-label-bg{fill:#fff;stroke:#2E294E}.markup-label-value{fill:#2E294E}.markup-label-name{fill:#2E294E}.markup-measure-line,.markup-straight-line,.markup-curve{stroke:#FFC600}.markup-selected{filter:drop-shadow(0 0 4px #FFC600)}
+.site-trade-btn.selected,.site-status-btn.selected{background:#FFC600!important;color:#2E294E!important;border-color:#E5B200!important}
+
+
+/* Version 8.4: direct trade messages, language layout and pin controls */
+.site53-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.site53-actions .btn{padding:9px 5px;font-size:12px}
+.site53-danger{color:#b42318;border-color:#efb4ae!important}.site53-toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:7px}.site53-toolbar .btn{padding:8px 10px;font-size:12px}
+.site53-message-card{border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0;background:#fff}.site53-message-card .to{font-weight:900;color:#2E294E}.site53-translation{margin-top:6px;padding:7px;border-radius:8px;background:#eef8ef;color:#176b2c}.site53-original{font-size:11px;color:#777;margin-top:4px}.site53-recipients{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-height:180px;overflow:auto}.site53-recipient{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 4px;font-size:11px;font-weight:800}.site53-recipient.active{background:#FFC600;border-color:#E5B200;color:#2E294E}.site53-grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}.site53-hidden{display:none!important}
+
+.site-pin-toolbar{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:20;display:flex;gap:7px;flex-wrap:wrap;justify-content:center;background:#fff;border:2px solid #FFC600;border-radius:14px;padding:8px;box-shadow:0 8px 28px #0004;max-width:calc(100% - 24px)}
+.site-pin-toolbar button{border:1px solid #D8D7E0;background:#fff;color:#2E294E;border-radius:9px;padding:8px 11px;font-weight:900;cursor:pointer}.site-pin-toolbar .danger{background:#E53935;color:#fff;border-color:#E53935}.site-pin-toolbar .primary{background:#FFC600;border-color:#FFC600}.site-pin-toolbar .active{outline:3px solid #2E294E}.site-map.move-mode{cursor:crosshair}.site-map.move-mode::after{content:'Tap the new position for this pin';position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#2E294E;color:#fff;padding:7px 12px;border-radius:999px;font-weight:800;z-index:15}.direct-chat-grid{display:grid;grid-template-columns:minmax(160px,.35fr) 1fr;gap:10px}.direct-chat-list{display:flex;flex-direction:column;gap:6px;max-height:350px;overflow:auto}.direct-chat-contact{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid #D8D7E0;background:#fff;border-radius:10px;padding:9px;cursor:pointer;font-weight:800}.direct-chat-contact.active{border-color:#FFC600;background:#FFF8D6}.direct-chat-window{border:1px solid #D8D7E0;border-radius:10px;padding:10px;min-height:250px;display:flex;flex-direction:column}.direct-chat-messages{flex:1;max-height:270px;overflow:auto}.direct-chat-compose{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}.direct-msg{background:#F3F2F7;border-radius:10px;padding:8px;margin:6px 0}.direct-msg.me{background:#FFF4B8;margin-left:12%}.direct-msg small{display:block;color:#777;margin-top:4px}@media(max-width:700px){.direct-chat-grid{grid-template-columns:1fr}.direct-chat-list{display:grid;grid-template-columns:repeat(2,1fr);max-height:none}.site-pin-toolbar{bottom:6px}}
+
+/* Version 8.4 Room Guide */
+.room-guide-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.room-guide-head h2{margin:0}.room-guide-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:12px}.room-card{background:#fff;border:1px solid var(--line);border-radius:15px;overflow:hidden;box-shadow:0 7px 20px rgba(46,41,78,.08)}.room-thumb{height:170px;background:#e9e8ee;display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:850;overflow:hidden}.room-thumb img{width:100%;height:100%;object-fit:cover}.room-card-body{padding:12px}.room-card-title{font-size:21px;font-weight:900;color:var(--ink)}.room-card-meta{font-size:12px;color:var(--muted);margin:4px 0 10px}.room-guide-detail{display:block}.room-detail-top{display:flex;gap:8px;align-items:center;margin-bottom:10px}.room-detail-top h2{margin:0;flex:1}.room-section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}.room-photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.room-photo-tile{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#f1f1f5}.room-photo-tile img{display:block;width:100%;height:170px;object-fit:cover}.room-photo-tile button{position:absolute;right:6px;top:6px;border:0;border-radius:999px;background:#E53935;color:#fff;width:31px;height:31px;font-weight:900}.room-empty{padding:24px;text-align:center;background:#f5f5f8;border:1px dashed #c9c8d2;border-radius:11px;color:var(--muted)}.room-actions{display:flex;gap:7px;flex-wrap:wrap}.room-notes{min-height:95px}.room-count{display:inline-block;padding:4px 8px;border-radius:999px;background:#FFF4B8;color:#2E294E;font-size:11px;font-weight:900}.room-type-dialog{position:fixed;z-index:200;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center}.room-type-sheet{width:min(620px,100%);max-height:87vh;overflow:auto;background:#fff;border-radius:18px 18px 0 0;padding:15px;padding-bottom:calc(15px + env(safe-area-inset-bottom))}.room-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.room-type-btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:12px 5px;font-weight:850;color:var(--ink)}.room-type-btn b{font-size:23px;display:block}.room-name-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}.design-caption{padding:7px;font-size:12px;font-weight:800}
+@media(max-width:560px){.room-guide-head{align-items:flex-start}.room-guide-list{grid-template-columns:1fr}.room-thumb{height:185px}.room-photo-grid{grid-template-columns:1fr 1fr}.room-photo-tile img{height:145px}.room-type-grid{grid-template-columns:repeat(3,1fr)}.room-guide-head .btn{padding:9px 10px;font-size:12px}}
+
+/* Version 8.4 Smart QR panel navigation */
+.panel-detail{display:grid;gap:12px}.panel-route{font-weight:800;color:var(--muted);font-size:14px}.panel-drawing{position:relative;border:1px solid #d8d8df;border-radius:16px;overflow:hidden;background:#f5f5f8;min-height:220px;display:grid;place-items:center}.panel-drawing img{display:block;width:100%;height:auto}.panel-highlight{position:absolute;width:76px;height:76px;border:8px solid #54a33b;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 4px rgba(255,255,255,.75)}.panel-big-code{font-size:34px;font-weight:900}.panel-size{font-size:22px;font-weight:900}.panel-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.panel-actions .btn{min-height:54px}.direct-open-help{background:#fff7d6;border:1px solid #e6c54a;border-radius:12px;padding:11px;margin-bottom:10px}.panel-back-row{display:flex;gap:8px;flex-wrap:wrap}
+
+.installer-room-intro{display:flex;align-items:center;gap:16px;padding:18px;margin-bottom:14px;background:#f7f4ed;border:2px solid #e3ded4;border-radius:22px}.installer-room-icon{font-size:56px}.installer-room-title{font-size:30px;font-weight:900;color:#27224f}.installer-room-sub{font-size:17px;color:#6c687e;margin-top:3px}.installer-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 18px}.installer-guide-card{min-height:150px;border:3px solid #d8d6e0;border-radius:22px;background:#fff;padding:15px 10px;color:#27224f;font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;cursor:pointer}.installer-guide-card:active{transform:scale(.985)}.installer-guide-icon{font-size:44px;line-height:1}.installer-guide-card strong{font-size:23px}.installer-guide-card small{font-size:15px;color:#68647b}.installer-note-box{font-size:21px;line-height:1.45;background:#fff;border:2px solid #ddd9e4;border-radius:18px;padding:18px;color:#312b55;white-space:pre-wrap}.installer-send-update{width:100%;min-height:76px;font-size:24px;margin:14px 0 24px}.installer-design-section,.installer-notes-section{scroll-margin-top:12px}@media(max-width:520px){.installer-guide-grid{grid-template-columns:1fr 1fr}.installer-guide-card{min-height:135px}.installer-guide-card strong{font-size:20px}}
+
+/* Version 10.53 mobile navigation */
+nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
+.nav{min-height:68px;font-weight:750;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.nav b{font-size:25px;line-height:1;margin:0 0 3px}
+.nav.scan-main{position:relative;background:#FFC600;color:#2E294E;border-radius:18px 18px 0 0;transform:translateY(-8px);box-shadow:0 -4px 16px rgba(46,41,78,.22);min-height:76px;font-weight:900}
+.nav.scan-main b{font-size:32px}
+.nav.scan-main.active{background:#FFC600;color:#2E294E;box-shadow:0 -5px 18px rgba(46,41,78,.3)}
+.nav:not(.scan-main).active{background:#FFC600;color:#2E294E}
+@media(max-width:420px){.nav{font-size:10px}.nav b{font-size:22px}.nav.scan-main b{font-size:29px}}
+
+/* Version 10.54 Scan tool */
+.scan-tool{display:grid;gap:14px}.scan-tool-head{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px}.scan-tool-head .ok{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:#12a94d;color:#fff;font-size:30px;font-weight:900}.scan-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.scan-action{min-height:150px;border:2px solid #d9dce7;border-radius:20px;background:#fff;padding:14px;text-align:center;font:inherit;color:var(--ink);font-weight:900}.scan-action b{display:block;font-size:48px;line-height:1;margin-bottom:10px}.scan-action span{display:block;font-size:19px}.scan-action small{display:block;color:#6d6a7e;margin-top:5px;font-weight:600}.scan-action.main{border-color:#78d69a;background:#f2fff6}.scan-action.list{border-color:#a8bce8;background:#f6f8ff}.scan-action.damage{border-color:#efaaaa;background:#fff7f7}.scan-progress-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:15px}.scan-ring-wrap{display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap}.scan-ring{--pct:0;position:relative;width:180px;height:180px;border-radius:50%;background:conic-gradient(#18ad50 calc(var(--pct)*1%),#e9ebf1 0);display:grid;place-items:center}.scan-ring:before{content:"";position:absolute;inset:15px;background:#fff;border-radius:50%}.scan-ring-text{position:relative;text-align:center}.scan-ring-text b{display:block;font-size:40px}.scan-ring-text span{color:#6d6a7e}.scan-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;flex:1;min-width:300px}.scan-stat{border-left:1px solid #ddd;padding:8px;text-align:center}.scan-stat:first-child{border-left:0}.scan-stat b{display:block;font-size:30px}.scan-stat.remaining b{color:#174aa7}.scan-stat.damaged b{color:#d92f38}.cutting-progress{display:grid;gap:8px;margin-top:10px}.cut-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:11px;border:1px solid #dedfe7;border-radius:13px;background:#fff}.cut-row .state{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#eef0f5;font-weight:900}.cut-row.scanned{border-color:#58b978;background:#f1fbf4}.cut-row.scanned .state,.cut-row.done .state{background:#16a34a;color:#fff}.cut-row.done{border-color:#16a34a;background:#eaf8ef}.cut-row.damaged .state{background:#fff0f0;color:#d92f38;border:1px solid #efaaaa}.cut-row strong{display:block}.cut-row small{color:#6d6a7e}.scan-tools-more{border-top:1px solid var(--line);padding-top:10px}.scan-tools-more summary{font-weight:900;cursor:pointer;padding:8px}.damage-sheet{display:grid;gap:9px;margin-top:10px;padding:12px;border:2px solid #e23b43;border-radius:16px;background:#fff7f7}.scan-badge{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 8px;border-radius:999px;background:#174aa7;color:#fff;font-weight:900}
+@media(max-width:700px){.scan-actions{grid-template-columns:1fr}.scan-action{min-height:110px;display:grid;grid-template-columns:64px 1fr;align-items:center;text-align:left}.scan-action b{margin:0}.scan-stats{min-width:100%}}
+
+/* Version 10.55 polished Scan tool */
+.scan55-tool{display:grid;gap:16px;padding:12px 12px 110px;background:#f7f8fb}.scan55-help{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:#fff;border:1px solid #e5e6ec;border-radius:22px;padding:20px;box-shadow:0 8px 22px rgba(28,24,60,.07)}.scan55-help strong{display:block;font-size:23px;color:#211d48}.scan55-help span{display:block;margin-top:4px;color:#66637b;font-size:16px}.scan55-check{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:#11a84a;color:#fff;font-size:31px;font-weight:900}.scan55-phone-icon{position:relative;width:92px;height:62px;display:grid;place-items:center;color:#111;font-size:38px}.scan55-phone-icon:before{content:'';position:absolute;right:2px;top:2px;width:34px;height:55px;border:4px solid #0a3445;border-radius:8px}.scan55-phone-icon i{position:absolute;right:-5px;top:29px;width:48px;height:4px;background:#24c96b;border-radius:4px}.scan55-phone-icon span{position:absolute;left:2px;font-size:39px}.scan55-actions{gap:14px}.scan55-actions .scan-action{min-height:188px;border-width:2px;border-radius:24px;box-shadow:0 8px 20px rgba(24,20,55,.05)}.scan55-actions .scan-action b{font-size:58px}.scan55-actions .scan-action span{font-size:26px}.scan55-actions .scan-action small{font-size:16px}.scan55-actions .main{background:#f5fff7;border-color:#b9e7c7}.scan55-actions .list{background:#f8faff;border-color:#c7d4f2}.scan55-actions .damage{background:#fffafa;border-color:#f0c2c2}.scan55-icon-scan{color:#14a84b}.scan55-actions .list .scan55-icon{color:#174aa7}.scan55-actions .damage .scan55-icon{color:#d6282f}.scan55-progress{display:grid;grid-template-columns:180px repeat(4,1fr);align-items:center;gap:0;padding:18px 20px}.scan55-progress .scan-ring{width:150px;height:150px}.scan55-progress .scan-ring-text b{font-size:31px}.scan55-stat{text-align:center;padding:14px;border-left:1px solid #dedfe7}.scan55-stat b{display:block;font-size:34px;color:#211d48}.scan55-stat span{display:block;color:#6b687d;font-size:15px}.scan55-stat.remaining b{color:#174aa7}.scan55-stat.damaged b{color:#d92f38}.scan55-stat.complete{position:relative;padding-bottom:25px}.scan55-stat.complete i{position:absolute;left:14%;right:14%;bottom:8px;height:8px;border-radius:999px;background:#e8e9ee;overflow:hidden}.scan55-stat.complete i:after{content:'';display:block;width:var(--bar,0%);height:100%;background:#14ae50;border-radius:999px}.scan55-current{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;background:#fff;border:1px solid #e5e6ec;border-radius:20px;padding:15px 18px}.scan55-folder{font-size:35px}.scan55-current small{display:block;color:#77748b}.scan55-current strong{display:block;font-size:21px}.scan55-recent-head{display:flex;justify-content:space-between;align-items:center;padding:0 4px}.scan55-recent-head strong{font-size:20px}.scan55-recent-head button{border:0;background:transparent;color:#174aa7;font-weight:900}.scan55-recent{background:#fff;border:1px solid #e4e5eb;border-radius:20px;overflow:hidden}.scan55-recent-row{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #ececf1}.scan55-recent-row:last-child{border-bottom:0}.scan55-recent-row .state{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#14ad50;color:#fff;font-weight:900}.scan55-recent-row.damaged .state{background:#fff;color:#d52b34;border:2px solid #d52b34}.scan55-recent-row strong{display:block}.scan55-recent-row small{color:#747184}.scan55-recent-row time{color:#747184;font-size:13px}.scan55-empty{padding:22px;text-align:center;color:#747184}.nav b{filter:saturate(1.25)}.nav[data-screen=projects] b{color:#ffc400}.nav[data-screen=drawings] b{color:#ff7a30}.nav[data-screen=measure] b{color:#f4b400}.nav[data-screen=install] b{color:#32b95c}.nav.scan-main b{color:#2e294e}@media(max-width:820px){.scan55-progress{grid-template-columns:140px repeat(2,1fr);row-gap:10px}.scan55-progress .scan-ring{grid-row:span 2;width:125px;height:125px}.scan55-actions .scan-action{min-height:160px}.scan55-actions .scan-action span{font-size:22px}}@media(max-width:620px){.scan55-help{grid-template-columns:auto 1fr}.scan55-phone-icon{display:none}.scan55-actions{grid-template-columns:1fr 1fr}.scan55-actions .damage{grid-column:1/-1}.scan55-actions .scan-action{min-height:120px}.scan55-progress{grid-template-columns:1fr 1fr}.scan55-progress .scan-ring{grid-row:auto;grid-column:1/-1;margin:auto}.scan55-stat{border-left:0;border-top:1px solid #dedfe7}.scan55-current{grid-template-columns:auto 1fr}.scan55-current .btn{grid-column:1/-1;width:100%}}
+
+/* Version 10.60 simplified Measure tool */
+.measure-simple-topbar{display:grid;grid-template-columns:auto auto 1fr auto auto;gap:6px;overflow:visible;align-items:center}.measure-room-save{background:#159447!important;border-color:#159447!important}.three-main-measures{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.three-main-measures .measure-kind{height:68px;flex-direction:column;gap:2px;border-radius:15px}.three-main-measures .measure-kind b{font-size:31px}.three-main-measures .measure-kind span{font-size:13px;line-height:1.05;text-align:center}.measure-tools-drawer{top:48px;right:6px;max-height:72vh;overflow:auto}.measure-tools-drawer .zoom-mini{display:block;text-align:center;margin-top:8px;color:var(--muted)}
+@media(max-width:620px){.measure-simple-topbar{grid-template-columns:auto auto 1fr auto}.measure-simple-topbar .measure-photo-status{display:none}.measure-simple-topbar .mini-btn{font-size:11px;padding:7px 8px}.measure-room-save{grid-column:auto}.three-main-measures .measure-kind{height:62px}.three-main-measures .measure-kind b{font-size:28px}.three-main-measures .measure-kind span{font-size:11px}.markup-app{height:calc(100dvh - 108px)}}
+@media(max-width:390px){.measure-simple-topbar{grid-template-columns:1fr 1fr}.measure-simple-topbar .mini-btn{width:100%}.three-main-measures{gap:4px}.three-main-measures .measure-kind span{font-size:10px}}
+.mobile-job-actions{display:flex;gap:7px;align-items:center;margin-left:auto}.mobile-job-actions .danger{min-width:48px;padding:11px}.job{grid-template-columns:auto 1fr auto}
+</style>
+
+<style id="v47BrandPolish">
+.brand-lockup{display:flex!important;align-items:center;gap:7px;font-family:Inter,Segoe UI,Arial,sans-serif!important;font-weight:800!important}.brand-lockup .a-mark{width:29px;height:29px;flex:0 0 29px}.a-mark svg{display:block;width:100%;height:100%}.a-mark circle{fill:#24203F;stroke:#FFC600;stroke-width:3}.a-mark .a-white{fill:#fff}.a-mark .a-gold{fill:#FFC600}
+.notice,.location-note{border:1px solid #A9DDB7;border-left:6px solid #19A64A;background:#ECFAF0;color:#185F31;box-shadow:0 4px 13px rgba(25,166,74,.08)}
+.notice::before{content:'✓';display:inline-grid;place-items:center;width:21px;height:21px;border-radius:50%;margin-right:7px;background:#19A64A;color:#fff;font-weight:900;vertical-align:middle}
+</style>
+<style id="v56CoreOnly">#site{display:none!important}</style>
+
+<style id="v66SharedRooms">
+.room-unit-list{display:grid;gap:9px;margin-top:10px}.room-unit-card{border:1px solid #d8d8df;border-radius:12px;padding:11px;background:#fff}.room-unit-card .btn{width:100%;margin-top:8px}.room-scan-context{background:#fff7d6;border:1px solid #e6c54a;border-radius:12px;padding:10px;margin-bottom:10px;font-weight:700}
+
+.mobile-bom-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.mobile-bom-stat{border:1px solid #d8d8df;border-radius:12px;padding:12px;background:#fff}.mobile-bom-stat b{display:block;font-size:27px;color:#2E294E}.mobile-bom-room{border:1px solid #d8d8df;border-radius:12px;padding:12px;margin-top:9px}.mobile-bom-unit{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #ececf1}.mobile-bom-material{display:inline-block;border-radius:999px;background:#FFF4C1;border:1px solid #E4C856;padding:7px 9px;margin:3px;font-weight:800}
+</style>
+
+<style id="a100-mobile-room-polish">
+/* Compact mobile room guide, using the same room icons as Studio */
+#drawings .title-row .muted,#drawings .room-guide-head .muted{display:none!important}
+.room-guide-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+.room-card{border-radius:18px!important;box-shadow:none!important;border:2px solid var(--line)!important}
+.room-thumb{height:92px!important;background:#fffaf0!important;font-size:0!important}
+.room-thumb>div{font-size:0!important}.room-thumb>div>div{font-size:42px!important}
+.room-card-body{padding:10px!important}.room-card-title{font-size:17px!important}.room-card-meta{font-size:11px!important;margin:3px 0 8px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room-card .open-room{width:100%;min-height:42px}
+@media(max-width:420px){.room-guide-list{grid-template-columns:repeat(2,minmax(0,1fr))!important}.room-card-title{font-size:15px!important}.room-thumb{height:78px!important}}
+</style>
+
+<style id="a150-mobile-home-simple">
+#projects .card>h2,#projects .card>.muted,#projects .notice{display:none!important}
+.mobile-home-actions{display:grid;gap:12px;margin-bottom:18px}
+.mobile-new-site{min-height:92px;border-radius:20px!important;background:#FFC600!important;border:2px solid #E5B200!important;color:#2E294E!important;font-size:26px!important;font-weight:900!important;display:flex;align-items:center;justify-content:center;gap:12px;width:100%}
+.mobile-import-project{min-height:62px;border-radius:16px!important;font-size:18px!important;font-weight:850!important;width:100%}
+.mobile-projects-title{font-size:30px;font-weight:900;color:#2E294E;margin:8px 0 6px}
+.mobile-projects-help{color:#69657b;font-size:15px;margin-bottom:10px}
+#jobList{display:grid;gap:12px}
+#jobList .job{margin:0;border:2px solid #DAD8E3;border-radius:20px;padding:16px;background:#fff;display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:13px}
+.mobile-job-icon{font-size:42px;line-height:1;text-align:center}
+#jobList .job-title{font-size:24px;font-weight:900;color:#2E294E;line-height:1.1}
+#jobList .job-meta{font-size:14px;margin-top:5px}
+#jobList .open-job{min-width:92px;min-height:58px;border-radius:15px!important;font-size:18px!important;font-weight:900!important}
+.mobile-empty-projects{padding:28px 15px;text-align:center;border:2px dashed #DAD8E3;border-radius:18px;color:#69657b;background:#fafafa}
+@media(max-width:520px){#jobList .job{grid-template-columns:50px 1fr}.mobile-job-icon{font-size:35px}#jobList .open-job{grid-column:1/-1;width:100%}.mobile-projects-title{font-size:26px}}
+</style>
+
+<style id="a151-mobile-flow">
+.job-room-name{font-weight:900;color:#2E294E;margin:2px 0 4px;font-size:16px}.room-measure-next{border:3px solid #2f80d4!important;background:#eef6ff!important}.room-measure-next .btn{width:100%;font-size:18px;min-height:52px}
+</style>
+
+<style id="a156-modern-bottom-navigation">
+.modern-bottom-nav{position:sticky;bottom:0;z-index:120;background:linear-gradient(180deg,#2f2a52 0%,#211d42 100%);display:grid;grid-template-columns:repeat(5,1fr);align-items:end;min-height:92px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(24,20,55,.20);overflow:visible}
+.modern-bottom-nav .nav{position:relative;min-width:0;min-height:72px;border:0;background:transparent!important;color:#fff!important;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px;font-weight:850;font-size:13px;line-height:1.05;transition:transform .16s ease,background .16s ease}
+.modern-bottom-nav .nav span{display:block;white-space:nowrap}
+.modern-bottom-nav .nav-icon{display:grid;place-items:center;width:43px;height:39px;font-size:31px;line-height:1;filter:none!important}
+.modern-bottom-nav .nav.active:not(.scan-main){background:rgba(255,255,255,.10)!important;box-shadow:inset 0 0 0 2px rgba(255,198,0,.38)}
+.modern-bottom-nav .nav:active{transform:scale(.96)}
+.modern-bottom-nav .scan-main{height:112px;margin-top:-31px;align-self:start;overflow:visible}
+.modern-bottom-nav .scan-main:before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:84px;height:84px;border-radius:50%;background:#ffc600;border:5px solid #f2b900;box-shadow:0 10px 22px rgba(0,0,0,.24),0 0 0 7px #2b274d;z-index:-1}
+.modern-bottom-nav .scan-main .nav-icon{width:68px;height:68px;margin-top:-1px;color:#211d48}
+.modern-bottom-nav .scan-main span{margin-top:-8px;color:#211d48;font-size:14px;font-weight:950}
+.modern-bottom-nav .scan-main.active:before{background:#ffd83d;box-shadow:0 12px 28px rgba(255,198,0,.38),0 0 0 7px #2b274d}
+.nav-qr{position:relative;font-size:0!important}
+.nav-qr:before,.nav-qr:after,.nav-qr i:before,.nav-qr i:after{content:'';position:absolute;border:4px solid #211d48;width:16px;height:16px}
+.nav-qr:before{left:13px;top:12px;border-right-width:2px;border-bottom-width:2px}
+.nav-qr:after{right:13px;top:12px;border-left-width:2px;border-bottom-width:2px}
+.nav-qr i:before{left:13px;bottom:12px;border-right-width:2px;border-top-width:2px}
+.nav-qr i:after{right:13px;bottom:12px;border-left-width:2px;border-top-width:2px}
+.nav-qr i{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#211d48 0 3px,transparent 4px),radial-gradient(circle at 62% 59%,#211d48 0 3px,transparent 4px),radial-gradient(circle at 42% 63%,#211d48 0 2px,transparent 3px),radial-gradient(circle at 58% 40%,#211d48 0 2px,transparent 3px)}
+.nav-folder{filter:drop-shadow(0 2px 0 rgba(0,0,0,.12))!important}.nav-room{font-size:35px!important}.nav-measure{font-size:34px!important;transform:rotate(-8deg)}.nav-install{font-size:34px!important}
+@media(max-width:430px){.modern-bottom-nav{padding-left:4px;padding-right:4px}.modern-bottom-nav .nav{font-size:11px}.modern-bottom-nav .nav-icon{font-size:28px}.modern-bottom-nav .scan-main:before{width:76px;height:76px}.modern-bottom-nav .scan-main .nav-icon{width:61px;height:61px}.modern-bottom-nav .scan-main{height:105px}.modern-bottom-nav .scan-main span{font-size:12px}}
+</style>
+
+<style id="a157-compact-scan-layout">
+/* Compact tool layout: no explanatory banner, more content visible without scrolling. */
+.scan55-tool{gap:10px;padding:8px 10px 96px}.scan55-actions{gap:10px}.scan55-actions .scan-action{min-height:132px;border-radius:20px;padding:12px 8px}.scan55-actions .scan-action b{font-size:46px}.scan55-actions .scan-action span{font-size:21px}.scan55-actions .scan-action small{font-size:13px}.scan55-progress{padding:12px 14px}.scan55-progress .scan-ring{width:118px;height:118px}.scan55-progress .scan-ring-text b{font-size:23px}.scan55-stat{padding:9px}.scan55-stat b{font-size:28px}.scan55-stat span{font-size:13px}.scan55-current{padding:10px 14px;border-radius:16px}.scan55-current strong{font-size:18px}.scan55-folder{font-size:30px}.scan55-recent-row{padding:10px 14px}.scan55-recent-row .state{width:30px;height:30px}.scan55-recent-head strong{font-size:18px}.scan-tools-more{margin-top:0}.
+/* Lower, smaller centre scan tool so it feels integrated with the navigation bar. */
+.modern-bottom-nav{min-height:84px;padding-top:6px}.modern-bottom-nav .nav{min-height:66px}.modern-bottom-nav .scan-main{height:94px;margin-top:-18px}.modern-bottom-nav .scan-main:before{width:74px;height:74px;border-width:4px;box-shadow:0 8px 18px rgba(0,0,0,.22),0 0 0 5px #2b274d}.modern-bottom-nav .scan-main .nav-icon{width:58px;height:58px;margin-top:2px}.modern-bottom-nav .scan-main span{margin-top:-7px}.modern-bottom-nav .scan-main.active:before{box-shadow:0 9px 20px rgba(255,198,0,.34),0 0 0 5px #2b274d}.
+/* Custom ruler and pencil icon, consistent on every device. */
+.nav-measure{position:relative;width:46px!important;height:42px!important;transform:none!important}.nav-measure .measure-ruler{position:absolute;width:38px;height:12px;left:3px;top:15px;border-radius:3px;background:#f5c833;transform:rotate(-38deg);box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}.nav-measure .measure-ruler:after{content:'';position:absolute;inset:3px 5px;background:repeating-linear-gradient(90deg,#7a5b00 0 2px,transparent 2px 6px)}.nav-measure .measure-pencil{position:absolute;width:36px;height:10px;left:8px;top:16px;border-radius:3px;background:linear-gradient(90deg,#ef5350 0 25%,#f7a94a 25% 78%,#eee 78% 90%,#333 90%);transform:rotate(38deg);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+/* Green installation case with a strong white tick. */
+.nav-install{position:relative;width:46px!important;height:42px!important}.nav-install .install-case{position:absolute;left:4px;right:4px;bottom:3px;height:29px;border-radius:6px;background:linear-gradient(#49c878,#20a95a);box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}.nav-install .install-case:before{content:'';position:absolute;left:13px;top:-8px;width:15px;height:9px;border:4px solid #9b7145;border-bottom:0;border-radius:5px 5px 0 0}.nav-install .install-check{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:28px;font-style:normal;font-weight:950;line-height:1;padding-top:5px}.
+@media(max-width:620px){.scan55-actions{grid-template-columns:repeat(3,1fr)}.scan55-actions .damage{grid-column:auto}.scan55-actions .scan-action{min-height:104px}.scan55-actions .scan-action b{font-size:36px}.scan55-actions .scan-action span{font-size:16px}.scan55-actions .scan-action small{font-size:11px}.scan55-progress{grid-template-columns:105px repeat(2,1fr);row-gap:6px}.scan55-progress .scan-ring{grid-row:span 2;grid-column:auto;width:98px;height:98px}.scan55-stat{border-top:0}.scan55-current{grid-template-columns:auto 1fr auto}.scan55-current .btn{grid-column:auto;width:auto;padding:8px 10px;font-size:12px}.scan55-recent-row{padding:8px 11px}.modern-bottom-nav .nav{font-size:11px}.modern-bottom-nav .scan-main{height:90px;margin-top:-15px}.modern-bottom-nav .scan-main:before{width:70px;height:70px}.modern-bottom-nav .scan-main .nav-icon{width:54px;height:54px}}
+</style>
+
+<style id="mobileMeasure59Styles">
+#measure .markup-app{height:calc(100dvh - 108px);gap:3px}
+#measure .markup-topbar{background:#fff;border:1px solid #dedce7;border-radius:12px;padding:5px;gap:4px;overflow-x:auto}
+#measure .mini-btn{font-size:12px;padding:7px 9px;border-radius:10px}
+#measure .quick-measure-types{grid-template-columns:repeat(4,1fr);gap:5px}
+#measure .measure-kind{height:54px;border-radius:12px;flex-direction:column;gap:1px}
+#measure .measure-kind b{font-size:25px;color:#2e294e}
+#measure .measure-kind.active b{color:#fff}
+#measure .measure-kind span{font-size:11px;line-height:1;font-weight:900;text-align:center}
+#measure .markup-stage{border-radius:14px;min-height:330px;background:#eceef3}
+#measure .markup-empty b{font-size:23px;color:#2e294e}
+#measure .markup-empty span{font-size:15px}
+#measure .markup-hint{text-align:center;font-weight:800;color:#55516d;font-size:12px;height:auto;padding:4px}
+#measure .markup-svg{color:#1769aa}
+#measure .markup-measure-line{stroke:#1769aa;stroke-width:5}
+.site-intake-card{padding:18px;border:2px solid #d9d7e2;border-radius:18px;background:#fff;max-width:720px;margin:8px auto}
+.site-intake-title{display:flex;align-items:center;gap:12px;margin-bottom:14px}.site-intake-title b{font-size:28px}.site-intake-title span{font-size:34px}
+.site-intake-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.site-intake-grid label{font-weight:900}.site-intake-grid input,.site-intake-grid textarea{margin-top:5px}.site-intake-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.site-intake-actions .btn{min-height:58px;font-size:18px;font-weight:900}
+@media(max-width:560px){.site-intake-grid,.site-intake-actions{grid-template-columns:1fr}#measure .markup-topbar{padding:4px}#measure .mini-btn{padding:6px 7px;font-size:11px}#measure .measure-kind{height:50px}}
+</style>
+
+<style id="a161-measure-tool-layout">
+/* Version 10.64: collect all measurements before sending the completed room photo to Room Guide. */
+#measure .markup-app{height:calc(100dvh - 92px);gap:5px;padding:4px 5px 0}
+#measure .measure61-topbar{display:grid;grid-template-columns:minmax(120px,1fr) minmax(130px,1fr) minmax(105px,.72fr);gap:7px;overflow:visible;padding:6px;background:#fff;border:1px solid #dedce7;border-radius:16px}
+#measure .measure61-topbar .mini-btn{min-height:50px;border-radius:14px;padding:5px 8px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:950;white-space:nowrap}
+#measure .measure61-picture{background:#eef8ff!important;border:2px solid #78bde9!important;color:#173966!important}
+#measure .measure61-room{background:#eaf8ee!important;border:2px solid #35ad65!important;color:#176d38!important}
+#measure .measure61-tools{background:#fff7df!important;border:2px solid #efbf29!important;color:#5d4700!important}
+#measure .measure61-top-icon{font-size:23px;line-height:1}
+#measure .measure-photo-status{position:absolute;left:12px;top:72px;z-index:4;background:#fff;border-radius:8px;padding:2px 7px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+#measure .measure-photo-status:empty{display:none}
+#measure .three-main-measures{grid-template-columns:repeat(3,1fr);gap:7px}
+#measure .three-main-measures .measure-kind{height:64px;border-radius:15px;border:2px solid #d9d7e2;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:3px;box-shadow:0 3px 10px rgba(35,30,75,.07)}
+#measure .three-main-measures .measure-kind:nth-child(1){background:#eef7ff;border-color:#80bcec}
+#measure .three-main-measures .measure-kind:nth-child(2){background:#f2edff;border-color:#a391df}
+#measure .three-main-measures .measure-kind:nth-child(3){background:#fff3e6;border-color:#efa95e}
+#measure .three-main-measures .measure-kind b{font-size:27px;color:#2e294e}
+#measure .three-main-measures .measure-kind span{font-size:12px;font-weight:950;color:#2e294e}
+#measure .three-main-measures .measure-kind.active{background:#2e294e!important;border-color:#2e294e!important;box-shadow:0 5px 14px rgba(46,41,78,.24)}
+#measure .three-main-measures .measure-kind.active b,#measure .three-main-measures .measure-kind.active span{color:#fff}
+#measure .markup-stage{flex:1;min-height:0;border-radius:18px;background:#eceef3}
+#measure .markup-empty b{font-size:22px}#measure .markup-empty span{font-size:14px}
+#measure .measure-tools-drawer{top:74px;right:8px;left:auto;width:min(560px,calc(100% - 16px));max-height:calc(100dvh - 180px);overflow:auto;border-radius:18px;box-shadow:0 18px 45px rgba(23,19,55,.3)}
+#measure .other-kinds-grid{grid-template-columns:repeat(4,1fr);gap:8px}
+#measure .other-kinds-grid button{min-height:72px;border-radius:14px}
+#measure .other-kinds-grid b{font-size:27px}
+#measure .other-kinds-grid span{font-size:12px;font-weight:900}
+#measure .markup-hint{display:none}
+@media(max-width:620px){
+ #measure .markup-app{height:calc(100dvh - 82px);padding:3px 3px 0}
+ #measure .measure61-topbar{grid-template-columns:1fr 1fr .72fr;gap:4px;padding:4px}
+ #measure .measure61-topbar .mini-btn{min-height:44px;padding:4px 3px;font-size:11px;gap:4px;border-radius:13px}
+ #measure .measure61-top-icon{font-size:19px}
+ #measure .three-main-measures{gap:4px}
+ #measure .three-main-measures .measure-kind{height:54px;border-radius:13px}
+ #measure .three-main-measures .measure-kind b{font-size:27px}
+ #measure .three-main-measures .measure-kind span{font-size:11px}
+ #measure .other-kinds-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:390px){
+ #measure .measure61-topbar .mini-btn{min-height:42px;font-size:10px;border-radius:11px}
+ #measure .measure61-top-icon{font-size:18px}
+ #measure .three-main-measures .measure-kind{height:50px}
+ #measure .three-main-measures .measure-kind b{font-size:21px}
+ #measure .three-main-measures .measure-kind span{font-size:9px}
+}
+</style>
+<style id="a163-inline-measure-editor">
+/* Keep the measurement form below the picture instead of covering it. */
+#measure{padding-bottom:110px}
+#measure .measure-editor{position:static;inset:auto;z-index:auto;background:transparent;display:block;padding:8px 4px 115px}
+#measure .measure-editor.hidden{display:none!important}
+#measure .measure-sheet{width:100%;max-width:none;background:#fff;border:2px solid #d9d7e2;border-radius:18px;padding:12px;box-shadow:0 5px 18px rgba(35,30,75,.10)}
+#measure .measure-sheet-title{font:900 20px Inter,Segoe UI,Arial,sans-serif;margin-bottom:7px}
+#measure .measure-sheet-title button{font-size:27px;min-width:42px;min-height:42px}
+#measure .measure-sheet label{font-size:13px;margin-top:6px}
+#measure .measure-sheet input{font-size:19px;min-height:48px;padding:9px 11px}
+#measure .editor-actions{display:grid;grid-template-columns:auto 1fr;gap:8px;margin-top:10px}
+#measure .editor-actions .mini-btn{min-height:50px;border-radius:14px;font-size:15px}
+#measure #saveEditor{background:#159447!important;border-color:#159447!important;color:#fff!important}
+@media(max-width:620px){
+ #measure .measure-sheet{padding:10px;border-radius:15px}
+ #measure .measure-sheet-title{font-size:17px}
+ #measure .measure-sheet input{font-size:18px;min-height:45px}
+ #measure .editor-actions .mini-btn{font-size:13px;min-height:47px}
+ #measure .measure61-topbar{grid-template-columns:1fr .9fr .62fr}
+ #measure .measure61-topbar .measure61-room span{font-size:10px}
+}
+</style>
+
+<style>
+.site-room-draft{display:grid;gap:12px;padding:4px 0 96px}.site-room-preview{border-radius:18px;overflow:hidden;background:#eef1f6;min-height:180px;display:grid;place-items:center}.site-room-preview img{width:100%;max-height:300px;object-fit:contain;background:#fff}.site-room-summary{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:14px;background:#eef5ff}.site-room-summary b{font-size:18px}.site-room-summary span{color:#596579}.site-room-icon-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.site-room-icon{border:2px solid #e2e6ef;background:#fff;border-radius:14px;padding:9px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:800}.site-room-icon b{font-size:27px}.site-room-icon span{font-size:11px}.site-room-icon.active{border-color:#6a4cff;background:#f0edff;box-shadow:0 0 0 2px rgba(106,76,255,.12)}.site-room-field{display:grid;gap:5px;font-weight:800}.site-room-field input,.site-room-field textarea{width:100%;box-sizing:border-box;border:2px solid #dfe4ed;border-radius:13px;padding:12px;font:inherit;background:#fff}.site-room-field textarea{min-height:82px;resize:vertical}.site-room-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.site-room-actions .send-studio{grid-column:1/-1;min-height:54px;font-size:17px}@media(max-width:480px){.site-room-icon-grid{grid-template-columns:repeat(4,1fr)}.site-room-icon b{font-size:24px}.site-room-actions{grid-template-columns:1fr}.site-room-actions .send-studio{grid-column:auto}}
+</style>
+
+<style id="v66RoomGuideRedesign">
+.v66-room-guide{gap:10px}.v66-preview{position:relative;min-height:150px}.v66-room-badge{position:absolute;left:12px;top:12px;width:58px;height:58px;border-radius:18px;background:#fff;border:3px solid #6a4cff;display:grid;place-items:center;font-size:31px;box-shadow:0 7px 18px rgba(34,28,78,.18)}.v66-preview-count{position:absolute;right:10px;bottom:10px;background:rgba(35,31,70,.9);color:#fff;border-radius:999px;padding:7px 11px;font-weight:900}.v66-step-title{font-size:18px;font-weight:900;color:#29244f;margin-top:3px}.v66-floor-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.v66-floor{min-height:76px;border:2px solid #e0e4ed;border-radius:15px;background:#fff;display:grid;place-items:center;padding:7px;font:inherit;font-weight:900;color:#29244f}.v66-floor b{font-size:24px;line-height:1}.v66-floor span{font-size:12px}.v66-floor.active{border-color:#19a64a;background:#ecfaF0;box-shadow:0 0 0 2px rgba(25,166,74,.12)}.v66-floor-custom{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:end;margin-top:9px}.v66-floor-custom label{font-size:13px;font-weight:900;color:#29244f}.v66-floor-custom input{width:100%;box-sizing:border-box;margin-top:5px;border:2px solid #dfe3eb;border-radius:14px;padding:12px 13px;font:inherit;font-size:18px;font-weight:900}.v66-floor-custom button{min-height:50px;border:0;border-radius:14px;background:#ffca05;color:#29244f;padding:0 16px;font:inherit;font-weight:900}.v66-floor-custom.hidden{display:none!important}.v66-note{border:2px solid #e0e4ed;border-radius:15px;background:#fff;overflow:hidden}.v66-note summary{cursor:pointer;padding:13px 15px;font-weight:900}.v66-note textarea{width:calc(100% - 24px);margin:0 12px 12px;min-height:72px;border:1px solid #dfe3eb;border-radius:12px;padding:10px;box-sizing:border-box;font:inherit}.v66-custom-name.hidden{display:none!important}
+@media(max-width:520px){.v66-floor-grid{grid-template-columns:repeat(2,1fr)}.site-room-icon-grid{grid-template-columns:repeat(4,1fr)}.v66-room-badge{width:50px;height:50px;font-size:27px}.v66-preview-count{font-size:12px}}
+</style>
+<!-- AssembleOne Mobile 10.85: room guide supports any numbered floor -->
+
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+</head>
+<body>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.1 · Cloud Sync</div></header>
+<main>
+<section id="projects" class="screen active">
+ <div class="card">
+  <div class="mobile-home-actions">
+   <button class="btn mobile-new-site" id="newJob"><span>📷</span><span>New Site Job</span></button>
+   <label class="btn mobile-import-project">📥 Add Studio Project<input id="importStudio" type="file" accept=".zip,application/zip" hidden></label>
+  </div>
+  <div class="mobile-projects-title">My Projects</div>
+  <div class="mobile-projects-help">Tap one project to continue.</div>
+  <div id="jobList"></div>
+ </div>
+</section>
+
+<section id="measure" class="screen">
+ <div class="markup-app">
+  <div class="markup-topbar measure-simple-topbar measure61-topbar">
+   <button class="mini-btn measure61-picture" id="chooseMeasurePhoto" type="button"><span class="measure61-top-icon">📷</span><span>Add Picture</span></button>
+   <input id="markupCameraPhoto" type="file" accept="image/*" capture="environment" hidden>
+   <input id="markupGalleryPhoto" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.gif" hidden>
+   <span id="measurePhotoStatus" class="measure-photo-status" aria-live="polite"></span>
+   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span>Done · Room Guide</span></button>
+   <button class="mini-btn measure61-tools" id="openMeasureTools" type="button"><span class="measure61-top-icon">🛠️</span><span>Tools</span></button>
+  </div>
+  <div class="quick-measure-types three-main-measures" id="quickMeasureTypes" aria-label="Measurement type">
+   <button type="button" data-kind="Wall to wall" class="measure-kind active"><b>↔</b><span>Wall to wall</span></button>
+   <button type="button" data-kind="Floor to ceiling" class="measure-kind"><b>↕</b><span>Floor to ceiling</span></button>
+   <button type="button" data-kind="Depth" class="measure-kind"><b>↘</b><span>Depth</span></button>
+  </div>
+  <div id="otherKinds" class="other-kinds hidden measure-tools-drawer" role="dialog" aria-label="More tools">
+   <div class="other-kinds-head"><strong>More tools</strong><button type="button" id="closeOtherKinds">×</button></div>
+   <div class="other-kinds-grid">
+    <button type="button" id="pasteMeasurePhoto"><b>📋</b><span>Paste picture</span></button>
+    <button type="button" id="modeMeasure"><b>↔</b><span>Measure</span></button>
+    <button type="button" id="modeLine"><b>╱</b><span>Line</span></button>
+    <button type="button" id="modeCurve"><b>⌁</b><span>Curve</span></button>
+    <button type="button" id="modeMove"><b>✋</b><span>Move</span></button>
+    <button type="button" id="markupUndo"><b>↶</b><span>Undo</span></button>
+    <button type="button" id="markupFit"><b>▣</b><span>Fit picture</span></button>
+    <button type="button" id="markupZoomOut"><b>−</b><span>Zoom out</span></button>
+    <button type="button" id="markupZoomIn"><b>＋</b><span>Zoom in</span></button>
+    <button type="button" data-other-kind="Floor up"><b>↑</b><span>Floor up</span></button>
+    <button type="button" data-other-kind="Ceiling down"><b>↓</b><span>Ceiling down</span></button>
+    <button type="button" data-other-kind="From left wall"><b>→</b><span>From left</span></button>
+    <button type="button" data-other-kind="From right wall"><b>←</b><span>From right</span></button>
+    <button type="button" data-other-kind="Custom" class="other-wide"><b>＋</b><span>Custom measurement</span></button>
+   </div>
+   <span class="zoom-mini" id="markupZoomLabel">100%</span>
+  </div>
+  <div id="markupStage" class="markup-stage">
+   <div id="markupWorld" class="markup-world">
+    <img id="markupImage" alt="Site photo or drawing">
+    <svg id="markupSvg" class="markup-svg" xmlns="http://www.w3.org/2000/svg">
+     <defs>
+      <marker id="arrowStart" markerWidth="12" markerHeight="12" refX="5" refY="6" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M11,1 L1,6 L11,11 Z" fill="currentColor"/></marker>
+      <marker id="arrowEnd" markerWidth="12" markerHeight="12" refX="7" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L11,6 L1,11 Z" fill="currentColor"/></marker>
+     </defs>
+     <g id="markupMarks"></g>
+     <g id="markupPreview"></g>
+    </svg>
+   </div>
+   <div id="markupEmpty" class="markup-empty"><b>📷 Add picture or drawing</b><span>Tap Add Picture, choose a file, take a photo, or drop it here.</span></div>
+  </div>
+  <div class="markup-hint" id="markupHint">Drag arrow → enter size → save</div>
+ </div>
+ <div id="measureEditor" class="measure-editor hidden" role="dialog" aria-modal="true">
+  <div class="measure-sheet">
+   <div class="measure-sheet-title"><span id="editorKind">Wall to wall</span><button id="closeEditor" type="button">×</button></div>
+   <label>Measurement in mm<input id="editorValue" inputmode="decimal" pattern="[0-9.]*" placeholder="2450"></label>
+   <label>Name<input id="editorName" placeholder="Wall to wall"></label>
+   <div class="editor-actions"><button id="deleteEditor" class="mini-btn danger hidden" type="button">Delete</button><button id="saveEditor" class="mini-btn primary" type="button">＋ Add measurement</button></div>
+  </div>
+ </div>
+ <!-- Kept for compatibility with the existing project save system. -->
+ <div class="hidden"><input id="jobName"><input id="customer"><input id="address"><input id="phone"><textarea id="jobNotes"></textarea><button id="saveDetails"></button><select id="measureArea"><option>Whole room</option></select><input id="measureValue"><input id="measureName"><input id="measureNote"><button id="addMeasure"></button><div id="measurementList"></div><input id="cameraPhoto" type="file"><input id="galleryPhoto" type="file"><div id="photoList"></div></div>
+ <div id="measurePictureMenu" class="measure-picture-menu hidden" role="dialog" aria-modal="true" aria-label="Add picture">
+  <div class="measure-picture-card">
+   <div class="measure-picture-head"><strong>Add Picture</strong><button type="button" id="closeMeasurePictureMenu" aria-label="Close">×</button></div>
+   <button type="button" id="takeMeasurePhoto"><span>📷</span><b>Take Photo</b></button>
+   <button type="button" id="pickMeasurePicture"><span>🖼️</span><b>Choose Picture or Drawing</b></button>
+   <button type="button" id="pasteMeasurePicture"><span>📋</span><b>Paste Picture</b></button>
+  </div>
+ </div>
+</section>
+
+<section id="drawings" class="screen">
+ <div class="card room-guide-head">
+  <div><h2>Room Guide</h2><div class="muted">Open the room guide and install from the Studio information.</div></div>
+  <button class="btn primary" id="addRoomBtn">＋ Add room</button>
+ </div>
+ <div id="roomGuideList" class="room-guide-list"></div>
+ <div id="roomGuideDetail" class="room-guide-detail hidden"></div>
+ <input id="roomBeforeCamera" type="file" accept="image/*" capture="environment" hidden>
+ <input id="roomBeforeGallery" type="file" accept="image/*" hidden>
+ <input id="roomDesignGallery" type="file" accept="image/*" multiple hidden>
+</section>
+
+<section id="scan" class="screen">
+ <div class="scan-tool scan55-tool">
+  <div class="scan-actions scan55-actions">
+   <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan">⌗</b><span>Scan QR</span><small>Open camera</small></button>
+   <button class="scan-action list" id="toggleCuttingList"><b class="scan55-icon">☑</b><span>Cutting List</span><small id="cuttingListBadge">0 pieces</small></button>
+   <button class="scan-action damage" id="openDamage"><b class="scan55-icon">⚠</b><span>Report Damage</span><small>Panel is damaged</small></button>
+  </div>
+  <button class="btn hidden" id="stopScanner">Stop scanner</button>
+  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted></video></div>
+  <div class="scan-progress-card scan55-progress">
+   <div class="scan-ring" id="scanProgressRing"><div class="scan-ring-text"><b id="scanFraction">0 / 0</b><span>Panels scanned</span></div></div>
+   <div class="scan55-stat"><b id="scanScanned">0</b><span>Scanned</span></div>
+   <div class="scan55-stat remaining"><b id="scanRemaining">0</b><span>Remaining</span></div>
+   <div class="scan55-stat damaged"><b id="scanDamaged">0</b><span>Damaged</span></div>
+   <div class="scan55-stat complete"><b id="scanPercent">0%</b><span>Complete</span><i id="scanBarFill"></i></div>
+  </div>
+  <div class="scan55-current"><span class="scan55-folder">📁</span><div><small>Current job</small><strong id="scanCurrentJob">No project open</strong></div><button class="btn" id="scanChangeJob">Change job ›</button></div>
+  <div id="damagePanel" class="damage-sheet hidden"><strong>⚠ Damaged panel</strong><input id="damagePanelCode" inputmode="text" placeholder="Panel number, for example P-001"><textarea id="damageNote" placeholder="What is damaged?"></textarea><button class="btn danger" id="saveDamage">Save damaged panel</button></div>
+  <div id="cuttingProgress" class="cutting-progress"></div>
+  <div class="scan55-recent-head"><strong>Recent scans</strong><button id="scanViewAll" type="button">View all ›</button></div>
+  <div id="recentScans" class="scan55-recent"></div>
+  <details class="scan-tools-more"><summary>More scan options</summary>
+   <div class="row" style="margin:8px 0"><label class="btn">Scan from photo<input id="scanPhoto" type="file" accept="image/*" capture="environment" hidden></label></div>
+   <textarea id="qrText" placeholder="Paste QR text"></textarea><button class="btn" id="openQrText">Open QR text</button>
+   <input id="manualPanelCode" inputmode="text" autocomplete="off" placeholder="Find panel number, for example P-001"><button class="btn primary" id="findPanelByCode">Find panel</button>
+  </details>
+  <div id="manualJobContext" class="hidden"></div><div id="scanResult" class="scan-result"></div>
+ </div>
+</section>
+
+<section id="install" class="screen">
+ <div class="card"><h2>Installation</h2><div id="installWardrobes" class="wardrobe-tabs"></div><div id="installList"></div></div>
+</section>
+
+<section id="bom" class="screen">
+ <div class="card"><h2>Project Summary</h2><div class="muted">The complete project in one simple room by room overview.</div><div id="mobileJobBom" style="margin-top:12px"></div></div>
+</section>
+</main>
+
+<section id="site" class="screen"><main>
+<div class="card site45-plan-card">
+ <div class="site45-head"><h2>Site planner</h2><div class="site53-toolbar"><label class="mini-btn primary">＋ Add / replace plan<input id="mSitePlanPhoto" type="file" accept="image/*" hidden></label><button id="mRemovePlan" class="mini-btn site53-danger">Remove plan</button><button id="mOpenMessages" class="mini-btn">💬 Messages</button></div></div>
+ <div id="mSitePlan" class="site45-plan">
+  <div id="mSiteEmpty" class="site45-empty"><b>🏠 Add a floor plan or site photo</b><span>Choose a trade, then tap the exact place.</span></div>
+  <img id="mSitePlanImage" class="hidden" alt="Floor plan or site photo"><div id="mSitePins"></div>
+ </div>
+ <div class="site45-help">Tap a pin to read or reply. Tap an empty place to add a pin.</div>
+</div>
+<div class="card site45-controls">
+ <div class="site45-label">1. Choose the trade</div>
+ <div class="trade-grid" id="mTradeGrid">
+  <button class="trade-choice active" data-trade="Builder" data-icon="👷"><b>👷</b>Builder</button>
+  <button class="trade-choice" data-trade="Bricklayer" data-icon="🧱"><b>🧱</b>Bricklayer</button>
+  <button class="trade-choice" data-trade="Plumber" data-icon="🚿"><b>🚿</b>Plumber</button>
+  <button class="trade-choice" data-trade="Electrician" data-icon="⚡"><b>⚡</b>Electrician</button>
+  <button class="trade-choice" data-trade="Decorator" data-icon="🎨"><b>🎨</b>Decorator</button>
+  <button class="trade-choice" data-trade="Carpenter" data-icon="🪚"><b>🪚</b>Carpenter</button>
+  <button class="trade-choice" data-trade="Wardrobes" data-icon="🚪"><b>🚪</b>Wardrobes</button>
+  <button class="trade-choice" data-trade="Flooring" data-icon="▦"><b>▦</b>Flooring</button>
+ </div>
+ <details class="site52-more"><summary>＋ More trades</summary><div class="trade-grid" style="margin-top:6px">
+  <button class="trade-choice" data-trade="Kitchen Installer" data-icon="🍽️"><b>🍽️</b>Kitchen</button>
+  <button class="trade-choice" data-trade="Tiler" data-icon="◫"><b>◫</b>Tiler</button>
+  <button class="trade-choice" data-trade="HVAC / Air Conditioning" data-icon="❄️"><b>❄️</b>Air con</button>
+  <button class="trade-choice" data-trade="Heating" data-icon="🔥"><b>🔥</b>Heating</button>
+  <button class="trade-choice" data-trade="Windows" data-icon="▤"><b>▤</b>Windows</button>
+  <button class="trade-choice" data-trade="Doors" data-icon="🚪"><b>🚪</b>Doors</button>
+  <button class="trade-choice" data-trade="Roofer" data-icon="⌂"><b>⌂</b>Roofer</button>
+  <button class="trade-choice" data-trade="Landscaper" data-icon="🌿"><b>🌿</b>Garden</button>
+  <button class="trade-choice" data-trade="Supplier" data-icon="📦"><b>📦</b>Supplier</button>
+  <button class="trade-choice" data-trade="Client" data-icon="👤"><b>👤</b>Client</button>
+  <button class="trade-choice" data-trade="Other" data-icon="＋"><b>＋</b>Other</button>
+ </div></details>
+ <div class="site45-label" style="margin-top:9px">2. Status</div>
+ <div class="status-grid" id="mStatusGrid">
+  <button class="status-choice active" data-status="new"><b>⚪</b>New</button>
+  <button class="status-choice" data-status="waiting"><b>🟡</b>Waiting</button>
+  <button class="status-choice" data-status="done"><b>🟢</b>Done</button>
+  <button class="status-choice" data-status="problem"><b>🔴</b>Problem</button>
+ </div>
+ <div id="mSelectedHint" class="site52-selected hidden"></div>
+ <div class="site45-label" style="margin-top:9px">3. Room and note</div>
+ <input id="mSiteArea" placeholder="Room or area, for example Bathroom">
+ <div class="site52-note"><input id="mTradeMessage" placeholder="What needs doing here?"></div>
+ <label class="btn" style="margin-top:7px;text-align:center">📷 Add photo<input id="mTradePhoto" type="file" accept="image/*" capture="environment" hidden></label>
+ <button id="mSaveSiteUpdate" class="btn primary site45-save" style="width:100%;margin-top:7px">Save pin</button>
+ <div id="mPinActions" class="site53-actions hidden"><button id="mMovePin" class="btn">Move pin</button><button id="mDeletePin" class="btn site53-danger">Delete pin</button><button id="mClosePin" class="btn">Close</button></div>
+ <div id="mPinThread" class="site52-thread hidden">
+  <div class="site45-label">Conversation at this pin</div><div id="mThreadMessages"></div>
+  <div class="site52-compose"><select id="mReplyTrade"></select><input id="mReplyText" placeholder="Write a short reply…"><button id="mSendReply" class="btn primary">Send reply</button></div>
+ </div>
+</div>
+<div id="mDirectMessagesCard" class="card site53-hidden">
+ <div class="site45-head"><h2>Trade messages</h2><button id="mCloseMessages" class="mini-btn">Close</button></div>
+ <div class="site53-grid2"><label>Your trade<select id="mMyTrade"></select></label><label>Your language<select id="mMyLanguage"><option>English</option><option>Spanish</option><option>Danish</option><option>German</option><option>French</option><option>Romanian</option><option>Italian</option><option>Portuguese</option><option>Dutch</option><option>Polish</option></select></label></div>
+ <div class="site45-label" style="margin-top:9px">Who should receive this?</div><div id="mMessageRecipients" class="site53-recipients"></div>
+ <textarea id="mDirectMessageText" placeholder="Write a short site message…" style="margin-top:8px"></textarea>
+ <label class="btn" style="margin-top:7px;text-align:center">📷 Add photo<input id="mDirectMessagePhoto" type="file" accept="image/*" capture="environment" hidden></label>
+ <button id="mSendDirectMessage" class="btn primary" style="width:100%;margin-top:7px">Send message</button>
+ <div class="site45-label" style="margin-top:12px">Project conversation</div><div id="mDirectMessages"></div>
+</div>
+<div class="card"><div class="site45-head"><h2>Site updates</h2></div><div id="mSiteUpdates" class="empty">No updates yet.</div></div>
+</main></section>
+
+<nav class="modern-bottom-nav">
+<button class="nav active" data-screen="projects"><b class="nav-icon nav-folder" aria-hidden="true">📁</b><span>Project</span></button>
+<button class="nav" data-screen="drawings"><b class="nav-icon nav-room" aria-hidden="true">🏠</b><span>Room Guide</span></button>
+<button class="nav scan-main" data-screen="scan"><b class="nav-icon nav-qr" aria-hidden="true"><i></i></b><span>Scan</span></button>
+<button class="nav" data-screen="measure"><b class="nav-icon nav-measure" aria-hidden="true"><i class="measure-ruler"></i><i class="measure-pencil"></i></b><span>Measure</span></button>
+<button class="nav" data-screen="install"><b class="nav-icon nav-install" aria-hidden="true"><i class="install-case"></i><i class="install-check">✓</i></b><span>Install</span></button>
+</nav>
+<script>
+const KEY="assembleone_mobile_v2";
+let state={projects:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,screen:"projects"};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const safe=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const project=()=>state.projects.find(x=>x.id===state.currentProject)||null;
+const cabinet=()=>project()?.cabinets?.find(x=>x.id===state.currentCabinet)||null;
+const part=()=>cabinet()?.parts?.find(x=>x.id===state.currentPart)||null;
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):(.+)$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3])}:null}
+function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;state.screen="install";save();return true}return false}
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};const route=parsePanelHash();if(route&&!openPanelRoute(route)){state.pendingPanelRoute=route;state.screen="projects"}renderAll();if(route&&!state.currentPart)setTimeout(()=>alert("Open the published AssembleOne project on this phone first. Then scan the QR again."),50)}
+function show(name){state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===name));save();renderAll()}
+$$(".nav").forEach(b=>b.onclick=()=>show(b.dataset.screen));
+function ensureExtras(p){
+ (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]}})}
+function newJob(){const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;save();show("measure")}
+$("#newJob").onclick=newJob;
+function renderHeader(){const p=project(),c=cabinet();$("#context").textContent=p?(p.name+(c?" › "+c.name:"")):"Project · Room Guide · Scan · Measure · Install"}
+function roomIconFromName(name,type){
+ const text=((type||"")+" "+(name||"")).toLowerCase();
+ const map=[["wine","🍷"],["bath","🚿"],["kitchen","🍳"],["laundry","🧺"],["utility","📦"],["dressing","👕"],["master bedroom","🛏️"],["bedroom","🛏️"],["kids","🧸"],["living","🛋️"],["tv wall","📺"],["office","💼"],["hall","🚪"],["under stairs","🪜"],["library","📚"]];
+ return (map.find(([k])=>text.includes(k))||[])[1]||"🏠";
+}
+function projectRoomDisplay(p){
+ const room=(p.rooms||[])[0];
+ if(room){room.icon=room.icon||roomIconFromName(room.name,room.type);return {icon:room.icon,name:room.name||room.type||"Room"}}
+ const cab=(p.cabinets||[])[0];
+ const name=cab?.roomName||cab?.room||cab?.name||"Project";
+ return {icon:roomIconFromName(name,name),name};
+}
+function renderProjects(){
+ const box=$("#jobList");
+ box.innerHTML=state.projects.length?state.projects.map(p=>{const display=projectRoomDisplay(p);const rooms=(p.rooms||[]).length;const units=(p.cabinets||[]).length;return `<div class="job"><div class="mobile-job-icon">${display.icon}</div><div><div class="job-title">${safe(p.name||"Unnamed project")}</div><div class="job-room-name">${safe(display.name)}</div><div class="job-meta">${safe(p.customer||"No customer")}<br>${rooms} room${rooms===1?"":"s"} · ${units} unit${units===1?"":"s"}</div></div><div class="mobile-job-actions"><button class="btn primary open-job" data-id="${p.id}">Open</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`}).join(""):'<div class="mobile-empty-projects">No projects yet.<br>Tap <b>New Site Job</b> to begin.</div>';
+ $$(".open-job").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.id;const p=project();state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;save();show("drawings")});
+ $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(`Delete "${p.name||"this project"}" from this phone?`))return;state.projects=state.projects.filter(x=>x.id!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
+}
+function renderMeasure(){
+ const p=project();if(!p)return;
+ $("#jobName").value=p.name||"";$("#customer").value=p.customer||"";$("#address").value=p.address||"";$("#phone").value=p.phone||"";$("#jobNotes").value=p.notes||"";
+ $("#measurementList").innerHTML=p.siteMeasurements.length?p.siteMeasurements.map(m=>`<div class="measure-row"><div class="measure-main">${safe(m.area)} · ${safe(m.name||"Measurement")}: ${safe(m.value)} mm</div><div class="muted">${safe(m.note||"")}</div><button class="btn danger delete-measure" data-id="${m.id}" style="margin-top:6px">Delete</button></div>`).join(""):'<div class="muted">No measurements yet.</div>';
+ $$(".delete-measure").forEach(b=>b.onclick=()=>{p.siteMeasurements=p.siteMeasurements.filter(x=>x.id!==b.dataset.id);save();renderMeasure()});
+ $("#photoList").innerHTML=p.sitePhotos.length?p.sitePhotos.map(ph=>`<div class="photo-tile"><img class="photo" src="${ph.data}"><input class="photo-note" data-id="${ph.id}" value="${safe(ph.note||"")}" placeholder="Photo note"><button class="btn danger delete-photo" data-id="${ph.id}" style="margin-top:6px">Delete</button></div>`).join(""):'<div class="muted">No site photos yet.</div>';
+ $$(".photo-note").forEach(i=>i.onchange=()=>{const ph=p.sitePhotos.find(x=>x.id===i.dataset.id);if(ph){ph.note=i.value;save()}});
+ $$(".delete-photo").forEach(b=>b.onclick=()=>{p.sitePhotos=p.sitePhotos.filter(x=>x.id!==b.dataset.id);save();renderMeasure()});
+}
+$("#saveDetails").onclick=()=>{const p=project();if(!p)return alert("Open a project.");p.name=$("#jobName").value;p.customer=$("#customer").value;p.address=$("#address").value;p.phone=$("#phone").value;p.notes=$("#jobNotes").value;save();renderAll();alert("Job details saved.")};
+$("#addMeasure").onclick=()=>{const p=project();if(!p)return alert("Open a project.");const value=$("#measureValue").value.trim();if(!value)return alert("Enter the measurement.");p.siteMeasurements.push({id:uid(),area:$("#measureArea").value,name:$("#measureName").value.trim(),value,note:$("#measureNote").value.trim()});$("#measureValue").value=$("#measureName").value=$("#measureNote").value="";save();renderMeasure()};
+function compressImage(file,done){const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const max=1500,scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);done(c.toDataURL("image/jpeg",.78))};img.src=r.result};r.readAsDataURL(file)}
+function addPhoto(file){const p=project();if(!p||!file)return;compressImage(file,data=>{p.sitePhotos.push({id:uid(),data,note:""});save();renderMeasure()})}
+$("#cameraPhoto").onchange=e=>addPhoto(e.target.files[0]);$("#galleryPhoto").onchange=e=>addPhoto(e.target.files[0]);
+function wardrobeButtons(target,onclick){
+ const p=project(),el=$(target);if(!p){el.innerHTML="";return}
+ el.innerHTML=p.cabinets.length?p.cabinets.map(c=>`<button class="wardrobe-tab ${c.id===state.currentCabinet?"active":""}" data-cab="${c.id}">${safe(c.name)}</button>`).join(""):'<span class="muted">No wardrobes in this job.</span>';
+ el.querySelectorAll("[data-cab]").forEach(b=>b.onclick=()=>{state.currentCabinet=b.dataset.cab;state.currentPart=null;save();onclick()});
+}
+const roomTypes=[
+ ["Kitchen","🍳"],["Living Room","🛋️"],["TV Wall","📺"],["Master Bedroom","🛏️"],["Bedroom","🛏️"],["Kids Bedroom","🧸"],["Dressing Room","👕"],["Bathroom","🚿"],["Office","💼"],["Laundry","🧺"],["Utility Room","📦"],["Hallway","🚪"],["Under Stairs","🪜"],["Wine Room","🍷"],["Library","📚"],["Custom","＋"]
+];
+const currentRoom=()=>project()?.rooms?.find(r=>r.id===state.currentRoom)||null;
+function suggestedRoomName(type){const p=project(),same=(p?.rooms||[]).filter(r=>r.type===type);return same.length?`${type} ${same.length+1}`:type}
+function openRoomCreator(){
+ const overlay=document.createElement('div');overlay.className='room-type-dialog';overlay.innerHTML=`<div class="room-type-sheet"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Add room</h2><button class="btn" id="closeRoomCreator">×</button></div><div class="muted" style="margin:4px 0 10px">Choose the room. You can add the same type as many times as needed.</div><div class="room-type-grid">${roomTypes.map(([n,i])=>`<button class="room-type-btn" data-room-type="${safe(n)}" data-icon="${i}"><b>${i}</b>${safe(n)}</button>`).join('')}</div><div id="customRoomRow" class="room-name-row hidden"><input id="customRoomName" placeholder="Room name"><button class="btn primary" id="saveCustomRoom">Add</button></div></div>`;document.body.appendChild(overlay);
+ overlay.querySelector('#closeRoomCreator').onclick=()=>overlay.remove();overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
+ overlay.querySelectorAll('[data-room-type]').forEach(b=>b.onclick=()=>{const type=b.dataset.roomType,icon=b.dataset.icon;if(type==='Custom'){overlay.querySelector('#customRoomRow').classList.remove('hidden');overlay.querySelector('#customRoomName').focus();return}addRoom(type,suggestedRoomName(type),icon);overlay.remove()});
+ overlay.querySelector('#saveCustomRoom').onclick=()=>{const name=overlay.querySelector('#customRoomName').value.trim();if(!name)return;addRoom('Custom',name,'🏠');overlay.remove()};
+}
+function addRoom(type,name,icon){const p=project();if(!p)return alert('Open a project first.');const r={id:uid(),type,name,icon,beforePhotos:[],designImages:[],notes:'',siteMarkup:{image:null,w:0,h:0,marks:[]}};p.rooms.push(r);state.currentRoom=r.id;save();renderRooms()}
+function roomCover(r){return r.beforePhotos?.[0]?.data||r.siteMarkup?.image||r.designImages?.[0]?.data||''}
+function renderRooms(){
+ const p=project(),list=$('#roomGuideList'),detail=$('#roomGuideDetail');if(!p){list.innerHTML='<div class="card"><div class="muted">Open a project first.</div></div>';detail.classList.add('hidden');return}
+ p.rooms=p.rooms||[];const r=currentRoom();
+ if(r){list.classList.add('hidden');detail.classList.remove('hidden');renderRoomDetail(r);return}
+ detail.classList.add('hidden');list.classList.remove('hidden');
+ list.innerHTML=p.rooms.length?p.rooms.map(r=>{const cover=roomCover(r),measureCount=r.siteMarkup?.marks?.filter(x=>x.type==='measure').length||0;return `<article class="room-card"><div class="room-thumb">${cover?`<img src="${cover}" alt="${safe(r.name)}">`:`<div><div style="font-size:45px">${r.icon||'🏠'}</div>Room from Studio</div>`}</div><div class="room-card-body"><div class="room-card-title">${r.icon||'🏠'} ${safe(r.name)}</div><div class="room-card-meta">${measureCount} measurement${measureCount===1?'':'s'} · ${r.designImages.length} design view${r.designImages.length===1?'':'s'}</div><button class="btn primary open-room" data-id="${r.id}">Open room</button></div></article>`}).join(''):`<div class="site-intake-card"><div class="site-intake-title"><span>📍</span><div><b>Name this room</b><div class="muted">Add the room and location before sending it to Studio.</div></div></div><div class="site-intake-grid"><label>Room name<input id="siteRoomName" placeholder="Example: Main bedroom" value="${safe(p.siteRoomName||'')}"></label><label>Location<input id="siteRoomLocation" placeholder="Example: First floor, left" value="${safe(p.siteRoomLocation||'')}"></label><label style="grid-column:1/-1">Notes<textarea id="siteRoomNotes" placeholder="Anything Studio must remember">${safe(p.siteRoomNotes||'')}</textarea></label></div><div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 Measurements</button><button class="btn primary" id="sendNewSiteToStudio">↥ Send to Studio</button></div></div>`;
+ $$('.open-room').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.id;save();renderRooms()});
+ if($('#backToMeasure'))$('#backToMeasure').onclick=()=>show('measure');
+ if($('#sendNewSiteToStudio'))$('#sendNewSiteToStudio').onclick=()=>{const name=$('#siteRoomName').value.trim(),location=$('#siteRoomLocation').value.trim(),notes=$('#siteRoomNotes').value.trim();if(!name)return alert('Add the room name first.');p.siteRoomName=name;p.siteRoomLocation=location;p.siteRoomNotes=notes;p.name=p.name==='New Site Job'?name:p.name;save();exportJob(p.id)};
+}
+function renderRoomDetail(r){
+ const detail=$('#roomGuideDetail');
+ const p=project();
+ const roomCabinets=(p?.cabinets||[]).filter(c=>c.roomId===r.id);
+ const roomParts=roomCabinets.flatMap(c=>c.parts||[]);
+ const designCount=(r.designImages||[]).length;
+ const noteReady=String(r.notes||'').trim().length>0;
+ if(r.source==='mobile-measure'&&r.draft){
+  const measurementCount=(r.siteMarkup?.marks||[]).filter(x=>x.type==='measure').length;
+  const preview=r.siteMarkup?.image||roomCover(r);
+  const iconChoices=[['🛏️','Bedroom'],['🍳','Kitchen'],['🚿','Bathroom'],['🛋️','Living'],['💼','Office'],['🍷','Wine'],['🧺','Laundry'],['🏠','Other']];
+  detail.innerHTML=`<div class="room-detail-top"><button class="btn" id="backRooms">← Projects</button><h2>New job</h2><button class="btn danger" id="deleteRoom">Delete</button></div>
+  <section class="site-room-draft v66-room-guide"><div class="site-room-preview v66-preview">${preview?`<img src="${preview}" alt="Measured room">`:'<div class="room-empty">No measurement picture</div>'}<div class="v66-room-badge" id="roomBadge">${r.icon||'?'}</div><div class="v66-preview-count">${measurementCount} measurement${measurementCount===1?'':'s'}</div></div>
+  <div class="v66-step-title">Choose room</div>
+  <div class="site-room-icon-grid">${iconChoices.map(([i,n])=>`<button type="button" class="site-room-icon ${r.icon===i?'active':''}" data-site-icon="${i}" data-site-name="${n}"><b>${i}</b><span>${n}</span></button>`).join('')}</div>
+  <label class="site-room-field v66-custom-name ${r.icon==='🏠'?'':'hidden'}" id="customRoomWrap"><span>Custom room</span><input id="draftRoomName" value="${safe(r.icon==='🏠'&&r.name!=='New measured room'?r.name:'')}" placeholder="Type room name"></label>
+  <div class="v66-step-title">Floor</div>
+  <div class="v66-floor-grid">${[['Basement','⬇️'],['Ground','🏠'],['First floor','1'],['Choose number','＋']].map(([n,i])=>`<button type="button" class="v66-floor ${(n==='Choose number'?/^\d+(st|nd|rd|th) floor$/i.test(r.location||''):r.location===n)?'active':''}" data-floor="${n}"><b>${i}</b><span>${n}</span></button>`).join('')}</div>
+  <div class="v66-floor-custom ${/^\d+(st|nd|rd|th) floor$/i.test(r.location||'')?'':'hidden'}" id="customFloorWrap"><label>Floor number<input id="draftFloorNumber" type="number" min="1" max="200" inputmode="numeric" value="${safe((String(r.location||'').match(/^\d+/)||[''])[0])}" placeholder="Example: 5"></label><button type="button" id="useFloorNumber">Use floor</button></div>
+  <details class="v66-note" ${r.notes?'open':''}><summary>📝 Add note</summary><textarea id="draftRoomNotes" placeholder="Optional note for Studio">${safe(r.notes||'')}</textarea></details>
+  <div class="site-room-actions"><button class="btn" id="backToMeasurements">📏 More measurements</button><button class="btn primary" id="saveDraftRoom">✓ Save room</button><button class="btn primary send-studio" id="sendDraftToStudio">↥ Send to Studio</button></div></section>`;
+  let chosenIcon=r.icon||'', chosenName=(r.name==='New measured room'?'':r.name), chosenFloor=r.location||'';
+  const floorLabel=n=>{n=Math.max(1,Math.min(200,parseInt(n,10)||0));if(!n)return'';const m=n%100,s=n%10;const suffix=(m>=11&&m<=13)?'th':s===1?'st':s===2?'nd':s===3?'rd':'th';return n+suffix+' floor'};
+  detail.querySelectorAll('[data-site-icon]').forEach(b=>b.onclick=()=>{chosenIcon=b.dataset.siteIcon;chosenName=b.dataset.siteName;detail.querySelectorAll('[data-site-icon]').forEach(x=>x.classList.toggle('active',x===b));$('#roomBadge').textContent=chosenIcon;$('#customRoomWrap').classList.toggle('hidden',chosenIcon!=='🏠')});
+  detail.querySelectorAll('[data-floor]').forEach(b=>b.onclick=()=>{const custom=b.dataset.floor==='Choose number';$('#customFloorWrap').classList.toggle('hidden',!custom);if(!custom)chosenFloor=b.dataset.floor;detail.querySelectorAll('[data-floor]').forEach(x=>x.classList.toggle('active',x===b));if(custom)setTimeout(()=>$('#draftFloorNumber')?.focus(),0)});
+  const applyFloorNumber=()=>{const label=floorLabel($('#draftFloorNumber')?.value);if(!label){alert('Enter the floor number, for example 5 or 10.');return false}chosenFloor=label;return true};
+  $('#useFloorNumber').onclick=()=>{if(applyFloorNumber())$('#useFloorNumber').textContent='✓ '+chosenFloor};
+  $('#draftFloorNumber').oninput=()=>{const label=floorLabel($('#draftFloorNumber').value);if(label){chosenFloor=label;$('#useFloorNumber').textContent='Use '+label}else chosenFloor=''};
+  const saveDraft=()=>{if(!chosenIcon){alert('Choose the room icon first.');return false}const custom=$('#draftRoomName')?.value.trim()||'';const name=chosenIcon==='🏠'?custom:chosenName;if(!name){alert('Type the custom room name.');return false}if(!$('#customFloorWrap').classList.contains('hidden')&&!applyFloorNumber())return false;if(!chosenFloor){alert('Choose the floor.');return false}r.name=name;r.icon=chosenIcon;r.location=chosenFloor;r.notes=$('#draftRoomNotes').value.trim();p.siteRoomName=r.name;p.siteRoomLocation=r.location;p.siteRoomNotes=r.notes;save();return true};
+  $('#backRooms').onclick=()=>{state.currentRoom=null;save();renderRooms()};
+  $('#deleteRoom').onclick=()=>{if(confirm('Delete this measured room?')){p.rooms=p.rooms.filter(x=>x.id!==r.id);state.currentRoom=null;save();renderRooms()}};
+  $('#backToMeasurements').onclick=()=>show('measure');
+  $('#saveDraftRoom').onclick=()=>{if(saveDraft()){r.draft=false;save();renderRoomDetail(r)}};
+  $('#sendDraftToStudio').onclick=()=>{if(saveDraft()){r.draft=false;save();exportJob(p.id)}};
+  return;
+ }
+ detail.innerHTML=`<div class="room-detail-top"><button class="btn" id="backRooms">← Projects</button><h2>${r.icon||'🏠'} ${safe(r.name)}</h2><button class="btn danger" id="deleteRoom">Delete</button></div>
+ <div class="installer-room-intro"><div class="installer-room-icon">${r.icon||'🏠'}</div><div><div class="installer-room-title">${safe(r.name)}</div><div class="installer-room-sub">${safe(p?.customer||p?.name||'Current project')}</div></div></div>
+ <div class="installer-guide-grid">
+  <button class="installer-guide-card" id="openDesignGuide"><span class="installer-guide-icon">🖼️</span><strong>Design Guide</strong><small>${designCount?designCount+' view'+(designCount===1?'':'s'):'Open drawings'}</small></button>
+  <button class="installer-guide-card" id="openRoomNotes"><span class="installer-guide-icon">📝</span><strong>Room Notes</strong><small>${noteReady?'Important notes ready':'No extra notes'}</small></button>
+  <button class="installer-guide-card" id="openCuttingList"><span class="installer-guide-icon">📋</span><strong>Cutting List</strong><small>${roomParts.length} panel${roomParts.length===1?'':'s'}</small></button>
+  <button class="installer-guide-card" id="openQrPanels"><span class="installer-guide-icon">▦</span><strong>QR Panels</strong><small>Scan or find panel</small></button>
+ </div>
+ <section class="room-section installer-design-section" id="designGuideSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ Design Guide</h3><span class="room-count">${designCount}</span></div><div class="room-photo-grid">${designCount?r.designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name||'Design view')}</div></div>`).join(''):'<div class="room-empty">No design views from Studio yet.</div>'}</div></section>
+ <section class="room-section installer-notes-section" id="roomNotesSection"><h3 style="margin-top:0">📝 Room Notes</h3><div class="installer-note-box">${noteReady?safe(r.notes):'No extra installation notes for this room.'}</div></section>
+ <button class="btn primary installer-send-update" id="sendRoomUpdate">↥ Send Site Update</button>`;
+ $('#backRooms').onclick=()=>{state.currentRoom=null;save();show('projects')};
+ $('#deleteRoom').onclick=()=>{if(confirm(`Delete ${r.name}?`)){p.rooms=p.rooms.filter(x=>x.id!==r.id);state.currentRoom=null;save();show('projects')}};
+ $('#openDesignGuide').onclick=()=>$('#designGuideSection').scrollIntoView({behavior:'smooth',block:'start'});
+ $('#openRoomNotes').onclick=()=>$('#roomNotesSection').scrollIntoView({behavior:'smooth',block:'start'});
+ $('#openCuttingList').onclick=()=>{const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('bom')};
+ $('#openQrPanels').onclick=()=>{const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('scan')};
+ $('#sendRoomUpdate').onclick=()=>exportJob(p.id);
+}
+
+function addRoomPhoto(file,kind){const r=currentRoom();if(!r||!file)return;compressImage(file,data=>{const item={id:uid(),data,name:file.name||''};if(kind==='before')r.beforePhotos.push(item);else r.designImages.push(item);save();renderRoomDetail(r)})}
+$('#addRoomBtn').onclick=openRoomCreator;$('#roomBeforeCamera').onchange=e=>{addRoomPhoto(e.target.files[0],'before');e.target.value=''};$('#roomBeforeGallery').onchange=e=>{addRoomPhoto(e.target.files[0],'before');e.target.value=''};$('#roomDesignGallery').onchange=e=>{[...e.target.files].forEach(f=>addRoomPhoto(f,'design'));e.target.value=''};
+function renderInstall(){
+ const c=cabinet(),pt=part(),box=$("#installList");
+ if(pt&&c){
+  const p=project(),room=p?.rooms?.find(r=>r.id===c.roomId),drawing=c.drawing&&c.drawingType!=="pdf"?`<div class="panel-drawing"><img src="${c.drawing}" alt="Highlighted drawing for ${safe(pt.code)}"><div class="panel-highlight" style="left:${Number(pt.x)||50}%;top:${Number(pt.y)||50}%"></div></div>`:`<div class="panel-drawing"><div class="muted">No image drawing attached to this wardrobe yet.</div></div>`;
+  const edgeInfo=`${Number(pt.edgeLong||0)} long edge${Number(pt.edgeLong||0)===1?'':'s'} · ${Number(pt.edgeShort||0)} short edge${Number(pt.edgeShort||0)===1?'':'s'}`;
+  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">← Room</button><button class="btn" id="backToPanels">← Panels</button></div><div class="panel-route">${safe(p?.name||'Project')} › ${safe(room?.name||'Room not assigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}</div><h2 style="margin:0">${safe(pt.name||'Unnamed panel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>Quantity:</strong> ${safe(pt.qty||1)}</div><div><strong>Material:</strong> ${safe(pt.material||'Material not set')}</div><div><strong>Edging:</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>Notes:</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">✓ Installed</button><button class="btn panel-status" data-status="missing">? Missing</button><button class="btn danger panel-status" data-status="damaged">! Damaged</button></div><div><strong>Status:</strong> ${safe(pt.status||'ready')}</div></div>`;
+  $("#backToPanels").onclick=()=>{state.currentPart=null;save();renderInstall()};
+  $("#backToRoom").onclick=()=>{state.currentRoom=c.roomId||null;state.currentPart=null;save();show("drawings")};
+  $$(".panel-status").forEach(b=>b.onclick=()=>{pt.status=b.dataset.status;save();renderInstall()});
+  return;
+ }
+ wardrobeButtons("#installWardrobes",renderInstall);
+ box.innerHTML=c?.parts.length?c.parts.map(p=>`<div class="measure-row"><div class="measure-main">${safe(p.code)} · ${safe(p.name||"Unnamed panel")}</div><div class="muted">${safe(p.length||"—")} × ${safe(p.width||"—")} × ${safe(p.thickness||"—")} mm · ${safe(p.status||"ready")}</div><button class="btn primary open-panel" data-id="${p.id}" style="margin-top:7px">Open highlighted panel</button></div>`).join(""):'<div class="muted">No panels in this wardrobe.</div>';
+ $$(".open-panel").forEach(b=>b.onclick=()=>{state.currentPart=b.dataset.id;save();renderInstall()});
+}
+function mergeStudioProject(incoming){
+ if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
+ const old=state.projects.find(x=>x.id===incoming.id);ensureExtras(incoming);
+ if(old){
+  incoming.siteMeasurements=(old.siteMeasurements||[]).length?old.siteMeasurements:incoming.siteMeasurements||[];
+  incoming.sitePhotos=(old.sitePhotos||[]).length?old.sitePhotos:incoming.sitePhotos||[];incoming.rooms=(old.rooms||[]).length?old.rooms:incoming.rooms||[];
+  incoming.address=old.address||incoming.address||"";incoming.phone=old.phone||incoming.phone||"";incoming.notes=old.notes||incoming.notes||"";
+  incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
+ }
+ const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);return incoming
+}
+
+function crc32(bytes){let c=-1;for(const b of bytes){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xEDB88320:0)}return(c^-1)>>>0}
+function u16(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255}function u32(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255;a[o+2]=(v>>>16)&255;a[o+3]=(v>>>24)&255}
+function makeZip(files){const enc=new TextEncoder(),locals=[],centrals=[];let offset=0;for(const f of files){const name=enc.encode(f.name),data=typeof f.data==='string'?enc.encode(f.data):f.data,crc=crc32(data);const l=new Uint8Array(30+name.length+data.length);u32(l,0,0x04034b50);u16(l,4,20);u16(l,6,0);u16(l,8,0);u16(l,10,0);u16(l,12,0);u32(l,14,crc);u32(l,18,data.length);u32(l,22,data.length);u16(l,26,name.length);u16(l,28,0);l.set(name,30);l.set(data,30+name.length);locals.push(l);const c=new Uint8Array(46+name.length);u32(c,0,0x02014b50);u16(c,4,20);u16(c,6,20);u16(c,8,0);u16(c,10,0);u16(c,12,0);u16(c,14,0);u32(c,16,crc);u32(c,20,data.length);u32(c,24,data.length);u16(c,28,name.length);u16(c,30,0);u16(c,32,0);u16(c,34,0);u16(c,36,0);u32(c,38,0);u32(c,42,offset);c.set(name,46);centrals.push(c);offset+=l.length}const cs=centrals.reduce((n,x)=>n+x.length,0),end=new Uint8Array(22);u32(end,0,0x06054b50);u16(end,8,files.length);u16(end,10,files.length);u32(end,12,cs);u32(end,16,offset);const all=[...locals,...centrals,end],size=all.reduce((n,x)=>n+x.length,0),out=new Uint8Array(size);let p=0;for(const x of all){out.set(x,p);p+=x.length}return new Blob([out],{type:'application/zip'})}
+async function readZip(file){const a=new Uint8Array(await file.arrayBuffer()),dec=new TextDecoder(),out={};let p=0;while(p+30<=a.length&&((a[p]|a[p+1]<<8|a[p+2]<<16|a[p+3]<<24)>>>0)===0x04034b50){const method=a[p+8]|a[p+9]<<8,sz=(a[p+18]|a[p+19]<<8|a[p+20]<<16|a[p+21]<<24)>>>0,nl=a[p+26]|a[p+27]<<8,el=a[p+28]|a[p+29]<<8,name=dec.decode(a.slice(p+30,p+30+nl)),start=p+30+nl+el;if(method!==0)throw new Error('Unsupported compressed ZIP');out[name]=a.slice(start,start+sz);p=start+sz}return out}
+function jsonFromZip(entries){const key=Object.keys(entries).find(x=>/project\.json$/i.test(x)||/updates\.json$/i.test(x));if(!key)throw new Error('project.json missing');return JSON.parse(new TextDecoder().decode(entries[key]))}
+
+async function importStudioFile(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file));if(raw.app&&raw.app!=="AssembleOne")throw new Error();const p=mergeStudioProject(raw.project||raw);state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;if(state.pendingPanelRoute&&openPanelRoute(state.pendingPanelRoute)){state.pendingPanelRoute=null;save();show("install");alert("Project opened. The scanned panel is ready.")}else{save();if(raw.includesCuttingList||p.cuttingList){show("scan");setTimeout(()=>{const box=$("#cuttingProgress");if(box)box.classList.remove("hidden");renderScanDashboard()},50);alert("Cutting list and QR checklist opened. Scan a panel and it will be ticked off immediately.")}else{show("drawings");alert("Project opened on this phone or iPad.")}}}catch(e){alert("This is not a valid AssembleOne project ZIP.")}}
+$("#importStudio").onchange=e=>{importStudioFile(e.target.files[0]);e.target.value=""};
+function download(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
+function syncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open(DIRECT_SYNC_DB,2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"});if(!db.objectStoreNames.contains("mobileInbox"))db.createObjectStore("mobileInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
+const ASSEMBLEONE_FIREBASE_URL="https://assembleone-fabac-default-rtdb.firebaseio.com";
+function firebaseSafeKey(value){return String(value||uid()).replace(/[.#$\[\]/]/g,"_")}
+async function firebasePut(path,value){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(value)});if(!r.ok)throw new Error(`Firebase write failed: ${r.status}`);return r.json()}
+async function firebaseGet(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{cache:"no-store"});if(!r.ok)throw new Error(`Firebase read failed: ${r.status}`);return r.json()}
+async function firebaseDelete(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"DELETE"});if(!r.ok)throw new Error(`Firebase delete failed: ${r.status}`)}
+async function sendPackDirectly(pack){const packet={...pack,syncId:firebaseSafeKey(uid()),syncStatus:"waiting"};await firebasePut(`studioInbox/${packet.syncId}`,packet);try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-update"})}catch(e){}return true}
+async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);p.lastStudioSync=pack.exportedAt;save();renderAll();alert("Sent to Studio. Open Studio and the new job will appear automatically.")}catch(e){console.error(e);download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside AssembleOne Studio."}]),(p.name||"AssembleOne_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert("Direct sync was unavailable, so a backup file was downloaded.")}}
+
+async function mobileInboxPackets(){let out=[];try{const cloud=await firebaseGet("mobileInbox");if(cloud)out.push(...Object.values(cloud))}catch(e){console.error("Firebase Mobile inbox read failed",e)}try{const db=await syncDb();const tx=db.transaction("mobileInbox","readonly"),req=tx.objectStore("mobileInbox").getAll();out.push(...await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)}));db.close()}catch(e){}try{out=[...out,...JSON.parse(localStorage.getItem("assembleone_mobile_direct_queue_v1")||"[]")]}catch(e){}const map=new Map();out.forEach(x=>map.set(x.syncId||x.exportedAt,x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
+async function removeMobilePacket(packet){try{await firebaseDelete(`mobileInbox/${firebaseSafeKey(packet.syncId||packet.exportedAt)}`)}catch(e){console.error(e)}try{const db=await syncDb();const tx=db.transaction("mobileInbox","readwrite");tx.objectStore("mobileInbox").delete(packet.syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}try{const key="assembleone_mobile_direct_queue_v1",arr=JSON.parse(localStorage.getItem(key)||"[]").filter(x=>(x.syncId||x.exportedAt)!==(packet.syncId||packet.exportedAt));localStorage.setItem(key,JSON.stringify(arr))}catch(e){}}
+let receivingStudioPack=false;
+async function receiveStudioDirect(){if(receivingStudioPack)return;receivingStudioPack=true;try{const packets=await mobileInboxPackets();if(!packets.length)return;for(const packet of packets){const incoming=packet.project||packet;if(!incoming?.id||!Array.isArray(incoming.cabinets)){await removeMobilePacket(packet);continue}const p=mergeStudioProject(incoming);state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;save();await removeMobilePacket(packet);show((packet.openScreen||packet.includesCuttingList||p.cuttingList)?"scan":"drawings");setTimeout(()=>{renderAll();if(packet.includesCuttingList||p.cuttingList){const box=$("#cuttingProgress");if(box)box.classList.remove("hidden");renderScanDashboard()}},40);try{localStorage.setItem("assembleone_mobile_new_notice_v1","1")}catch(e){}alert("New cutting list received from Studio. It is ready for QR scanning.")}}catch(e){console.error(e)}finally{receivingStudioPack=false}}
+try{const directChannel=new BroadcastChannel("assembleone-sync");directChannel.addEventListener("message",e=>{if(e.data?.type==="studio-published"||e.data?.type==="mobile-update")receiveStudioDirect()})}catch(e){}
+window.addEventListener("focus",receiveStudioDirect);document.addEventListener("visibilitychange",()=>{if(!document.hidden)receiveStudioDirect()});setInterval(receiveStudioDirect,2500);setTimeout(receiveStudioDirect,400);
+
+function allProjectParts(p=project()){return p?(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({pt,c}))):[]}
+function scanTotals(p=project()){
+ const rows=allProjectParts(p);let total=0,scanned=0,damaged=0;
+ rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;scanned+=Math.min(q,Math.max(0,Number(pt.scannedQty)||0));damaged+=Math.min(q,Math.max(0,Number(pt.damagedQty)||0))});
+ return {total,scanned,remaining:Math.max(0,total-scanned),damaged,pct:total?Math.round(scanned/total*100):0,rows};
+}
+function markCurrentPanelScanned(){const pt=part();if(!pt)return;const q=Math.max(1,Number(pt.qty)||1);pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);pt.lastScannedAt=new Date().toISOString();save();renderScanDashboard()}
+function renderScanDashboard(){
+ const total=scanTotals();const ring=$("#scanProgressRing");if(!ring)return;
+ ring.style.setProperty('--pct',total.pct);$("#scanFraction").textContent=`${total.scanned} / ${total.total}`;const scannedEl=$("#scanScanned");if(scannedEl)scannedEl.textContent=total.scanned;$("#scanRemaining").textContent=total.remaining;$("#scanDamaged").textContent=total.damaged;$("#scanPercent").textContent=total.pct+'%';const bar=$("#scanBarFill");if(bar)bar.style.setProperty('--bar',total.pct+'%');$("#cuttingListBadge").textContent=`${total.total} piece${total.total===1?'':'s'}`;const pr=project();const cj=$("#scanCurrentJob");if(cj)cj.textContent=pr?`${pr.name||'Project'}${pr.code?' · '+pr.code:''}`:'No project open';
+ const box=$("#cuttingProgress");box.innerHTML=total.rows.length?total.rows.map(({pt,c})=>{const q=Math.max(1,Number(pt.qty)||1),n=Math.min(q,Number(pt.scannedQty)||0),d=Math.min(q,Number(pt.damagedQty)||0),cls=d?'damaged':n>=q?'done':n>0?'scanned':'';return `<div class="cut-row ${cls}"><div class="state">${d?'!':n>0?'✓':'•'}</div><div><strong>${safe(pt.code||'Panel')} · ${safe(pt.name||'Unnamed panel')}</strong><small>${safe(c.name||'Unit')} · ${n} of ${q} scanned${n>0&&n<q?' · started':''}${n>=q?' · complete':''}${d?` · ${d} damaged`:''}</small></div><button class="btn open-cut-panel" data-cab="${c.id}" data-part="${pt.id}">Open</button></div>`}).join(''):'<div class="muted">No panels in this project yet.</div>';
+ box.querySelectorAll('.open-cut-panel').forEach(b=>b.onclick=()=>{state.currentCabinet=b.dataset.cab;state.currentPart=b.dataset.part;save();show('install')});
+ const recent=$("#recentScans");if(recent){const items=total.rows.filter(({pt})=>pt.lastScannedAt||Number(pt.damagedQty)>0).sort((a,b)=>new Date(b.pt.lastScannedAt||0)-new Date(a.pt.lastScannedAt||0)).slice(0,6);recent.innerHTML=items.length?items.map(({pt,c})=>{const dmg=Number(pt.damagedQty)>0;const when=pt.lastScannedAt?new Date(pt.lastScannedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';return `<div class="scan55-recent-row ${dmg?'damaged':''}"><div class="state">${dmg?'!':'✓'}</div><div><strong>${safe(pt.code||'Panel')}</strong><small>${safe(pt.name||c.name||'Panel')}</small></div><time>${when}</time></div>`}).join(''):'<div class="scan55-empty">No panels scanned yet.</div>'}
+} 
+function locatePanelByCode(value){const wanted=normalisePanelCode(value);if(!wanted)return null;const active=project();const ordered=active?[active,...state.projects.filter(x=>x.id!==active.id)]:state.projects;for(const pr of ordered)for(const cab of (pr.cabinets||[])){const pt=(cab.parts||[]).find(x=>normalisePanelCode(x.code)===wanted);if(pt)return {pr,cab,pt}}return null}
+function parseOldQr(text){
+ const lines={};String(text).split(/\r?\n/).forEach(line=>{const i=line.indexOf(":");if(i>0)lines[line.slice(0,i).trim().toLowerCase()]=line.slice(i+1).trim()});
+ if(!lines.job||!lines.wardrobe||!lines.part)return null;
+ return {job:lines.job,wardrobe:lines.wardrobe,part:lines.part};
+}
+function openScannedText(text){
+ let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q=obj}catch(e){}
+ if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):(.+)$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3])}}
+ if(q&&openPanelRoute(q)){markCurrentPanelScanned();stopCamera();show("install");return true}
+ const old=parseOldQr(text);
+ if(old){const p=state.projects.find(x=>x.name.trim().toLowerCase()===old.job.trim().toLowerCase());const c=p?.cabinets.find(x=>x.name.trim().toLowerCase()===old.wardrobe.trim().toLowerCase());const pt=c?.parts.find(x=>x.code.trim().toLowerCase()===old.part.trim().toLowerCase());if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;markCurrentPanelScanned();save();stopCamera();show("install");return true}}
+ $("#scanResult").textContent="The QR was read, but this published job is not on the device yet. Open the project ZIP from Studio, then scan again.";return false;
+}
+$("#openQrText").onclick=()=>openScannedText($("#qrText").value.trim());
+function normalisePanelCode(value){return String(value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"")}
+function findPanelByNumber(value){
+ const wanted=normalisePanelCode(value);
+ if(!wanted){$("#scanResult").textContent="Type a panel number, for example P-001.";return false}
+ const active=project();
+ const ordered=active?[active,...state.projects.filter(x=>x.id!==active.id)]:state.projects;
+ for(const pr of ordered){
+  for(const cab of (pr.cabinets||[])){
+   const pt=(cab.parts||[]).find(x=>normalisePanelCode(x.code)===wanted);
+   if(pt){state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;save();show("install");return true}
+  }
+ }
+ $("#scanResult").textContent=`Panel ${value} was not found. Check the number or open the correct published project.`;return false
+}
+$("#findPanelByCode").onclick=()=>findPanelByNumber($("#manualPanelCode").value);
+$("#manualPanelCode").addEventListener("keydown",e=>{if(e.key==="Enter")findPanelByNumber(e.target.value)});
+let mediaStream=null,scanRunning=false,detector=null;
+async function startCamera(){
+ if(!("BarcodeDetector" in window)){alert("Direct scanning is not supported in this browser. Use Scan from photo, or use Safari/Chrome's camera to read the label and paste the text.");return}
+ try{detector=new BarcodeDetector({formats:["qr_code"]});mediaStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});const v=$("#camera");v.srcObject=mediaStream;await v.play();$("#cameraWrap").classList.remove("hidden");$("#stopScanner").classList.remove("hidden");$("#startScanner").classList.add("hidden");scanRunning=true;scanLoop()}catch(e){alert("The camera could not be opened. Check camera permission, or use Scan from photo.")}
+}
+async function scanLoop(){if(!scanRunning)return;try{const codes=await detector.detect($("#camera"));if(codes.length){$("#scanResult").textContent="QR label found.";openScannedText(codes[0].rawValue);return}}catch(e){}requestAnimationFrame(scanLoop)}
+function stopCamera(){scanRunning=false;if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
+$("#startScanner").onclick=startCamera;$("#stopScanner").onclick=stopCamera;
+$("#scanPhoto").onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!("BarcodeDetector" in window)){alert("This browser cannot read a QR from a photo. Use the normal phone camera and paste the label text.");return}try{const bmp=await createImageBitmap(f),d=new BarcodeDetector({formats:["qr_code"]}),codes=await d.detect(bmp);if(codes.length)openScannedText(codes[0].rawValue);else $("#scanResult").textContent="No QR code was found in that photo."}catch(e){$("#scanResult").textContent="The QR photo could not be read."}};
+$("#toggleCuttingList").onclick=()=>{$("#cuttingProgress").classList.toggle("hidden");renderScanDashboard()};
+const scanChangeJob=$("#scanChangeJob");if(scanChangeJob)scanChangeJob.onclick=()=>show("projects");
+const scanViewAll=$("#scanViewAll");if(scanViewAll)scanViewAll.onclick=()=>{$("#cuttingProgress").classList.remove("hidden");renderScanDashboard();$("#cuttingProgress").scrollIntoView({behavior:"smooth",block:"start"})};
+$("#openDamage").onclick=()=>{$("#damagePanel").classList.toggle("hidden");if(!$("#damagePanel").classList.contains("hidden"))$("#damagePanelCode").focus()};
+$("#saveDamage").onclick=()=>{const found=locatePanelByCode($("#damagePanelCode").value);if(!found){$("#scanResult").textContent="Panel not found. Check the panel number.";return}state.currentProject=found.pr.id;state.currentCabinet=found.cab.id;state.currentPart=found.pt.id;state.currentRoom=found.cab.roomId||null;const q=Math.max(1,Number(found.pt.qty)||1);found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);found.pt.status="damaged";found.pt.damageNote=$("#damageNote").value.trim();save();$("#damagePanelCode").value=$("#damageNote").value="";$("#damagePanel").classList.add("hidden");renderScanDashboard();$("#scanResult").textContent=`${found.pt.code} marked damaged.`};
+
+
+function renderRoomScanContext(){const screen=$("#scan");if(!screen)return;let box=$("#roomScanContext");if(!box){box=document.createElement("div");box.id="roomScanContext";box.className="room-scan-context";const main=screen.querySelector("main")||screen;main.insertBefore(box,main.firstChild)}const r=currentRoom();const units=r?(project()?.cabinets?.filter(c=>c.roomId===r.id)||[]):[];box.innerHTML=r?`Scanning for ${safe(r.name)} · ${units.length} unit${units.length===1?"":"s"}`:"Scanning the complete project";
+}
+
+function buildMobileBom(p){
+ if(!p)return null;const all=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(x=>({...x,cabinetName:c.name,roomId:c.roomId||""})));const materials={};all.forEach(x=>{const k=(x.material||"Material not set").trim()||"Material not set";materials[k]=(materials[k]||0)+(Number(x.qty)||1)});const rooms=(p.rooms||[]).map(r=>({name:r.name,notes:r.notes||"",units:(p.cabinets||[]).filter(c=>c.roomId===r.id).map(c=>({name:c.name,panels:(c.parts||[]).length,pieces:(c.parts||[]).reduce((n,x)=>n+(Number(x.qty)||1),0)}))}));return {counts:{rooms:(p.rooms||[]).length,units:(p.cabinets||[]).length,panels:all.length,pieces:all.reduce((n,x)=>n+(Number(x.qty)||1),0),installed:all.filter(x=>x.status==="installed").length,missing:all.filter(x=>x.status==="missing").length},materials,rooms};
+}
+function renderMobileBom(){const box=$("#mobileJobBom"),p=project();if(!box)return;if(!p){box.innerHTML='<div class="muted">Open a project first.</div>';return}const b=buildMobileBom(p);box.innerHTML=`<div class="mobile-bom-grid"><div class="mobile-bom-stat">Rooms<b>${b.counts.rooms}</b></div><div class="mobile-bom-stat">Units<b>${b.counts.units}</b></div><div class="mobile-bom-stat">Panels<b>${b.counts.panels}</b></div><div class="mobile-bom-stat">Pieces<b>${b.counts.pieces}</b></div><div class="mobile-bom-stat">Installed<b>${b.counts.installed}</b></div><div class="mobile-bom-stat">Missing<b>${b.counts.missing}</b></div></div><h3>Materials</h3><div>${Object.entries(b.materials).map(([k,v])=>`<span class="mobile-bom-material">${safe(k)} · ${v}</span>`).join("")||'<span class="muted">No materials yet.</span>'}</div><h3>Room by room</h3>${b.rooms.map(r=>`<section class="mobile-bom-room"><b>⌂ ${safe(r.name)}</b>${r.notes?`<div class="muted">${safe(r.notes)}</div>`:""}${r.units.map(u=>`<div class="mobile-bom-unit"><span>${safe(u.name)}</span><strong>${u.pieces} pcs</strong></div>`).join("")||'<div class="muted">No units assigned.</div>'}</section>`).join("")||'<div class="muted">No rooms yet.</div>'}`}
+function renderAll(){state.projects.forEach(ensureExtras);renderHeader();renderProjects();if(project()){renderMeasure();renderRooms();renderInstall();renderMobileBom()}renderRoomScanContext();renderScanDashboard()}
+load();
+</script>
+
+<script id="mobileSiteScript">
+(function(){
+ const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)];
+ const allTrades=["Builder","Bricklayer","Plumber","Electrician","Decorator","Carpenter","Wardrobes","Flooring","Kitchen Installer","Tiler","HVAC / Air Conditioning","Heating","Windows","Doors","Roofer","Landscaper","Supplier","Client","Other"];
+ const icons={Builder:"👷",Bricklayer:"🧱",Plumber:"🚿",Electrician:"⚡",Decorator:"🎨",Carpenter:"🪚",Wardrobes:"🚪",Flooring:"▦","Kitchen Installer":"🍽️",Tiler:"◫","HVAC / Air Conditioning":"❄️",Heating:"🔥",Windows:"▤",Doors:"🚪",Roofer:"⌂",Landscaper:"🌿",Supplier:"📦",Client:"👤",Other:"＋"};
+ let trade="Builder",icon="👷",status="new",pendingPhoto=null,pendingPoint=null,selectedId=null,moveMode=false,directPhoto=null,recipients=new Set();
+ const current=()=>state.projects.find(p=>p.id===state.currentProject);
+ function ensureSite(){const p=current();if(!p)return null;p.sitePlanner=p.sitePlanner||{};p.sitePlanner.mobilePlan=p.sitePlanner.mobilePlan||p.sitePlanner.plan||null;p.mobileSiteUpdates=p.mobileSiteUpdates||[];p.siteMessages=p.siteMessages||[];p.sitePreferences=p.sitePreferences||{trade:"Carpenter",language:"English"};return p}
+ const statusText={new:"New",waiting:"Waiting",done:"Done",problem:"Problem",notstarted:"New",working:"Waiting",finished:"Done"};
+ function normalize(u){u.status=({notstarted:"new",working:"waiting",finished:"done"}[u.status]||u.status||"new");u.thread=u.thread||[];return u}
+ function pseudoTranslate(text,from,to){if(!text||from===to)return text;return `[${to}] ${text}`}
+ function resetPinForm(){selectedId=null;pendingPoint=null;moveMode=false;pendingPhoto=null;$("#mSiteArea").value="";$("#mTradeMessage").value=""}
+ function renderMessages(p){const box=$("#mDirectMessages");if(!box)return;const pref=p?.sitePreferences||{language:"English"};box.innerHTML=(p?.siteMessages||[]).length?p.siteMessages.map(m=>{const translated=pseudoTranslate(m.text,m.language,pref.language);return `<div class="site53-message-card"><div class="to">${icons[m.fromTrade]||"●"} ${safe(m.fromTrade)} → ${m.toTrades.map(t=>(icons[t]||"●")+" "+safe(t)).join(", ")}</div><div style="margin-top:5px">${safe(translated)}</div>${m.language!==pref.language?`<div class="site53-original">Original (${safe(m.language)}): ${safe(m.text)}</div>`:""}${m.photo?`<img src="${m.photo}" style="max-width:100%;border-radius:8px;margin-top:7px">`:""}<small style="display:block;color:#777;margin-top:5px">${safe(m.date||"")}</small></div>`}).join(""):'<div class="muted">No project messages yet.</div>'}
+ function renderMobileSite(){
+  const p=ensureSite(),img=$("#mSitePlanImage"),empty=$("#mSiteEmpty"),pins=$("#mSitePins"),updates=$("#mSiteUpdates");if(!img)return;
+  const plan=p?.sitePlanner?.mobilePlan;if(plan){img.src=plan;img.classList.remove("hidden");empty.classList.add("hidden")}else{img.classList.add("hidden");empty.classList.remove("hidden")}
+  const arr=(p?.mobileSiteUpdates||[]).map(normalize);
+  pins.innerHTML=arr.filter(u=>Number.isFinite(u.x)&&Number.isFinite(u.y)).map(u=>`<button class="site45-pin ${u.status==="new"?"notstarted":u.status==="waiting"?"working":u.status==="done"?"finished":u.status} ${selectedId===u.id?"selected":""}" data-id="${u.id}" style="left:${u.x}%;top:${u.y}%">${u.icon||icons[u.trade]||"●"}</button>`).join("");
+  $$(".site45-pin").forEach(b=>b.onclick=e=>{e.stopPropagation();selectedId=Number(b.dataset.id);const u=arr.find(x=>x.id===selectedId);if(u){trade=u.trade;icon=u.icon||icons[u.trade]||"●";status=u.status;$("#mSiteArea").value=u.area||"";$("#mTradeMessage").value=u.message||"";pendingPoint={x:u.x,y:u.y};moveMode=false;syncButtons();renderMobileSite()}});
+  const u=arr.find(x=>x.id===selectedId),thread=$("#mPinThread"),hint=$("#mSelectedHint"),actions=$("#mPinActions");
+  if(u){hint.textContent=(u.icon||icons[u.trade]||"●")+" "+u.trade+(u.area?" · "+u.area:"");hint.classList.remove("hidden");thread.classList.remove("hidden");actions.classList.remove("hidden");$("#mThreadMessages").innerHTML=u.thread.length?u.thread.map(x=>`<div class="site52-message"><strong>${icons[x.trade]||"●"} ${safe(x.trade)}</strong>${safe(x.text)}<small style="display:block;color:#777;margin-top:4px">${safe(x.date||"")}</small></div>`).join(""):'<div class="muted">No replies yet.</div>'}else{hint.classList.add("hidden");thread.classList.add("hidden");actions.classList.add("hidden")}
+  updates.innerHTML=arr.length?arr.map(u=>`<div class="site45-update" data-update-id="${u.id}"><div class="site45-update-top"><strong>${u.icon||icons[u.trade]||"●"} ${safe(u.trade)} · ${safe(u.area||"Site")}</strong><span class="site45-badge ${u.status==="new"?"notstarted":u.status==="waiting"?"working":u.status==="done"?"finished":u.status}">${statusText[u.status]||u.status}</span></div>${u.message?`<div style="margin-top:6px">${safe(u.message)}</div>`:""}${u.photo?`<img src="${u.photo}">`:""}${u.thread.length?`<div class="muted" style="margin-top:5px">💬 ${u.thread.length} repl${u.thread.length===1?"y":"ies"}</div>`:""}</div>`).join(""):"No updates yet.";
+  $$("[data-update-id]").forEach(x=>x.onclick=()=>{selectedId=Number(x.dataset.updateId);renderMobileSite()});
+  if(p){$("#mMyTrade").value=p.sitePreferences.trade;$("#mMyLanguage").value=p.sitePreferences.language;renderMessages(p)}
+ }
+ function syncButtons(){$$(".trade-choice").forEach(b=>b.classList.toggle("active",b.dataset.trade===trade));$$(".status-choice").forEach(b=>b.classList.toggle("active",b.dataset.status===status))}
+ $$(".trade-choice").forEach(b=>b.onclick=()=>{trade=b.dataset.trade;icon=b.dataset.icon;syncButtons()});
+ $$(".status-choice").forEach(b=>b.onclick=()=>{status=b.dataset.status;syncButtons()});
+ $("#mReplyTrade").innerHTML=allTrades.map(t=>`<option>${safe(t)}</option>`).join("");
+ $("#mMyTrade").innerHTML=allTrades.map(t=>`<option>${safe(t)}</option>`).join("");
+ $("#mMessageRecipients").innerHTML=allTrades.map(t=>`<button type="button" class="site53-recipient" data-recipient="${safe(t)}">${icons[t]||"●"} ${safe(t)}</button>`).join("");
+ $$(".site53-recipient").forEach(b=>b.onclick=()=>{const t=b.dataset.recipient;recipients.has(t)?recipients.delete(t):recipients.add(t);b.classList.toggle("active",recipients.has(t))});
+ $("#mSitePlan").onclick=e=>{const p=ensureSite();if(!p?.sitePlanner?.mobilePlan)return $("#mSitePlanPhoto").click();if(e.target.closest(".site45-pin"))return;const r=e.currentTarget.getBoundingClientRect();const pt={x:Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100)),y:Math.max(0,Math.min(100,(e.clientY-r.top)/r.height*100))};if(moveMode&&selectedId){pendingPoint=pt;moveMode=false;const u=p.mobileSiteUpdates.find(x=>x.id===selectedId);if(u){u.x=pt.x;u.y=pt.y;save()}renderMobileSite();return}pendingPoint=pt;selectedId=null;$("#mSiteArea").value="";$("#mTradeMessage").value="";renderMobileSite()};
+ $("#mSitePlanPhoto").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const p=ensureSite();p.sitePlanner.mobilePlan=r.result;save();renderMobileSite()};r.readAsDataURL(f)};
+ $("#mRemovePlan").onclick=()=>{const p=ensureSite();if(!p?.sitePlanner?.mobilePlan)return;if(confirm("Remove this site plan or photo? Pins and messages will stay in the project.")){p.sitePlanner.mobilePlan=null;save();renderMobileSite()}};
+ $("#mTradePhoto").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>pendingPhoto=r.result;r.readAsDataURL(f)};
+ $("#mSaveSiteUpdate").onclick=()=>{const p=ensureSite();if(!p)return alert("Open a project first.");if(!p.sitePlanner.mobilePlan)return alert("Add a floor plan or site photo first.");if(!pendingPoint)return alert("Tap the plan where the work is happening.");const area=$("#mSiteArea").value.trim()||"Site",message=$("#mTradeMessage").value.trim();if(selectedId){const u=p.mobileSiteUpdates.find(x=>x.id===selectedId);Object.assign(u,{trade,icon,status,area,message,photo:pendingPhoto||u.photo,x:pendingPoint.x,y:pendingPoint.y,date:new Date().toISOString()})}else p.mobileSiteUpdates.unshift({id:Date.now(),trade,icon,status,area,message,photo:pendingPhoto,x:pendingPoint.x,y:pendingPoint.y,date:new Date().toISOString(),thread:[]});pendingPhoto=null;save();renderMobileSite()};
+ $("#mSendReply").onclick=()=>{const p=ensureSite(),u=p?.mobileSiteUpdates?.find(x=>x.id===selectedId),text=$("#mReplyText").value.trim();if(!u||!text)return;u.thread=u.thread||[];u.thread.unshift({id:Date.now(),trade:$("#mReplyTrade").value,text,date:new Date().toLocaleString()});$("#mReplyText").value="";save();renderMobileSite()};
+ $("#mDeletePin").onclick=()=>{const p=ensureSite();if(!p||!selectedId)return;if(confirm("Delete this pin and its conversation?")){p.mobileSiteUpdates=p.mobileSiteUpdates.filter(x=>x.id!==selectedId);resetPinForm();save();renderMobileSite()}};
+ $("#mMovePin").onclick=()=>{if(!selectedId)return;moveMode=true;alert("Tap the new position on the plan.")};
+ $("#mClosePin").onclick=()=>{resetPinForm();renderMobileSite()};
+ $("#mOpenMessages").onclick=()=>{$("#mDirectMessagesCard").classList.remove("site53-hidden");$("#mDirectMessagesCard").scrollIntoView({behavior:"smooth"})};
+ $("#mCloseMessages").onclick=()=>$("#mDirectMessagesCard").classList.add("site53-hidden");
+ $("#mMyTrade").onchange=e=>{const p=ensureSite();p.sitePreferences.trade=e.target.value;save()};
+ $("#mMyLanguage").onchange=e=>{const p=ensureSite();p.sitePreferences.language=e.target.value;save();renderMessages(p)};
+ $("#mDirectMessagePhoto").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>directPhoto=r.result;r.readAsDataURL(f)};
+ $("#mSendDirectMessage").onclick=()=>{const p=ensureSite(),text=$("#mDirectMessageText").value.trim();if(!p)return alert("Open a project first.");if(!recipients.size)return alert("Choose at least one trade.");if(!text&&!directPhoto)return alert("Write a message or add a photo.");p.siteMessages.unshift({id:Date.now(),fromTrade:p.sitePreferences.trade,toTrades:[...recipients],text,photo:directPhoto,language:p.sitePreferences.language,date:new Date().toLocaleString()});$("#mDirectMessageText").value="";directPhoto=null;recipients.clear();$$(".site53-recipient").forEach(b=>b.classList.remove("active"));save();renderMessages(p)};
+ const old=renderAll;renderAll=function(){old();renderMobileSite()};syncButtons();renderMobileSite();
+})();
+</script>
+
+
+<style id="measurePictureMenuStyle">
+.measure-picture-menu{position:fixed;inset:0;background:rgba(24,22,55,.55);z-index:5000;display:flex;align-items:center;justify-content:center;padding:18px}
+.measure-picture-menu.hidden{display:none}
+.measure-picture-card{width:min(420px,94vw);background:#fff;border-radius:24px;padding:18px;box-shadow:0 20px 55px rgba(20,18,54,.3)}
+.measure-picture-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:26px;color:#29234f}
+.measure-picture-head button{border:0;background:#f2f2f7;border-radius:14px;width:48px;height:48px;font-size:30px;color:#29234f}
+.measure-picture-card>button{width:100%;min-height:76px;margin-top:10px;border:2px solid #deddea;border-radius:18px;background:#fff;color:#211b50;display:flex;align-items:center;gap:16px;padding:12px 18px;font-size:20px;text-align:left}
+.measure-picture-card>button span{font-size:34px;min-width:42px;text-align:center}
+.measure-picture-card>button:nth-of-type(1){border-color:#62b7e7;background:#eef8ff}
+.measure-picture-card>button:nth-of-type(2){border-color:#3aaa67;background:#effaf3}
+.measure-picture-card>button:nth-of-type(3){border-color:#e8b431;background:#fff8e6}
+.markup-stage.drag-ready{outline:5px dashed #2da85f;outline-offset:-10px;background:#eefaf2}
+@media(max-width:600px){.measure-picture-card{border-radius:20px;padding:14px}.measure-picture-head{font-size:23px}.measure-picture-card>button{min-height:68px;font-size:18px}}
+</style>
+<script id="markup44Script">
+(function(){
+ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+ const stage=$('#markupStage'),world=$('#markupWorld'),img=$('#markupImage'),svg=$('#markupSvg'),marksG=$('#markupMarks'),previewG=$('#markupPreview');
+ if(!stage)return;
+ let mode='measure',kind='Wall to wall',zoom=1,panX=0,panY=0,drawing=null,pending=null,editingId=null,pinch=null;
+ const getP=()=>state.projects.find(p=>p.id===state.currentProject)||null;
+ function ensure(){const p=getP();if(!p)return null;const r=(p.rooms||[]).find(x=>x.id===state.currentRoom);const holder=r||p;holder.siteMarkup=holder.siteMarkup||{image:null,w:0,h:0,marks:[]};holder.siteMarkup.marks=holder.siteMarkup.marks||[];return holder.siteMarkup}
+ function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+ function applyTransform(){world.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;$('#markupZoomLabel').textContent=Math.round(zoom*100)+'%'}
+ function fit(){const m=ensure();if(!m||!m.w)return;const r=stage.getBoundingClientRect();zoom=Math.min(r.width/m.w,r.height/m.h);panX=(r.width-m.w*zoom)/2;panY=(r.height-m.h*zoom)/2;applyTransform()}
+ function setMode(v){mode=v;['Measure','Line','Curve','Move'].forEach(n=>$('#mode'+n)?.classList.toggle('active',v===n.toLowerCase()));$('#markupHint').textContent=v==='measure'?'Measure mode: drag from one point to another. A straight arrow line will be created.':v==='line'?'Straight line mode: every finger or Pencil stroke becomes a clean straight line.':v==='curve'?'Curve mode: draw freely with your finger or Apple Pencil.':'Move mode: drag the photo. Pinch with two fingers to zoom.'}
+ function point(e){const r=stage.getBoundingClientRect();return{x:(e.clientX-r.left-panX)/zoom,y:(e.clientY-r.top-panY)/zoom}}
+ function lineMarkup(m,preview=false){const x1=m.x1,y1=m.y1,x2=m.x2,y2=m.y2;let h='';if(m.type==='measure'){h+=`<line class="markup-measure-line${m.id===editingId?' markup-selected':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" data-id="${m.id||''}"/>`;if(!preview&&m.value){const mx=(x1+x2)/2,my=(y1+y2)/2,w=Math.max(92,String(m.value).length*15,String(m.name||'').length*8+22);h+=`<g data-id="${m.id}" transform="translate(${mx-w/2},${my-27})"><rect class="markup-label-bg" width="${w}" height="54" rx="8"/><text class="markup-label-value" x="${w/2}" y="22" text-anchor="middle">${esc(m.value)} mm</text><text class="markup-label-name" x="${w/2}" y="43" text-anchor="middle">${esc(m.name||m.kind||'Measurement')}</text></g>`}}else if(m.type==='line'){h+=`<line class="markup-straight-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" data-id="${m.id||''}"/>`}return h}
+ function render(){const m=ensure();if(!m)return;marksG.innerHTML=(m.marks||[]).map(x=>x.type==='curve'?`<polyline class="markup-curve" points="${x.points.map(p=>p.x+','+p.y).join(' ')}" data-id="${x.id}"/>`:lineMarkup(x)).join('');marksG.querySelectorAll('[data-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();const id=el.dataset.id,item=m.marks.find(x=>x.id===id);if(item?.type==='measure')openEditor(item)}))}
+ function loadMarkup(){const m=ensure();if(!m){world.style.display='none';$('#markupEmpty').style.display='flex';return}if(m.image){world.style.display='block';$('#markupEmpty').style.display='none';const finish=()=>{m.w=img.naturalWidth||m.w||1200;m.h=img.naturalHeight||m.h||900;world.style.width=m.w+'px';world.style.height=m.h+'px';svg.setAttribute('viewBox',`0 0 ${m.w} ${m.h}`);requestAnimationFrame(()=>requestAnimationFrame(()=>{fit();render()}))};img.onload=finish;img.onerror=()=>{if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent='Could not load';world.style.display='none';$('#markupEmpty').style.display='flex'};img.src=m.image;if(img.complete&&img.naturalWidth)finish()}else{world.style.display='none';$('#markupEmpty').style.display='flex';if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent=''}render()}
+ function openEditor(item){editingId=item?.id||null;pending=item||pending;$('#editorKind').textContent=pending.kind||kind;$('#editorValue').value=pending.value||'';$('#editorName').value=pending.name||pending.kind||kind;$('#deleteEditor').classList.toggle('hidden',!editingId);$('#measureEditor').classList.remove('hidden');setTimeout(()=>{$('#editorValue').focus({preventScroll:true});window.scrollTo(0,0)},80)}
+ function closeEditor(){editingId=null;pending=null;$('#measureEditor').classList.add('hidden');render()}
+ $('#saveEditor').onclick=()=>{const m=ensure();if(!m||!pending)return;pending.value=$('#editorValue').value.trim();pending.name=$('#editorName').value.trim()||pending.kind;if(!pending.value)return alert('Enter the measurement.');if(!editingId){pending.id=uid();m.marks.push(pending)}save();closeEditor();render();const st=$('#measurePhotoStatus');if(st)st.textContent=(m.marks||[]).filter(x=>x.type==='measure').length+' measurements added';};
+ $('#deleteEditor').onclick=()=>{const m=ensure();if(!m||!editingId)return;m.marks=m.marks.filter(x=>x.id!==editingId);save();closeEditor();render()};$('#closeEditor').onclick=closeEditor;
+ const cameraInput=$('#markupCameraPhoto'),galleryInput=$('#markupGalleryPhoto'),photoButton=$('#takeMeasurePhoto'),chooseButton=$('#chooseMeasurePhoto'),pasteButton=$('#pasteMeasurePhoto'),photoStatus=$('#measurePhotoStatus'),pictureMenu=$('#measurePictureMenu'),pickPictureButton=$('#pickMeasurePicture'),pastePictureButton=$('#pasteMeasurePicture'),closePictureButton=$('#closeMeasurePictureMenu');
+ function setPhotoStatus(t){if(photoStatus)photoStatus.textContent=t||''}
+ function isImageFile(file){const type=String(file?.type||'').toLowerCase(),name=String(file?.name||'').toLowerCase();return type.startsWith('image/')||/\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(name)}
+ function loadMeasurePhotoFile(file){if(!file)return;if(!isImageFile(file)){setPhotoStatus('Choose a picture file');return}const m=ensure();if(!m){alert('Open or create a project first.');setPhotoStatus('No project');return}setPhotoStatus('Loading…');compressImage(file,data=>{m.image=data;m.w=0;m.h=0;m.marks=[];zoom=1;panX=0;panY=0;save();loadMarkup();setPhotoStatus('Photo ready')})}
+ function droppedImage(dt){const files=[...(dt?.files||[])];let file=files.find(isImageFile);if(file)return file;for(const item of [...(dt?.items||[])]){if(item.kind==='file'){const f=item.getAsFile?.();if(isImageFile(f))return f}}return null}
+ function wirePhotoInput(input){if(!input)return;input.onchange=e=>{const f=e.target.files&&e.target.files[0];loadMeasurePhotoFile(f);e.target.value=''}}
+ function openPictureMenu(){pictureMenu?.classList.remove('hidden')}
+ function closePictureMenu(){pictureMenu?.classList.add('hidden')}
+ async function pasteMeasureImage(e){e?.preventDefault?.();try{if(!navigator.clipboard?.read)throw new Error('Clipboard unavailable');const items=await navigator.clipboard.read();for(const item of items){const type=item.types.find(t=>t.startsWith('image/'));if(type){loadMeasurePhotoFile(await item.getType(type));closePictureMenu();return}}setPhotoStatus('No picture copied')}catch(err){setPhotoStatus('Choose a picture instead')}}
+ if(chooseButton){chooseButton.onclick=e=>{e.preventDefault();e.stopPropagation();openPictureMenu()}}
+ if(photoButton&&cameraInput){photoButton.onclick=e=>{e.preventDefault();e.stopPropagation();closePictureMenu();cameraInput.value='';cameraInput.click()};wirePhotoInput(cameraInput)}
+ if(pickPictureButton&&galleryInput){pickPictureButton.onclick=e=>{e.preventDefault();e.stopPropagation();closePictureMenu();galleryInput.value='';galleryInput.click()};wirePhotoInput(galleryInput)}
+ if(closePictureButton)closePictureButton.onclick=closePictureMenu;
+ if(pictureMenu)pictureMenu.addEventListener('click',e=>{if(e.target===pictureMenu)closePictureMenu()});
+ if(pastePictureButton)pastePictureButton.onclick=pasteMeasureImage;
+ if(pasteButton)pasteButton.onclick=pasteMeasureImage;
+ // Keep dragged screenshots inside the measuring page instead of letting the browser open them.
+ function hasDraggedFile(dt){try{return [...(dt?.types||[])].includes('Files')||[...(dt?.items||[])].some(i=>i.kind==='file')}catch(_){return !!dt?.files?.length}}
+ window.addEventListener('dragover',e=>{if(hasDraggedFile(e.dataTransfer)){e.preventDefault();if(document.querySelector('#measure.active'))stage.classList.add('drag-ready')}});
+ window.addEventListener('drop',e=>{if(!hasDraggedFile(e.dataTransfer))return;e.preventDefault();stage.classList.remove('drag-ready');if(!document.querySelector('#measure.active'))return;const f=droppedImage(e.dataTransfer);if(f)loadMeasurePhotoFile(f);else setPhotoStatus('That file is not a picture')});
+ stage.addEventListener('dragenter',e=>{if(hasDraggedFile(e.dataTransfer)){e.preventDefault();e.stopPropagation();stage.classList.add('drag-ready')}});
+ stage.addEventListener('dragover',e=>{if(hasDraggedFile(e.dataTransfer)){e.preventDefault();e.stopPropagation();stage.classList.add('drag-ready')}});
+ stage.addEventListener('dragleave',e=>{if(!stage.contains(e.relatedTarget))stage.classList.remove('drag-ready')});
+ stage.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();stage.classList.remove('drag-ready');const f=droppedImage(e.dataTransfer);if(f)loadMeasurePhotoFile(f);else setPhotoStatus('That file is not a picture')});
+ document.addEventListener('paste',e=>{if(!document.querySelector('#measure.active'))return;const f=[...(e.clipboardData?.files||[])].find(isImageFile)||[...(e.clipboardData?.items||[])].map(i=>i.kind==='file'?i.getAsFile?.():null).find(isImageFile);if(f){e.preventDefault();loadMeasurePhotoFile(f)}});
+ $$('.measure-kind[data-kind]').forEach(b=>b.onclick=()=>{$$('.measure-kind').forEach(x=>x.classList.remove('active'));b.classList.add('active');kind=b.dataset.kind;setMode('measure');$('#otherKinds').classList.add('hidden')});
+ const otherBox=$('#otherKinds'),otherBtn=$('#openMeasureTools');
+ otherBtn.onclick=()=>otherBox.classList.toggle('hidden');
+ $('#closeOtherKinds').onclick=()=>otherBox.classList.add('hidden');
+ $$('[data-other-kind]').forEach(b=>b.onclick=()=>{kind=b.dataset.otherKind;$$('.measure-kind').forEach(x=>x.classList.remove('active'));otherBtn.classList.add('active');otherBtn.querySelector('span').textContent=kind==='Custom'?'Other':kind;otherBox.classList.add('hidden');setMode('measure')});
+ $('#modeMeasure').onclick=()=>setMode('measure');$('#modeLine').onclick=()=>setMode('line');$('#modeCurve').onclick=()=>setMode('curve');$('#modeMove').onclick=()=>setMode('move');
+ $('#saveMeasureToRoom').onclick=()=>{const p=project(),m=ensure();if(!p||!m?.image)return alert('Add a room picture first.');const count=(m.marks||[]).filter(x=>x.type==='measure').length;if(!count&&!confirm('No measurements have been added yet. Send this picture to Room Guide anyway?'))return;p.rooms=p.rooms||[];let r=p.rooms.find(x=>x.source==='mobile-measure'&&x.draft===true);if(!r){r={id:uid(),type:'Site Measure',name:'New measured room',icon:'🏠',location:'',beforePhotos:[],designImages:[],notes:'',source:'mobile-measure',draft:true,siteMarkup:{image:null,w:0,h:0,marks:[]}};p.rooms.unshift(r)}r.siteMarkup=JSON.parse(JSON.stringify(m));r.beforePhotos=[{id:uid(),data:m.image,name:'Measured room'}];state.currentRoom=r.id;save();const st=$('#measurePhotoStatus');if(st)st.textContent=count+' measurements ready in Room Guide';show('drawings')};
+ $('#markupUndo').onclick=()=>{const m=ensure();if(m?.marks.length){m.marks.pop();save();render()}};$('#markupFit').onclick=fit;$('#markupZoomIn').onclick=()=>{zoom=Math.min(5,zoom*1.2);applyTransform()};$('#markupZoomOut').onclick=()=>{zoom=Math.max(.15,zoom/1.2);applyTransform()};
+ stage.addEventListener('wheel',e=>{e.preventDefault();const old=zoom,n=e.deltaY<0?Math.min(5,zoom*1.12):Math.max(.15,zoom/1.12),r=stage.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;panX=cx-(cx-panX)*(n/old);panY=cy-(cy-panY)*(n/old);zoom=n;applyTransform()},{passive:false});
+ stage.addEventListener('pointerdown',e=>{if(!ensure()?.image)return;stage.setPointerCapture(e.pointerId);const p=point(e);drawing={pointer:e.pointerId,start:p,last:p,points:[p],startPanX:panX,startPanY:panY,startClient:{x:e.clientX,y:e.clientY}};if(mode==='curve')previewG.innerHTML=`<polyline class="markup-curve" points="${p.x},${p.y}"/>`});
+ stage.addEventListener('pointermove',e=>{if(!drawing||drawing.pointer!==e.pointerId)return;const p=point(e);drawing.last=p;if(mode==='move'){panX=drawing.startPanX+(e.clientX-drawing.startClient.x);panY=drawing.startPanY+(e.clientY-drawing.startClient.y);applyTransform();return}if(mode==='curve'){drawing.points.push(p);previewG.innerHTML=`<polyline class="markup-curve" points="${drawing.points.map(q=>q.x+','+q.y).join(' ')}"/>`}else{previewG.innerHTML=lineMarkup({type:mode==='measure'?'measure':'line',x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y},true)}});
+ stage.addEventListener('pointerup',e=>{if(!drawing||drawing.pointer!==e.pointerId)return;const m=ensure(),p=point(e);previewG.innerHTML='';if(mode==='move'){drawing=null;return}const dx=p.x-drawing.start.x,dy=p.y-drawing.start.y;if(Math.hypot(dx,dy)<8){drawing=null;return}if(mode==='curve'){m.marks.push({id:uid(),type:'curve',points:drawing.points});save();render()}else if(mode==='line'){m.marks.push({id:uid(),type:'line',x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y});save();render()}else{pending={type:'measure',kind,x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y,value:'',name:kind};openEditor(null)}drawing=null});
+ stage.addEventListener('pointercancel',()=>{drawing=null;previewG.innerHTML=''});
+ // two-finger pinch zoom
+ stage.addEventListener('touchstart',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1];pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),z:zoom};}}, {passive:true});
+ stage.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);zoom=Math.max(.15,Math.min(5,pinch.z*d/pinch.d));applyTransform()}}, {passive:true});
+ stage.addEventListener('touchend',e=>{if(e.touches.length<2)pinch=null},{passive:true});
+ const oldShow=show;show=function(id){oldShow(id);if(id==='measure')setTimeout(loadMarkup,20)};
+ const oldRenderAll2=renderAll;renderAll=function(){oldRenderAll2();if(state.screen==='measure'||document.querySelector('#measure.active'))loadMarkup()};
+ setMode('measure');loadMarkup();
+})();
+</script>
+<!-- AssembleOne Mobile 10.11: manual panel lookup and full panel details -->
+
+<style>
+@keyframes aoMobilePulse{0%,100%{box-shadow:0 0 0 0 rgba(76,145,56,.65)}50%{box-shadow:0 0 0 24px rgba(76,145,56,0)}}
+.panel-highlight{animation:aoMobilePulse 1.1s ease-in-out 3}
+</style>
+<script>
+(function(){
+ function hashRef(value){let h=2166136261;for(const ch of String(value||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36).toUpperCase().slice(-5).padStart(5,'0')}
+ window.mobileJobRef=function(pr){return 'J-'+hashRef(pr?.id||pr?.name||'JOB')}
+ window.normalisePanelCode=function(value){return String(value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')}
+ window.findPanelByNumber=function(value){
+   const active=project();
+   const box=document.querySelector('#scanResult');
+   if(!active){if(box)box.textContent='Open the correct published job first, then type the panel number.';return false}
+   const raw=String(value||'').trim().toUpperCase();
+   const wanted=normalisePanelCode(raw.replace(/^J-[A-Z0-9]+[\s:/-]+/i,''));
+   if(!wanted){if(box)box.textContent='Type a panel number, for example P-001.';return false}
+   const suppliedRef=(raw.match(/J-[A-Z0-9]+/i)||[])[0];
+   const currentRef=mobileJobRef(active);
+   if(suppliedRef && suppliedRef.toUpperCase()!==currentRef){if(box)box.textContent=`That label belongs to ${suppliedRef}. Open that job first.`;return false}
+   for(const cab of (active.cabinets||[])){
+     const pt=(cab.parts||[]).find(x=>normalisePanelCode(x.code)===wanted);
+     if(pt){state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;save();show('install');return true}
+   }
+   if(box)box.textContent=`${value} was not found inside ${active.name} (${currentRef}). Check the number.`;return false
+ }
+ function refreshManualContext(){
+   const el=document.querySelector('#manualJobContext'),pr=project();if(!el)return;
+   el.innerHTML=pr?`Current job: <strong>${safe(pr.name)}</strong> · ${mobileJobRef(pr)}<br>Type only the panel number, for example <strong>P-001</strong>.`:'Open the correct published job first, then type its panel number.';
+ }
+ const oldRenderAll=window.renderAll;
+ window.renderAll=function(){oldRenderAll();refreshManualContext()}
+ const btn=document.querySelector('#findPanelByCode');if(btn)btn.onclick=()=>findPanelByNumber(document.querySelector('#manualPanelCode').value);
+ const inp=document.querySelector('#manualPanelCode');if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();findPanelByNumber(e.target.value)}});
+ // Add the job reference to the opened panel view.
+ const oldRenderInstall=window.renderInstall;
+ window.renderInstall=function(){oldRenderInstall();const pr=project(),pt=part();if(pr&&pt){const route=document.querySelector('.panel-route');if(route)route.textContent=`${mobileJobRef(pr)} · ${pr.name} › ${route.textContent.split('›').slice(1).join('›').trim()}`}}
+ refreshManualContext();
+})();
+</script>
+
+
+<style id="a174-mobile-fit-notice">
+/* Version 10.74: one-screen measuring and simple green notices */
+.nav,.nav-btn{position:relative}
+.a174-notice-dot{position:absolute;right:12%;top:8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#18a957;color:#fff;border:3px solid #2e294e;display:none;align-items:center;justify-content:center;font:900 10px Arial;line-height:1;box-shadow:0 2px 7px #0004;z-index:20}
+.a174-notice-dot.show{display:flex}
+body:has(#measure.active){overflow:hidden}
+body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;padding-top:2px;padding-bottom:78px}
+#measure.active{height:100%;overflow:hidden}
+#measure.active .markup-app{height:100%!important;min-height:0!important;display:flex;overflow:hidden;gap:3px}
+#measure.active .measure-simple-topbar{flex:0 0 auto;min-height:0}
+#measure.active .three-main-measures{flex:0 0 auto}
+#measure.active .markup-stage{flex:1 1 auto;min-height:0!important;height:auto!important;max-height:none!important}
+#measure.active .markup-hint{flex:0 0 13px}
+#measure.active .measure-editor{align-items:flex-end;padding-bottom:76px}
+#measure.active .measure-sheet{max-height:calc(100dvh - 92px);overflow:auto;padding:11px 12px 12px}
+@media(max-width:620px){
+ body:has(#measure.active) header{height:42px;min-height:42px}
+ body:has(#measure.active) main{height:calc(100dvh - 42px);padding:2px 4px 74px}
+ #measure.active .measure-simple-topbar{grid-template-columns:1fr 1fr 1fr;gap:3px}
+ #measure.active .measure-simple-topbar .mini-btn{padding:5px 4px;font-size:10px;min-height:38px}
+ #measure.active .three-main-measures{gap:3px}
+ #measure.active .three-main-measures .measure-kind{height:50px;border-radius:11px;padding:2px}
+ #measure.active .three-main-measures .measure-kind b{font-size:22px}
+ #measure.active .three-main-measures .measure-kind span{font-size:9px}
+ #measure.active .markup-stage{border-radius:9px}
+}
+</style>
+<script id="a174-mobile-notice">
+(()=>{
+ const KEY='assembleone_mobile_new_notice_v1';
+ function nav(){return document.querySelector('.nav[data-screen="projects"]')}
+ function ensure(){const n=nav();if(!n)return null;let d=n.querySelector('.a174-notice-dot');if(!d){d=document.createElement('i');d.className='a174-notice-dot';d.textContent='NEW';n.appendChild(d)}return d}
+ function paint(){const d=ensure();if(!d)return;let show=false;try{show=localStorage.getItem(KEY)==='1'}catch(e){}d.classList.toggle('show',show)}
+ function mark(){try{localStorage.setItem(KEY,'1')}catch(e){}paint()}
+ function clear(){try{localStorage.removeItem(KEY)}catch(e){}paint()}
+ document.addEventListener('click',e=>{if(e.target.closest('.nav[data-screen="projects"]'))clear()});
+ window.addEventListener('storage',e=>{if(e.key===KEY)paint()});
+ try{const bc=new BroadcastChannel('assembleone-sync');bc.addEventListener('message',e=>{if(e.data?.type==='mobile-update'||e.data?.type==='studio-published')mark()})}catch(e){}
+ const oldImport=window.importStudioFile;
+ if(typeof oldImport==='function')window.importStudioFile=async function(...a){const r=await oldImport.apply(this,a);mark();return r}
+ paint();setInterval(paint,2500)
+})();
+</script>
+
+
+<style id="a176-measure-entry-fix">
+/* Version 10.76: compact measurement entry stays visible above the phone navigation. */
+#measure{padding-bottom:0!important;overflow:hidden!important}
+#measure.active .measure-editor{
+ position:fixed!important;
+ inset:0!important;
+ z-index:300!important;
+ display:flex!important;
+ align-items:flex-end!important;
+ justify-content:center!important;
+ padding:0 6px calc(76px + env(safe-area-inset-bottom))!important;
+ background:rgba(25,22,54,.22)!important;
+ overflow:hidden!important;
+}
+#measure.active .measure-editor.hidden{display:none!important}
+#measure.active .measure-sheet{
+ width:min(560px,100%)!important;
+ max-height:min(48dvh,390px)!important;
+ overflow:auto!important;
+ overscroll-behavior:contain;
+ background:#fff!important;
+ border:2px solid #35ad65!important;
+ border-radius:18px!important;
+ padding:10px 11px 11px!important;
+ box-shadow:0 14px 36px rgba(25,22,54,.32)!important;
+}
+#measure.active .measure-sheet-title{font-size:17px!important;margin-bottom:5px!important}
+#measure.active .measure-sheet-title button{min-width:38px!important;min-height:38px!important;font-size:25px!important}
+#measure.active .measure-sheet label{font-size:12px!important;margin-top:4px!important}
+#measure.active .measure-sheet input{min-height:42px!important;font-size:18px!important;padding:7px 9px!important}
+#measure.active .editor-actions{margin-top:7px!important;gap:6px!important}
+#measure.active .editor-actions .mini-btn{min-height:43px!important;font-size:13px!important;border-radius:12px!important}
+#measure.active #saveEditor{background:#159447!important;border-color:#159447!important;color:#fff!important}
+@media(max-width:420px){
+ #measure.active .measure-editor{padding-left:4px!important;padding-right:4px!important}
+ #measure.active .measure-sheet{max-height:min(52dvh,360px)!important;padding:8px 9px 9px!important;border-radius:15px!important}
+ #measure.active .measure-sheet-title{font-size:15px!important}
+ #measure.active .measure-sheet input{min-height:39px!important;font-size:17px!important}
+ #measure.active .editor-actions .mini-btn{min-height:40px!important;font-size:12px!important}
+}
+@media(max-height:620px){
+ #measure.active .measure-sheet{max-height:44dvh!important}
+ #measure.active .measure-sheet label{margin-top:2px!important}
+}
+</style>
+<script id="a176-keyboard-visibility">
+(()=>{
+ const editor=document.getElementById('measureEditor');
+ const value=document.getElementById('editorValue');
+ const name=document.getElementById('editorName');
+ function keepVisible(){
+  if(!editor||editor.classList.contains('hidden'))return;
+  requestAnimationFrame(()=>{
+   const sheet=editor.querySelector('.measure-sheet');
+   if(sheet)sheet.scrollTop=0;
+  });
+ }
+ [value,name].forEach(el=>el&&el.addEventListener('focus',keepVisible));
+ if(window.visualViewport){
+  visualViewport.addEventListener('resize',keepVisible);
+  visualViewport.addEventListener('scroll',keepVisible);
+ }
+})();
+</script>
+
+
+<script id="a200-sync-v1088-fix">
+/* AssembleOne Mobile 10.88 reliable single-channel sync fix */
+(function(){
+  const CHANNEL="mads_assembleone_1088";
+  const ROOT=`sync_v2/${CHANNEL}`;
+  const LAST_MOBILE_KEY="assembleone_v1088_last_mobile_packet";
+  window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
+
+  window.sendPackDirectly=async function(pack){
+    const packet={...pack,syncId:firebaseSafeKey(uid()),syncStatus:"waiting",channel:CHANNEL};
+    await firebasePut(`${ROOT}/studio/latest`,packet);
+    try{new BroadcastChannel("assembleone-sync").postMessage({type:"mobile-update",syncId:packet.syncId,channel:CHANNEL})}catch(e){}
+    return true;
+  };
+
+  window.mobileInboxPackets=async function(){
+    try{
+      const packet=await firebaseGet(`${ROOT}/mobile/latest`);
+      if(!packet)return [];
+      const id=String(packet.syncId||packet.exportedAt||"");
+      if(id&&(localStorage.getItem(LAST_MOBILE_KEY)||"")===id)return [];
+      return [packet];
+    }catch(e){console.error("Mobile inbox read failed",e);return [];}
+  };
+
+  window.removeMobilePacket=async function(packet){
+    localStorage.setItem(LAST_MOBILE_KEY,String(packet&& (packet.syncId||packet.exportedAt)||""));
+  };
+
+  window.receiveStudioDirect=async function(){
+    if(receivingStudioPack)return;
+    receivingStudioPack=true;
+    try{
+      const packets=await window.mobileInboxPackets();
+      if(!packets.length)return;
+      const packet=packets[packets.length-1];
+      const incoming=packet.project||packet;
+      if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid Studio project");
+      const units=incoming.cabinets;
+      const panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]);
+      const pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
+      if(packet.includesCuttingList&&(!units.length||!panels.length||!pieces))throw new Error("Studio sent an empty cutting list");
+      const p=mergeStudioProject(incoming);
+      state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;
+      save();await window.removeMobilePacket(packet);
+      show((packet.openScreen||packet.includesCuttingList||p.cuttingList)?"scan":"drawings");
+      setTimeout(()=>{renderAll();if(packet.includesCuttingList||p.cuttingList){const box=document.getElementById("cuttingProgress");if(box)box.classList.remove("hidden");renderScanDashboard()}},40);
+      alert(`New cutting list received: ${units.length} unit, ${panels.length} panel and ${pieces} pieces.`);
+    }catch(e){console.error(e);alert("A project arrived from Studio, but it contained no panel data. Send it again from Studio 10.88.");}
+    finally{receivingStudioPack=false;}
+  };
+
+  document.title='AssembleOne Mobile 10.88';
+})();
+</script>
+
+
+<script id="a201-sync-v1089-site-fix">
+/* AssembleOne Mobile 10.89: receive Supplier and Site Job packets separately */
+(function(){
+  const CHANNEL="mads_assembleone_1089";
+  const ROOT=`sync_v3/${CHANNEL}`;
+  const LAST="assembleone_v1089_last_mobile_packet";
+  window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
+  window.mobileInboxPackets=async function(){try{const packet=await firebaseGet(`${ROOT}/mobile/latest`);if(!packet)return [];const id=String(packet.syncId||packet.exportedAt||"");if(id&&localStorage.getItem(LAST)===id)return [];return [packet]}catch(e){console.error(e);return []}};
+  window.removeMobilePacket=async function(packet){localStorage.setItem(LAST,String(packet?.syncId||packet?.exportedAt||""))};
+  window.receiveStudioDirect=async function(){
+    if(receivingStudioPack)return;receivingStudioPack=true;
+    try{
+      const packets=await window.mobileInboxPackets();if(!packets.length)return;const packet=packets[packets.length-1];
+      const incoming=packet.project||packet;if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
+      const units=incoming.cabinets,panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]),pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
+      if(!units.length||!panels.length)throw new Error("Empty project");
+      const p=mergeStudioProject(incoming);state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;save();await window.removeMobilePacket(packet);
+      const isCut=packet.sendType==="cutting-list"||packet.openScreen==="scan"||packet.includesCuttingList===true;
+      show(isCut?"scan":"drawings");
+      setTimeout(()=>{renderAll();if(isCut){const box=document.getElementById("cuttingProgress");if(box)box.classList.remove("hidden");renderScanDashboard()}},40);
+      alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
+    }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
+  };
+  document.title='AssembleOne Mobile 11.0.1 Cloud Sync';
+})();
+</script>
+
+</body></html>
