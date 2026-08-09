@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1d1a17">
 <link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.1 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
@@ -616,9 +616,10 @@ function openSiteRoomIconPicker(p){
 }
 let siteLocationMapInstance=null,siteLocationMarker=null;
 function initSiteLocationMap(p){
+ try{
  const el=document.getElementById('siteLocationMap');
  if(!el||typeof L==='undefined')return;
- if(siteLocationMapInstance){siteLocationMapInstance.remove();siteLocationMapInstance=null;siteLocationMarker=null}
+ if(siteLocationMapInstance){try{siteLocationMapInstance.remove()}catch(e){}siteLocationMapInstance=null;siteLocationMarker=null}
  const startLat=p.geoLat!=null?p.geoLat:51.5074,startLng=p.geoLat!=null?p.geoLng:-0.1278;
  const map=L.map(el,{attributionControl:false}).setView([startLat,startLng],p.geoLat!=null?16:5);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
@@ -632,9 +633,10 @@ function initSiteLocationMap(p){
  if(p.geoLat!=null)placePin(p.geoLat,p.geoLng);
  map.on('click',e=>placePin(e.latlng.lat,e.latlng.lng));
  if(p.geoLat==null&&navigator.geolocation){
-  navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],16)},()=>{},{timeout:4000});
+  navigator.geolocation.getCurrentPosition(pos=>{if(siteLocationMapInstance===map)map.setView([pos.coords.latitude,pos.coords.longitude],16)},()=>{},{timeout:4000});
  }
- setTimeout(()=>map.invalidateSize(),80);
+ setTimeout(()=>{if(siteLocationMapInstance===map){try{map.invalidateSize()}catch(e){}}},80);
+ }catch(e){console.warn('Site location map failed to load',e)}
 }
 function addRoom(type,name,icon){const p=project();if(!p)return alert('Open a project first.');const r={id:uid(),type,name,icon,beforePhotos:[],designImages:[],notes:'',siteMarkup:{image:null,w:0,h:0,marks:[]}};p.rooms.push(r);state.currentRoom=r.id;save();renderRooms()}
 function roomCover(r){return r.beforePhotos?.[0]?.data||r.siteMarkup?.image||r.designImages?.[0]?.data||''}
