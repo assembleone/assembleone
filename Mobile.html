@@ -191,7 +191,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 </style>
 
 <style id="a156-modern-bottom-navigation">
-.modern-bottom-nav{position:fixed;left:0;right:0;bottom:0;width:100%;z-index:120;background:linear-gradient(180deg,#2f2a52 0%,#211d42 100%);display:grid;grid-template-columns:repeat(5,1fr);align-items:end;min-height:92px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(24,20,55,.20);overflow:visible}
+.modern-bottom-nav{position:fixed;left:0;right:0;bottom:0;width:100%;z-index:120;background:linear-gradient(180deg,#2f2a52 0%,#211d42 100%);display:grid;grid-template-columns:repeat(4,1fr);align-items:end;min-height:92px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(24,20,55,.20);overflow:visible}
 .modern-bottom-nav .nav{position:relative;min-width:0;min-height:72px;border:0;background:transparent!important;color:#fff!important;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px;font-weight:850;font-size:13px;line-height:1.05;transition:transform .16s ease,background .16s ease}
 .modern-bottom-nav .nav span{display:block;white-space:nowrap}
 .modern-bottom-nav .nav-icon{display:grid;place-items:center;width:43px;height:39px;font-size:31px;line-height:1;filter:none!important}
@@ -536,7 +536,6 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <button class="nav active" data-screen="projects"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_project.png?v=2"></b><span>Project</span></button>
 <button class="nav" data-screen="drawings"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_room.png?v=2"></b><span>Room Guide</span></button>
 <button class="nav scan-main" data-screen="scan"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_scan.png?v=2"></b><span>Scan</span></button>
-<button class="nav" data-screen="measure"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_measure.png?v=2"></b><span>Measure</span></button>
 <button class="nav" data-screen="install"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_install.png?v=2"></b><span>Install</span></button>
 </nav>
 <script>
@@ -552,7 +551,7 @@ function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):(.+)$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3])}:null}
 function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;state.screen="install";save();return true}return false}
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};const route=parsePanelHash();if(route&&!openPanelRoute(route)){state.pendingPanelRoute=route;state.screen="projects"}renderAll();if(route&&!state.currentPart)setTimeout(()=>alert("Open the published AssembleOne project on this phone first. Then scan the QR again."),50)}
-function show(name){state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===name));save();renderAll()}
+function show(name){state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=name==='measure'?'drawings':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll()}
 $$(".nav").forEach(b=>b.onclick=()=>show(b.dataset.screen));
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]}})}
