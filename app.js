@@ -657,7 +657,10 @@ function drawingFileAllowed(file){
  if(!file)return false;
  const type=(file.type||"").toLowerCase();
  const name=(file.name||"").toLowerCase();
- return type.startsWith("image/")||type==="application/pdf"||/\.(png|jpe?g|webp|gif|bmp|svg|pdf|heic|heif)$/i.test(name);
+ if(type.startsWith("image/")||type==="application/pdf")return true;
+ if(/\.(png|jpe?g|jfif|webp|gif|bmp|svg|pdf|heic|heif|tiff?|ico|avif)$/i.test(name))return true;
+ if(!type&&!/\.[a-z0-9]+$/i.test(name))return true;
+ return false;
 }
 function ensureRoomsWorkspace(){
  let p=project();
@@ -720,13 +723,15 @@ async function importRoomsFile(file){
 }
 function firstDroppedFile(dt){
  if(!dt)return null;
- for(const file of Array.from(dt.files||[]))if(drawingFileAllowed(file))return file;
+ const files=Array.from(dt.files||[]);
+ for(const file of files)if(drawingFileAllowed(file))return file;
  for(const item of Array.from(dt.items||[])){
    if(item.kind==="file"){
      const file=item.getAsFile();
-     if(drawingFileAllowed(file))return file;
+     if(file&&drawingFileAllowed(file))return file;
    }
  }
+ if(files.length)return files[0];
  return null;
 }
 ["drawingInputTop","drawingPhotoInput"].forEach(id=>{
