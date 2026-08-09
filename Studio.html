@@ -6,7 +6,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link href="assembleone_app_icon.svg" rel="icon"/><title>AssembleOne Studio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=14">
+<link rel="stylesheet" href="styles.css?v=15">
 
 
 
@@ -135,9 +135,9 @@
 <div class="measure-card measurement-entry-card">
 <div class="measure-entry-row">
 <div class="measure-box">
-<label class="measure-field"><span>Thickness</span><div class="measure-wrap unit-mm"><input id="fThickness" step="0.1" type="number" value="19"/><span>mm</span></div></label>
-<label class="measure-field"><span>Length</span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" title="Double-click to add edge banding" type="number"/><span>mm</span><span aria-hidden="true" class="edge-lines"><i></i><i></i></span></div></label>
-<label class="measure-field"><span>Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" title="Double-click to add edge banding" type="number"/><span>mm</span><span aria-hidden="true" class="edge-lines"><i></i><i></i></span></div></label>
+<label class="measure-field"><span>Thickness</span><div class="measure-wrap unit-mm"><input id="fThickness" step="0.1" type="number" value="19"/><span id="thicknessUnitLabel">mm</span></div></label>
+<label class="measure-field"><span>Length</span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" title="Double-click to add edge banding" type="number"/><span id="lengthUnitLabel">mm</span><span aria-hidden="true" class="edge-lines"><i></i><i></i></span></div></label>
+<label class="measure-field"><span>Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" title="Double-click to add edge banding" type="number"/><span id="widthUnitLabel">mm</span><span aria-hidden="true" class="edge-lines"><i></i><i></i></span></div></label>
 </div>
 <div class="quantity-card">
 <label class="measure-field"><span>Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" type="number" value="1"/><span>pcs</span></div></label>
@@ -371,6 +371,15 @@
 <div class="muted">Use the flag menu at the top of the screen to change the app language.</div>
 </div>
 <div class="card" style="margin-top:12px">
+<h3 style="margin-top:0">Measurement units</h3>
+<div class="muted">Choose how panel sizes are shown and typed in on the Drawing screen.</div>
+<div class="toolbar" id="unitsToggle" style="margin-top:10px">
+<button class="btn unit-choice" data-unit="mm" type="button">Millimetres (mm)</button>
+<button class="btn unit-choice" data-unit="cm" type="button">Centimetres (cm)</button>
+<button class="btn unit-choice" data-unit="in" type="button">Inches (in)</button>
+</div>
+</div>
+<div class="card" style="margin-top:12px">
 <h3 style="margin-top:0">Cloud sync</h3>
 <div class="muted">This device syncs with the phone app over the cloud automatically. No sign-in is required.</div>
 </div>
@@ -508,4 +517,4 @@
 
 
 
-<script src="app.js?v=8"></script>
+<script src="app.js?v=12"></script>

@@ -279,7 +279,8 @@ function renderNotesPicker(){
 function renderForm(){
  const p=part();const banner=$("#selectedPartBanner");banner.textContent=p?`${p.code} — ${p.name||"Part selected"}`:"No panel selected";banner.classList.toggle("has-panel",!!p);banner.classList.toggle("no-panel",!p);
  const map={fLength:"length",fWidth:"width",fThickness:"thickness",fQty:"qty",fMaterial:"material",fNotes:"notes"};
- Object.entries(map).forEach(([id,key])=>$("#"+id).value=p?.[key]??"");
+ Object.entries(map).forEach(([id,key])=>{let v=p?.[key]??"";if(MEASURE_KEYS.includes(key)&&v!=="")v=mmToUnit(v,currentMeasureUnit());$("#"+id).value=v});
+ renderUnitLabels();
  renderMaterialPicker();
  renderNotesPicker();
  const picker=$("#partNamePicker"),chosenSummary=$("#chosenPartSummary");
@@ -512,7 +513,14 @@ function renderJobBom(){
 }
 function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();updateUnitAddWording();show(state.screen||"jobs")}
 
-function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;p[key]=["length","width","thickness","qty"].includes(key)?($("#"+id).value===""?"":+$("#"+id).value):$("#"+id).value;if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key]}save();renderPartList();renderCutting();renderPhone()}}
+const UNIT_FACTORS={mm:1,cm:10,in:25.4};
+function currentMeasureUnit(){try{return state.units||"mm"}catch(e){return "mm"}}
+function mmToUnit(mm,unit){if(mm===""||mm==null||isNaN(mm))return mm;const f=UNIT_FACTORS[unit||"mm"]||1;return Math.round((Number(mm)/f)*100)/100}
+function unitToMM(val,unit){if(val===""||val==null||isNaN(val))return val;const f=UNIT_FACTORS[unit||"mm"]||1;return Math.round(Number(val)*f*100)/100}
+function unitLabel(unit){return unit||"mm"}
+const MEASURE_KEYS=["length","width","thickness"];
+function renderUnitLabels(){const u=unitLabel(currentMeasureUnit());["thicknessUnitLabel","lengthUnitLabel","widthUnitLabel"].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=u})}
+function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;let val=["length","width","thickness","qty"].includes(key)?($("#"+id).value===""?"":+$("#"+id).value):$("#"+id).value;if(MEASURE_KEYS.includes(key)&&val!=="")val=unitToMM(val,currentMeasureUnit());p[key]=val;if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key]}save();renderPartList();renderCutting();renderPhone()}}
 ["fLength","fWidth","fQty"].forEach(id=>{const el=$("#"+id);if(el)el.placeholder="Type number"});
 ["fLength:length","fWidth:width","fThickness:thickness","fQty:qty","fNotes:notes"].forEach(x=>{const[a,b]=x.split(":");bindField(a,b)});
 function setPartName(name){state.lastChosenPartName=name;const p=part();if(p)p.name=name;save();renderAll()}
@@ -838,7 +846,7 @@ $("#phonePartSelect").onchange=e=>{state.currentPart=e.target.value;save();rende
 
 function updateEdgePreview(){
  const p=part(),length=$("#fLength").value||p?.length||"2400",width=$("#fWidth").value||p?.width||"600",thick=$("#fThickness").value||p?.thickness||"19";
- if($("#edgeThickness")) $("#edgeThickness").textContent=thick+" mm";
+ if($("#edgeThickness")) $("#edgeThickness").textContent=thick+" "+unitLabel(currentMeasureUnit());
  if($("#lengthEdgeText")) $("#lengthEdgeText").textContent=length;
  if($("#widthEdgeText")) $("#widthEdgeText").textContent=width;
  const lw=$("#lengthMeasureWrap"),ww=$("#widthMeasureWrap");
@@ -1893,7 +1901,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
       if(p){if(n&&n.value.trim())p.name=n.value.trim();if(cust)p.customer=cust.value.trim()}
       if(partNow){
         const map={fThickness:'thickness',fLength:'length',fWidth:'width',fQty:'qty',fMaterial:'material',fNotes:'notes'};
-        Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width','qty'].includes(k))v=v===''?'':Number(v);if(v!==''||k==='notes'||k==='material')partNow[k]=v});
+        Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width','qty'].includes(k))v=v===''?'':Number(v);if(['thickness','length','width'].includes(k)&&v!=='')v=(typeof unitToMM==='function'&&typeof currentMeasureUnit==='function')?unitToMM(v,currentMeasureUnit()):v;if(v!==''||k==='notes'||k==='material')partNow[k]=v});
       }
       const stage=document.getElementById('drawingStage');if(c&&stage){c.viewState=c.viewState||{};c.viewState.scrollLeft=stage.scrollLeft;c.viewState.scrollTop=stage.scrollTop;c.viewState.zoom=Number(state.drawingZoom||1)}
     }catch(e){console.warn('Live form commit failed',e)}
@@ -2238,6 +2246,9 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
    q('customersJobsBtn')?.addEventListener('click',function(){q('v12TemplatesPanel')?.setAttribute('hidden','');q('v12ProjectSetup')?.setAttribute('hidden','');q('v12RecentSection')?.removeAttribute('hidden');q('v12RecentSection')?.scrollIntoView({behavior:'smooth',block:'start'})});
    q('siteJobsHomeBtn')?.addEventListener('click',function(){const panel=q('directSiteInbox');if(!panel)return;const opening=panel.hasAttribute('hidden');if(opening){panel.removeAttribute('hidden');setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'start'}),30)}else{panel.setAttribute('hidden','')}});
    q('settingsClearDataBtn')?.addEventListener('click',function(){if(!confirm('This removes every job, drawing and setting saved on this device. This cannot be undone. Continue?'))return;try{localStorage.removeItem(STORE);sessionStorage.removeItem(STORE+'_draft')}catch(e){}location.reload()});
+   function paintUnitToggle(){document.querySelectorAll('.unit-choice').forEach(b=>b.classList.toggle('active',b.dataset.unit===(state.units||'mm')))}
+   document.querySelectorAll('.unit-choice').forEach(b=>b.addEventListener('click',function(){state.units=b.dataset.unit;paintUnitToggle();if(typeof renderForm==='function')renderForm();if(typeof updateEdgePreview==='function')updateEdgePreview();save()}));
+   paintUnitToggle();
    let templateReturnScreen='jobs'; function openTemplateCheck(returnTo){templateReturnScreen=returnTo||'jobs';show('jobs');q('v12RecentSection')?.setAttribute('hidden','');q('v12ProjectSetup')?.setAttribute('hidden','');q('v12TemplatesPanel')?.removeAttribute('hidden');setTimeout(()=>q('v12TemplatesPanel')?.scrollIntoView({behavior:'smooth',block:'start'}),30)} q('finishTemplateCheckBtn')?.addEventListener('click',function(){openTemplateCheck('bom')}); q('v12CloseTemplates')?.addEventListener('click',function(){if(templateReturnScreen==='bom'){show('bom');window.scrollTo({top:0,behavior:'smooth'})}else showHome()});q('v12CloseSetup')?.addEventListener('click',showHome);
    q('v12ShowAllJobs')?.addEventListener('click',function(){q('jobGrid')?.scrollIntoView({behavior:'smooth',block:'start'})});
    updateHome();

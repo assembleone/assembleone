@@ -1724,3 +1724,8 @@ body.guide-only .a131-back-studio{display:block}
 
 /* --- Drawing canvas: final word on sizing so the empty-state card centres correctly at every width --- */
 #screen-mark .drawing-stage:not(.expanded) .drawing-canvas.drawing-canvas{position:absolute!important;inset:12px!important;width:auto!important;height:auto!important;max-width:none!important;max-height:none!important;margin:0!important;display:grid!important;place-items:center!important}
+
+/* --- Units toggle on Settings --- */
+#unitsToggle{display:flex;flex-wrap:wrap;gap:8px}
+.unit-choice{border-radius:12px;font-weight:700;color:#171c46;border-color:#d7d5e1}
+.unit-choice.active{background:#FFC600;border-color:#e6b400;color:#171c46}
