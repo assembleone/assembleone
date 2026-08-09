@@ -733,7 +733,7 @@ function initSiteLocationMap(p){
  if(!el||typeof L==='undefined')return;
  if(siteLocationMapInstance){try{siteLocationMapInstance.remove()}catch(e){}siteLocationMapInstance=null;siteLocationMarker=null}
  const startLat=p.geoLat!=null?p.geoLat:51.5074,startLng=p.geoLat!=null?p.geoLng:-0.1278;
- const map=L.map(el,{attributionControl:false}).setView([startLat,startLng],p.geoLat!=null?16:5);
+ const map=L.map(el,{attributionControl:false,dragging:false,touchZoom:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false}).setView([startLat,startLng],p.geoLat!=null?16:5);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
  siteLocationMapInstance=map;
  const hint=el.nextElementSibling;
