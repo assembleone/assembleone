@@ -669,7 +669,12 @@ function ensureExtras(p){
 function newJob(){const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;save();show("measure")}
 $("#newJob").onclick=newJob;
 $('#langCurrentBtn').onclick=openLangPicker;
-function renderHeader(){const p=project(),c=cabinet();$("#context").textContent=p?(p.name+(c?" › "+c.name:"")):"Project · Room Guide · Scan · Measure · Install"}
+function renderHeader(){
+ const p=project(),c=cabinet();
+ if(!p){$("#context").textContent="Project · Room Guide · Scan · Measure · Install";return}
+ const showName=p.name&&p.name!=='New Site Job';
+ $("#context").textContent=showName?(p.name+(c?" › "+c.name:"")):(c?c.name:"");
+}
 function roomIconFromName(name,type){
  const text=((type||"")+" "+(name||"")).toLowerCase();
  const map=[["wine","🍷"],["bath","🚿"],["kitchen","🍳"],["laundry","🧺"],["utility","📦"],["dressing","👕"],["master bedroom","🛏️"],["bedroom","🛏️"],["kids","🧸"],["living","🛋️"],["tv wall","📺"],["office","💼"],["hall","🚪"],["under stairs","🪜"],["library","📚"]];
