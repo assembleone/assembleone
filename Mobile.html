@@ -12,7 +12,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#1d1a17,#302820);color:white;padding:14px 16px;border-bottom:1px solid #5a4430}
 .brand{font:700 27px Georgia,serif;color:#f1c698}.brand small{display:block;font:11px Segoe UI,Arial;color:#bcb1a7;letter-spacing:1.5px;margin-top:2px}
 .context{font-size:12px;color:#d3c9c0;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-main{max-width:950px;margin:auto;padding:13px 13px 86px}
+main{max-width:950px;margin:auto;padding:13px 13px 100px}
 .screen{display:none}.screen.active{display:block}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:12px;box-shadow:0 8px 24px rgba(74,47,22,.06)}
 h2{font:27px Georgia,serif;margin:0 0 10px}h3{margin:0 0 8px}.muted{font-size:12px;color:var(--muted)}
@@ -189,7 +189,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 </style>
 
 <style id="a156-modern-bottom-navigation">
-.modern-bottom-nav{position:sticky;bottom:0;z-index:120;background:linear-gradient(180deg,#2f2a52 0%,#211d42 100%);display:grid;grid-template-columns:repeat(5,1fr);align-items:end;min-height:92px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(24,20,55,.20);overflow:visible}
+.modern-bottom-nav{position:fixed;left:0;right:0;bottom:0;width:100%;z-index:120;background:linear-gradient(180deg,#2f2a52 0%,#211d42 100%);display:grid;grid-template-columns:repeat(5,1fr);align-items:end;min-height:92px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(24,20,55,.20);overflow:visible}
 .modern-bottom-nav .nav{position:relative;min-width:0;min-height:72px;border:0;background:transparent!important;color:#fff!important;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px;font-weight:850;font-size:13px;line-height:1.05;transition:transform .16s ease,background .16s ease}
 .modern-bottom-nav .nav span{display:block;white-space:nowrap}
 .modern-bottom-nav .nav-icon{display:grid;place-items:center;width:43px;height:39px;font-size:31px;line-height:1;filter:none!important}
@@ -531,11 +531,11 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 </main></section>
 
 <nav class="modern-bottom-nav">
-<button class="nav active" data-screen="projects"><b class="nav-icon nav-folder" aria-hidden="true">📁</b><span>Project</span></button>
-<button class="nav" data-screen="drawings"><b class="nav-icon nav-room" aria-hidden="true">🏠</b><span>Room Guide</span></button>
-<button class="nav scan-main" data-screen="scan"><b class="nav-icon nav-qr" aria-hidden="true"><i></i></b><span>Scan</span></button>
-<button class="nav" data-screen="measure"><b class="nav-icon nav-measure" aria-hidden="true"><i class="measure-ruler"></i><i class="measure-pencil"></i></b><span>Measure</span></button>
-<button class="nav" data-screen="install"><b class="nav-icon nav-install" aria-hidden="true"><i class="install-case"></i><i class="install-check">✓</i></b><span>Install</span></button>
+<button class="nav active" data-screen="projects"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_project.png?v=2"></b><span>Project</span></button>
+<button class="nav" data-screen="drawings"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_room.png?v=2"></b><span>Room Guide</span></button>
+<button class="nav scan-main" data-screen="scan"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_scan.png?v=2"></b><span>Scan</span></button>
+<button class="nav" data-screen="measure"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_measure.png?v=2"></b><span>Measure</span></button>
+<button class="nav" data-screen="install"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_install.png?v=2"></b><span>Install</span></button>
 </nav>
 <script>
 const KEY="assembleone_mobile_v2";
@@ -1065,6 +1065,31 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
  #measure.active .measure-sheet{max-height:44dvh!important}
  #measure.active .measure-sheet label{margin-top:2px!important}
 }
+
+/* --- Colourful borders to match the Studio design language --- */
+.room-card{border:2px solid #9dbdff!important}
+.room-section{border:2px solid #e4e1eb!important;border-radius:16px!important}
+#openDesignGuide{border-color:#c9a9ff!important}
+#openRoomNotes{border-color:#ffc57a!important}
+#openCuttingList{border-color:#9dbdff!important}
+#openQrPanels{border-color:#9bddae!important}
+.installer-guide-card:hover{box-shadow:0 6px 18px rgba(39,42,84,.10)}
+.measure-row,.photo-row{border:2px solid #9dbdff!important;border-radius:14px!important}
+#installList .measure-row{border-color:#ffc57a!important}
+.room-guide-head h2,.room-card-title,.installer-room-title{color:#171c46}
+main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
+/* --- Floating rounded bottom nav, matching the Studio card language --- */
+.modern-bottom-nav{left:12px!important;right:12px!important;bottom:12px!important;width:auto!important;border-radius:28px!important;min-height:80px!important;padding:12px 8px calc(12px + env(safe-area-inset-bottom))!important;box-shadow:0 12px 32px rgba(15,12,35,.45)!important}
+.modern-bottom-nav .nav:not(.scan-main){background:transparent!important;border-radius:18px!important;min-height:60px!important;margin:0 3px!important}
+.modern-bottom-nav .nav.active:not(.scan-main){background:transparent!important;box-shadow:none!important}
+.modern-bottom-nav .nav.active:not(.scan-main) .nav-img{box-shadow:0 0 0 2px rgba(255,198,0,.55);border-radius:18px}
+.modern-bottom-nav .scan-main{margin-top:-34px!important}
+.modern-bottom-nav .scan-main:before{content:none!important}
+.modern-bottom-nav .nav-img{width:56px;height:56px;display:grid;place-items:center;filter:none!important}
+.modern-bottom-nav .nav-img img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+.modern-bottom-nav .scan-main .nav-img{width:88px;height:88px;margin-top:0}
+.modern-bottom-nav .scan-main span{margin-top:-4px;color:#ffc600;font-size:14px;font-weight:950}
+@media(max-width:430px){.modern-bottom-nav .nav-img{width:46px;height:46px}.modern-bottom-nav .scan-main .nav-img{width:74px;height:74px}}
 </style>
 <script id="a176-keyboard-visibility">
 (()=>{
