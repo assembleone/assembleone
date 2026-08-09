@@ -7,6 +7,7 @@
 <link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.1 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
@@ -826,12 +827,37 @@ function findPanelByNumber(value){
 }
 $("#findPanelByCode").onclick=()=>findPanelByNumber($("#manualPanelCode").value);
 $("#manualPanelCode").addEventListener("keydown",e=>{if(e.key==="Enter")findPanelByNumber(e.target.value)});
-let mediaStream=null,scanRunning=false,detector=null;
+let mediaStream=null,scanRunning=false,detector=null,jsqrCanvas=null,jsqrCtx=null;
 async function startCamera(){
- if(!("BarcodeDetector" in window)){alert("Direct scanning is not supported in this browser. Use Scan from photo, or use Safari/Chrome's camera to read the label and paste the text.");return}
- try{detector=new BarcodeDetector({formats:["qr_code"]});mediaStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});const v=$("#camera");v.srcObject=mediaStream;await v.play();$("#cameraWrap").classList.remove("hidden");$("#stopScanner").classList.remove("hidden");$("#startScanner").classList.add("hidden");scanRunning=true;scanLoop()}catch(e){alert("The camera could not be opened. Check camera permission, or use Scan from photo.")}
+ try{
+  mediaStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
+  const v=$("#camera");v.srcObject=mediaStream;await v.play();
+  $("#cameraWrap").classList.remove("hidden");$("#stopScanner").classList.remove("hidden");$("#startScanner").classList.add("hidden");
+  detector=null;
+  if("BarcodeDetector" in window){try{detector=new BarcodeDetector({formats:["qr_code"]})}catch(e){detector=null}}
+  scanRunning=true;scanLoop();
+ }catch(e){alert("The camera could not be opened. Check camera permission, or use Scan from photo.")}
 }
-async function scanLoop(){if(!scanRunning)return;try{const codes=await detector.detect($("#camera"));if(codes.length){$("#scanResult").textContent="QR label found.";openScannedText(codes[0].rawValue);return}}catch(e){}requestAnimationFrame(scanLoop)}
+async function scanLoop(){
+ if(!scanRunning)return;
+ try{
+  if(detector){
+   const codes=await detector.detect($("#camera"));
+   if(codes.length){$("#scanResult").textContent="QR label found.";openScannedText(codes[0].rawValue);return}
+  }else if(typeof jsQR!=="undefined"){
+   const v=$("#camera");
+   if(v.videoWidth){
+    if(!jsqrCanvas){jsqrCanvas=document.createElement("canvas");jsqrCtx=jsqrCanvas.getContext("2d",{willReadFrequently:true})}
+    jsqrCanvas.width=v.videoWidth;jsqrCanvas.height=v.videoHeight;
+    jsqrCtx.drawImage(v,0,0,jsqrCanvas.width,jsqrCanvas.height);
+    const imageData=jsqrCtx.getImageData(0,0,jsqrCanvas.width,jsqrCanvas.height);
+    const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:"dontInvert"});
+    if(code&&code.data){$("#scanResult").textContent="QR label found.";openScannedText(code.data);return}
+   }
+  }
+ }catch(e){}
+ requestAnimationFrame(scanLoop);
+}
 function stopCamera(){scanRunning=false;if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
 $("#startScanner").onclick=startCamera;$("#stopScanner").onclick=stopCamera;
 const scanNavBtn=document.querySelector('.nav.scan-main');if(scanNavBtn)scanNavBtn.onclick=()=>{show('scan');startCamera()};
