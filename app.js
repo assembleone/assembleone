@@ -43,7 +43,8 @@ function save(){
 function load(){
  try{const s=JSON.parse(localStorage.getItem(STORE));if(s)state=s}catch(e){}
  const guide=parseGuideHash();
- if(guide){state.currentProject=guide.project;state.currentCabinet=guide.cabinet;state.currentPart=guide.part;document.body.classList.add("guide-only");state.screen="phone"}
+ if(guide&&Array.isArray(state.projects)&&state.projects.some(x=>x.id===guide.project)){state.currentProject=guide.project;state.currentCabinet=guide.cabinet;state.currentPart=guide.part;document.body.classList.add("guide-only");state.screen="phone"}
+ else if(guide){location.hash=""}
  renderAll();updateWorkflowProgress(state.screen||"jobs")
 }
 function parseGuideHash(){
