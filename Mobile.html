@@ -699,10 +699,16 @@ function mergeStudioProject(incoming){
   incoming.address=old.address||incoming.address||"";incoming.phone=old.phone||incoming.phone||"";incoming.notes=old.notes||incoming.notes||"";
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
  }
+ incoming.rooms=incoming.rooms||[];
  (incoming.cabinets||[]).forEach(ic=>{
   if(!ic.drawing||ic.drawingType==="pdf")return;
-  const room=(incoming.rooms||[]).find(r=>r.id===ic.roomId);
-  if(!room)return;
+  let room=incoming.rooms.find(r=>r.id===ic.roomId);
+  if(!room){
+   const autoId="auto-room-"+ic.id;
+   room=incoming.rooms.find(r=>r.id===autoId);
+   if(!room){room={id:autoId,name:ic.name||"Wardrobe",type:"",icon:"",beforePhotos:[],designImages:[],notes:""};incoming.rooms.push(room)}
+   ic.roomId=autoId;
+  }
   room.designImages=room.designImages||[];
   const genId="studio-drawing-"+ic.id;
   const entry={id:genId,data:ic.drawing,name:(ic.name||"Wardrobe")+" — Studio drawing"};
