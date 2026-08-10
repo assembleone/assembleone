@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.4 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.5 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -245,6 +245,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .site-intake-title{display:flex;align-items:center;gap:12px;margin-bottom:14px}.site-intake-title b{font-size:26px}.site-intake-title span{font-size:30px}.site-intake-title .muted{font-size:14px}
 .site-intake-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.site-intake-grid label{font-weight:900;font-size:15px}.site-intake-grid input,.site-intake-grid textarea{margin-top:5px;padding:12px 14px;font-size:16px}.site-intake-grid textarea{min-height:64px}.site-intake-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.site-intake-actions .btn{min-height:56px;font-size:16px;font-weight:900;padding:10px 12px}
 @media(max-width:520px){.site-intake-grid{grid-template-columns:1fr}}
+#roomGuideList{display:block}
 .room-switcher{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;max-width:720px;margin:0 auto}
 .room-switch-btn{flex:none;padding:10px 16px;border-radius:999px;border:2px solid #d9d7e2;background:#fff;font-weight:900;font-size:15px;color:#2E294E;white-space:nowrap}
 .room-switch-btn.active{border-color:#FFC600;background:#fffbea}
@@ -337,7 +338,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.4 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.5 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -1527,7 +1528,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.4 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.5 Cloud Sync';
 })();
 </script>
 
