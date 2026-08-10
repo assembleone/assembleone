@@ -10,7 +10,7 @@
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
+*{box-sizing:border-box}.js-file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
 button,input,textarea,select{font:inherit}button{cursor:pointer}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#1d1a17,#302820);color:white;padding:14px 16px;border-bottom:1px solid #5a4430}
 .brand{font:700 27px Georgia,serif;color:#f1c698}.brand small{display:block;font:11px Segoe UI,Arial;color:#bcb1a7;letter-spacing:1.5px;margin-top:2px}
@@ -353,8 +353,8 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
  <div class="markup-app">
   <div class="markup-topbar measure-simple-topbar measure61-topbar">
    <button class="mini-btn measure61-picture" id="chooseMeasurePhoto" type="button"><span class="measure61-top-icon">📷</span><span>Add Picture</span></button>
-   <input id="markupCameraPhoto" type="file" accept="image/*" capture="environment" hidden>
-   <input id="markupGalleryPhoto" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.gif" hidden>
+   <input id="markupCameraPhoto" class="js-file-input" type="file" accept="image/*" capture="environment">
+   <input id="markupGalleryPhoto" class="js-file-input" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.gif">
    <span id="measurePhotoStatus" class="measure-photo-status" aria-live="polite"></span>
    <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span>Done · Room Guide</span></button>
    <button class="mini-btn measure61-tools" id="openMeasureTools" type="button"><span class="measure61-top-icon">🛠️</span><span>Tools</span></button>
