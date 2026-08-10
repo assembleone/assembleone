@@ -6,7 +6,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link href="assembleone_app_icon.svg" rel="icon"/><title>AssembleOne Studio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=16">
+<link rel="stylesheet" href="styles.css?v=17">
 
 
 
@@ -391,11 +391,17 @@
 </div>
 </section>
 <section class="screen" id="screen-bom">
-<div class="title-row"><div><h2 id="summaryTitle">Send to Phone and iPad</h2><div class="muted" id="summaryHelp">One last visual check.</div></div></div>
+<div class="title-row"><div><h2 id="summaryTitle">Finish Job</h2><div class="muted" id="summaryHelp">One last visual check, then save or send a note to the install team.</div></div></div>
 <div id="jobBom"></div>
-<button class="finish-template-check" id="finishTemplateCheckBtn" type="button"><span class="finish-template-icon">📋</span><span><strong>Template and Hardware Check</strong><small>Double check panels, hinges, lights, rails, drawers and fittings before sending.</small></span><b>›</b></button><div class="finish-final-actions">
+<button class="finish-template-check" id="finishTemplateCheckBtn" type="button"><span class="finish-template-icon">📋</span><span><strong>Template and Hardware Check</strong><small>Double check panels, hinges, lights, rails, drawers and fittings before sending.</small></span><b>›</b></button>
+<div class="card finish-note-card">
+<label for="finishPhoneNote"><strong id="noteLabel">Note for the phone</strong></label>
+<div class="muted" id="noteHint" style="margin:2px 0 8px">This is sent on its own, separate from the cutting list — good for a quick message about this job, any stage.</div>
+<textarea id="finishPhoneNote" placeholder="Example: Red's wardrobe — customer wants soft-close hinges, confirm before fitting."></textarea>
+<button class="btn primary finish-send-action" id="sendNoteToPhoneBtn" type="button"><span>📱</span><strong id="noteSendBtn">Send Note to Phone</strong><small id="noteSendSmall">Just this note, no cutting list needed</small></button>
+</div>
+<div class="finish-final-actions">
 <button class="btn finish-save-action" id="saveProjectBtn" type="button"><span>💾</span><strong>Save Project</strong><small>Keep all Studio changes</small></button>
-<button class="btn primary finish-send-action" id="exportMobileBtn" type="button"><span>📱</span><strong>Send to Phone</strong><small>Open this job on Mobile</small></button>
 </div>
 <div class="danger-zone"><button class="btn danger" id="deleteJobBtn">Delete this job</button></div>
 </section>
@@ -518,4 +524,4 @@
 
 
 
-<script src="app.js?v=16"></script>
+<script src="app.js?v=18"></script>
