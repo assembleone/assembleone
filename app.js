@@ -115,7 +115,7 @@ function renderJobs(){
 
 function siteRoomPictures(room){
  const out=[];const add=x=>{if(!x)return;const src=typeof x==='string'?x:(x.data||x.src||x.url||x.image);if(src&&!out.includes(src))out.push(src)};
- add(room?.siteMarkup?.image);(room?.sitePhotos||[]).forEach(add);(room?.beforePhotos||[]).forEach(add);(room?.designImages||[]).forEach(add);return out
+ add(room?.siteMarkup?.image);(room?.measureCaptures||[]).forEach(c=>add(c.image));(room?.sitePhotos||[]).forEach(add);(room?.beforePhotos||[]).forEach(add);(room?.designImages||[]).forEach(add);return out
 }
 function siteRoomMeasureCount(room){return room?.siteMarkup?.marks?.filter(x=>x.type==='measure').length||room?.measurements?.length||0}
 function openSiteRoomDetails(projectId,roomId){
@@ -134,7 +134,7 @@ function closeSiteRoomDetails(){const m=document.getElementById('siteRoomDetails
 function sendSitePhotoToDrawing(){
  const m=document.getElementById('siteRoomDetailsModal'),p=ensureSharedProject(state.projects.find(x=>x.id===m?.dataset.projectId));if(!p)return;const room=p.rooms.find(r=>r.id===m.dataset.roomId)||p.rooms[0];const pics=siteRoomPictures(room);const src=pics[+(m.dataset.pictureIndex||0)];if(!src)return alert('No site picture is available.');
  let c=p.cabinets.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' design',roomId:room?.id||'',drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
- c.drawing=src;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=null;save();closeSiteRoomDetails();renderAll();show('mark');alert('The site photo is now beside the drawing tools as your reference.')
+ c.drawing=src;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=null;renderAll();save();closeSiteRoomDetails();show('mark');alert('The site photo is now beside the drawing tools as your reference.')
 }
 function renderProject(){
  const p=project();$("#projectName").value=p?.name||"";$("#customerName").value=p?.customer||"";
@@ -556,6 +556,42 @@ async function firebaseGet(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL
 async function firebaseDelete(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"DELETE"});if(!r.ok)throw new Error(`Firebase delete failed: ${r.status}`)}
 async function sendPackToPhoneDirectly(pack){const packet={...pack,syncId:uid(),syncStatus:"waiting"};packet.syncId=firebaseSafeKey(packet.syncId);await firebasePut(`mobileInbox/${packet.syncId}`,packet);try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId})}catch(e){}return packet}
 async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();alert("Sent directly to Mobile. Open the phone app and the cutting list will appear automatically. No ZIP folder has been created.")}catch(e){console.error(e);alert("Direct phone connection is unavailable. Open Mobile and Studio from the same AssembleOne installation, then press Send to Phone again.")}}
+function mergeMobileSiteJob(incoming){
+ if(!incoming?.id)throw new Error("Invalid project");
+ const rooms=(incoming.rooms&&incoming.rooms.length)?incoming.rooms:[null];
+ let focusProject=null;
+ rooms.forEach((room,idx)=>{
+  const projectId=room?(incoming.id+"__"+room.id):incoming.id;
+  const roomCabinets=(incoming.cabinets||[]).filter(c=>room?c.roomId===room.id:!c.roomId);
+  let base=state.projects.find(x=>x.id===projectId);
+  if(!base){
+   base=ensureSharedProject({
+    id:projectId,
+    name:room?(room.name||incoming.name||"Site job"):(incoming.name||"Site job"),
+    customer:incoming.customer||"",
+    address:incoming.address||"",
+    phone:incoming.phone||"",
+    notes:incoming.notes||"",
+    geoLat:incoming.geoLat,geoLng:incoming.geoLng,
+    siteMobileJobId:incoming.id,
+    rooms:room?[JSON.parse(JSON.stringify(room))]:[],
+    cabinets:JSON.parse(JSON.stringify(roomCabinets))
+   });
+   state.projects.unshift(base);
+  }else{
+   ["customer","address","phone","notes","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
+   if(room){
+    base.rooms=base.rooms||[];
+    let br=base.rooms.find(x=>x.id===room.id);
+    if(!br)base.rooms.unshift(JSON.parse(JSON.stringify(room)));else Object.assign(br,JSON.parse(JSON.stringify(room)));
+   }
+   base.cabinets=base.cabinets||[];
+   roomCabinets.forEach(rc=>{let bc=base.cabinets.find(x=>x.id===rc.id);if(!bc)base.cabinets.push(JSON.parse(JSON.stringify(rc)));else Object.assign(bc,JSON.parse(JSON.stringify(rc)))});
+  }
+  if(idx===0)focusProject=base;
+ });
+ return focusProject;
+}
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
@@ -570,7 +606,7 @@ function inboxSummary(pack){const p=pack?.project||pack||{};const room=p.rooms?.
 function showInboxPopup(items){return}
 async function paintSiteInbox(){const badge=document.getElementById('siteUpdateBadge'),panel=document.getElementById('directSiteInbox'),list=document.getElementById('siteJobsList'),cardBadge=document.getElementById('siteJobsCardBadge');try{const items=await studioInboxPackets();if(badge)badge.textContent=items.length?`${items.length} NEW`:'No new jobs';panel?.classList.toggle('inbox-ready',!!items.length);if(cardBadge){if(items.length){cardBadge.textContent=String(items.length);cardBadge.removeAttribute('hidden')}else{cardBadge.setAttribute('hidden','')}}if(!list)return;if(!items.length){list.innerHTML='<div class="site-jobs-empty">No new site jobs</div>';return}list.innerHTML=items.map(pack=>{const x=inboxSummary(pack);return `<button class="site-job-inbox-card" type="button" data-open-site-packet="${safe(x.syncId)}"><span class="site-job-room-icon">${x.icon}</span><span class="site-job-main"><strong>${safe(x.customer)}</strong><span class="site-project-name">${safe(x.project)} · ${safe(x.room)}${x.floor?' · '+safe(x.floor):''}</span><span class="site-job-meta"><span>📷 ${x.photos}</span><span>📏 ${x.measures}</span></span></span><span class="site-job-open">Open Drawing</span></button>`}).join('');list.querySelectorAll('[data-open-site-packet]').forEach(b=>b.onclick=()=>receiveSitePacket(b.dataset.openSitePacket))}catch(e){if(badge)badge.textContent='Use backup file';if(list)list.innerHTML='<div class="site-jobs-empty">Direct sync unavailable. Use the backup file.</div>';document.querySelector('.site-file-backup')?.classList.add('visible')}}
 async function removeInboxPacket(syncId){try{await firebaseDelete(`studioInbox/${firebaseSafeKey(syncId)}`)}catch(e){console.error(e)}try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK)}
-async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileProject(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const room=merged.rooms?.find(r=>siteRoomPictures(r).length)||merged.rooms?.[0];const pics=siteRoomPictures(room);let c=merged.cabinets?.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' drawing',roomId:room?.id||'',drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}if(pics[0]){c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];c.siteMarkup=room?.siteMarkup?JSON.parse(JSON.stringify(room.siteMarkup)):null}state.currentProject=merged.id;state.currentCabinet=c.id;state.currentPart=null;save();renderAll();await paintSiteInbox();show('mark');toast('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
+async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileSiteJob(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const room=merged.rooms?.[0];const pics=siteRoomPictures(room);let c=merged.cabinets?.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' drawing',roomId:room?.id||'',drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}if(pics[0]){c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];c.siteMarkup=room?.siteMarkup?JSON.parse(JSON.stringify(room.siteMarkup)):null}state.currentProject=merged.id;state.currentCabinet=c.id;state.currentPart=null;renderAll();save();await paintSiteInbox();show('mark');alert('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
 async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert('No new site jobs are waiting.');return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
 document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
@@ -578,7 +614,7 @@ document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveS
 document.getElementById('siteRoomDetailsClose')?.addEventListener('click',closeSiteRoomDetails);
 document.getElementById('siteRoomDetailsModal')?.addEventListener('click',e=>{if(e.target.id==='siteRoomDetailsModal')closeSiteRoomDetails()});
 document.getElementById('sitePhotoToDrawing')?.addEventListener('click',sendSitePhotoToDrawing);
-document.getElementById('siteOpenProject')?.addEventListener('click',()=>{const m=document.getElementById('siteRoomDetailsModal');if(!m)return;state.currentProject=m.dataset.projectId;state.currentCabinet=project()?.cabinets?.[0]?.id||null;save();closeSiteRoomDetails();renderAll();show('jobs')});
+document.getElementById('siteOpenProject')?.addEventListener('click',()=>{const m=document.getElementById('siteRoomDetailsModal');if(!m)return;state.currentProject=m.dataset.projectId;state.currentCabinet=project()?.cabinets?.[0]?.id||null;renderAll();save();closeSiteRoomDetails();show('jobs')});
 
 document.getElementById('siteInboxLater')?.addEventListener('click',()=>document.getElementById('siteInboxModal')?.classList.remove('open'));
 try{const syncChannel=new BroadcastChannel("assembleone-sync");syncChannel.onmessage=()=>paintSiteInbox()}catch(e){}
