@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.5 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.6 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -338,7 +338,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.5 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.6 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -780,7 +780,7 @@ function roomCardHtml(p,r){
  const designImages=r?(r.designImages||[]):[];
  const titleText=safe(roomName)||t('intake.title');
  const sentCount=p.sentPhotoCount||0;
- const capturesSection=captures.length?`<div class="muted" style="margin-top:14px;font-weight:800">${t('intake.savedPhotos')}</div><div class="room-photo-grid" style="margin-top:6px">${captures.map(cap=>{const mCount=(cap.marks||[]).filter(x=>x.type==='measure').length;return `<div class="room-photo-tile" style="position:relative"><img src="${cap.image}"><div class="design-caption">${mCount} ${mCount===1?t('room.measurement'):t('room.measurements')}</div><button type="button" class="capture-delete-btn" data-capture-id="${cap.id}" title="${t('detail.delete')}" style="position:absolute;top:8px;right:8px;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:900;font-size:19px;line-height:1">✕</button></div>`}).join('')}</div>`:'';
+ const capturesSection=captures.length?`<details style="margin-top:14px"><summary style="font-weight:800;color:var(--ink);cursor:pointer">${t('intake.savedPhotos')} (${captures.length})</summary><div class="room-photo-grid" style="margin-top:10px">${captures.map(cap=>{const mCount=(cap.marks||[]).filter(x=>x.type==='measure').length;return `<div class="room-photo-tile" style="position:relative"><img src="${cap.image}"><div class="design-caption">${mCount} ${mCount===1?t('room.measurement'):t('room.measurements')}</div><button type="button" class="capture-delete-btn" data-capture-id="${cap.id}" title="${t('detail.delete')}" style="position:absolute;top:8px;right:8px;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:900;font-size:19px;line-height:1">✕</button></div>`}).join('')}</div></details>`:'';
  const extraSections=r?`<div class="installer-guide-grid" style="margin-top:16px">
    <button class="installer-guide-card" id="openDesignGuide"><span class="installer-guide-icon">🖼️</span><strong>${t('detail.designGuide')}</strong><small>${designImages.length?designImages.length+' '+(designImages.length===1?t('detail.view'):t('detail.views')):t('detail.openDrawings')}</small></button>
    <button class="installer-guide-card" id="openCuttingList"><span class="installer-guide-icon">📋</span><strong>${t('detail.cuttingList')}</strong><small>${roomParts.length} ${roomParts.length===1?t('detail.panel'):t('detail.panels')}</small></button>
@@ -803,7 +803,10 @@ function wireRoomCard(p,r){
    alert('Could not get your location. Check location permission and try again.');
   },{enableHighAccuracy:true,timeout:10000});
  };
- if($('#siteRoomName'))$('#siteRoomName').oninput=()=>{const val=$('#siteRoomName').value;const manual=r?r.iconManual:p.siteRoomIconManual;if(!manual){const btn=$('#siteRoomIconBtn');if(btn)btn.textContent=roomIconFromName(val,'')}const title=$('#siteRoomTitle');if(title)title.textContent=val.trim()||t('intake.title')};
+ if($('#siteCustomerName'))$('#siteCustomerName').oninput=()=>{p.customer=$('#siteCustomerName').value;save()};
+ if($('#siteAddress'))$('#siteAddress').oninput=()=>{p.address=$('#siteAddress').value;save()};
+ if($('#siteRoomNotes'))$('#siteRoomNotes').oninput=()=>{const val=$('#siteRoomNotes').value;if(r)r.notes=val;else p.siteRoomNotes=val;save()};
+ if($('#siteRoomName'))$('#siteRoomName').oninput=()=>{const val=$('#siteRoomName').value;const manual=r?r.iconManual:p.siteRoomIconManual;if(!manual){const btn=$('#siteRoomIconBtn');if(btn)btn.textContent=roomIconFromName(val,'')}const title=$('#siteRoomTitle');if(title)title.textContent=val.trim()||t('intake.title');if(r)r.name=val;else p.siteRoomName=val;save()};
  if($('#siteRoomIconBtn'))$('#siteRoomIconBtn').onclick=()=>openSiteRoomIconPicker(r||p,!!r);
  initSiteLocationMap(p);
  if($('#backToMeasure'))$('#backToMeasure').onclick=()=>show('measure');
@@ -1528,7 +1531,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.5 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.6 Cloud Sync';
 })();
 </script>
 
