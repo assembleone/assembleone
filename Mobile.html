@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.7 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.8 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -338,7 +338,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.7 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.8 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -1355,6 +1355,27 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
  paint();setInterval(paint,2500)
 })();
 </script>
+<style id="a202-sent-badge-style">
+.a202-sent-badge{position:absolute;right:12%;top:8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#2f6fed;color:#fff;border:3px solid #2e294e;display:none;align-items:center;justify-content:center;font:900 10px Arial;line-height:1;box-shadow:0 2px 7px #0004;z-index:20}
+.a202-sent-badge.show{display:flex}
+</style>
+<script id="a202-sent-badge">
+(()=>{
+ function nav(){return document.querySelector('.nav[data-screen="drawings"]')}
+ function ensure(){const n=nav();if(!n)return null;let d=n.querySelector('.a202-sent-badge');if(!d){d=document.createElement('i');d.className='a202-sent-badge';n.appendChild(d)}return d}
+ function paint(){
+  const d=ensure();if(!d)return;
+  const p=typeof project==='function'?project():null;
+  const count=p?.sentPhotoCount||0;
+  d.textContent=count>99?'99+':String(count);
+  d.title='Sent to Studio: '+count;
+  d.classList.toggle('show',count>0);
+ }
+ const oldSave=window.save;
+ if(typeof oldSave==='function')window.save=function(...a){const r=oldSave.apply(this,a);paint();return r};
+ paint();setInterval(paint,2500)
+})();
+</script>
 
 
 <style id="a176-measure-entry-fix">
@@ -1532,7 +1553,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.7 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.8 Cloud Sync';
 })();
 </script>
 
