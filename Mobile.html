@@ -241,9 +241,14 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 #measure .markup-hint{text-align:center;font-weight:800;color:#55516d;font-size:12px;height:auto;padding:4px}
 #measure .markup-svg{color:#1769aa}
 #measure .markup-measure-line{stroke:#1769aa;stroke-width:5}
-.site-intake-card{padding:12px;border:2px solid #d9d7e2;border-radius:18px;background:#fff;max-width:720px;margin:6px auto}
-.site-intake-title{display:flex;align-items:center;gap:10px;margin-bottom:8px}.site-intake-title b{font-size:19px}.site-intake-title span{font-size:22px}.site-intake-title .muted{font-size:12px}
-.site-intake-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.site-intake-grid label{font-weight:900;font-size:13px}.site-intake-grid input,.site-intake-grid textarea{margin-top:3px;padding:8px 10px;font-size:14px}.site-intake-grid textarea{min-height:34px;height:34px}.site-intake-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.site-intake-actions .btn{min-height:42px;font-size:14px;font-weight:900;padding:6px 8px}
+.site-intake-card{padding:20px;border:2px solid #d9d7e2;border-radius:18px;background:#fff;max-width:720px;margin:10px auto}
+.site-intake-title{display:flex;align-items:center;gap:12px;margin-bottom:14px}.site-intake-title b{font-size:26px}.site-intake-title span{font-size:30px}.site-intake-title .muted{font-size:14px}
+.site-intake-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.site-intake-grid label{font-weight:900;font-size:15px}.site-intake-grid input,.site-intake-grid textarea{margin-top:5px;padding:12px 14px;font-size:16px}.site-intake-grid textarea{min-height:64px}.site-intake-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.site-intake-actions .btn{min-height:56px;font-size:16px;font-weight:900;padding:10px 12px}
+@media(max-width:520px){.site-intake-grid{grid-template-columns:1fr}}
+.room-switcher{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;max-width:720px;margin:0 auto}
+.room-switch-btn{flex:none;padding:10px 16px;border-radius:999px;border:2px solid #d9d7e2;background:#fff;font-weight:900;font-size:15px;color:#2E294E;white-space:nowrap}
+.room-switch-btn.active{border-color:#FFC600;background:#fffbea}
+.room-switch-add{font-size:20px;padding:10px 18px}
 @media(max-width:560px){#measure .markup-topbar{padding:4px}#measure .mini-btn{padding:6px 7px;font-size:11px}#measure .measure-kind{height:50px}}
 </style>
 
@@ -340,8 +345,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
  </div>
  <div class="card">
   <div class="mobile-home-actions">
-   <button class="btn mobile-new-site" id="newJob"><span>📷</span><span data-i18n="proj.newSiteJob">New Site Job</span></button>
-   <label class="btn mobile-import-project">📥 <span data-i18n="proj.addStudioProject">Add Studio Project</span><input id="importStudio" type="file" accept=".zip,application/zip" hidden></label>
+   <label class="btn mobile-import-project" style="grid-column:1/-1">📥 <span data-i18n="proj.addStudioProject">Add Studio Project</span><input id="importStudio" type="file" accept=".zip,application/zip" hidden></label>
   </div>
   <div class="mobile-projects-title" data-i18n="proj.myProjects">My Projects</div>
   <div class="mobile-projects-help" data-i18n="proj.tapToContinue">Tap one project to continue.</div>
@@ -667,7 +671,7 @@ $$(".nav").forEach(b=>b.onclick=()=>show(b.dataset.screen));
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]}})}
 function newJob(){const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;save();show("measure")}
-$("#newJob").onclick=newJob;
+if($("#newJob"))$("#newJob").onclick=newJob;
 $('#langCurrentBtn').onclick=openLangPicker;
 function renderHeader(){
  const p=project(),c=cabinet();
@@ -723,13 +727,13 @@ function openRoomCreator(){
  overlay.querySelectorAll('[data-room-type]').forEach(b=>b.onclick=()=>{const type=b.dataset.roomType,icon=b.dataset.icon;if(type==='Custom'){overlay.querySelector('#customRoomRow').classList.remove('hidden');overlay.querySelector('#customRoomName').focus();return}addRoom(type,suggestedRoomName(type),icon);overlay.remove()});
  overlay.querySelector('#saveCustomRoom').onclick=()=>{const name=overlay.querySelector('#customRoomName').value.trim();if(!name)return;addRoom('Custom',name,'🏠');overlay.remove()};
 }
-function openSiteRoomIconPicker(p){
+function openSiteRoomIconPicker(holder,isRoom){
  const overlay=document.createElement('div');overlay.className='room-type-dialog';
  overlay.innerHTML=`<div class="room-type-sheet"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Choose icon</h2><button class="btn" id="closeSiteIconPicker">×</button></div><div class="room-type-grid">${roomTypes.filter(([n])=>n!=='Custom').map(([n,i])=>`<button class="room-type-btn" data-icon="${i}"><b>${i}</b>${safe(n)}</button>`).join('')}</div></div>`;
  document.body.appendChild(overlay);
  overlay.querySelector('#closeSiteIconPicker').onclick=e=>{e.preventDefault();e.stopPropagation();overlay.remove()};
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
- overlay.querySelectorAll('[data-icon]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const icon=b.dataset.icon;p.siteRoomIcon=icon;p.siteRoomIconManual=true;const liveBtn=document.getElementById('siteRoomIconBtn');if(liveBtn)liveBtn.textContent=icon;save();overlay.remove();renderRooms()});
+ overlay.querySelectorAll('[data-icon]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const icon=b.dataset.icon;if(isRoom){holder.icon=icon;holder.iconManual=true}else{holder.siteRoomIcon=icon;holder.siteRoomIconManual=true}const liveBtn=document.getElementById('siteRoomIconBtn');if(liveBtn)liveBtn.textContent=icon;save();overlay.remove();renderRooms()});
 }
 let siteLocationMapInstance=null,siteLocationMarker=null;
 function initSiteLocationMap(p){
@@ -761,15 +765,25 @@ function initSiteLocationMap(p){
 }
 function addRoom(type,name,icon){const p=project();if(!p)return alert('Open a project first.');const r={id:uid(),type,name,icon,beforePhotos:[],designImages:[],notes:'',siteMarkup:{image:null,w:0,h:0,marks:[]}};p.rooms.push(r);state.currentRoom=r.id;save();renderRooms()}
 function roomCover(r){return r.beforePhotos?.[0]?.data||r.siteMarkup?.image||r.designImages?.[0]?.data||''}
-function renderRooms(){
- const p=project(),list=$('#roomGuideList'),detail=$('#roomGuideDetail'),head=$('#roomGuideHead');if(!p){list.innerHTML='<div class="card"><div class="muted">Open a project first.</div></div>';detail.classList.add('hidden');if(head)head.classList.remove('hidden');return}
- p.rooms=p.rooms||[];const r=currentRoom();
- if(r){list.classList.add('hidden');detail.classList.remove('hidden');if(head)head.classList.add('hidden');renderRoomDetail(r);return}
- detail.classList.add('hidden');list.classList.remove('hidden');
- if(head)head.classList.toggle('hidden',!p.rooms.length);
- list.innerHTML=p.rooms.length?p.rooms.map(r=>{const cover=roomCover(r),measureCount=r.siteMarkup?.marks?.filter(x=>x.type==='measure').length||0;return `<article class="room-card"><div class="room-thumb">${cover?`<img src="${cover}" alt="${safe(r.name)}">`:`<div><div style="font-size:45px">${r.icon||'🏠'}</div>${t('room.fromStudio')}</div>`}</div><div class="room-card-body"><div class="room-card-title">${r.icon||'🏠'} ${safe(r.name)}</div><div class="room-card-meta">${measureCount} ${measureCount===1?t('room.measurement'):t('room.measurements')} · ${r.designImages.length} ${r.designImages.length===1?t('room.designView'):t('room.designViews')}</div><button class="btn primary open-room" data-id="${r.id}">${t('room.openRoom')}</button></div></article>`}).join(''):(()=>{const mCount=(p.siteMeasurements||[]).length,photo=p.siteMarkup?.image||roomCover({beforePhotos:p.sitePhotos||[],designImages:[],siteMarkup:null})||(p.sitePhotos||[])[0]?.data||'';return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:12px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>📍</span><div><b id="siteRoomTitle">${safe(p.siteRoomName)||t('intake.title')}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="Tap to change icon" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${p.siteRoomIcon||roomIconFromName(p.siteRoomName||'','')}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(p.siteRoomName||'')}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:80px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(p.siteRoomNotes||'')}</textarea></label></div><div class="muted" style="margin-top:10px">${mCount} ${t('intake.measurementsTaken')}</div><div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">↥ ${t('intake.sendToStudio')}</button></div></div>`})();
- $$('.open-room').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.id;save();renderRooms()});
- if($('#backToMeasure'))$('#backToMeasure').onclick=()=>show('measure');
+function roomCardHtml(p,r){
+ const roomName=r?(r.name||''):(p.siteRoomName||'');
+ const roomIcon=r?(r.icon||roomIconFromName(r.name||'','')):(p.siteRoomIcon||roomIconFromName(p.siteRoomName||'',''));
+ const roomNotes=r?(r.notes||''):(p.siteRoomNotes||'');
+ const measureCount=r?((r.siteMarkup?.marks||[]).filter(x=>x.type==='measure').length):((p.siteMeasurements||[]).length);
+ const photo=r?roomCover(r):(p.siteMarkup?.image||(p.sitePhotos||[])[0]?.data||'');
+ const roomCabinets=r?(p.cabinets||[]).filter(c=>c.roomId===r.id):[];
+ const roomParts=roomCabinets.flatMap(c=>c.parts||[]);
+ const designImages=r?(r.designImages||[]):[];
+ const titleText=safe(roomName)||t('intake.title');
+ const extraSections=r?`<div class="installer-guide-grid" style="margin-top:16px">
+   <button class="installer-guide-card" id="openDesignGuide"><span class="installer-guide-icon">🖼️</span><strong>${t('detail.designGuide')}</strong><small>${designImages.length?designImages.length+' '+(designImages.length===1?t('detail.view'):t('detail.views')):t('detail.openDrawings')}</small></button>
+   <button class="installer-guide-card" id="openCuttingList"><span class="installer-guide-icon">📋</span><strong>${t('detail.cuttingList')}</strong><small>${roomParts.length} ${roomParts.length===1?t('detail.panel'):t('detail.panels')}</small></button>
+   <button class="installer-guide-card" id="openQrPanels"><span class="installer-guide-icon">▦</span><strong>${t('detail.qrPanels')}</strong><small>${t('detail.scanOrFind')}</small></button>
+  </div>
+  ${designImages.length?`<section class="room-section installer-design-section" id="designGuideSection" style="margin-top:14px"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designImages.length}</span></div><div class="room-photo-grid">${designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join('')}</div></section>`:''}`:'';
+ return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="Tap to change icon" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea></label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div><div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">↥ ${t('intake.sendToStudio')}</button></div>${extraSections}</div>`;
+}
+function wireRoomCard(p,r){
  if($('#openInMaps'))$('#openInMaps').onclick=()=>{if(p.geoLat!=null){window.open(`https://www.google.com/maps/search/?api=1&query=${p.geoLat},${p.geoLng}`,'_blank');return}const addr=$('#siteAddress').value.trim();if(!addr)return alert('Type the address first, or drop a pin on the map.');window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`,'_blank')};
  if($('#useCurrentLocationBtn'))$('#useCurrentLocationBtn').onclick=()=>{
   if(!navigator.geolocation){alert('Location is not available on this device.');return}
@@ -783,10 +797,48 @@ function renderRooms(){
    alert('Could not get your location. Check location permission and try again.');
   },{enableHighAccuracy:true,timeout:10000});
  };
- if($('#siteRoomName'))$('#siteRoomName').oninput=()=>{const val=$('#siteRoomName').value;if(!p.siteRoomIconManual){const btn=$('#siteRoomIconBtn');if(btn)btn.textContent=roomIconFromName(val,'')}const title=$('#siteRoomTitle');if(title)title.textContent=val.trim()||t('intake.title')};
- if($('#siteRoomIconBtn'))$('#siteRoomIconBtn').onclick=()=>openSiteRoomIconPicker(p);
+ if($('#siteRoomName'))$('#siteRoomName').oninput=()=>{const val=$('#siteRoomName').value;const manual=r?r.iconManual:p.siteRoomIconManual;if(!manual){const btn=$('#siteRoomIconBtn');if(btn)btn.textContent=roomIconFromName(val,'')}const title=$('#siteRoomTitle');if(title)title.textContent=val.trim()||t('intake.title')};
+ if($('#siteRoomIconBtn'))$('#siteRoomIconBtn').onclick=()=>openSiteRoomIconPicker(r||p,!!r);
  initSiteLocationMap(p);
- if($('#sendNewSiteToStudio'))$('#sendNewSiteToStudio').onclick=()=>{const name=$('#siteRoomName').value.trim(),customer=$('#siteCustomerName').value.trim(),address=$('#siteAddress').value.trim(),notes=$('#siteRoomNotes').value.trim();if(!name)return alert('Add the room name first.');p.siteRoomName=name;p.siteRoomIcon=$('#siteRoomIconBtn')?.textContent||roomIconFromName(name,'');p.customer=customer;p.address=address;p.siteRoomNotes=notes;p.name=p.name==='New Site Job'?name:p.name;save();exportJob(p.id)};
+ if($('#backToMeasure'))$('#backToMeasure').onclick=()=>show('measure');
+ if($('#sendNewSiteToStudio'))$('#sendNewSiteToStudio').onclick=()=>{
+  const name=$('#siteRoomName').value.trim(),customer=$('#siteCustomerName').value.trim(),address=$('#siteAddress').value.trim(),notes=$('#siteRoomNotes').value.trim();
+  if(!name)return alert('Add the room name first.');
+  p.customer=customer;p.address=address;
+  let room=r;
+  if(!room){
+   room={id:uid(),type:'',name,icon:$('#siteRoomIconBtn')?.textContent||roomIconFromName(name,''),beforePhotos:[],designImages:[],notes,siteMarkup:p.siteMarkup?JSON.parse(JSON.stringify(p.siteMarkup)):{image:null,w:0,h:0,marks:[]}};
+   p.rooms=p.rooms||[];p.rooms.unshift(room);
+   state.currentRoom=room.id;
+  }else{
+   room.name=name;room.icon=$('#siteRoomIconBtn')?.textContent||room.icon;room.notes=notes;
+  }
+  p.name=p.name==='New Site Job'?name:p.name;
+  save();exportJob(p.id);renderRooms();
+ };
+ if(r){
+  const roomCabinets=(p.cabinets||[]).filter(c=>c.roomId===r.id);
+  if($('#openDesignGuide'))$('#openDesignGuide').onclick=()=>$('#designGuideSection')?.scrollIntoView({behavior:'smooth',block:'start'});
+  if($('#openCuttingList'))$('#openCuttingList').onclick=()=>{const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('bom')};
+  if($('#openQrPanels'))$('#openQrPanels').onclick=()=>{const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('scan')};
+ }
+}
+function renderRooms(){
+ let p=project();
+ if(!p){p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;save()}
+ p.rooms=p.rooms||[];
+ const list=$('#roomGuideList'),detail=$('#roomGuideDetail'),head=$('#roomGuideHead');
+ if(head)head.classList.add('hidden');
+ let r=currentRoom();
+ if(r&&r.source==='mobile-measure'&&r.draft){list.classList.add('hidden');detail.classList.remove('hidden');renderRoomDetail(r);return}
+ if(detail)detail.classList.add('hidden');
+ list.classList.remove('hidden');
+ if(!r&&p.rooms.length){r=p.rooms[0];state.currentRoom=r.id}
+ const switcherHtml=p.rooms.length>1?`<div class="room-switcher">${p.rooms.map(x=>`<button type="button" class="room-switch-btn ${x.id===r?.id?'active':''}" data-room-id="${x.id}">${x.icon||'🏠'} ${safe(x.name)}</button>`).join('')}<button type="button" class="room-switch-btn room-switch-add" id="addRoomSwitchBtn">＋</button></div>`:'';
+ list.innerHTML=switcherHtml+roomCardHtml(p,r);
+ $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;save();renderRooms()});
+ if($('#addRoomSwitchBtn'))$('#addRoomSwitchBtn').onclick=openRoomCreator;
+ wireRoomCard(p,r);
 }
 function renderRoomDetail(r){
  const detail=$('#roomGuideDetail');
@@ -1042,7 +1094,7 @@ function buildMobileBom(p){
  if(!p)return null;const all=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(x=>({...x,cabinetName:c.name,roomId:c.roomId||""})));const materials={};all.forEach(x=>{const k=(x.material||"Material not set").trim()||"Material not set";materials[k]=(materials[k]||0)+(Number(x.qty)||1)});const rooms=(p.rooms||[]).map(r=>({name:r.name,notes:r.notes||"",units:(p.cabinets||[]).filter(c=>c.roomId===r.id).map(c=>({name:c.name,panels:(c.parts||[]).length,pieces:(c.parts||[]).reduce((n,x)=>n+(Number(x.qty)||1),0)}))}));return {counts:{rooms:(p.rooms||[]).length,units:(p.cabinets||[]).length,panels:all.length,pieces:all.reduce((n,x)=>n+(Number(x.qty)||1),0),installed:all.filter(x=>x.status==="installed").length,missing:all.filter(x=>x.status==="missing").length},materials,rooms};
 }
 function renderMobileBom(){const box=$("#mobileJobBom"),p=project();if(!box)return;if(!p){box.innerHTML='<div class="muted">Open a project first.</div>';return}const b=buildMobileBom(p);box.innerHTML=`<div class="mobile-bom-grid"><div class="mobile-bom-stat">Rooms<b>${b.counts.rooms}</b></div><div class="mobile-bom-stat">Units<b>${b.counts.units}</b></div><div class="mobile-bom-stat">Panels<b>${b.counts.panels}</b></div><div class="mobile-bom-stat">Pieces<b>${b.counts.pieces}</b></div><div class="mobile-bom-stat">Installed<b>${b.counts.installed}</b></div><div class="mobile-bom-stat">Missing<b>${b.counts.missing}</b></div></div><h3>Materials</h3><div>${Object.entries(b.materials).map(([k,v])=>`<span class="mobile-bom-material">${safe(k)} · ${v}</span>`).join("")||'<span class="muted">No materials yet.</span>'}</div><h3>Room by room</h3>${b.rooms.map(r=>`<section class="mobile-bom-room"><b>⌂ ${safe(r.name)}</b>${r.notes?`<div class="muted">${safe(r.notes)}</div>`:""}${r.units.map(u=>`<div class="mobile-bom-unit"><span>${safe(u.name)}</span><strong>${u.pieces} pcs</strong></div>`).join("")||'<div class="muted">No units assigned.</div>'}</section>`).join("")||'<div class="muted">No rooms yet.</div>'}`}
-function renderAll(){state.projects.forEach(ensureExtras);renderHeader();renderProjects();if(project()){renderMeasure();renderRooms();renderInstall();renderMobileBom()}renderRoomScanContext();renderScanDashboard()}
+function renderAll(){state.projects.forEach(ensureExtras);renderHeader();renderProjects();if(state.screen==='drawings')renderRooms();if(project()){renderMeasure();renderInstall();renderMobileBom()}renderRoomScanContext();renderScanDashboard()}
 load();
 </script>
 
