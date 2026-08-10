@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.8 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.9 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -338,7 +338,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.8 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.9 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -1349,7 +1349,7 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
  function clear(){try{localStorage.removeItem(KEY)}catch(e){}const d=ensure();if(d)d.classList.remove('show')}
  document.addEventListener('click',e=>{if(e.target.closest('.nav[data-screen="projects"]'))clear()});
  window.addEventListener('storage',e=>{if(e.key===KEY)paint()});
- try{const bc=new BroadcastChannel('assembleone-sync');bc.addEventListener('message',e=>{if(e.data?.type==='mobile-update'||e.data?.type==='studio-published')mark()})}catch(e){}
+ try{const bc=new BroadcastChannel('assembleone-sync');bc.addEventListener('message',e=>{if(e.data?.type==='studio-published')mark()})}catch(e){}
  const oldImport=window.importStudioFile;
  if(typeof oldImport==='function')window.importStudioFile=async function(...a){const r=await oldImport.apply(this,a);mark();return r}
  paint();setInterval(paint,2500)
@@ -1553,7 +1553,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.8 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.9 Cloud Sync';
 })();
 </script>
 
