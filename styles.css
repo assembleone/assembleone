@@ -1709,6 +1709,7 @@ body.guide-only .a131-back-studio{display:block}
 .hardware-checklist-row:hover{background:#fff9f1}
 .hardware-checklist-row input[type="checkbox"]{width:20px;height:20px;accent-color:#c96a00;flex:0 0 auto}
 .hardware-checklist-row span{flex:1 1 auto}
+.hardware-checklist-qty{width:64px;flex:0 0 auto;padding:7px 8px;border:2px solid #ffdcaa;border-radius:8px;font-weight:800;color:#171c46;text-align:center}
 
 /* --- Wardrobe templates: save button + picker dialog --- */
 .save-template-row{margin-bottom:14px}

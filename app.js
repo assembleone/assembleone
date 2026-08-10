@@ -2730,7 +2730,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     if(!Array.isArray(c.hardwareChecklist))c.hardwareChecklist=defaultHardwareItems();
     const rows=c.hardwareChecklist;
     const done=rows.filter(i=>i.done).length;
-    const items=rows.map((item,i)=>`<label class="hardware-checklist-row"><input data-hw-toggle="${i}" type="checkbox" ${item.done?'checked':''}><span>${safe(item.name)}</span><button aria-label="Remove" class="build-checklist-remove" data-hw-remove="${i}" type="button">✕</button></label>`).join('');
+    const items=rows.map((item,i)=>`<label class="hardware-checklist-row"><input data-hw-toggle="${i}" type="checkbox" ${item.done?'checked':''}><span>${safe(item.name)}</span><input class="hardware-checklist-qty" data-hw-qty="${i}" type="number" min="0" inputmode="numeric" placeholder="Qty" value="${item.qty!=null&&item.qty!==''?safe(item.qty):''}"><button aria-label="Remove" class="build-checklist-remove" data-hw-remove="${i}" type="button">✕</button></label>`).join('');
     return `<div class="hardware-checklist-card"><div class="build-checklist-head"><strong>Hardware Checklist</strong><span>${done} of ${rows.length} ticked off</span></div><div class="build-checklist-list">${items}</div><div class="build-checklist-add"><input id="newHwItemInput" placeholder="Add your own, e.g. Soft-close dampers" type="text"><button class="btn" id="addHwItemBtn" type="button">+ Add</button></div></div>`;
   }
   document.addEventListener('click',e=>{
@@ -2775,11 +2775,19 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
       if(c.hardwareChecklist[i]){c.hardwareChecklist[i].done=hwToggle.checked;save();renderParts()}
     }
   });
+  document.addEventListener('input',e=>{
+    const hwQty=e.target.closest('[data-hw-qty]');
+    if(!hwQty)return;
+    const c=(typeof cabinet==='function')?cabinet():null;
+    if(!c||!c.hardwareChecklist)return;
+    const i=Number(hwQty.dataset.hwQty);
+    if(c.hardwareChecklist[i]){c.hardwareChecklist[i].qty=hwQty.value===''?'':Number(hwQty.value);save()}
+  });
 
   function saveAsTemplate(c,name){
     if(!Array.isArray(state.templates))state.templates=[];
     const panels=(c.parts||[]).map(p=>({name:p.name||'',thickness:p.thickness||'',length:p.length||'',width:p.width||'',qty:p.qty||1,material:p.material||'',edgeLong:p.edgeLong||0,edgeShort:p.edgeShort||0}));
-    const hardware=(Array.isArray(c.hardwareChecklist)?c.hardwareChecklist:defaultHardwareItems()).map(h=>({name:h.name}));
+    const hardware=(Array.isArray(c.hardwareChecklist)?c.hardwareChecklist:defaultHardwareItems()).map(h=>({name:h.name,qty:h.qty!=null?h.qty:''}));
     state.templates.push({id:uid(),name,panels,hardware,savedAt:new Date().toISOString()});
     save();
   }
@@ -2790,7 +2798,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
       n++;
       c.parts.push({id:uid(),code:'P-'+String(n).padStart(3,'0'),name:bp.name,thickness:bp.thickness,length:bp.length,width:bp.width,qty:bp.qty||1,material:bp.material||'',edgeLong:bp.edgeLong||0,edgeShort:bp.edgeShort||0,status:'ready'});
     });
-    c.hardwareChecklist=tpl.hardware.map(h=>({name:h.name,done:false}));
+    c.hardwareChecklist=tpl.hardware.map(h=>({name:h.name,done:false,qty:h.qty!=null?h.qty:''}));
     save();
   }
   window.offerTemplatePicker=function(c,onDone){
