@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.3 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.4 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -192,7 +192,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 </style>
 
 <style id="a156-modern-bottom-navigation">
-.modern-bottom-nav{position:fixed;left:0;right:0;bottom:0;width:100%;z-index:120;background:linear-gradient(180deg,#2f2a52 0%,#211d42 100%);display:grid;grid-template-columns:repeat(4,1fr);align-items:end;min-height:92px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(24,20,55,.20);overflow:visible}
+.modern-bottom-nav{position:fixed;left:0;right:0;bottom:0;width:100%;z-index:1200;background:linear-gradient(180deg,#2f2a52 0%,#211d42 100%);display:grid;grid-template-columns:repeat(4,1fr);align-items:end;min-height:92px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(24,20,55,.20);overflow:visible}
 .modern-bottom-nav .nav{position:relative;min-width:0;min-height:72px;border:0;background:transparent!important;color:#fff!important;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:7px 3px;font-weight:850;font-size:13px;line-height:1.05;transition:transform .16s ease,background .16s ease}
 .modern-bottom-nav .nav span{display:block;white-space:nowrap}
 .modern-bottom-nav .nav-icon{display:grid;place-items:center;width:43px;height:39px;font-size:31px;line-height:1;filter:none!important}
@@ -337,7 +337,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.3 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.4 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -1358,7 +1358,7 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
 #measure.active .measure-editor{
  position:fixed!important;
  inset:0!important;
- z-index:300!important;
+ z-index:1300!important;
  display:flex!important;
  align-items:flex-end!important;
  justify-content:center!important;
@@ -1527,7 +1527,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.3 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.4 Cloud Sync';
 })();
 </script>
 
