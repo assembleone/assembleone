@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.10 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.11 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -339,7 +339,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.10 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.11 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -1368,17 +1368,22 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
 (()=>{
  function nav(){return document.querySelector('.nav[data-screen="drawings"]')}
  function ensure(){const n=nav();if(!n)return null;let d=n.querySelector('.a202-sent-badge');if(!d){d=document.createElement('i');d.className='a202-sent-badge';n.appendChild(d)}return d}
+ let pendingCount=0;
  function paint(){
   const d=ensure();if(!d)return;
-  const p=typeof project==='function'?project():null;
-  const count=p?.sentPhotoCount||0;
-  d.textContent=count>99?'99+':String(count);
-  d.title='Sent to Studio: '+count;
-  d.classList.toggle('show',count>0);
+  d.textContent=pendingCount>99?'99+':String(pendingCount);
+  d.title='Waiting for Studio to open: '+pendingCount;
+  d.classList.toggle('show',pendingCount>0);
  }
- const oldSave=window.save;
- if(typeof oldSave==='function')window.save=function(...a){const r=oldSave.apply(this,a);paint();return r};
- paint();setInterval(paint,2500)
+ async function refreshPending(){
+  try{
+   const res=await fetch('https://assembleone-fabac-default-rtdb.firebaseio.com/sync_v2/mads_assembleone_1088/studioQueue.json',{cache:'no-store'});
+   const data=await res.json();
+   pendingCount=data?Object.keys(data).length:0;
+  }catch(e){}
+  paint();
+ }
+ refreshPending();setInterval(refreshPending,4000);
 })();
 </script>
 
@@ -1484,7 +1489,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
 
   window.sendPackDirectly=async function(pack){
     const packet={...pack,syncId:firebaseSafeKey(uid()),syncStatus:"waiting",channel:CHANNEL};
-    await firebasePut(`${ROOT}/studio/latest`,packet);
+    await firebasePut(`${ROOT}/studioQueue/${packet.syncId}`,packet);
     try{new BroadcastChannel("assembleone-sync").postMessage({type:"mobile-update",syncId:packet.syncId,channel:CHANNEL})}catch(e){}
     return true;
   };
@@ -1558,7 +1563,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.10 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.11 Cloud Sync';
 })();
 </script>
 
