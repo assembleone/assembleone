@@ -1845,6 +1845,12 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
  function syncDeliveryToggle(){
   const pr=project(),box=document.getElementById('supplierIncludeDelivery'),card=document.getElementById('supplierDeliveryToggleCard'),hint=document.getElementById('supplierDeliveryHint');
   const info=deliveryInfo(pr);
+  const addrCard=document.getElementById('supplierDeliveryAddressCard'),addrText=document.getElementById('supplierDeliveryAddressText'),addrBtn=document.getElementById('supplierOpenDeliveryMap');
+  if(addrCard)addrCard.style.display=info?'block':'none';
+  if(info){
+   if(addrText)addrText.textContent=info.address||'Pinned map location (no typed address)';
+   if(addrBtn)addrBtn.onclick=()=>window.open(info.mapUrl,'_blank');
+  }
   if(card)card.style.display=info?'flex':'none';
   if(!info)return;
   if(box)box.checked=!!pr.includeDeliveryAddress;
