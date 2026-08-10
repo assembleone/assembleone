@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.2 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.3 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -337,7 +337,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.2 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.3 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -778,6 +778,7 @@ function roomCardHtml(p,r){
  const roomParts=roomCabinets.flatMap(c=>c.parts||[]);
  const designImages=r?(r.designImages||[]):[];
  const titleText=safe(roomName)||t('intake.title');
+ const sentCount=p.sentPhotoCount||0;
  const capturesSection=captures.length?`<div class="muted" style="margin-top:14px;font-weight:800">${t('intake.savedPhotos')}</div><div class="room-photo-grid" style="margin-top:6px">${captures.map(cap=>{const mCount=(cap.marks||[]).filter(x=>x.type==='measure').length;return `<div class="room-photo-tile" style="position:relative"><img src="${cap.image}"><div class="design-caption">${mCount} ${mCount===1?t('room.measurement'):t('room.measurements')}</div><button type="button" class="capture-delete-btn" data-capture-id="${cap.id}" title="${t('detail.delete')}" style="position:absolute;top:8px;right:8px;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:900;font-size:19px;line-height:1">✕</button></div>`}).join('')}</div>`:'';
  const extraSections=r?`<div class="installer-guide-grid" style="margin-top:16px">
    <button class="installer-guide-card" id="openDesignGuide"><span class="installer-guide-icon">🖼️</span><strong>${t('detail.designGuide')}</strong><small>${designImages.length?designImages.length+' '+(designImages.length===1?t('detail.view'):t('detail.views')):t('detail.openDrawings')}</small></button>
@@ -785,7 +786,7 @@ function roomCardHtml(p,r){
    <button class="installer-guide-card" id="openQrPanels"><span class="installer-guide-icon">▦</span><strong>${t('detail.qrPanels')}</strong><small>${t('detail.scanOrFind')}</small></button>
   </div>
   ${designImages.length?`<section class="room-section installer-design-section" id="designGuideSection" style="margin-top:14px"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designImages.length}</span></div><div class="room-photo-grid">${designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join('')}</div></section>`:''}`:'';
- return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="Tap to change icon" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea></label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?'photo':'photos'} ready to send to Studio</div><div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">↥ ${t('intake.sendToStudio')}</button></div>${extraSections}</div>`;
+ return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="Tap to change icon" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea></label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?'photo':'photos'} ready to send to Studio</div>${sentCount?`<div class="muted" style="margin-top:4px">${sentCount} ${sentCount===1?'photo':'photos'} sent to Studio so far</div>`:''}<div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">↥ ${t('intake.sendToStudio')}</button></div>${extraSections}</div>`;
 }
 function wireRoomCard(p,r){
  if($('#openInMaps'))$('#openInMaps').onclick=()=>{if(p.geoLat!=null){window.open(`https://www.google.com/maps/search/?api=1&query=${p.geoLat},${p.geoLng}`,'_blank');return}const addr=$('#siteAddress').value.trim();if(!addr)return alert('Type the address first, or drop a pin on the map.');window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`,'_blank')};
@@ -809,15 +810,22 @@ function wireRoomCard(p,r){
   const name=$('#siteRoomName').value.trim(),customer=$('#siteCustomerName').value.trim(),address=$('#siteAddress').value.trim(),notes=$('#siteRoomNotes').value.trim();
   if(!name)return alert('Add the room name first.');
   p.customer=customer;p.address=address;
-  let room=r;
+  let room=r,sentCaptureCount;
   if(!room){
    room={id:uid(),type:'',name,icon:$('#siteRoomIconBtn')?.textContent||roomIconFromName(name,''),beforePhotos:[],designImages:[],notes,siteMarkup:p.siteMarkup?JSON.parse(JSON.stringify(p.siteMarkup)):{image:null,w:0,h:0,marks:[]},measureCaptures:p.measureCaptures?JSON.parse(JSON.stringify(p.measureCaptures)):[]};
    p.rooms=p.rooms||[];p.rooms.unshift(room);
-   state.currentRoom=room.id;
+   sentCaptureCount=(room.measureCaptures||[]).length;
   }else{
    room.name=name;room.icon=$('#siteRoomIconBtn')?.textContent||room.icon;room.notes=notes;
+   sentCaptureCount=(room.measureCaptures||[]).length;
   }
   p.name=p.name==='New Site Job'?name:p.name;
+  p.sentPhotoCount=(p.sentPhotoCount||0)+sentCaptureCount;
+  p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';
+  p.siteMarkup={image:null,w:0,h:0,marks:[]};
+  p.measureCaptures=[];
+  state.currentRoom=null;
+  p.startNewRoom=true;
   save();exportJob(p.id);renderRooms();
  };
  if(r){
@@ -843,11 +851,11 @@ function renderRooms(){
  let r=currentRoom();
  if(detail)detail.classList.add('hidden');
  list.classList.remove('hidden');
- if(!r&&p.rooms.length){r=p.rooms[0];state.currentRoom=r.id}
- const switcherHtml=p.rooms.length>1?`<div class="room-switcher">${p.rooms.map(x=>`<button type="button" class="room-switch-btn ${x.id===r?.id?'active':''}" data-room-id="${x.id}">${x.icon||'🏠'} ${safe(x.name)}</button>`).join('')}<button type="button" class="room-switch-btn room-switch-add" id="addRoomSwitchBtn">＋</button></div>`:'';
+ if(!r&&p.rooms.length&&!p.startNewRoom){r=p.rooms[0];state.currentRoom=r.id}
+ const switcherHtml=p.rooms.length>=1?`<div class="room-switcher">${p.rooms.map(x=>`<button type="button" class="room-switch-btn ${x.id===r?.id?'active':''}" data-room-id="${x.id}">${x.icon||'🏠'} ${safe(x.name)}</button>`).join('')}<button type="button" class="room-switch-btn room-switch-add ${r?'':'active'}" id="addRoomSwitchBtn">＋ New room</button></div>`:'';
  list.innerHTML=switcherHtml+roomCardHtml(p,r);
- $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;save();renderRooms()});
- if($('#addRoomSwitchBtn'))$('#addRoomSwitchBtn').onclick=openRoomCreator;
+ $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;p.startNewRoom=false;save();renderRooms()});
+ if($('#addRoomSwitchBtn'))$('#addRoomSwitchBtn').onclick=()=>{state.currentRoom=null;p.startNewRoom=true;save();renderRooms()};
  wireRoomCard(p,r);
 }
 function renderRoomDetail(r){
@@ -1331,9 +1339,9 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
  const KEY='assembleone_mobile_new_notice_v1';
  function nav(){return document.querySelector('.nav[data-screen="projects"]')}
  function ensure(){const n=nav();if(!n)return null;let d=n.querySelector('.a174-notice-dot');if(!d){d=document.createElement('i');d.className='a174-notice-dot';d.textContent='NEW';n.appendChild(d)}return d}
- function paint(){const d=ensure();if(!d)return;let show=false;try{show=localStorage.getItem(KEY)==='1'}catch(e){}d.classList.toggle('show',show)}
+ function paint(){if(document.querySelector('#projects.active')||window.state?.screen==='projects'){clear();return}const d=ensure();if(!d)return;let show=false;try{show=localStorage.getItem(KEY)==='1'}catch(e){}d.classList.toggle('show',show)}
  function mark(){try{localStorage.setItem(KEY,'1')}catch(e){}paint()}
- function clear(){try{localStorage.removeItem(KEY)}catch(e){}paint()}
+ function clear(){try{localStorage.removeItem(KEY)}catch(e){}const d=ensure();if(d)d.classList.remove('show')}
  document.addEventListener('click',e=>{if(e.target.closest('.nav[data-screen="projects"]'))clear()});
  window.addEventListener('storage',e=>{if(e.key===KEY)paint()});
  try{const bc=new BroadcastChannel('assembleone-sync');bc.addEventListener('message',e=>{if(e.data?.type==='mobile-update'||e.data?.type==='studio-published')mark()})}catch(e){}
@@ -1519,7 +1527,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.2 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.3 Cloud Sync';
 })();
 </script>
 
