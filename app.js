@@ -514,7 +514,7 @@ function renderJobBom(){
  const noteBox=document.getElementById('finishPhoneNote');if(noteBox&&document.activeElement!==noteBox)noteBox.value=p.notes||'';
  save()
 }
-function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();updateUnitAddWording();show(state.screen||"jobs")}
+function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();updateUnitAddWording();renderCustomers();show(state.screen||"jobs")}
 
 const UNIT_FACTORS={mm:1,cm:10,in:25.4};
 function currentMeasureUnit(){try{return state.units||"mm"}catch(e){return "mm"}}
@@ -591,6 +591,72 @@ function mergeMobileSiteJob(incoming){
   if(idx===0)focusProject=base;
  });
  return focusProject;
+}
+function customerKey(name){return String(name||"").trim()}
+function groupProjectsByCustomer(){
+ const map=new Map();
+ (state.projects||[]).forEach(p=>{
+  const key=customerKey(p.customer);
+  if(!key)return;
+  if(!map.has(key))map.set(key,[]);
+  map.get(key).push(p);
+ });
+ return map;
+}
+function customerRoomPhoto(p){
+ const r=(p.rooms||[])[0]||{};
+ return (r.measureCaptures||[])[0]?.image||r.siteMarkup?.image||(r.beforePhotos||[])[0]?.data||(r.designImages||[])[0]?.data||"";
+}
+function customerRoomCounts(p){
+ const r=(p.rooms||[])[0]||{};
+ const photos=(r.measureCaptures?.length||0)+(r.beforePhotos?.length||0)+(r.designImages?.length||0)+(r.sitePhotos?.length||0);
+ const measures=(r.siteMarkup?.marks?.filter(x=>x.type==="measure").length||0)+(r.measureCaptures||[]).reduce((n,c)=>n+(c.marks||[]).filter(x=>x.type==="measure").length,0);
+ return {photos,measures};
+}
+let currentCustomerName=null;
+function renderCustomers(){
+ const listView=document.getElementById("customerListView"),detailView=document.getElementById("customerDetailView");
+ if(!listView||!detailView)return;
+ const map=groupProjectsByCustomer();
+ if(currentCustomerName&&!map.has(currentCustomerName))currentCustomerName=null;
+ if(currentCustomerName){
+  listView.classList.add("hidden");detailView.classList.remove("hidden");
+  renderCustomerDetail(currentCustomerName,map.get(currentCustomerName)||[]);
+  return;
+ }
+ listView.classList.remove("hidden");detailView.classList.add("hidden");
+ const list=document.getElementById("customerList");
+ if(!list)return;
+ if(!map.size){list.innerHTML='<div class="empty">No customer jobs saved yet. Use "Save to Customer" or "Open Drawing" on a Site Job to see it here.</div>';return}
+ const entries=[...map.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+ list.innerHTML=entries.map(([name,projects])=>{
+  const addresses=[...new Set(projects.map(p=>p.address).filter(Boolean))];
+  const roomsCount=projects.reduce((n,p)=>n+(p.rooms?.length||0),0);
+  const photo=projects.map(customerRoomPhoto).find(Boolean)||"";
+  return `<button class="customer-card" type="button" data-customer="${safe(name)}">${photo?`<img class="customer-card-photo" src="${photo}">`:`<div class="customer-card-photo customer-card-photo-empty">👤</div>`}<div class="customer-card-info"><strong>${safe(name)}</strong>${addresses[0]?`<span class="customer-card-address">📍 ${safe(addresses[0])}</span>`:""}<span class="customer-card-meta">${projects.length} job${projects.length===1?"":"s"} · ${roomsCount} room${roomsCount===1?"":"s"}</span></div><span class="customer-card-arrow">›</span></button>`;
+ }).join("");
+ list.querySelectorAll("[data-customer]").forEach(b=>b.onclick=()=>{currentCustomerName=b.dataset.customer;renderCustomers()});
+}
+function renderCustomerDetail(name,projects){
+ const nameEl=document.getElementById("customerDetailName"),addrEl=document.getElementById("customerDetailAddress"),jobList=document.getElementById("customerJobList");
+ if(nameEl)nameEl.textContent=name;
+ const addresses=[...new Set(projects.map(p=>p.address).filter(Boolean))];
+ if(addrEl)addrEl.textContent=addresses[0]?("📍 "+addresses[0]):"";
+ if(jobList)jobList.innerHTML=projects.length?projects.map(p=>{
+  const r=(p.rooms||[])[0]||{};
+  const photo=customerRoomPhoto(p);
+  const {photos,measures}=customerRoomCounts(p);
+  return `<div class="customer-job-card">${photo?`<img class="customer-job-photo" src="${photo}">`:`<div class="customer-job-photo customer-job-photo-empty">${safe(r.icon||"🏠")}</div>`}<div class="customer-job-info"><strong>${safe(r.icon||"🏠")} ${safe(p.name||r.name||"Room")}</strong><span class="customer-job-meta"><span>📷 ${photos}</span><span>📏 ${measures}</span></span></div><button class="btn primary" type="button" data-open-customer-project="${safe(p.id)}">Open ›</button></div>`;
+ }).join(""):'<div class="empty">No jobs yet for this customer.</div>';
+ if(jobList)jobList.querySelectorAll("[data-open-customer-project]").forEach(b=>b.onclick=()=>{
+  state.currentProject=b.dataset.openCustomerProject;
+  const p=project();
+  state.currentCabinet=p?.cabinets?.[0]?.id||null;
+  state.currentPart=null;
+  save();renderAll();show("mark");
+ });
+ const backBtn=document.getElementById("backToCustomerList");
+ if(backBtn)backBtn.onclick=()=>{currentCustomerName=null;renderCustomers()};
 }
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});

@@ -6,7 +6,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link href="assembleone_app_icon.svg" rel="icon"/><title>AssembleOne Studio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=17">
+<link rel="stylesheet" href="styles.css?v=18">
 
 
 
@@ -31,6 +31,7 @@
 <aside class="sidebar">
 <div class="brand"><span aria-label="AssembleOne" class="a-mark"><svg aria-hidden="true" viewbox="0 0 100 100"><circle cx="50" cy="50" r="46"></circle><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"></path><path class="a-gold" d="m59 78 10-24 12 24z"></path></svg></span></div>
 <button aria-label="Home" class="nav-btn active" data-screen="jobs" title="Home"><span class="nav-colour-icon">🏠</span></button>
+<button aria-label="Customers" class="nav-btn" data-screen="customers" title="Customers"><span class="nav-colour-icon">👤</span></button>
 <button aria-label="Drawing" class="nav-btn" data-screen="mark" title="Drawing"><span class="nav-colour-icon">📏</span></button>
 <button aria-label="Panel Check" class="nav-btn" data-screen="parts" title="Panel Check"><span class="nav-colour-icon">🧩</span></button>
 <button aria-label="Cutting List" class="nav-btn" data-screen="cutting" title="Cutting List"><span class="nav-colour-icon">📋</span></button>
@@ -127,6 +128,17 @@
 <div class="site-panel"><h3>Trade messages</h3><p class="muted">Choose a trade and send a project message.</p><div id="siteGroupChat"></div><div id="siteDirectChat"></div></div>
 <div class="site-panel"><h3>Work order</h3><div id="siteProgress"></div></div>
 </aside>
+</div>
+</section>
+<section class="screen" id="screen-customers">
+<div class="title-row"><div><h2>Customers</h2><div class="muted">Every job, saved and organised by customer.</div></div></div>
+<div id="customerListView">
+<div id="customerList"></div>
+</div>
+<div id="customerDetailView" class="hidden">
+<div class="room-detail-top"><button class="btn" id="backToCustomerList">← Customers</button><h2 id="customerDetailName"></h2></div>
+<div class="muted" id="customerDetailAddress" style="margin-bottom:14px"></div>
+<div id="customerJobList"></div>
 </div>
 </section>
 <section class="screen compact-drawing-screen" id="screen-mark">
@@ -525,4 +537,4 @@
 
 
 
-<script src="app.js?v=23"></script>
+<script src="app.js?v=25"></script>

@@ -721,6 +721,24 @@ thead{background:#2E294E;color:white}tbody tr:nth-child(even){background:#FAFAFC
 .site-job-save-btn:hover{background:#e3e9ff}
 .site-job-open-full{flex:1;background:#ffc400;color:#211b50;border:2px solid #dca900;border-radius:16px;padding:13px 10px;font-weight:900;font-size:15px;cursor:pointer;white-space:nowrap}
 @media(max-width:420px){.site-job-inbox-actions{flex-direction:column}}
+#customerList{display:grid;gap:12px}
+.customer-card{appearance:none;width:100%;border:2px solid #d8d6e1;background:#fff;border-radius:22px;padding:14px;display:flex;align-items:center;gap:14px;text-align:left;color:#25213f;cursor:pointer;box-shadow:0 5px 14px rgba(35,31,63,.06);font:inherit}
+.customer-card:hover{transform:translateY(-1px);border-color:#ffc400}
+.customer-card-photo{width:60px;height:60px;border-radius:16px;object-fit:cover;flex:none;background:#f2f0f8}
+.customer-card-photo-empty{display:grid;place-items:center;font-size:28px}
+.customer-card-info{flex:1;min-width:0}
+.customer-card-info strong{display:block;font-size:20px;color:#17234a;line-height:1.15}
+.customer-card-address{display:block;font-size:13px;color:#1f7a44;font-weight:800;margin-top:3px}
+.customer-card-meta{display:block;font-size:13px;color:#716c7e;font-weight:750;margin-top:4px}
+.customer-card-arrow{font-size:26px;color:#a39ec4;flex:none}
+#customerJobList{display:grid;gap:12px}
+.customer-job-card{display:flex;align-items:center;gap:14px;border:2px solid #e4e1eb;background:#fff;border-radius:20px;padding:14px}
+.customer-job-photo{width:56px;height:56px;border-radius:14px;object-fit:cover;flex:none;background:#f2f0f8}
+.customer-job-photo-empty{display:grid;place-items:center;font-size:26px}
+.customer-job-info{flex:1;min-width:0}
+.customer-job-info strong{display:block;font-size:17px;color:#17234a}
+.customer-job-meta{display:flex;gap:8px;margin-top:6px}
+.customer-job-meta span{background:#f2f4f8;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}
 @media(max-width:700px){.site-job-inbox-card{grid-template-columns:52px 1fr}.site-job-room-icon{width:52px;height:52px;font-size:30px}.site-job-open{grid-column:1/-1;width:100%;text-align:center}.site-job-main strong{font-size:20px}.site-jobs-panel{padding:13px;border-radius:22px}}
 .trade-export-btn{border-color:#5b55a5;background:#f2f0ff;color:#312b70}
 
