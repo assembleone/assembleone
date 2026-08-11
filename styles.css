@@ -731,6 +731,11 @@ thead{background:#2E294E;color:white}tbody tr:nth-child(even){background:#FAFAFC
 .customer-row-address{display:block;font-size:13px;color:#716c7e;font-weight:700;margin-top:3px}
 .customer-row-count{flex:none;background:#f2f4f8;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;color:#4a4560}
 .customer-row-arrow{flex:none;font-size:22px;color:#a39ec4}
+.customer-edit-form{border:2px solid #d8d6e1;background:#f9f9fb;border-radius:18px;padding:16px;margin-bottom:16px;display:grid;gap:12px}
+.customer-edit-form label{font-weight:800;font-size:14px;color:#25213f;display:block}
+.customer-edit-form input{width:100%;margin-top:5px;padding:12px 14px;font-size:16px;border:2px solid #d8d6e1;border-radius:12px;background:#fff}
+.customer-edit-actions{display:flex;gap:10px}
+.customer-edit-actions .btn{flex:1}
 .customer-card-info{flex:1;min-width:0}
 .customer-card-info strong{display:block;font-size:20px;color:#17234a;line-height:1.15}
 .customer-card-address{display:block;font-size:13px;color:#1f7a44;font-weight:800;margin-top:3px}

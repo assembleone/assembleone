@@ -611,16 +611,29 @@ function allCustomerEntries(){
  });
  return map;
 }
-function addNewCustomer(){
- const name=(prompt("Customer name:")||"").trim();
- if(!name)return;
+function openNewCustomerForm(){
+ const form=document.getElementById("newCustomerForm");
+ if(!form)return;
+ document.getElementById("newCustomerName").value="";
+ document.getElementById("newCustomerAddress").value="";
+ document.getElementById("newCustomerPhone").value="";
+ form.classList.remove("hidden");
+ form.scrollIntoView({behavior:"smooth",block:"start"});
+ document.getElementById("newCustomerName").focus();
+}
+function saveNewCustomer(){
+ const name=document.getElementById("newCustomerName").value.trim();
+ if(!name){alert("Enter a customer name.");return}
  if([...allCustomerEntries().keys()].some(k=>k.toLowerCase()===name.toLowerCase())){alert(`"${name}" already exists.`);return}
- const address=(prompt("Address (optional):")||"").trim();
- const phone=(prompt("Phone (optional):")||"").trim();
+ const address=document.getElementById("newCustomerAddress").value.trim();
+ const phone=document.getElementById("newCustomerPhone").value.trim();
  state.customers=state.customers||[];
  state.customers.push({id:uid(),name,address,phone,notes:"",createdAt:new Date().toISOString()});
+ document.getElementById("newCustomerForm").classList.add("hidden");
  save();renderCustomers();
 }
+document.getElementById("cancelNewCustomerBtn")?.addEventListener("click",()=>document.getElementById("newCustomerForm").classList.add("hidden"));
+document.getElementById("saveNewCustomerBtn")?.addEventListener("click",saveNewCustomer);
 function customerRoomPhoto(p){
  const r=(p.rooms||[])[0]||{};
  return (r.measureCaptures||[])[0]?.image||r.siteMarkup?.image||(r.beforePhotos||[])[0]?.data||(r.designImages||[])[0]?.data||"";
@@ -644,6 +657,7 @@ function renderCustomers(){
   return;
  }
  listView.classList.remove("hidden");detailView.classList.add("hidden");
+ document.getElementById("newCustomerForm")?.classList.add("hidden");
  const list=document.getElementById("customerList");
  if(!list)return;
  const searchBox=document.getElementById("customerSearch");
@@ -682,19 +696,32 @@ function renderCustomerDetail(name,entry){
  });
  const backBtn=document.getElementById("backToCustomerList");
  if(backBtn)backBtn.onclick=()=>{currentCustomerName=null;renderCustomers()};
+ const editForm=document.getElementById("customerEditForm");
+ if(editForm)editForm.classList.add("hidden");
  const editBtn=document.getElementById("editCustomerBtn");
- if(editBtn)editBtn.onclick=()=>editCustomer(name);
+ if(editBtn)editBtn.onclick=()=>openCustomerEditForm(name,entry);
  const deleteBtn=document.getElementById("deleteCustomerBtn");
  if(deleteBtn)deleteBtn.onclick=()=>deleteCustomer(name);
 }
-function editCustomer(name){
+function openCustomerEditForm(name,entry){
+ const form=document.getElementById("customerEditForm");
+ if(!form)return;
+ document.getElementById("editCustomerName").value=entry.name||"";
+ document.getElementById("editCustomerAddress").value=entry.address||"";
+ document.getElementById("editCustomerPhone").value=entry.phone||"";
+ form.classList.remove("hidden");
+ form.scrollIntoView({behavior:"smooth",block:"start"});
+ document.getElementById("saveCustomerEditBtn").onclick=()=>saveCustomerEdit(name);
+ document.getElementById("cancelCustomerEditBtn").onclick=()=>form.classList.add("hidden");
+}
+function saveCustomerEdit(name){
  const map=allCustomerEntries();
  const entry=map.get(name);
  if(!entry)return;
- const newName=(prompt("Customer name:",entry.name)||"").trim();
- if(!newName)return;
- const newAddress=(prompt("Address:",entry.address||"")||"").trim();
- const newPhone=(prompt("Phone:",entry.phone||"")||"").trim();
+ const newName=document.getElementById("editCustomerName").value.trim();
+ if(!newName){alert("Enter a customer name.");return}
+ const newAddress=document.getElementById("editCustomerAddress").value.trim();
+ const newPhone=document.getElementById("editCustomerPhone").value.trim();
  let rec=(state.customers||[]).find(c=>customerKey(c.name)===name);
  if(!rec){rec={id:uid(),name:newName,address:newAddress,phone:newPhone,notes:"",createdAt:new Date().toISOString()};state.customers=state.customers||[];state.customers.push(rec)}
  else{rec.name=newName;rec.address=newAddress;rec.phone=newPhone}
@@ -714,7 +741,7 @@ function deleteCustomer(name){
  save();renderAll();
 }
 document.getElementById("customerSearch")?.addEventListener("input",e=>{customerSearchTerm=e.target.value;renderCustomers()});
-document.getElementById("newCustomerBtn")?.addEventListener("click",addNewCustomer);
+document.getElementById("newCustomerBtn")?.addEventListener("click",openNewCustomerForm);
 document.getElementById("customersJobsBtn")?.addEventListener("click",()=>{currentCustomerName=null;show("customers")});
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});

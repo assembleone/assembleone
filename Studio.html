@@ -6,7 +6,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link href="assembleone_app_icon.svg" rel="icon"/><title>AssembleOne Studio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=19">
+<link rel="stylesheet" href="styles.css?v=20">
 
 
 
@@ -133,12 +133,30 @@
 <section class="screen" id="screen-customers">
 <div class="title-row"><div><h2>Customers</h2><div class="muted">Every job, saved and organised by customer.</div></div><button class="btn primary" id="newCustomerBtn" type="button">+ New customer</button></div>
 <div id="customerListView">
+<div class="customer-edit-form hidden" id="newCustomerForm">
+<label>Name<input type="text" id="newCustomerName"></label>
+<label>Address<input type="text" id="newCustomerAddress"></label>
+<label>Phone<input type="text" id="newCustomerPhone"></label>
+<div class="customer-edit-actions">
+<button class="btn primary" id="saveNewCustomerBtn" type="button">💾 Add customer</button>
+<button class="btn" id="cancelNewCustomerBtn" type="button">Cancel</button>
+</div>
+</div>
 <input type="text" id="customerSearch" class="customer-search" placeholder="Search customers...">
 <div id="customerList"></div>
 </div>
 <div id="customerDetailView" class="hidden">
 <div class="room-detail-top"><button class="btn" id="backToCustomerList">← Customers</button><h2 id="customerDetailName"></h2><button class="btn" id="editCustomerBtn" type="button">✏️ Edit</button><button class="btn danger" id="deleteCustomerBtn" type="button">🗑 Delete</button></div>
 <div class="muted" id="customerDetailAddress" style="margin-bottom:14px"></div>
+<div class="customer-edit-form hidden" id="customerEditForm">
+<label>Name<input type="text" id="editCustomerName"></label>
+<label>Address<input type="text" id="editCustomerAddress"></label>
+<label>Phone<input type="text" id="editCustomerPhone"></label>
+<div class="customer-edit-actions">
+<button class="btn primary" id="saveCustomerEditBtn" type="button">💾 Save</button>
+<button class="btn" id="cancelCustomerEditBtn" type="button">Cancel</button>
+</div>
+</div>
 <div id="customerJobList"></div>
 </div>
 </section>
@@ -538,4 +556,4 @@
 
 
 
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
