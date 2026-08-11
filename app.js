@@ -599,17 +599,24 @@ function allCustomerEntries(){
  (state.customers||[]).forEach(c=>{
   const key=customerKey(c.name);
   if(!key)return;
-  map.set(key,{id:c.id,name:c.name,address:c.address||"",phone:c.phone||"",notes:c.notes||"",projects:[]});
+  map.set(key,{id:c.id,name:c.name,address:c.address||"",phone:c.phone||"",notes:c.notes||"",geoLat:null,geoLng:null,projects:[]});
  });
  (state.projects||[]).forEach(p=>{
   const key=customerKey(p.customer);
   if(!key)return;
-  if(!map.has(key))map.set(key,{id:null,name:p.customer,address:"",phone:"",notes:"",projects:[]});
+  if(!map.has(key))map.set(key,{id:null,name:p.customer,address:"",phone:"",notes:"",geoLat:null,geoLng:null,projects:[]});
   const entry=map.get(key);
   entry.projects.push(p);
   if(!entry.address&&p.address)entry.address=p.address;
+  if(entry.geoLat==null&&p.geoLat!=null){entry.geoLat=p.geoLat;entry.geoLng=p.geoLng}
  });
  return map;
+}
+function customerMapUrl(entry){
+ if(!entry)return null;
+ if(entry.geoLat!=null&&entry.geoLng!=null)return `https://www.google.com/maps/search/?api=1&query=${entry.geoLat},${entry.geoLng}`;
+ if(entry.address)return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.address)}`;
+ return null;
 }
 function openNewCustomerForm(){
  const form=document.getElementById("newCustomerForm");
@@ -679,7 +686,12 @@ function renderCustomerDetail(name,entry){
  const projects=entry?.projects||[];
  const nameEl=document.getElementById("customerDetailName"),addrEl=document.getElementById("customerDetailAddress"),jobList=document.getElementById("customerJobList");
  if(nameEl)nameEl.textContent=name;
- if(addrEl)addrEl.textContent=entry?.address?("📍 "+entry.address):"";
+ const mapUrl=customerMapUrl(entry);
+ if(addrEl){
+  if(entry?.address&&mapUrl)addrEl.innerHTML=`📍 ${safe(entry.address)} <a href="${mapUrl}" target="_blank" rel="noopener" class="customer-map-link">Open in Maps ›</a>`;
+  else if(mapUrl)addrEl.innerHTML=`<a href="${mapUrl}" target="_blank" rel="noopener" class="customer-map-link">📍 Open pinned location in Maps ›</a>`;
+  else addrEl.textContent="";
+ }
  if(jobList)jobList.innerHTML=projects.length?projects.map(p=>{
   const r=(p.rooms||[])[0]||{};
   const photo=customerRoomPhoto(p);

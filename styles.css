@@ -736,6 +736,8 @@ thead{background:#2E294E;color:white}tbody tr:nth-child(even){background:#FAFAFC
 .customer-edit-form input{width:100%;margin-top:5px;padding:12px 14px;font-size:16px;border:2px solid #d8d6e1;border-radius:12px;background:#fff}
 .customer-edit-actions{display:flex;gap:10px}
 .customer-edit-actions .btn{flex:1}
+.customer-map-link{display:inline-block;margin-left:10px;font-weight:900;color:#18a957;text-decoration:none}
+.customer-map-link:hover{text-decoration:underline}
 .customer-card-info{flex:1;min-width:0}
 .customer-card-info strong{display:block;font-size:20px;color:#17234a;line-height:1.15}
 .customer-card-address{display:block;font-size:13px;color:#1f7a44;font-weight:800;margin-top:3px}
