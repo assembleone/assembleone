@@ -558,11 +558,14 @@ th{background:#f1e3d3;font-family:Georgia,serif}
 .measurement-entry-card .measure-box{grid-template-columns:.82fr 1.32fr 1.32fr;border-radius:12px;min-height:92px}
 .measurement-entry-card .measure-field{padding:12px 14px 13px}
 .measurement-entry-card .measure-field>span{font-size:13px;margin-bottom:5px;color:var(--ink)}
-.measurement-entry-card .measure-box .measure-wrap input{font-size:34px;padding:8px 0 10px;min-height:49px;color:var(--ink);opacity:1}
+.measurement-entry-card .measure-box .measure-wrap input{font-size:26px;padding:8px 0 10px;min-height:49px;color:var(--ink);opacity:1}
 .measurement-entry-card .measure-box .measure-wrap>span{font-size:14px}
 .quantity-card{border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:stretch;min-width:0}
 .quantity-card .measure-field{border-right:0;width:100%;padding:12px 13px 13px}
-.quantity-card .measure-wrap input{font-size:34px;padding:8px 0 10px;min-height:49px;color:var(--ink);opacity:1;max-width:none;width:100%}
+.quantity-card .measure-wrap input{font-size:26px;padding:8px 0 10px;min-height:49px;color:var(--ink);opacity:1;max-width:none;width:100%}
+@media(max-width:1100px){
+  .measurement-entry-card .measure-box .measure-wrap input,.quantity-card .measure-wrap input{font-size:21px}
+}
 .quantity-card .measure-wrap>span{font-size:14px}
 .measurement-entry-card .edge-help{margin:6px 2px 0;font-size:11px}
 .measure-meta-box{display:grid;grid-template-columns:1.1fr 1fr;gap:8px;margin-top:8px}
