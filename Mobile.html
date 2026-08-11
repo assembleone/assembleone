@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.17 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.18 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -175,7 +175,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .mobile-home-actions{display:grid;gap:12px;margin-bottom:18px}
 .mobile-new-site{min-height:92px;border-radius:20px!important;background:#FFC600!important;border:2px solid #E5B200!important;color:#2E294E!important;font-size:26px!important;font-weight:900!important;display:flex;align-items:center;justify-content:center;gap:12px;width:100%}
 .mobile-import-project{min-height:62px;border-radius:16px!important;font-size:18px!important;font-weight:850!important;width:100%}
-.mobile-projects-title{font-size:30px;font-weight:900;color:#2E294E;margin:8px 0 6px}.lang-switch{display:flex;justify-content:flex-end;padding:8px 4px}.lang-current-btn{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:900;line-height:1;background:#fff;border:2px solid #e2dfec;border-radius:14px;padding:9px 16px;color:#2E294E}.lang-current-flag{width:28px;height:18px;border-radius:3px;overflow:hidden;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.lang-current-flag svg{width:100%;height:100%;display:block}.lang-picker-item{width:100%;display:flex;align-items:center;gap:14px;font-size:19px;font-weight:800;padding:14px 18px;border:2px solid #e2dfec;border-radius:14px;background:#fff;margin-bottom:10px;color:#2E294E}.lang-picker-item.active{border-color:#FFC600;background:#fffbea}.lang-picker-flag{width:36px;height:24px;border-radius:4px;overflow:hidden;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.lang-picker-flag svg{width:100%;height:100%;display:block}.lang-picker-name{flex:1;text-align:left}.lang-btn.active{opacity:1;border-color:#FFC600;background:#fffbea}
+.mobile-projects-title{font-size:30px;font-weight:900;color:#2E294E;margin:8px 0 6px}.lang-switch{display:flex;justify-content:flex-end;padding:8px 4px;gap:8px}.lang-current-btn{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:900;line-height:1;background:#fff;border:2px solid #e2dfec;border-radius:14px;padding:9px 16px;color:#2E294E}.lang-current-flag{width:28px;height:18px;border-radius:3px;overflow:hidden;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.lang-current-flag svg{width:100%;height:100%;display:block}.lang-picker-item{width:100%;display:flex;align-items:center;gap:14px;font-size:19px;font-weight:800;padding:14px 18px;border:2px solid #e2dfec;border-radius:14px;background:#fff;margin-bottom:10px;color:#2E294E}.lang-picker-item.active{border-color:#FFC600;background:#fffbea}.lang-picker-flag{width:36px;height:24px;border-radius:4px;overflow:hidden;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.lang-picker-flag svg{width:100%;height:100%;display:block}.lang-picker-name{flex:1;text-align:left}.lang-btn.active{opacity:1;border-color:#FFC600;background:#fffbea}
 .mobile-projects-help{color:#69657b;font-size:15px;margin-bottom:10px}
 #jobList{display:grid;gap:12px}
 #jobList .job{margin:0;border:2px solid #DAD8E3;border-radius:20px;padding:16px;background:#fff;display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:13px}
@@ -311,9 +311,6 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 #measure .measure-sheet-title button{font-size:27px;min-width:42px;min-height:42px}
 #measure .measure-sheet label{font-size:13px;margin-top:6px}
 #measure .measure-sheet input{font-size:19px;min-height:48px;padding:9px 11px}
-#measure .measure-unit-row{display:flex;gap:6px;margin:5px 0}
-#measure .unit-btn{flex:1;padding:9px 4px;border-radius:10px;border:2px solid #d9d7e2;background:#fff;font-weight:900;font-size:14px;color:#2E294E}
-#measure .unit-btn.active{border-color:#159447;background:#e8f7ee;color:#159447}
 #measure .editor-actions{display:grid;grid-template-columns:auto 1fr;gap:8px;margin-top:10px}
 #measure .editor-actions .mini-btn{min-height:50px;border-radius:14px;font-size:15px}
 #measure #saveEditor{background:#159447!important;border-color:#159447!important;color:#fff!important}
@@ -342,10 +339,11 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.17 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.18 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
+  <button class="lang-current-btn" id="unitCurrentBtn" type="button">📏 <span id="unitCurrentLabel">mm</span></button>
   <button class="lang-current-btn" id="langCurrentBtn" type="button"><span class="lang-current-flag" id="langCurrentFlag"></span> <span id="langCurrentLabel">English</span></button>
  </div>
  <div class="card">
@@ -412,7 +410,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
  <div id="measureEditor" class="measure-editor hidden" role="dialog" aria-modal="true">
   <div class="measure-sheet">
    <div class="measure-sheet-title"><span id="editorKind">Wall to wall</span><button id="closeEditor" type="button">×</button></div>
-   <label>Measurement<div class="measure-unit-row" id="measureUnitRow"><button type="button" class="unit-btn" data-unit="mm">mm</button><button type="button" class="unit-btn" data-unit="cm">cm</button><button type="button" class="unit-btn" data-unit="in">in</button></div><input id="editorValue" inputmode="decimal" pattern="[0-9.]*" placeholder="2450"></label>
+   <label>Measurement in <span id="editorValueUnit">mm</span><input id="editorValue" inputmode="decimal" pattern="[0-9.]*" placeholder="2450"></label>
    <label>Name<input id="editorName" placeholder="Wall to wall"></label>
    <div class="editor-actions"><button id="deleteEditor" class="mini-btn danger hidden" type="button">Delete</button><button id="saveEditor" class="mini-btn primary" type="button">＋ Add measurement</button></div>
   </div>
@@ -663,6 +661,21 @@ function openLangPicker(){
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
  overlay.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{setLang(b.dataset.lang);overlay.remove()});
 }
+function currentMeasureUnitLabel(){return localStorage.getItem('assembleone_measure_unit')||'mm'}
+function paintUnitButton(){const el=document.getElementById('unitCurrentLabel');if(el)el.textContent=currentMeasureUnitLabel()}
+function setMeasureUnitGlobal(u){try{localStorage.setItem('assembleone_measure_unit',u)}catch(e){}paintUnitButton()}
+function openUnitPicker(){
+ const overlay=document.createElement('div');overlay.className='room-type-dialog';
+ const units=[['mm','Millimeters (mm)'],['cm','Centimeters (cm)'],['in','Inches (in)']];
+ const current=currentMeasureUnitLabel();
+ overlay.innerHTML=`<div class="room-type-sheet"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Measurement Units</h2><button class="btn" id="closeUnitPicker">×</button></div>${units.map(([code,label])=>`<button type="button" class="lang-picker-item ${code===current?'active':''}" data-unit="${code}"><span class="lang-picker-name">${label}</span>${code===current?'<span>✓</span>':'<span></span>'}</button>`).join('')}</div>`;
+ document.body.appendChild(overlay);
+ overlay.querySelector('#closeUnitPicker').onclick=()=>overlay.remove();
+ overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
+ overlay.querySelectorAll('[data-unit]').forEach(b=>b.onclick=()=>{setMeasureUnitGlobal(b.dataset.unit);overlay.remove()});
+}
+$('#unitCurrentBtn').onclick=openUnitPicker;
+paintUnitButton();
 function applyI18n(){$$('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n)});$$('[data-i18n-placeholder]').forEach(el=>{el.placeholder=t(el.dataset.i18nPlaceholder)})}
 const project=()=>state.projects.find(x=>x.id===state.currentProject)||null;
 const cabinet=()=>project()?.cabinets?.find(x=>x.id===state.currentCabinet)||null;
@@ -1245,9 +1258,6 @@ load();
  const stage=$('#markupStage'),world=$('#markupWorld'),img=$('#markupImage'),svg=$('#markupSvg'),marksG=$('#markupMarks'),previewG=$('#markupPreview');
  if(!stage)return;
  let mode='measure',kind='Wall to wall',zoom=1,panX=0,panY=0,drawing=null,pending=null,editingId=null,pinch=null;
- let measureUnit=localStorage.getItem('assembleone_measure_unit')||'mm';
- function setMeasureUnit(u){measureUnit=u;try{localStorage.setItem('assembleone_measure_unit',u)}catch(e){}$$('#measureUnitRow .unit-btn').forEach(b=>b.classList.toggle('active',b.dataset.unit===u))}
- $$('#measureUnitRow .unit-btn').forEach(b=>b.onclick=()=>setMeasureUnit(b.dataset.unit));
  const getP=()=>state.projects.find(p=>p.id===state.currentProject)||null;
  function ensure(){const p=getP();if(!p)return null;const r=(p.rooms||[]).find(x=>x.id===state.currentRoom);const holder=r||p;holder.siteMarkup=holder.siteMarkup||{image:null,w:0,h:0,marks:[]};holder.siteMarkup.marks=holder.siteMarkup.marks||[];return holder.siteMarkup}
  function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -1258,9 +1268,9 @@ load();
  function lineMarkup(m,preview=false){const x1=m.x1,y1=m.y1,x2=m.x2,y2=m.y2;let h='';if(m.type==='measure'){h+=`<line class="markup-measure-line${m.id===editingId?' markup-selected':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" data-id="${m.id||''}"/>`;if(!preview&&m.value){const mx=(x1+x2)/2,my=(y1+y2)/2,w=Math.max(92,String(m.value).length*15,String(m.name||'').length*8+22);h+=`<g data-id="${m.id}" transform="translate(${mx-w/2},${my-27})"><rect class="markup-label-bg" width="${w}" height="54" rx="8"/><text class="markup-label-value" x="${w/2}" y="22" text-anchor="middle">${esc(m.value)} ${esc(m.unit||'mm')}</text><text class="markup-label-name" x="${w/2}" y="43" text-anchor="middle">${esc(m.name||m.kind||'Measurement')}</text></g>`}}else if(m.type==='line'){h+=`<line class="markup-straight-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" data-id="${m.id||''}"/>`}return h}
  function render(){const m=ensure();if(!m)return;marksG.innerHTML=(m.marks||[]).map(x=>x.type==='curve'?`<polyline class="markup-curve" points="${x.points.map(p=>p.x+','+p.y).join(' ')}" data-id="${x.id}"/>`:lineMarkup(x)).join('');marksG.querySelectorAll('[data-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();const id=el.dataset.id,item=m.marks.find(x=>x.id===id);if(item?.type==='measure')openEditor(item)}))}
  function loadMarkup(){const m=ensure();if(!m){world.style.display='none';$('#markupEmpty').style.display='flex';return}if(m.image){world.style.display='block';$('#markupEmpty').style.display='none';const finish=()=>{m.w=img.naturalWidth||m.w||1200;m.h=img.naturalHeight||m.h||900;world.style.width=m.w+'px';world.style.height=m.h+'px';svg.setAttribute('viewBox',`0 0 ${m.w} ${m.h}`);requestAnimationFrame(()=>requestAnimationFrame(()=>{fit();render()}))};img.onload=finish;img.onerror=()=>{if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent='Could not load';world.style.display='none';$('#markupEmpty').style.display='flex'};img.src=m.image;if(img.complete&&img.naturalWidth)finish()}else{world.style.display='none';$('#markupEmpty').style.display='flex';if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent=''}render()}
- function openEditor(item){editingId=item?.id||null;pending=item||pending;$('#editorKind').textContent=pending.kind||kind;$('#editorValue').value=pending.value||'';$('#editorName').value=pending.name||pending.kind||kind;$('#deleteEditor').classList.toggle('hidden',!editingId);setMeasureUnit(pending.unit||measureUnit);$('#measureEditor').classList.remove('hidden');setTimeout(()=>{$('#editorValue').focus({preventScroll:true});window.scrollTo(0,0)},80)}
+ function openEditor(item){editingId=item?.id||null;pending=item||pending;$('#editorKind').textContent=pending.kind||kind;$('#editorValue').value=pending.value||'';$('#editorName').value=pending.name||pending.kind||kind;$('#deleteEditor').classList.toggle('hidden',!editingId);const uEl=$('#editorValueUnit');if(uEl)uEl.textContent=pending.unit||currentMeasureUnitLabel();$('#measureEditor').classList.remove('hidden');setTimeout(()=>{$('#editorValue').focus({preventScroll:true});window.scrollTo(0,0)},80)}
  function closeEditor(){editingId=null;pending=null;$('#measureEditor').classList.add('hidden');render()}
- $('#saveEditor').onclick=()=>{const m=ensure();if(!m||!pending)return;pending.value=$('#editorValue').value.trim();pending.unit=measureUnit;pending.name=$('#editorName').value.trim()||pending.kind;if(!pending.value)return alert('Enter the measurement.');if(!editingId){pending.id=uid();m.marks.push(pending)}save();closeEditor();render();const st=$('#measurePhotoStatus');if(st)st.textContent=(m.marks||[]).filter(x=>x.type==='measure').length+' measurements added';};
+ $('#saveEditor').onclick=()=>{const m=ensure();if(!m||!pending)return;pending.value=$('#editorValue').value.trim();pending.unit=$('#editorValueUnit')?.textContent||currentMeasureUnitLabel();pending.name=$('#editorName').value.trim()||pending.kind;if(!pending.value)return alert('Enter the measurement.');if(!editingId){pending.id=uid();m.marks.push(pending)}save();closeEditor();render();const st=$('#measurePhotoStatus');if(st)st.textContent=(m.marks||[]).filter(x=>x.type==='measure').length+' measurements added';};
  $('#deleteEditor').onclick=()=>{const m=ensure();if(!m||!editingId)return;m.marks=m.marks.filter(x=>x.id!==editingId);save();closeEditor();render()};$('#closeEditor').onclick=closeEditor;
  let cameraInput=$('#markupCameraPhoto'),galleryInput=$('#markupGalleryPhoto');
  const photoButton=$('#takeMeasurePhoto'),chooseButton=$('#chooseMeasurePhoto'),pasteButton=$('#pasteMeasurePhoto'),photoStatus=$('#measurePhotoStatus'),pictureMenu=$('#measurePictureMenu'),pickPictureButton=$('#pickMeasurePicture'),pastePictureButton=$('#pasteMeasurePicture'),closePictureButton=$('#closeMeasurePictureMenu');
@@ -1625,7 +1635,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.17 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.18 Cloud Sync';
 })();
 </script>
 
