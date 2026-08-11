@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d1a17">
-<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.12 Cloud Sync</title>
+<link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.13 Cloud Sync</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
@@ -339,7 +339,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.12 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.13 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -1212,18 +1212,30 @@ load();
  function closeEditor(){editingId=null;pending=null;$('#measureEditor').classList.add('hidden');render()}
  $('#saveEditor').onclick=()=>{const m=ensure();if(!m||!pending)return;pending.value=$('#editorValue').value.trim();pending.name=$('#editorName').value.trim()||pending.kind;if(!pending.value)return alert('Enter the measurement.');if(!editingId){pending.id=uid();m.marks.push(pending)}save();closeEditor();render();const st=$('#measurePhotoStatus');if(st)st.textContent=(m.marks||[]).filter(x=>x.type==='measure').length+' measurements added';};
  $('#deleteEditor').onclick=()=>{const m=ensure();if(!m||!editingId)return;m.marks=m.marks.filter(x=>x.id!==editingId);save();closeEditor();render()};$('#closeEditor').onclick=closeEditor;
- const cameraInput=$('#markupCameraPhoto'),galleryInput=$('#markupGalleryPhoto'),photoButton=$('#takeMeasurePhoto'),chooseButton=$('#chooseMeasurePhoto'),pasteButton=$('#pasteMeasurePhoto'),photoStatus=$('#measurePhotoStatus'),pictureMenu=$('#measurePictureMenu'),pickPictureButton=$('#pickMeasurePicture'),pastePictureButton=$('#pasteMeasurePicture'),closePictureButton=$('#closeMeasurePictureMenu');
+ let cameraInput=$('#markupCameraPhoto'),galleryInput=$('#markupGalleryPhoto');
+ const photoButton=$('#takeMeasurePhoto'),chooseButton=$('#chooseMeasurePhoto'),pasteButton=$('#pasteMeasurePhoto'),photoStatus=$('#measurePhotoStatus'),pictureMenu=$('#measurePictureMenu'),pickPictureButton=$('#pickMeasurePicture'),pastePictureButton=$('#pasteMeasurePicture'),closePictureButton=$('#closeMeasurePictureMenu');
  function setPhotoStatus(t){if(photoStatus)photoStatus.textContent=t||''}
  function isImageFile(file){const type=String(file?.type||'').toLowerCase(),name=String(file?.name||'').toLowerCase();return type.startsWith('image/')||/\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(name)}
  function loadMeasurePhotoFile(file){if(!file)return;if(!isImageFile(file)){setPhotoStatus('Choose a picture file');return}const m=ensure();if(!m){alert('Open or create a project first.');setPhotoStatus('No project');return}setPhotoStatus('Loading…');compressImage(file,data=>{m.image=data;m.w=0;m.h=0;m.marks=[];zoom=1;panX=0;panY=0;save();loadMarkup();setPhotoStatus('Photo ready')},()=>{setPhotoStatus('Could not read that photo — please try again');alert('That photo could not be loaded. Please try taking it again, or choose a different one.')})}
  function droppedImage(dt){const files=[...(dt?.files||[])];let file=files.find(isImageFile);if(file)return file;for(const item of [...(dt?.items||[])]){if(item.kind==='file'){const f=item.getAsFile?.();if(isImageFile(f))return f}}return null}
- function wirePhotoInput(input){if(!input)return;input.onchange=e=>{const f=e.target.files&&e.target.files[0];loadMeasurePhotoFile(f);e.target.value=''}}
+ function wirePhotoInput(input,which){
+  if(!input)return;
+  input.onchange=e=>{
+   const f=e.target.files&&e.target.files[0];
+   loadMeasurePhotoFile(f);
+   const fresh=input.cloneNode(true);
+   fresh.value='';
+   input.parentNode.replaceChild(fresh,input);
+   if(which==='camera')cameraInput=fresh;else if(which==='gallery')galleryInput=fresh;
+   wirePhotoInput(fresh,which);
+  };
+ }
  function openPictureMenu(){pictureMenu?.classList.remove('hidden')}
  function closePictureMenu(){pictureMenu?.classList.add('hidden')}
  async function pasteMeasureImage(e){e?.preventDefault?.();try{if(!navigator.clipboard?.read)throw new Error('Clipboard unavailable');const items=await navigator.clipboard.read();for(const item of items){const type=item.types.find(t=>t.startsWith('image/'));if(type){loadMeasurePhotoFile(await item.getType(type));closePictureMenu();return}}setPhotoStatus('No picture copied')}catch(err){setPhotoStatus('Choose a picture instead')}}
  if(chooseButton){chooseButton.onclick=e=>{e.preventDefault();e.stopPropagation();openPictureMenu()}}
- if(photoButton&&cameraInput){photoButton.onclick=e=>{e.preventDefault();e.stopPropagation();closePictureMenu();cameraInput.value='';cameraInput.click()};wirePhotoInput(cameraInput)}
- if(pickPictureButton&&galleryInput){pickPictureButton.onclick=e=>{e.preventDefault();e.stopPropagation();closePictureMenu();galleryInput.value='';galleryInput.click()};wirePhotoInput(galleryInput)}
+ if(photoButton){photoButton.onclick=e=>{e.preventDefault();e.stopPropagation();closePictureMenu();cameraInput.value='';cameraInput.click()};wirePhotoInput(cameraInput,'camera')}
+ if(pickPictureButton){pickPictureButton.onclick=e=>{e.preventDefault();e.stopPropagation();closePictureMenu();galleryInput.value='';galleryInput.click()};wirePhotoInput(galleryInput,'gallery')}
  if(closePictureButton)closePictureButton.onclick=closePictureMenu;
  if(pictureMenu)pictureMenu.addEventListener('click',e=>{if(e.target===pictureMenu)closePictureMenu()});
  if(pastePictureButton)pastePictureButton.onclick=pasteMeasureImage;
@@ -1563,7 +1575,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.12 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.13 Cloud Sync';
 })();
 </script>
 
