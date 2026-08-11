@@ -6,7 +6,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link href="assembleone_app_icon.svg" rel="icon"/><title>AssembleOne Studio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=18">
+<link rel="stylesheet" href="styles.css?v=19">
 
 
 
@@ -131,8 +131,9 @@
 </div>
 </section>
 <section class="screen" id="screen-customers">
-<div class="title-row"><div><h2>Customers</h2><div class="muted">Every job, saved and organised by customer.</div></div></div>
+<div class="title-row"><div><h2>Customers</h2><div class="muted">Every job, saved and organised by customer.</div></div><button class="btn primary" id="newCustomerBtn" type="button">+ New customer</button></div>
 <div id="customerListView">
+<input type="text" id="customerSearch" class="customer-search" placeholder="Search customers...">
 <div id="customerList"></div>
 </div>
 <div id="customerDetailView" class="hidden">
@@ -537,4 +538,4 @@
 
 
 
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>

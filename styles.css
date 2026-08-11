@@ -721,11 +721,16 @@ thead{background:#2E294E;color:white}tbody tr:nth-child(even){background:#FAFAFC
 .site-job-save-btn:hover{background:#e3e9ff}
 .site-job-open-full{flex:1;background:#ffc400;color:#211b50;border:2px solid #dca900;border-radius:16px;padding:13px 10px;font-weight:900;font-size:15px;cursor:pointer;white-space:nowrap}
 @media(max-width:420px){.site-job-inbox-actions{flex-direction:column}}
-#customerList{display:grid;gap:12px}
-.customer-card{appearance:none;width:100%;border:2px solid #d8d6e1;background:#fff;border-radius:22px;padding:14px;display:flex;align-items:center;gap:14px;text-align:left;color:#25213f;cursor:pointer;box-shadow:0 5px 14px rgba(35,31,63,.06);font:inherit}
-.customer-card:hover{transform:translateY(-1px);border-color:#ffc400}
-.customer-card-photo{width:60px;height:60px;border-radius:16px;object-fit:cover;flex:none;background:#f2f0f8}
-.customer-card-photo-empty{display:grid;place-items:center;font-size:28px}
+.customer-search{width:100%;padding:14px 16px;border:2px solid #d8d6e1;border-radius:16px;font-size:16px;font-weight:700;margin-bottom:14px;background:#f9f9fb;color:#25213f}
+.customer-search:focus{outline:none;border-color:#ffc400;background:#fff}
+#customerList{display:grid;gap:10px}
+.customer-row{appearance:none;width:100%;border:2px solid #e4e1eb;background:#fff;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-align:left;color:#25213f;cursor:pointer;font:inherit}
+.customer-row:hover{border-color:#ffc400}
+.customer-row-info{flex:1;min-width:0}
+.customer-row-info strong{display:block;font-size:17px;color:#17234a}
+.customer-row-address{display:block;font-size:13px;color:#716c7e;font-weight:700;margin-top:3px}
+.customer-row-count{flex:none;background:#f2f4f8;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800;color:#4a4560}
+.customer-row-arrow{flex:none;font-size:22px;color:#a39ec4}
 .customer-card-info{flex:1;min-width:0}
 .customer-card-info strong{display:block;font-size:20px;color:#17234a;line-height:1.15}
 .customer-card-address{display:block;font-size:13px;color:#1f7a44;font-weight:800;margin-top:3px}
