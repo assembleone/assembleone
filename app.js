@@ -682,6 +682,36 @@ function renderCustomerDetail(name,entry){
  });
  const backBtn=document.getElementById("backToCustomerList");
  if(backBtn)backBtn.onclick=()=>{currentCustomerName=null;renderCustomers()};
+ const editBtn=document.getElementById("editCustomerBtn");
+ if(editBtn)editBtn.onclick=()=>editCustomer(name);
+ const deleteBtn=document.getElementById("deleteCustomerBtn");
+ if(deleteBtn)deleteBtn.onclick=()=>deleteCustomer(name);
+}
+function editCustomer(name){
+ const map=allCustomerEntries();
+ const entry=map.get(name);
+ if(!entry)return;
+ const newName=(prompt("Customer name:",entry.name)||"").trim();
+ if(!newName)return;
+ const newAddress=(prompt("Address:",entry.address||"")||"").trim();
+ const newPhone=(prompt("Phone:",entry.phone||"")||"").trim();
+ let rec=(state.customers||[]).find(c=>customerKey(c.name)===name);
+ if(!rec){rec={id:uid(),name:newName,address:newAddress,phone:newPhone,notes:"",createdAt:new Date().toISOString()};state.customers=state.customers||[];state.customers.push(rec)}
+ else{rec.name=newName;rec.address=newAddress;rec.phone=newPhone}
+ entry.projects.forEach(p=>{p.customer=newName;if(newAddress)p.address=newAddress});
+ currentCustomerName=newName;
+ save();renderAll();
+}
+function deleteCustomer(name){
+ const map=allCustomerEntries();
+ const entry=map.get(name);
+ if(!entry)return;
+ const jobCount=entry.projects.length;
+ if(!confirm(`Delete "${name}"${jobCount?` and ${jobCount} job${jobCount===1?"":"s"}`:""}?\n\nThis cannot be undone.`))return;
+ state.customers=(state.customers||[]).filter(c=>customerKey(c.name)!==name);
+ state.projects=(state.projects||[]).filter(p=>customerKey(p.customer)!==name);
+ currentCustomerName=null;
+ save();renderAll();
 }
 document.getElementById("customerSearch")?.addEventListener("input",e=>{customerSearchTerm=e.target.value;renderCustomers()});
 document.getElementById("newCustomerBtn")?.addEventListener("click",addNewCustomer);
@@ -722,7 +752,12 @@ function ensureSiteReferenceCabinet(merged){
  const pics=siteRoomPictures(room);
  let c=merged.cabinets?.find(x=>x.roomId===room?.id);
  if(!c){c={id:uid(),name:(room?.name||'Site room')+' drawing',roomId:room?.id||'',drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}
- if(pics[0]){c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];c.siteMarkup=room?.siteMarkup?JSON.parse(JSON.stringify(room.siteMarkup)):null}
+ if(pics[0]&&!c.drawing){
+  c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];
+  const capture=(room?.measureCaptures||[]).find(cap=>cap.image===pics[0]);
+  const markupSource=room?.siteMarkup?.image===pics[0]?room.siteMarkup:capture;
+  c.siteMarkup=markupSource?JSON.parse(JSON.stringify({image:markupSource.image,w:markupSource.w,h:markupSource.h,marks:markupSource.marks||[]})):null;
+ }
  return c;
 }
 async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileSiteJob(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const c=ensureSiteReferenceCabinet(merged);state.currentProject=merged.id;state.currentCabinet=c.id;state.currentPart=null;renderAll();save();await paintSiteInbox();show('mark');alert('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
