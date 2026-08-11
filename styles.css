@@ -709,6 +709,18 @@ thead{background:#2E294E;color:white}tbody tr:nth-child(even){background:#FAFAFC
 .site-jobs-list{display:grid;gap:12px}.site-jobs-empty{border:2px dashed #c9cfda;border-radius:20px;padding:22px;text-align:center;color:#706c7e;font-weight:750;background:#fff}
 .site-job-inbox-card{appearance:none;width:100%;border:2px solid #b9dec6;background:#fff;border-radius:22px;padding:16px;display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:14px;text-align:left;color:#25213f;cursor:pointer;box-shadow:0 5px 14px rgba(35,31,63,.06);font:inherit}.site-job-inbox-card:hover{transform:translateY(-1px);border-color:#18a957}.site-job-room-icon{width:64px;height:64px;border-radius:18px;background:#ecf8f0;display:grid;place-items:center;font-size:36px}.site-job-main strong{display:block;font-size:23px;color:#17234a;line-height:1.1}.site-job-main .site-project-name{display:block;font-size:14px;color:#716c7e;font-weight:750;margin-top:5px}.site-job-main .site-job-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}.site-job-main .site-job-meta span{background:#f2f4f8;border-radius:999px;padding:6px 9px;font-size:13px;font-weight:800}.site-job-open{background:#ffc400;color:#211b50;border:2px solid #dca900;border-radius:16px;padding:13px 17px;font-weight:900;white-space:nowrap;font-size:16px}.site-job-open:after{content:'  ›';font-size:22px;vertical-align:-1px}
 .site-job-inbox-row{display:flex;gap:8px;align-items:stretch}.site-job-inbox-row .site-job-inbox-card{flex:1}.site-job-remove{flex:none;width:46px;border-radius:14px;border:2px solid #e2b3b3;background:#fff;color:#c0392b;font-weight:900;font-size:19px;cursor:pointer}.site-job-remove:hover{background:#fdeeee}.site-job-inbox-broken{border:2px solid #e2b3b3;background:#fff5f5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;border-radius:22px;flex:1}.site-job-inbox-broken strong{color:#c0392b}
+.site-job-inbox-card2{border:2px solid #b9dec6;background:#fff;border-radius:22px;padding:16px;box-shadow:0 5px 14px rgba(35,31,63,.06)}
+.site-job-inbox-top{display:flex;align-items:flex-start;gap:14px}
+.site-job-inbox-top .site-job-room-icon{flex:none}
+.site-job-inbox-top .site-job-main{flex:1;min-width:0}
+.site-job-address{display:block;font-size:13px;color:#1f7a44;font-weight:800;margin-top:4px}
+.site-job-remove-x{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid #e2b3b3;background:#fff;color:#c0392b;font-weight:900;font-size:15px;cursor:pointer;line-height:1}
+.site-job-remove-x:hover{background:#fdeeee}
+.site-job-inbox-actions{display:flex;gap:10px;margin-top:14px}
+.site-job-save-btn{flex:1;background:#eef2ff;border:2px solid #b6c3f0;color:#25335f;border-radius:16px;padding:13px 10px;font-weight:900;font-size:14px;cursor:pointer}
+.site-job-save-btn:hover{background:#e3e9ff}
+.site-job-open-full{flex:1;background:#ffc400;color:#211b50;border:2px solid #dca900;border-radius:16px;padding:13px 10px;font-weight:900;font-size:15px;cursor:pointer;white-space:nowrap}
+@media(max-width:420px){.site-job-inbox-actions{flex-direction:column}}
 @media(max-width:700px){.site-job-inbox-card{grid-template-columns:52px 1fr}.site-job-room-icon{width:52px;height:52px;font-size:30px}.site-job-open{grid-column:1/-1;width:100%;text-align:center}.site-job-main strong{font-size:20px}.site-jobs-panel{padding:13px;border-radius:22px}}
 .trade-export-btn{border-color:#5b55a5;background:#f2f0ff;color:#312b70}
 
