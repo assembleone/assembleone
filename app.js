@@ -675,7 +675,8 @@ function renderCustomerDetail(name,entry){
  if(jobList)jobList.querySelectorAll("[data-open-customer-project]").forEach(b=>b.onclick=()=>{
   state.currentProject=b.dataset.openCustomerProject;
   const p=project();
-  state.currentCabinet=p?.cabinets?.[0]?.id||null;
+  const c=p?ensureSiteReferenceCabinet(p):null;
+  state.currentCabinet=c?.id||p?.cabinets?.[0]?.id||null;
   state.currentPart=null;
   save();renderAll();show("mark");
  });
@@ -705,6 +706,7 @@ async function saveSitePacketToCustomer(syncId){
   if(!pack)return alert('This site job is no longer waiting.');
   const incoming=ensureSharedProject(pack.project||pack);
   const merged=mergeMobileSiteJob(incoming);
+  ensureSiteReferenceCabinet(merged);
   await removeInboxPacket(pack.syncId||pack.exportedAt);
   renderAll();save();
   await paintSiteInbox();
@@ -715,7 +717,15 @@ async function saveSitePacketToCustomer(syncId){
  }
 }
 async function removeInboxPacket(syncId){try{await firebaseDelete(`studioInbox/${firebaseSafeKey(syncId)}`)}catch(e){console.error(e)}try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK)}
-async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileSiteJob(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const room=merged.rooms?.[0];const pics=siteRoomPictures(room);let c=merged.cabinets?.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' drawing',roomId:room?.id||'',drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}if(pics[0]){c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];c.siteMarkup=room?.siteMarkup?JSON.parse(JSON.stringify(room.siteMarkup)):null}state.currentProject=merged.id;state.currentCabinet=c.id;state.currentPart=null;renderAll();save();await paintSiteInbox();show('mark');alert('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
+function ensureSiteReferenceCabinet(merged){
+ const room=merged.rooms?.[0];
+ const pics=siteRoomPictures(room);
+ let c=merged.cabinets?.find(x=>x.roomId===room?.id);
+ if(!c){c={id:uid(),name:(room?.name||'Site room')+' drawing',roomId:room?.id||'',drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}
+ if(pics[0]){c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];c.siteMarkup=room?.siteMarkup?JSON.parse(JSON.stringify(room.siteMarkup)):null}
+ return c;
+}
+async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileSiteJob(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const c=ensureSiteReferenceCabinet(merged);state.currentProject=merged.id;state.currentCabinet=c.id;state.currentPart=null;renderAll();save();await paintSiteInbox();show('mark');alert('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
 async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert('No new site jobs are waiting.');return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
 document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
