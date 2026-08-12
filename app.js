@@ -349,7 +349,8 @@ function renderCutting(){
  }),0);
 }
 function localGuideUrl(p){return location.href.split("#")[0]+`#guide=${encodeURIComponent(state.currentProject)}:${encodeURIComponent(state.currentCabinet)}:${encodeURIComponent(p.id)}`}
-function mobileAppBase(){return (localStorage.getItem("assembleone_mobile_app_url")||"").trim().replace(/#.*$/,'')}
+const DEFAULT_MOBILE_APP_URL="https://assembleone.github.io/assembleone/Mobile.html";
+function mobileAppBase(){const stored=(localStorage.getItem("assembleone_mobile_app_url")||"").trim().replace(/#.*$/,'');return stored||DEFAULT_MOBILE_APP_URL}
 function phoneQrText(p){
  const pr=project(),c=cabinet();
  const route=`${encodeURIComponent(pr?.id||"")}:${encodeURIComponent(c?.id||"")}:${encodeURIComponent(p.id)}`;
