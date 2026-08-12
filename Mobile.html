@@ -1097,38 +1097,42 @@ function findPanelByNumber(value){
 }
 $("#findPanelByCode").onclick=()=>findPanelByNumber($("#manualPanelCode").value);
 $("#manualPanelCode").addEventListener("keydown",e=>{if(e.key==="Enter")findPanelByNumber(e.target.value)});
-let mediaStream=null,scanRunning=false,detector=null,jsqrCanvas=null,jsqrCtx=null;
+let mediaStream=null,scanRunning=false,detector=null,jsqrCanvas=null,jsqrCtx=null,scanLoopTimer=null;
 async function startCamera(){
+ if(scanRunning)return;
+ scanRunning=true;
  try{
   mediaStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
   const v=$("#camera");v.srcObject=mediaStream;await v.play();
   $("#cameraWrap").classList.remove("hidden");$("#stopScanner").classList.remove("hidden");$("#startScanner").classList.add("hidden");
   detector=null;
   if("BarcodeDetector" in window){try{detector=new BarcodeDetector({formats:["qr_code"]})}catch(e){detector=null}}
-  scanRunning=true;scanLoop();
- }catch(e){alert("The camera could not be opened. Check camera permission, or use Scan from photo.")}
+  scanLoop();
+ }catch(e){scanRunning=false;alert("The camera could not be opened. Check camera permission, or use Scan from photo.")}
 }
 async function scanLoop(){
  if(!scanRunning)return;
  try{
   if(detector){
    const codes=await detector.detect($("#camera"));
-   if(codes.length){$("#scanResult").textContent="QR label found.";openScannedText(codes[0].rawValue);return}
+   if(codes.length){$("#scanResult").textContent="QR label found.";if(openScannedText(codes[0].rawValue))return}
   }else if(typeof jsQR!=="undefined"){
    const v=$("#camera");
    if(v.videoWidth){
+    const maxDim=480,scale=Math.min(1,maxDim/Math.max(v.videoWidth,v.videoHeight));
+    const w=Math.max(1,Math.round(v.videoWidth*scale)),h=Math.max(1,Math.round(v.videoHeight*scale));
     if(!jsqrCanvas){jsqrCanvas=document.createElement("canvas");jsqrCtx=jsqrCanvas.getContext("2d",{willReadFrequently:true})}
-    jsqrCanvas.width=v.videoWidth;jsqrCanvas.height=v.videoHeight;
-    jsqrCtx.drawImage(v,0,0,jsqrCanvas.width,jsqrCanvas.height);
-    const imageData=jsqrCtx.getImageData(0,0,jsqrCanvas.width,jsqrCanvas.height);
+    if(jsqrCanvas.width!==w||jsqrCanvas.height!==h){jsqrCanvas.width=w;jsqrCanvas.height=h}
+    jsqrCtx.drawImage(v,0,0,w,h);
+    const imageData=jsqrCtx.getImageData(0,0,w,h);
     const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:"dontInvert"});
-    if(code&&code.data){$("#scanResult").textContent="QR label found.";openScannedText(code.data);return}
+    if(code&&code.data){$("#scanResult").textContent="QR label found.";if(openScannedText(code.data))return}
    }
   }
  }catch(e){}
- requestAnimationFrame(scanLoop);
+ scanLoopTimer=setTimeout(scanLoop,detector?80:150);
 }
-function stopCamera(){scanRunning=false;if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
+function stopCamera(){scanRunning=false;if(scanLoopTimer){clearTimeout(scanLoopTimer);scanLoopTimer=null}if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
 $("#startScanner").onclick=startCamera;$("#stopScanner").onclick=stopCamera;
 const scanNavBtn=document.querySelector('.nav.scan-main');if(scanNavBtn)scanNavBtn.onclick=()=>{show('scan');startCamera()};
 $("#scanPhoto").onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!("BarcodeDetector" in window)){alert("This browser cannot read a QR from a photo. Use the normal phone camera and paste the label text.");return}try{const bmp=await createImageBitmap(f),d=new BarcodeDetector({formats:["qr_code"]}),codes=await d.detect(bmp);if(codes.length)openScannedText(codes[0].rawValue);else $("#scanResult").textContent="No QR code was found in that photo."}catch(e){$("#scanResult").textContent="The QR photo could not be read."}};
