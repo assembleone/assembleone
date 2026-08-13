@@ -702,7 +702,7 @@ function save(){
 }
 function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):(.+)$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3])}:null}
 function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;state.screen="install";save();return true}return false}
-function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};const route=parsePanelHash();if(route&&!openPanelRoute(route)){state.pendingPanelRoute=route;state.screen="projects"}renderAll();applyI18n();paintLangButtons();if(route&&!state.currentPart)setTimeout(()=>alert("Open the published AssembleOne project on this phone first. Then scan the QR again."),50)}
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};const route=parsePanelHash();if(route&&!openPanelRoute(route)){state.pendingPanelRoute=route;state.screen="projects"}renderAll();applyI18n();paintLangButtons();if(route&&!state.currentPart)setTimeout(()=>{if(state.pendingPanelRoute)alert("This panel isn't on your phone yet. Checking for it now — if it doesn't appear in a few seconds, send the job to this phone again from Studio.")},3000)}
 function show(name){state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=name==='measure'?'drawings':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons()}
 $$(".nav").forEach(b=>b.onclick=()=>show(b.dataset.screen));
 function ensureExtras(p){
@@ -1645,12 +1645,24 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       const units=incoming.cabinets,panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]),pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
       const isNote=packet.sendType==="note";
       if(!isNote&&(!units.length||!panels.length))throw new Error("Empty project");
-      const p=mergeStudioProject(incoming);state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;save();await window.removeMobilePacket(packet);
+      const p=mergeStudioProject(incoming);
+      let routedToPanel=false;
+      if(state.pendingPanelRoute&&state.pendingPanelRoute.projectId===p.id){
+        routedToPanel=openPanelRoute(state.pendingPanelRoute);
+        state.pendingPanelRoute=null;
+      }
+      if(!routedToPanel){state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null}
+      save();await window.removeMobilePacket(packet);
       const isCut=packet.sendType==="cutting-list"||packet.openScreen==="scan"||packet.includesCuttingList===true;
-      show(isCut?"scan":"drawings");
-      setTimeout(()=>{renderAll();if(isCut){const box=document.getElementById("cuttingProgress");if(box)box.classList.remove("hidden");renderScanDashboard()}},40);
-      if(isNote)alert(`New note from Studio:\n\n${p.notes||''}`);
-      else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
+      if(routedToPanel){
+        markCurrentPanelScanned();
+        show("install");
+      }else{
+        show(isCut?"scan":"drawings");
+        setTimeout(()=>{renderAll();if(isCut){const box=document.getElementById("cuttingProgress");if(box)box.classList.remove("hidden");renderScanDashboard()}},40);
+        if(isNote)alert(`New note from Studio:\n\n${p.notes||''}`);
+        else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
+      }
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
   document.title='AssembleOne Mobile 11.0.19 Cloud Sync';
