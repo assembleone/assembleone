@@ -2127,19 +2127,245 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
    noLongEdging:'Sin canto largo',noShortEdging:'Sin canto corto',
    cuttingTitle:'Lista de Corte para Proveedor',stickersTitle:'Etiquetas QR para Proveedor',
    qty:'Cant.',material:'Material:',notSet:'No definido',edging:'Cantos:',notes:'Notas:',project:'Proyecto',unit:'Unidad'
+  },
+  fr:{
+   pageTitle:'Fournisseur',pageSubtitle:'Informations finales de découpe et étiquettes QR correspondantes.',
+   langLabel:'Langue',
+   checkingPanels:'Vérification des panneaux…',readyToManufacture:'Prêt à fabriquer',
+   panelNeedsChecking:'panneau à vérifier',panelsNeedChecking:'panneaux à vérifier',
+   completePanels:'Panneaux complets',totalPieces:'Pièces totales',materials:'Matériaux',
+   piece:'pièce',pieces:'pièces',noCompleteMaterials:'Aucun matériau complet pour le moment.',
+   unnamedPart:'Pièce sans nom',quantity:'Quantité',noCompletePanels:'Aucun panneau complet prêt pour le fournisseur.',
+   deliveryHeading:'📍 Lieu de livraison',openInMaps:'📍 Ouvrir dans Maps',
+   pinnedNoAddress:'Emplacement épinglé sur la carte (sans adresse saisie)',
+   includeDelivery:'Inclure le lieu de livraison',
+   deliveryHintAddress:'Ajouter "{address}" à la liste de découpe, pour les fournisseurs livrant le matériel directement.',
+   deliveryHintDefault:"Ajouter l'emplacement épinglé sur la carte à la liste de découpe, pour les fournisseurs livrant le matériel directement.",
+   downloadCsvTitle:'Télécharger le CSV',downloadCsvSub:'Excel et fournisseurs CNC',
+   printPackTitle:'Imprimer le dossier fournisseur',printPackSub:'Liste de découpe + étiquettes QR correspondantes',
+   sendToPhoneTitle:'Envoyer la liste de découpe au téléphone',sendToPhoneSub:'Panneaux, quantités et liste de contrôle QR',
+   panelsHeading:'Panneaux',
+   stickerSizeHeading:'Taille des étiquettes QR',stickerSizeSub:'Choisissez une taille courante ou saisissez vos propres mesures.',
+   widthLabel:'Largeur mm',heightLabel:'Hauteur mm',
+   stickerPreviewHeading:'Aperçu des étiquettes',
+   longEdge:'chant long',longEdges:'chants longs',shortEdge:'chant court',shortEdges:'chants courts',
+   noLongEdging:'Aucun chant long',noShortEdging:'Aucun chant court',
+   cuttingTitle:'Liste de Découpe pour le Fournisseur',stickersTitle:'Étiquettes QR pour le Fournisseur',
+   qty:'Qté',material:'Matériau :',notSet:'Non défini',edging:'Chants :',notes:'Notes :',project:'Projet',unit:'Unité'
+  },
+  de:{
+   pageTitle:'Lieferant',pageSubtitle:'Endgültige Zuschnittinformationen und passende QR-Etiketten.',
+   langLabel:'Sprache',
+   checkingPanels:'Paneele werden geprüft…',readyToManufacture:'Bereit zur Fertigung',
+   panelNeedsChecking:'Paneel muss geprüft werden',panelsNeedChecking:'Paneele müssen geprüft werden',
+   completePanels:'Vollständige Paneele',totalPieces:'Stück gesamt',materials:'Materialien',
+   piece:'Stück',pieces:'Stück',noCompleteMaterials:'Noch keine vollständigen Materialien.',
+   unnamedPart:'Unbenanntes Teil',quantity:'Menge',noCompletePanels:'Keine vollständigen Paneele für den Lieferanten bereit.',
+   deliveryHeading:'📍 Lieferort',openInMaps:'📍 In Maps öffnen',
+   pinnedNoAddress:'Angepinnter Kartenstandort (keine Adresse eingegeben)',
+   includeDelivery:'Lieferort einschließen',
+   deliveryHintAddress:'Fügen Sie "{address}" der Zuschnittliste hinzu, für Lieferanten, die Material direkt liefern.',
+   deliveryHintDefault:'Fügen Sie den angepinnten Kartenstandort der Zuschnittliste hinzu, für Lieferanten, die Material direkt liefern.',
+   downloadCsvTitle:'CSV herunterladen',downloadCsvSub:'Excel und CNC-Lieferanten',
+   printPackTitle:'Lieferantenpaket drucken',printPackSub:'Zuschnittliste + passende QR-Etiketten',
+   sendToPhoneTitle:'Zuschnittliste an Telefon senden',sendToPhoneSub:'Paneele, Mengen und QR-Scan-Checkliste',
+   panelsHeading:'Paneele',
+   stickerSizeHeading:'QR-Etikettengröße',stickerSizeSub:'Wählen Sie eine gängige Größe oder geben Sie eigene Maße ein.',
+   widthLabel:'Breite mm',heightLabel:'Höhe mm',
+   stickerPreviewHeading:'Etikettenvorschau',
+   longEdge:'lange Kante',longEdges:'lange Kanten',shortEdge:'kurze Kante',shortEdges:'kurze Kanten',
+   noLongEdging:'Keine lange Kante',noShortEdging:'Keine kurze Kante',
+   cuttingTitle:'Zuschnittliste für den Lieferanten',stickersTitle:'QR-Etiketten für den Lieferanten',
+   qty:'Menge',material:'Material:',notSet:'Nicht festgelegt',edging:'Kantung:',notes:'Notizen:',project:'Projekt',unit:'Einheit'
+  },
+  da:{
+   pageTitle:'Leverandør',pageSubtitle:'Endelige skæreoplysninger og tilhørende QR-mærkater.',
+   langLabel:'Sprog',
+   checkingPanels:'Tjekker paneler…',readyToManufacture:'Klar til fremstilling',
+   panelNeedsChecking:'panel skal tjekkes',panelsNeedChecking:'paneler skal tjekkes',
+   completePanels:'Færdige paneler',totalPieces:'Stykker i alt',materials:'Materialer',
+   piece:'stk',pieces:'stk',noCompleteMaterials:'Ingen færdige materialer endnu.',
+   unnamedPart:'Unavngivet del',quantity:'Antal',noCompletePanels:'Ingen færdige paneler klar til leverandøren.',
+   deliveryHeading:'📍 Leveringssted',openInMaps:'📍 Åbn i Maps',
+   pinnedNoAddress:'Fastgjort kortplacering (ingen indtastet adresse)',
+   includeDelivery:'Inkluder leveringssted',
+   deliveryHintAddress:'Tilføj "{address}" til skærelisten, for leverandører der leverer materiale direkte.',
+   deliveryHintDefault:'Tilføj den fastgjorte kortplacering til skærelisten, for leverandører der leverer materiale direkte.',
+   downloadCsvTitle:'Download CSV',downloadCsvSub:'Excel og CNC-leverandører',
+   printPackTitle:'Udskriv leverandørpakke',printPackSub:'Skæreliste + tilhørende QR-mærkater',
+   sendToPhoneTitle:'Send skæreliste til telefonen',sendToPhoneSub:'Paneler, antal og QR-scan-tjekliste',
+   panelsHeading:'Paneler',
+   stickerSizeHeading:'QR-mærkatstørrelse',stickerSizeSub:'Vælg en almindelig størrelse, eller angiv dine egne mål.',
+   widthLabel:'Bredde mm',heightLabel:'Højde mm',
+   stickerPreviewHeading:'Forhåndsvisning af mærkat',
+   longEdge:'lang kant',longEdges:'lange kanter',shortEdge:'kort kant',shortEdges:'korte kanter',
+   noLongEdging:'Ingen lang kant',noShortEdging:'Ingen kort kant',
+   cuttingTitle:'Skæreliste til Leverandør',stickersTitle:'QR-mærkater til Leverandør',
+   qty:'Antal',material:'Materiale:',notSet:'Ikke angivet',edging:'Kantliste:',notes:'Noter:',project:'Projekt',unit:'Enhed'
+  },
+  ro:{
+   pageTitle:'Furnizor',pageSubtitle:'Informații finale de debitare și etichete QR corespunzătoare.',
+   langLabel:'Limbă',
+   checkingPanels:'Se verifică panourile…',readyToManufacture:'Gata pentru fabricare',
+   panelNeedsChecking:'panou de verificat',panelsNeedChecking:'panouri de verificat',
+   completePanels:'Panouri complete',totalPieces:'Total bucăți',materials:'Materiale',
+   piece:'bucată',pieces:'bucăți',noCompleteMaterials:'Încă nu există materiale complete.',
+   unnamedPart:'Piesă fără nume',quantity:'Cantitate',noCompletePanels:'Niciun panou complet gata pentru furnizor.',
+   deliveryHeading:'📍 Locația de livrare',openInMaps:'📍 Deschide în Maps',
+   pinnedNoAddress:'Locație marcată pe hartă (fără adresă introdusă)',
+   includeDelivery:'Include locația de livrare',
+   deliveryHintAddress:'Adaugă "{address}" la lista de debitare, pentru furnizorii care livrează materialul direct.',
+   deliveryHintDefault:'Adaugă locația marcată pe hartă la lista de debitare, pentru furnizorii care livrează materialul direct.',
+   downloadCsvTitle:'Descarcă CSV',downloadCsvSub:'Excel și furnizori CNC',
+   printPackTitle:'Tipărește pachetul pentru furnizor',printPackSub:'Listă de debitare + etichete QR corespunzătoare',
+   sendToPhoneTitle:'Trimite lista de debitare pe telefon',sendToPhoneSub:'Panouri, cantități și listă de verificare QR',
+   panelsHeading:'Panouri',
+   stickerSizeHeading:'Dimensiune etichetă QR',stickerSizeSub:'Alege o dimensiune obișnuită sau introdu propriile măsurători.',
+   widthLabel:'Lățime mm',heightLabel:'Înălțime mm',
+   stickerPreviewHeading:'Previzualizare etichetă',
+   longEdge:'cant lung',longEdges:'canturi lungi',shortEdge:'cant scurt',shortEdges:'canturi scurte',
+   noLongEdging:'Fără cant lung',noShortEdging:'Fără cant scurt',
+   cuttingTitle:'Listă de Debitare pentru Furnizor',stickersTitle:'Etichete QR pentru Furnizor',
+   qty:'Cant.',material:'Material:',notSet:'Nesetat',edging:'Cant:',notes:'Note:',project:'Proiect',unit:'Unitate'
+  },
+  it:{
+   pageTitle:'Fornitore',pageSubtitle:'Informazioni finali di taglio ed etichette QR corrispondenti.',
+   langLabel:'Lingua',
+   checkingPanels:'Controllo pannelli…',readyToManufacture:'Pronto per la produzione',
+   panelNeedsChecking:'pannello da controllare',panelsNeedChecking:'pannelli da controllare',
+   completePanels:'Pannelli completi',totalPieces:'Pezzi totali',materials:'Materiali',
+   piece:'pezzo',pieces:'pezzi',noCompleteMaterials:'Ancora nessun materiale completo.',
+   unnamedPart:'Pezzo senza nome',quantity:'Quantità',noCompletePanels:'Nessun pannello completo pronto per il fornitore.',
+   deliveryHeading:'📍 Luogo di consegna',openInMaps:'📍 Apri in Maps',
+   pinnedNoAddress:'Posizione segnata sulla mappa (nessun indirizzo digitato)',
+   includeDelivery:'Includi il luogo di consegna',
+   deliveryHintAddress:'Aggiungi "{address}" alla lista di taglio, per i fornitori che consegnano il materiale direttamente.',
+   deliveryHintDefault:'Aggiungi la posizione segnata sulla mappa alla lista di taglio, per i fornitori che consegnano il materiale direttamente.',
+   downloadCsvTitle:'Scarica CSV',downloadCsvSub:'Excel e fornitori CNC',
+   printPackTitle:'Stampa pacchetto fornitore',printPackSub:'Lista di taglio + etichette QR corrispondenti',
+   sendToPhoneTitle:'Invia lista di taglio al telefono',sendToPhoneSub:'Pannelli, quantità e lista di controllo QR',
+   panelsHeading:'Pannelli',
+   stickerSizeHeading:'Dimensione etichetta QR',stickerSizeSub:'Scegli una dimensione comune o inserisci le tue misure.',
+   widthLabel:'Larghezza mm',heightLabel:'Altezza mm',
+   stickerPreviewHeading:"Anteprima dell'etichetta",
+   longEdge:'bordo lungo',longEdges:'bordi lunghi',shortEdge:'bordo corto',shortEdges:'bordi corti',
+   noLongEdging:'Nessun bordo lungo',noShortEdging:'Nessun bordo corto',
+   cuttingTitle:'Lista di Taglio per il Fornitore',stickersTitle:'Etichette QR per il Fornitore',
+   qty:'Q.tà',material:'Materiale:',notSet:'Non impostato',edging:'Bordatura:',notes:'Note:',project:'Progetto',unit:'Unità'
+  },
+  pt:{
+   pageTitle:'Fornecedor',pageSubtitle:'Informações finais de corte e etiquetas QR correspondentes.',
+   langLabel:'Idioma',
+   checkingPanels:'A verificar painéis…',readyToManufacture:'Pronto para fabricar',
+   panelNeedsChecking:'painel a verificar',panelsNeedChecking:'painéis a verificar',
+   completePanels:'Painéis completos',totalPieces:'Total de peças',materials:'Materiais',
+   piece:'peça',pieces:'peças',noCompleteMaterials:'Ainda não há materiais completos.',
+   unnamedPart:'Peça sem nome',quantity:'Quantidade',noCompletePanels:'Nenhum painel completo pronto para o fornecedor.',
+   deliveryHeading:'📍 Local de entrega',openInMaps:'📍 Abrir no Maps',
+   pinnedNoAddress:'Local marcado no mapa (sem morada digitada)',
+   includeDelivery:'Incluir local de entrega',
+   deliveryHintAddress:'Adicionar "{address}" à lista de corte, para fornecedores que entregam material diretamente.',
+   deliveryHintDefault:'Adicionar o local marcado no mapa à lista de corte, para fornecedores que entregam material diretamente.',
+   downloadCsvTitle:'Descarregar CSV',downloadCsvSub:'Excel e fornecedores CNC',
+   printPackTitle:'Imprimir pacote do fornecedor',printPackSub:'Lista de corte + etiquetas QR correspondentes',
+   sendToPhoneTitle:'Enviar lista de corte para o telemóvel',sendToPhoneSub:'Painéis, quantidades e lista de verificação QR',
+   panelsHeading:'Painéis',
+   stickerSizeHeading:'Tamanho da etiqueta QR',stickerSizeSub:'Escolha um tamanho comum ou introduza as suas próprias medidas.',
+   widthLabel:'Largura mm',heightLabel:'Altura mm',
+   stickerPreviewHeading:'Pré-visualização da etiqueta',
+   longEdge:'orla longa',longEdges:'orlas longas',shortEdge:'orla curta',shortEdges:'orlas curtas',
+   noLongEdging:'Sem orla longa',noShortEdging:'Sem orla curta',
+   cuttingTitle:'Lista de Corte para o Fornecedor',stickersTitle:'Etiquetas QR para o Fornecedor',
+   qty:'Qtd.',material:'Material:',notSet:'Não definido',edging:'Orla:',notes:'Notas:',project:'Projeto',unit:'Unidade'
+  },
+  nl:{
+   pageTitle:'Leverancier',pageSubtitle:'Definitieve zaaginformatie en bijbehorende QR-stickers.',
+   langLabel:'Taal',
+   checkingPanels:'Panelen controleren…',readyToManufacture:'Klaar voor productie',
+   panelNeedsChecking:'paneel moet worden gecontroleerd',panelsNeedChecking:'panelen moeten worden gecontroleerd',
+   completePanels:'Volledige panelen',totalPieces:'Totaal aantal stuks',materials:'Materialen',
+   piece:'stuk',pieces:'stuks',noCompleteMaterials:'Nog geen volledige materialen.',
+   unnamedPart:'Naamloos onderdeel',quantity:'Aantal',noCompletePanels:'Geen volledige panelen klaar voor de leverancier.',
+   deliveryHeading:'📍 Leverlocatie',openInMaps:'📍 Openen in Maps',
+   pinnedNoAddress:'Vastgezette locatie op kaart (geen adres ingevoerd)',
+   includeDelivery:'Leverlocatie opnemen',
+   deliveryHintAddress:'Voeg "{address}" toe aan de zaaglijst, voor leveranciers die materiaal rechtstreeks leveren.',
+   deliveryHintDefault:'Voeg de vastgezette locatie op de kaart toe aan de zaaglijst, voor leveranciers die materiaal rechtstreeks leveren.',
+   downloadCsvTitle:'CSV downloaden',downloadCsvSub:'Excel en CNC-leveranciers',
+   printPackTitle:'Leverancierspakket afdrukken',printPackSub:'Zaaglijst + bijbehorende QR-stickers',
+   sendToPhoneTitle:'Zaaglijst naar telefoon sturen',sendToPhoneSub:'Panelen, aantallen en QR-scanchecklist',
+   panelsHeading:'Panelen',
+   stickerSizeHeading:'QR-stickerformaat',stickerSizeSub:'Kies een veelvoorkomend formaat of voer uw eigen afmetingen in.',
+   widthLabel:'Breedte mm',heightLabel:'Hoogte mm',
+   stickerPreviewHeading:'Stickervoorbeeld',
+   longEdge:'lange kant',longEdges:'lange kanten',shortEdge:'korte kant',shortEdges:'korte kanten',
+   noLongEdging:'Geen lange kant',noShortEdging:'Geen korte kant',
+   cuttingTitle:'Zaaglijst voor Leverancier',stickersTitle:'QR-stickers voor Leverancier',
+   qty:'Aant.',material:'Materiaal:',notSet:'Niet ingesteld',edging:'Kantenband:',notes:'Notities:',project:'Project',unit:'Eenheid'
+  },
+  pl:{
+   pageTitle:'Dostawca',pageSubtitle:'Ostateczne informacje o cięciu i pasujące etykiety QR.',
+   langLabel:'Język',
+   checkingPanels:'Sprawdzanie paneli…',readyToManufacture:'Gotowe do produkcji',
+   panelNeedsChecking:'panel do sprawdzenia',panelsNeedChecking:'paneli do sprawdzenia',
+   completePanels:'Kompletne panele',totalPieces:'Łączna liczba sztuk',materials:'Materiały',
+   piece:'sztuka',pieces:'sztuk',noCompleteMaterials:'Brak jeszcze kompletnych materiałów.',
+   unnamedPart:'Element bez nazwy',quantity:'Ilość',noCompletePanels:'Brak kompletnych paneli gotowych dla dostawcy.',
+   deliveryHeading:'📍 Miejsce dostawy',openInMaps:'📍 Otwórz w Maps',
+   pinnedNoAddress:'Przypięta lokalizacja na mapie (bez wpisanego adresu)',
+   includeDelivery:'Uwzględnij miejsce dostawy',
+   deliveryHintAddress:'Dodaj "{address}" do listy cięcia, dla dostawców dostarczających materiał bezpośrednio.',
+   deliveryHintDefault:'Dodaj przypiętą lokalizację na mapie do listy cięcia, dla dostawców dostarczających materiał bezpośrednio.',
+   downloadCsvTitle:'Pobierz CSV',downloadCsvSub:'Excel i dostawcy CNC',
+   printPackTitle:'Drukuj pakiet dla dostawcy',printPackSub:'Lista cięcia + pasujące etykiety QR',
+   sendToPhoneTitle:'Wyślij listę cięcia na telefon',sendToPhoneSub:'Panele, ilości i lista kontrolna QR',
+   panelsHeading:'Panele',
+   stickerSizeHeading:'Rozmiar etykiety QR',stickerSizeSub:'Wybierz typowy rozmiar lub wprowadź własne wymiary.',
+   widthLabel:'Szerokość mm',heightLabel:'Wysokość mm',
+   stickerPreviewHeading:'Podgląd etykiety',
+   longEdge:'długa krawędź',longEdges:'długie krawędzie',shortEdge:'krótka krawędź',shortEdges:'krótkie krawędzie',
+   noLongEdging:'Brak długiej krawędzi',noShortEdging:'Brak krótkiej krawędzi',
+   cuttingTitle:'Lista Cięcia dla Dostawcy',stickersTitle:'Etykiety QR dla Dostawcy',
+   qty:'Ilość',material:'Materiał:',notSet:'Nieustawiony',edging:'Obrzeże:',notes:'Notatki:',project:'Projekt',unit:'Jednostka'
   }
+ };
+ const LANG_NAMES={en:'English',es:'Español',fr:'Français',de:'Deutsch',da:'Dansk',ro:'Română',it:'Italiano',pt:'Português',nl:'Nederlands',pl:'Polski'};
+ const LANG_FLAGS={
+  en:'<svg viewBox="0 0 60 36"><rect fill="#21468B" height="36" width="60"/><path d="M0 0L60 36M60 0L0 36" stroke="#fff" stroke-width="8"/><path d="M0 0L60 36M60 0L0 36" stroke="#C8102E" stroke-width="4"/><path d="M30 0v36M0 18h60" stroke="#fff" stroke-width="12"/><path d="M30 0v36M0 18h60" stroke="#C8102E" stroke-width="7"/></svg>',
+  es:'<svg viewBox="0 0 60 36"><rect fill="#AA151B" height="36" width="60"/><rect fill="#F1BF00" height="18" width="60" y="9"/></svg>',
+  da:'<svg viewBox="0 0 60 36"><rect fill="#C60C30" height="36" width="60"/><rect fill="#fff" height="36" width="5" x="18"/><rect fill="#fff" height="5" width="60" y="15"/></svg>',
+  de:'<svg viewBox="0 0 60 36"><rect fill="#000" height="12" width="60"/><rect fill="#DD0000" height="12" width="60" y="12"/><rect fill="#FFCE00" height="12" width="60" y="24"/></svg>',
+  fr:'<svg viewBox="0 0 60 36"><rect fill="#0055A4" height="36" width="20"/><rect fill="#fff" height="36" width="20" x="20"/><rect fill="#EF4135" height="36" width="20" x="40"/></svg>',
+  ro:'<svg viewBox="0 0 60 36"><rect fill="#002B7F" height="36" width="20"/><rect fill="#FCD116" height="36" width="20" x="20"/><rect fill="#CE1126" height="36" width="20" x="40"/></svg>',
+  it:'<svg viewBox="0 0 60 36"><rect fill="#009246" height="36" width="20"/><rect fill="#fff" height="36" width="20" x="20"/><rect fill="#CE2B37" height="36" width="20" x="40"/></svg>',
+  pt:'<svg viewBox="0 0 60 36"><rect fill="#046A38" height="36" width="24"/><rect fill="#DA291C" height="36" width="36" x="24"/><circle cx="24" cy="18" fill="#FFCD00" r="6"/></svg>',
+  nl:'<svg viewBox="0 0 60 36"><rect fill="#AE1C28" height="12" width="60"/><rect fill="#fff" height="12" width="60" y="12"/><rect fill="#21468B" height="12" width="60" y="24"/></svg>',
+  pl:'<svg viewBox="0 0 60 36"><rect fill="#fff" height="18" width="60"/><rect fill="#DC143C" height="18" width="60" y="18"/></svg>'
  };
  const SUPPLIER_LANG_KEY='assembleone_supplier_print_lang';
  function supplierLang(){try{return localStorage.getItem(SUPPLIER_LANG_KEY)||'en'}catch(e){return 'en'}}
  function setSupplierLang(v){try{localStorage.setItem(SUPPLIER_LANG_KEY,v)}catch(e){}}
  function supplierT(){return SUPPLIER_I18N[supplierLang()]||SUPPLIER_I18N.en}
  window.SUPPLIER_I18N=SUPPLIER_I18N;window.supplierLang=supplierLang;window.setSupplierLang=setSupplierLang;window.supplierT=supplierT;
+ function renderSupplierLangFlags(){
+  const box=document.getElementById('supplierLangFlags');
+  if(!box)return;
+  const active=supplierLang();
+  box.innerHTML=Object.keys(LANG_FLAGS).map(code=>`<button type="button" class="lang-flag-btn ${code===active?'active':''}" data-lang="${code}" title="${LANG_NAMES[code]}" aria-label="${LANG_NAMES[code]}">${LANG_FLAGS[code]}</button>`).join('');
+  box.querySelectorAll('[data-lang]').forEach(btn=>{
+   btn.onclick=()=>{
+    setSupplierLang(btn.dataset.lang);
+    if(typeof window.renderCutting==='function')window.renderCutting();
+   };
+  });
+ }
+ window.renderSupplierLangFlags=renderSupplierLangFlags;
  function applySupplierStaticI18n(){
   const T=supplierT();
   const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text};
+  renderSupplierLangFlags();
   set('supplierPageTitle',T.pageTitle);
   set('supplierPageSubtitle',T.pageSubtitle);
-  set('supplierLangLabel',T.langLabel);
   set('supplierMaterialsCardHeading',T.materials);
   set('supplierDeliveryHeading',T.deliveryHeading);
   const mapBtn=document.getElementById('supplierOpenDeliveryMap');if(mapBtn)mapBtn.textContent=T.openInMaps;
@@ -2356,15 +2582,6 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
   document.getElementById('a131PrintNow').onclick=()=>{try{frame.contentWindow.focus();frame.contentWindow.print()}catch(e){alert('The print preview could not open. Please try again.')}};
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.style.display==='block')document.getElementById('a131ClosePrint').click()});
   // Replace popup based supplier printing with the in app preview.
-  const langSelect=document.getElementById('supplierPrintLang');
-  if(langSelect){
-    langSelect.value=(typeof window.supplierLang==='function'?window.supplierLang():'en');
-    langSelect.addEventListener('change',()=>{
-      if(typeof window.setSupplierLang==='function')window.setSupplierLang(langSelect.value);
-      if(typeof window.renderCutting==='function')window.renderCutting();
-      else if(typeof window.applySupplierStaticI18n==='function')window.applySupplierStaticI18n();
-    });
-  }
   document.addEventListener('click',function(e){
     const btn=e.target.closest('#printSupplierPackBtn');if(!btn)return;
     e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
