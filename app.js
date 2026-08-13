@@ -804,7 +804,7 @@ function ensureSiteReferenceCabinet(merged){
  const pics=siteRoomPictures(room);
  let c=merged.cabinets?.find(x=>x.roomId===room?.id);
  if(!c){c={id:uid(),name:(room?.name||'Site room')+' drawing',roomId:room?.id||'',drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}
- if(pics[0]&&!c.drawing){
+ if(pics[0]&&(!c.drawing||c.siteReference)&&c.drawing!==pics[0]){
   c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];
   const capture=(room?.measureCaptures||[]).find(cap=>cap.image===pics[0]);
   const markupSource=room?.siteMarkup?.image===pics[0]?room.siteMarkup:capture;
