@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#174E98">
 <link rel="icon" href="assembleone_app_icon.svg"><title>AssembleOne Mobile 11.0.19 Cloud Sync</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
 *{box-sizing:border-box}.js-file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
@@ -556,6 +553,12 @@ let state={projects:[],currentProject:null,currentCabinet:null,currentPart:null,
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const safe=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function loadScriptOnce(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("Failed to load "+src));document.head.appendChild(s)})}
+function loadStyleOnce(href){return new Promise((res,rej)=>{const l=document.createElement("link");l.rel="stylesheet";l.href=href;l.onload=res;l.onerror=()=>rej(new Error("Failed to load "+href));document.head.appendChild(l)})}
+let jsqrLoadPromise=null;
+function ensureJsQR(){if(typeof jsQR!=="undefined")return Promise.resolve();if(!jsqrLoadPromise)jsqrLoadPromise=loadScriptOnce("https://unpkg.com/jsqr@1.4.0/dist/jsQR.js");return jsqrLoadPromise}
+let leafletLoadPromise=null;
+function ensureLeaflet(){if(typeof L!=="undefined")return Promise.resolve();if(!leafletLoadPromise)leafletLoadPromise=Promise.all([loadStyleOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"),loadScriptOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")]);return leafletLoadPromise}
 const I18N={
  en:{"nav.project":"Project","nav.roomGuide":"Room Guide","nav.scan":"Scan","nav.install":"Install",
   "proj.newSiteJob":"New Site Job","proj.addStudioProject":"Add Studio Project","proj.myProjects":"My Projects","proj.tapToContinue":"Tap one project to continue.","proj.open":"Open","proj.noCustomer":"No customer","proj.empty":"No projects yet.","proj.emptyHint":"Tap New Site Job to begin.","proj.room":"room","proj.rooms":"rooms","proj.unit":"unit","proj.units":"units","proj.roomFallback":"Room","proj.projectFallback":"Project",
@@ -801,10 +804,12 @@ function openSiteRoomIconPicker(holder,isRoom){
  overlay.querySelectorAll('[data-icon]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const icon=b.dataset.icon;if(isRoom){holder.icon=icon;holder.iconManual=true}else{holder.siteRoomIcon=icon;holder.siteRoomIconManual=true}const nameInput=document.getElementById('siteRoomName');if(nameInput&&!nameInput.value.trim()){nameInput.value=b.dataset.name;if(isRoom)holder.name=b.dataset.name;else holder.siteRoomName=b.dataset.name;const title=document.getElementById('siteRoomTitle');if(title)title.textContent=b.dataset.name}const liveBtn=document.getElementById('siteRoomIconBtn');if(liveBtn)liveBtn.textContent=icon;save();overlay.remove();renderRooms()});
 }
 let siteLocationMapInstance=null,siteLocationMarker=null;
-function initSiteLocationMap(p){
+async function initSiteLocationMap(p){
  try{
  const el=document.getElementById('siteLocationMap');
- if(!el||typeof L==='undefined')return;
+ if(!el)return;
+ await ensureLeaflet();
+ if(typeof L==='undefined')return;
  if(siteLocationMapInstance){try{siteLocationMapInstance.remove()}catch(e){}siteLocationMapInstance=null;siteLocationMarker=null}
  const startLat=p.geoLat!=null?p.geoLat:51.5074,startLng=p.geoLat!=null?p.geoLng:-0.1278;
  const map=L.map(el,{attributionControl:false,dragging:false,touchZoom:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false}).setView([startLat,startLng],p.geoLat!=null?16:5);
@@ -1107,6 +1112,7 @@ async function startCamera(){
   $("#cameraWrap").classList.remove("hidden");$("#stopScanner").classList.remove("hidden");$("#startScanner").classList.add("hidden");
   detector=null;
   if("BarcodeDetector" in window){try{detector=new BarcodeDetector({formats:["qr_code"]})}catch(e){detector=null}}
+  if(!detector){$("#scanResult").textContent="Preparing scanner…";try{await ensureJsQR()}catch(e){}$("#scanResult").textContent=""}
   scanLoop();
  }catch(e){scanRunning=false;alert("The camera could not be opened. Check camera permission, or use Scan from photo.")}
 }
