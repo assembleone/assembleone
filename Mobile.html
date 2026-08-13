@@ -686,10 +686,116 @@ const project=()=>state.projects.find(x=>x.id===state.currentProject)||null;
 const cabinet=()=>project()?.cabinets?.find(x=>x.id===state.currentCabinet)||null;
 const part=()=>cabinet()?.parts?.find(x=>x.id===state.currentPart)||null;
 let quotaWarningShown=false;
+
+// ---- Photo storage: keep large photo/drawing bytes in IndexedDB (large quota)
+// instead of embedded in the localStorage-persisted state (capped ~5-10MB).
+// In-memory `state` keeps real data: URIs throughout, unchanged, so all existing
+// render code keeps working as-is. Only the localStorage-persisted copy holds
+// lightweight "idb:<id>" references, transparently swapped in/out on save/load.
+const PHOTO_DB_NAME="assembleone_mobile_photos_v1";
+let photoDbPromise=null;
+function photoDb(){
+ if(!photoDbPromise){
+  photoDbPromise=new Promise((resolve,reject)=>{
+   const req=indexedDB.open(PHOTO_DB_NAME,1);
+   req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains("photos"))req.result.createObjectStore("photos")};
+   req.onsuccess=()=>resolve(req.result);
+   req.onerror=()=>reject(req.error);
+  });
+ }
+ return photoDbPromise;
+}
+function putPhotoBlob(id,dataUri){
+ return photoDb().then(db=>new Promise((resolve,reject)=>{
+  const tx=db.transaction("photos","readwrite");
+  tx.objectStore("photos").put(dataUri,id);
+  tx.oncomplete=()=>resolve();
+  tx.onerror=()=>reject(tx.error);
+ }));
+}
+function getPhotoBlob(id){
+ return photoDb().then(db=>new Promise((resolve,reject)=>{
+  const tx=db.transaction("photos","readonly");
+  const req=tx.objectStore("photos").get(id);
+  req.onsuccess=()=>resolve(req.result||null);
+  req.onerror=()=>reject(req.error);
+ })).catch(()=>null);
+}
+const photoPersistedIds=new Set();
+const pendingPhotoWrites=[];
+let photoPersistTimer=null;
+function schedulePhotoPersist(){
+ if(photoPersistTimer)return;
+ photoPersistTimer=setTimeout(async()=>{
+  photoPersistTimer=null;
+  const batch=pendingPhotoWrites.splice(0,pendingPhotoWrites.length);
+  for(const item of batch){
+   try{await putPhotoBlob(item.id,item.data)}catch(e){console.error("Photo persist failed",e);photoPersistedIds.delete(item.id)}
+  }
+ },50);
+}
+function collectPhotoField(obj,key,id,restore){
+ const val=obj[key];
+ if(typeof val==="string"&&val.startsWith("data:")){
+  restore.push({obj,key,val});
+  obj[key]="idb:"+id;
+  if(!photoPersistedIds.has(id)){pendingPhotoWrites.push({id,data:val});photoPersistedIds.add(id)}
+ }
+}
+function externalizeProjectPhotos(p,restore){
+ (p.sitePhotos||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
+ (p.measureCaptures||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"image",item.id,restore)});
+ if(p.siteMarkup)collectPhotoField(p.siteMarkup,"image","sitemarkup:"+p.id,restore);
+ for(const c of p.cabinets||[]){
+  if(c.id)collectPhotoField(c,"drawing","drawing:"+c.id,restore);
+  for(const pt of c.parts||[])(pt.panelPhotos||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
+ }
+ for(const r of p.rooms||[]){
+  (r.beforePhotos||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
+  (r.designImages||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
+  (r.measureCaptures||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"image",item.id,restore)});
+  if(r.siteMarkup)collectPhotoField(r.siteMarkup,"image","sitemarkup:"+r.id,restore);
+ }
+}
+async function hydrateAllPhotos(st){
+ const tasks=[];
+ function hydrateField(obj,key){
+  const val=obj[key];
+  if(typeof val==="string"&&val.startsWith("idb:")){
+   const id=val.slice(4);
+   photoPersistedIds.add(id);
+   tasks.push(getPhotoBlob(id).then(data=>{if(data)obj[key]=data}));
+  }
+ }
+ for(const p of st.projects||[]){
+  (p.sitePhotos||[]).forEach(item=>item&&hydrateField(item,"data"));
+  (p.measureCaptures||[]).forEach(item=>item&&hydrateField(item,"image"));
+  if(p.siteMarkup)hydrateField(p.siteMarkup,"image");
+  for(const c of p.cabinets||[]){
+   hydrateField(c,"drawing");
+   for(const pt of c.parts||[])(pt.panelPhotos||[]).forEach(item=>item&&hydrateField(item,"data"));
+  }
+  for(const r of p.rooms||[]){
+   (r.beforePhotos||[]).forEach(item=>item&&hydrateField(item,"data"));
+   (r.designImages||[]).forEach(item=>item&&hydrateField(item,"data"));
+   (r.measureCaptures||[]).forEach(item=>item&&hydrateField(item,"image"));
+   if(r.siteMarkup)hydrateField(r.siteMarkup,"image");
+  }
+ }
+ await Promise.all(tasks);
+}
 function save(){
+ const restore=[];
+ let json=null,ok=false;
  try{
-  localStorage.setItem(KEY,JSON.stringify(state));
-  return true;
+  for(const p of state.projects||[])externalizeProjectPhotos(p,restore);
+  json=JSON.stringify(state);
+ }finally{
+  restore.forEach(r=>{r.obj[r.key]=r.val});
+ }
+ try{
+  localStorage.setItem(KEY,json);
+  ok=true;
  }catch(e){
   console.error('Save failed',e);
   if(!quotaWarningShown){
@@ -697,12 +803,13 @@ function save(){
    alert('Your phone is out of storage space for this app. Please delete some old finished jobs from the Project list to free up space, then try again — what you just did is showing on screen but was not saved.');
    setTimeout(()=>{quotaWarningShown=false},15000);
   }
-  return false;
  }
+ if(pendingPhotoWrites.length)schedulePhotoPersist();
+ return ok;
 }
 function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):(.+)$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3])}:null}
 function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;state.screen="install";save();return true}return false}
-function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};const route=parsePanelHash();if(route&&!openPanelRoute(route)){state.pendingPanelRoute=route;state.screen="projects"}renderAll();applyI18n();paintLangButtons();if(route&&!state.currentPart)setTimeout(()=>{if(state.pendingPanelRoute)alert("This panel isn't on your phone yet. Checking for it now — if it doesn't appear in a few seconds, send the job to this phone again from Studio.")},3000)}
+async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route&&!openPanelRoute(route)){state.pendingPanelRoute=route;state.screen="projects"}renderAll();applyI18n();paintLangButtons();if(route&&!state.currentPart)setTimeout(()=>{if(state.pendingPanelRoute)alert("This panel isn't on your phone yet. Checking for it now — if it doesn't appear in a few seconds, send the job to this phone again from Studio.")},3000)}
 function show(name){state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=name==='measure'?'drawings':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons()}
 $$(".nav").forEach(b=>b.onclick=()=>show(b.dataset.screen));
 function ensureExtras(p){
