@@ -365,22 +365,22 @@
 <div id="partsSummary"></div>
 </section>
 <section class="screen supplier-redesign" id="screen-cutting">
-<div class="supplier-hero"><div><h2>Supplier</h2><div class="muted">Final cutting information and matching QR stickers.</div></div><label class="supplier-print-lang">Print language<select id="supplierPrintLang"><option value="en">English</option><option value="es">Español</option></select></label><div class="supplier-ready" id="supplierReadyBadge">Checking panels…</div></div>
+<div class="supplier-hero"><div><h2 id="supplierPageTitle">Supplier</h2><div class="muted" id="supplierPageSubtitle">Final cutting information and matching QR stickers.</div></div><label class="supplier-print-lang"><span id="supplierLangLabel">Print language</span><select id="supplierPrintLang"><option value="en">English</option><option value="es">Español</option></select></label><div class="supplier-ready" id="supplierReadyBadge">Checking panels…</div></div>
 <div class="notice" id="cuttingValidation" style="display:none;margin-bottom:12px"></div>
 <div class="supplier-summary" id="supplierSummary"></div>
-<div class="supplier-materials-card"><h3>Materials</h3><div id="supplierMaterialSummary"></div></div>
-<div class="card" id="supplierDeliveryAddressCard" style="display:none;margin-bottom:12px"><strong>📍 Delivery location</strong><div class="muted" id="supplierDeliveryAddressText" style="margin:4px 0 10px"></div><button class="btn" id="supplierOpenDeliveryMap" type="button">📍 Open in Maps</button></div>
-<label class="card" id="supplierDeliveryToggleCard" style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:12px"><input type="checkbox" id="supplierIncludeDelivery" style="width:20px;height:20px"><span><strong>Include delivery location</strong><div class="muted" id="supplierDeliveryHint">Add the customer's pinned address to the cutting list, for suppliers delivering material direct.</div></span></label>
+<div class="supplier-materials-card"><h3 id="supplierMaterialsCardHeading">Materials</h3><div id="supplierMaterialSummary"></div></div>
+<div class="card" id="supplierDeliveryAddressCard" style="display:none;margin-bottom:12px"><strong id="supplierDeliveryHeading">📍 Delivery location</strong><div class="muted" id="supplierDeliveryAddressText" style="margin:4px 0 10px"></div><button class="btn" id="supplierOpenDeliveryMap" type="button">📍 Open in Maps</button></div>
+<label class="card" id="supplierDeliveryToggleCard" style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:12px"><input type="checkbox" id="supplierIncludeDelivery" style="width:20px;height:20px"><span><strong id="supplierIncludeDeliveryLabel">Include delivery location</strong><div class="muted" id="supplierDeliveryHint">Add the customer's pinned address to the cutting list, for suppliers delivering material direct.</div></span></label>
 <div class="supplier-actions supplier-actions-simple">
 <button class="supplier-action export" id="exportSupplierCsvBtn" type="button"><span class="supplier-action-icon">⇩</span><strong>Download CSV</strong><small>Excel and CNC suppliers</small></button>
 <button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong>Print Supplier Pack</strong><small>Cutting list + matching QR stickers</small></button>
 <button class="supplier-action" id="sendCuttingToPhoneBtn" style="border-color:#18a65b;background:#effcf4" type="button"><span class="supplier-action-icon">📱</span><strong>Send Cutting List to Phone</strong><small>Panels, quantities and QR scan checklist</small></button>
 </div>
 <div aria-live="polite" class="supplier-feedback" id="supplierActionStatus"></div>
-<h3 class="supplier-section-title">Panels</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
+<h3 class="supplier-section-title" id="supplierPanelsHeading">Panels</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
 <div hidden=""><table><tbody id="cuttingBody"></tbody></table><button id="downloadCsvBtn"></button><button id="printCuttingBtn"></button></div>
-<div class="supplier-sticker-settings"><div><h3>QR sticker size</h3><div class="muted">Choose a common size or enter your own measurements.</div></div><div class="sticker-size-grid"><label>Width mm<input id="stickerWidth" inputmode="decimal" max="300" min="20" step="1" type="number" value="70"/></label><label>Height mm<input id="stickerHeight" inputmode="decimal" max="300" min="20" step="1" type="number" value="50"/></label></div><div aria-label="Quick sticker sizes" class="size-presets"><button class="btn sticker-preset" data-h="30" data-w="50" type="button">50 × 30</button><button class="btn sticker-preset" data-h="50" data-w="70" type="button">70 × 50</button><button class="btn sticker-preset" data-h="75" data-w="100" type="button">100 × 75</button></div></div>
-<h3 class="supplier-section-title">Sticker preview</h3><div class="supplier-labels" id="supplierLabels"></div>
+<div class="supplier-sticker-settings"><div><h3 id="supplierStickerSizeHeading">QR sticker size</h3><div class="muted" id="supplierStickerSizeSub">Choose a common size or enter your own measurements.</div></div><div class="sticker-size-grid"><label><span id="supplierWidthLabel">Width mm</span><input id="stickerWidth" inputmode="decimal" max="300" min="20" step="1" type="number" value="70"/></label><label><span id="supplierHeightLabel">Height mm</span><input id="stickerHeight" inputmode="decimal" max="300" min="20" step="1" type="number" value="50"/></label></div><div aria-label="Quick sticker sizes" class="size-presets"><button class="btn sticker-preset" data-h="30" data-w="50" type="button">50 × 30</button><button class="btn sticker-preset" data-h="50" data-w="70" type="button">70 × 50</button><button class="btn sticker-preset" data-h="75" data-w="100" type="button">100 × 75</button></div></div>
+<h3 class="supplier-section-title" id="supplierPreviewHeading">Sticker preview</h3><div class="supplier-labels" id="supplierLabels"></div>
 </section>
 <section class="screen" id="screen-qr">
 <div class="title-row"><div><h2>QR labels — selected wardrobe only</h2><div class="muted">QR codes from other jobs and wardrobes are kept separate.</div></div></div>
@@ -556,4 +556,4 @@
 
 
 
-<script src="app.js?v=42"></script>
+<script src="app.js?v=43"></script>

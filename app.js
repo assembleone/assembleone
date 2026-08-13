@@ -2077,6 +2077,84 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
 
 (function(){
  const escCsv=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const SUPPLIER_I18N={
+  en:{
+   pageTitle:'Supplier',pageSubtitle:'Final cutting information and matching QR stickers.',
+   langLabel:'Language',
+   checkingPanels:'Checking panels…',readyToManufacture:'Ready to manufacture',
+   panelNeedsChecking:'panel needs checking',panelsNeedChecking:'panels need checking',
+   completePanels:'Complete panels',totalPieces:'Total pieces',materials:'Materials',
+   piece:'piece',pieces:'pieces',noCompleteMaterials:'No complete materials yet.',
+   unnamedPart:'Unnamed part',quantity:'Quantity',noCompletePanels:'No complete panels ready for the supplier.',
+   deliveryHeading:'📍 Delivery location',openInMaps:'📍 Open in Maps',
+   pinnedNoAddress:'Pinned map location (no typed address)',
+   includeDelivery:'Include delivery location',
+   deliveryHintAddress:'Add "{address}" to the cutting list, for suppliers delivering material direct.',
+   deliveryHintDefault:'Add the pinned map location to the cutting list, for suppliers delivering material direct.',
+   downloadCsvTitle:'Download CSV',downloadCsvSub:'Excel and CNC suppliers',
+   printPackTitle:'Print Supplier Pack',printPackSub:'Cutting list + matching QR stickers',
+   sendToPhoneTitle:'Send Cutting List to Phone',sendToPhoneSub:'Panels, quantities and QR scan checklist',
+   panelsHeading:'Panels',
+   stickerSizeHeading:'QR sticker size',stickerSizeSub:'Choose a common size or enter your own measurements.',
+   widthLabel:'Width mm',heightLabel:'Height mm',
+   stickerPreviewHeading:'Sticker preview',
+   longEdge:'long edge',longEdges:'long edges',shortEdge:'short edge',shortEdges:'short edges',
+   noLongEdging:'No long edging',noShortEdging:'No short edging',
+   cuttingTitle:'Supplier Cutting List',stickersTitle:'Supplier QR Stickers',
+   qty:'Qty',material:'Material:',notSet:'Not set',edging:'Edging:',notes:'Notes:',project:'Project',unit:'Unit'
+  },
+  es:{
+   pageTitle:'Proveedor',pageSubtitle:'Información final de corte y etiquetas QR correspondientes.',
+   langLabel:'Idioma',
+   checkingPanels:'Revisando paneles…',readyToManufacture:'Listo para fabricar',
+   panelNeedsChecking:'panel necesita revisión',panelsNeedChecking:'paneles necesitan revisión',
+   completePanels:'Paneles completos',totalPieces:'Piezas totales',materials:'Materiales',
+   piece:'pieza',pieces:'piezas',noCompleteMaterials:'Aún no hay materiales completos.',
+   unnamedPart:'Pieza sin nombre',quantity:'Cantidad',noCompletePanels:'No hay paneles completos listos para el proveedor.',
+   deliveryHeading:'📍 Ubicación de entrega',openInMaps:'📍 Abrir en Maps',
+   pinnedNoAddress:'Ubicación marcada en el mapa (sin dirección escrita)',
+   includeDelivery:'Incluir ubicación de entrega',
+   deliveryHintAddress:'Agregar "{address}" a la lista de corte, para proveedores que entregan material directamente.',
+   deliveryHintDefault:'Agregar la ubicación marcada en el mapa a la lista de corte, para proveedores que entregan material directamente.',
+   downloadCsvTitle:'Descargar CSV',downloadCsvSub:'Excel y proveedores CNC',
+   printPackTitle:'Imprimir paquete para proveedor',printPackSub:'Lista de corte + etiquetas QR correspondientes',
+   sendToPhoneTitle:'Enviar lista de corte al teléfono',sendToPhoneSub:'Paneles, cantidades y lista de verificación QR',
+   panelsHeading:'Paneles',
+   stickerSizeHeading:'Tamaño de etiqueta QR',stickerSizeSub:'Elige un tamaño común o ingresa tus propias medidas.',
+   widthLabel:'Ancho mm',heightLabel:'Alto mm',
+   stickerPreviewHeading:'Vista previa de etiquetas',
+   longEdge:'canto largo',longEdges:'cantos largos',shortEdge:'canto corto',shortEdges:'cantos cortos',
+   noLongEdging:'Sin canto largo',noShortEdging:'Sin canto corto',
+   cuttingTitle:'Lista de Corte para Proveedor',stickersTitle:'Etiquetas QR para Proveedor',
+   qty:'Cant.',material:'Material:',notSet:'No definido',edging:'Cantos:',notes:'Notas:',project:'Proyecto',unit:'Unidad'
+  }
+ };
+ const SUPPLIER_LANG_KEY='assembleone_supplier_print_lang';
+ function supplierLang(){try{return localStorage.getItem(SUPPLIER_LANG_KEY)||'en'}catch(e){return 'en'}}
+ function setSupplierLang(v){try{localStorage.setItem(SUPPLIER_LANG_KEY,v)}catch(e){}}
+ function supplierT(){return SUPPLIER_I18N[supplierLang()]||SUPPLIER_I18N.en}
+ window.SUPPLIER_I18N=SUPPLIER_I18N;window.supplierLang=supplierLang;window.setSupplierLang=setSupplierLang;window.supplierT=supplierT;
+ function applySupplierStaticI18n(){
+  const T=supplierT();
+  const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text};
+  set('supplierPageTitle',T.pageTitle);
+  set('supplierPageSubtitle',T.pageSubtitle);
+  set('supplierLangLabel',T.langLabel);
+  set('supplierMaterialsCardHeading',T.materials);
+  set('supplierDeliveryHeading',T.deliveryHeading);
+  const mapBtn=document.getElementById('supplierOpenDeliveryMap');if(mapBtn)mapBtn.textContent=T.openInMaps;
+  set('supplierIncludeDeliveryLabel',T.includeDelivery);
+  set('supplierPanelsHeading',T.panelsHeading);
+  set('supplierStickerSizeHeading',T.stickerSizeHeading);
+  set('supplierStickerSizeSub',T.stickerSizeSub);
+  set('supplierWidthLabel',T.widthLabel);
+  set('supplierHeightLabel',T.heightLabel);
+  set('supplierPreviewHeading',T.stickerPreviewHeading);
+  const csvBtn=document.getElementById('exportSupplierCsvBtn');if(csvBtn){const s=csvBtn.querySelector('strong'),m=csvBtn.querySelector('small');if(s)s.textContent=T.downloadCsvTitle;if(m)m.textContent=T.downloadCsvSub}
+  const printBtn=document.getElementById('printSupplierPackBtn');if(printBtn){const s=printBtn.querySelector('strong'),m=printBtn.querySelector('small');if(s)s.textContent=T.printPackTitle;if(m)m.textContent=T.printPackSub}
+  const sendBtn=document.getElementById('sendCuttingToPhoneBtn');if(sendBtn){const s=sendBtn.querySelector('strong'),m=sendBtn.querySelector('small');if(s)s.textContent=T.sendToPhoneTitle;if(m)m.textContent=T.sendToPhoneSub}
+ }
+ window.applySupplierStaticI18n=applySupplierStaticI18n;
  function deliveryInfo(pr){
   if(!pr)return null;
   const hasPin=pr.geoLat!=null&&pr.geoLng!=null;
@@ -2085,26 +2163,27 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
   return {address:pr.address||'',mapUrl};
  }
  function syncDeliveryToggle(){
+  const T=supplierT();
   const pr=project(),box=document.getElementById('supplierIncludeDelivery'),card=document.getElementById('supplierDeliveryToggleCard'),hint=document.getElementById('supplierDeliveryHint');
   const info=deliveryInfo(pr);
   const addrCard=document.getElementById('supplierDeliveryAddressCard'),addrText=document.getElementById('supplierDeliveryAddressText'),addrBtn=document.getElementById('supplierOpenDeliveryMap');
   if(addrCard)addrCard.style.display=info?'block':'none';
   if(info){
-   if(addrText)addrText.textContent=info.address||'Pinned map location (no typed address)';
+   if(addrText)addrText.textContent=info.address||T.pinnedNoAddress;
    if(addrBtn)addrBtn.onclick=()=>window.open(info.mapUrl,'_blank');
   }
   if(card)card.style.display=info?'flex':'none';
   if(!info)return;
   if(box)box.checked=!!pr.includeDeliveryAddress;
-  if(hint)hint.textContent=info.address?`Add "${info.address}" to the cutting list, for suppliers delivering material direct.`:'Add the pinned map location to the cutting list, for suppliers delivering material direct.';
+  if(hint)hint.textContent=info.address?T.deliveryHintAddress.replace('{address}',info.address):T.deliveryHintDefault;
  }
  document.getElementById('supplierIncludeDelivery')?.addEventListener('change',e=>{const pr=project();if(!pr)return;pr.includeDeliveryAddress=e.target.checked;save()});
  const statusEl=()=>document.getElementById('supplierActionStatus');
  function setStatus(text,kind='ok'){const el=statusEl();if(el){el.textContent=text;el.className='supplier-feedback '+kind}}
  function mat(p){return String(materialForPanel(p)||'Not set').trim()||'Not set'}
  function rows(){return supplierParts()}
- function edge(n,label){n=Number(n||0);return n===0?`No ${label} edging`:n===1?`1 ${label} edge`:`2 ${label} edges`}
- function renderSupplierPage(){const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?`${missing} panel${missing===1?'':'s'} need checking`:'Ready to manufacture';b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>Complete panels</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>Total pieces</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>Materials</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q} piece${q===1?'':'s'}</span></div>`).join('')}</div>`:'<div class="muted">No complete materials yet.</div>';const cards=document.getElementById('supplierPanelCards');if(cards)cards.innerHTML=list.length?list.map(p=>`<article class="supplier-panel-card"><div class="supplier-panel-code">${safe(p.code)}</div><div><div class="supplier-panel-name">${safe(p.name||'Unnamed part')}</div><div class="supplier-measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="supplier-material-badge">${safe(mat(p))}</div><div class="supplier-edge-lines"><span class="supplier-edge-chip">${edge(p.edgeLong,'long')}</span><span class="supplier-edge-chip">${edge(p.edgeShort,'short')}</span></div></div><div class="supplier-qty"><span>Quantity</span>${Number(p.qty||1)}</div></article>`).join(''):'<div class="empty">No complete panels ready for the supplier.</div>';syncDeliveryToggle()}
+ function edge(n,kind){const T=supplierT();n=Number(n||0);const isLong=kind==='long';if(n===0)return isLong?T.noLongEdging:T.noShortEdging;const singular=isLong?T.longEdge:T.shortEdge,plural=isLong?T.longEdges:T.shortEdges;return n+' '+(n===1?singular:plural)}
+ function renderSupplierPage(){const T=supplierT();const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?`${missing} ${missing===1?T.panelNeedsChecking:T.panelsNeedChecking}`:T.readyToManufacture;b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>${T.completePanels}</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>${T.totalPieces}</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>${T.materials}</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q} ${q===1?T.piece:T.pieces}</span></div>`).join('')}</div>`:`<div class="muted">${T.noCompleteMaterials}</div>`;const cards=document.getElementById('supplierPanelCards');if(cards)cards.innerHTML=list.length?list.map(p=>`<article class="supplier-panel-card"><div class="supplier-panel-code">${safe(p.code)}</div><div><div class="supplier-panel-name">${safe(p.name||T.unnamedPart)}</div><div class="supplier-measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="supplier-material-badge">${safe(mat(p))}</div><div class="supplier-edge-lines"><span class="supplier-edge-chip">${edge(p.edgeLong,'long')}</span><span class="supplier-edge-chip">${edge(p.edgeShort,'short')}</span></div></div><div class="supplier-qty"><span>${T.quantity}</span>${Number(p.qty||1)}</div></article>`).join(''):`<div class="empty">${T.noCompletePanels}</div>`;syncDeliveryToggle();applySupplierStaticI18n()}
  const baseRender=window.renderCutting;window.renderCutting=function(){if(typeof baseRender==='function')baseRender();renderSupplierPage()};
  function exportCsv(){const list=rows();if(!list.length){setStatus('No complete panels are ready to export.','err');return}const btn=document.getElementById('exportSupplierCsvBtn');btn.disabled=true;setStatus('Creating CSV…');try{const pr=project(),info=pr?.includeDeliveryAddress?deliveryInfo(pr):null;const deliveryRows=info?[['Deliver to',info.address||'',info.mapUrl,'','','','','','',''],['','','','','','','','','','']]:[];const data=[['Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes'],...deliveryRows,...list.map(p=>[p.code,p.name||'',p.thickness,p.length,p.width,Number(p.edgeLong||0),Number(p.edgeShort||0),Number(p.qty||1),mat(p),p.notes||''])];const csv='\ufeff'+data.map(r=>r.map(escCsv).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=((project()?.name||'Job')+'_'+(cabinet()?.name||'Unit')+'_cutting_list.csv').replace(/[^a-z0-9_-]+/gi,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus('✓ CSV exported')}catch(e){console.error(e);setStatus('CSV export failed.','err')}finally{setTimeout(()=>btn.disabled=false,400)}}
  function openPrint(title,html){const w=window.open('','_blank');if(!w){setStatus('Print window was blocked. Allow popups for this file.','err');return false}w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safe(title)}</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#272249}h1{font-family:Georgia,serif}.card{border:2px solid #d8d6e1;border-left:8px solid #ffc400;border-radius:14px;padding:14px;margin-bottom:10px;page-break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #29231f;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;page-break-inside:avoid}.sticker img{width:90px;height:90px}.qty{font-weight:900}</style>
@@ -2277,21 +2356,21 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
   document.getElementById('a131PrintNow').onclick=()=>{try{frame.contentWindow.focus();frame.contentWindow.print()}catch(e){alert('The print preview could not open. Please try again.')}};
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.style.display==='block')document.getElementById('a131ClosePrint').click()});
   // Replace popup based supplier printing with the in app preview.
-  const SUPPLIER_PRINT_I18N={
-    en:{cuttingTitle:'Supplier Cutting List',stickersTitle:'Supplier QR Stickers',qty:'Qty',material:'Material:',notSet:'Not set',edging:'Edging:',longEdge:'long edge',longEdges:'long edges',shortEdge:'short edge',shortEdges:'short edges',notes:'Notes:',project:'Project',unit:'Unit'},
-    es:{cuttingTitle:'Lista de Corte para Proveedor',stickersTitle:'Etiquetas QR para Proveedor',qty:'Cant.',material:'Material:',notSet:'No definido',edging:'Cantos:',longEdge:'canto largo',longEdges:'cantos largos',shortEdge:'canto corto',shortEdges:'cantos cortos',notes:'Notas:',project:'Proyecto',unit:'Unidad'}
-  };
-  const SUPPLIER_PRINT_LANG_KEY='assembleone_supplier_print_lang';
-  function supplierPrintLang(){try{return localStorage.getItem(SUPPLIER_PRINT_LANG_KEY)||'en'}catch(e){return 'en'}}
-  function setSupplierPrintLang(v){try{localStorage.setItem(SUPPLIER_PRINT_LANG_KEY,v)}catch(e){}}
   const langSelect=document.getElementById('supplierPrintLang');
-  if(langSelect){langSelect.value=supplierPrintLang();langSelect.addEventListener('change',()=>setSupplierPrintLang(langSelect.value))}
+  if(langSelect){
+    langSelect.value=(typeof window.supplierLang==='function'?window.supplierLang():'en');
+    langSelect.addEventListener('change',()=>{
+      if(typeof window.setSupplierLang==='function')window.setSupplierLang(langSelect.value);
+      if(typeof window.renderCutting==='function')window.renderCutting();
+      else if(typeof window.applySupplierStaticI18n==='function')window.applySupplierStaticI18n();
+    });
+  }
   document.addEventListener('click',function(e){
     const btn=e.target.closest('#printSupplierPackBtn');if(!btn)return;
     e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
     stableSave(false);
     const list=(typeof supplierParts==='function'?supplierParts():[]).filter(Boolean);if(!list.length){alert('No complete panels are ready to print.');return}
-    const T=SUPPLIER_PRINT_I18N[supplierPrintLang()]||SUPPLIER_PRINT_I18N.en;
+    const T=typeof window.supplierT==='function'?window.supplierT():{};
     const pr=project(),unit=cabinet(),mat=p=>{const m=typeof materialForPanel==='function'?materialForPanel(p):p.material;return m||T.notSet};
     const esc=x=>safe(x==null?'':x),edge=(v,singularKey,pluralKey)=>Number(v||0)+' '+(Number(v||0)===1?T[singularKey]:T[pluralKey]);
     const cutting='<section><h1>'+T.cuttingTitle+'</h1><p>'+esc(pr?.name||T.project)+' · '+esc(unit?.name||T.unit)+'</p>'+list.map(p=>'<div class="card"><div class="row"><div><div class="code">'+esc(p.code)+'</div><div class="name">'+esc(p.name||'')+'</div></div><strong>'+T.qty+' '+Number(p.qty||1)+'</strong></div><div class="measure">'+esc(p.thickness)+' mm · '+esc(p.length)+' × '+esc(p.width)+' mm</div><div class="small">'+T.material+' '+esc(mat(p))+'</div><div class="small">'+T.edging+' '+edge(p.edgeLong,'longEdge','longEdges')+' · '+edge(p.edgeShort,'shortEdge','shortEdges')+'</div>'+(p.notes?'<div class="small">'+T.notes+' '+esc(p.notes)+'</div>':'')+'</div>').join('')+'</section>';
