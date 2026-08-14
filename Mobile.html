@@ -379,8 +379,6 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
     <button type="button" id="modeMove"><b>✋</b><span data-i18n="measure.modeMove">Move</span></button>
     <button type="button" id="markupUndo"><b>↶</b><span data-i18n="measure.undo">Undo</span></button>
     <button type="button" id="markupFit"><b>▣</b><span data-i18n="measure.fitPicture">Fit picture</span></button>
-    <button type="button" id="markupZoomOut"><b>−</b><span data-i18n="measure.zoomOut">Zoom out</span></button>
-    <button type="button" id="markupZoomIn"><b>＋</b><span data-i18n="measure.zoomIn">Zoom in</span></button>
     <button type="button" data-other-kind="Floor up"><b>↑</b><span data-i18n="measure.kindFloorUp">Floor up</span></button>
     <button type="button" data-other-kind="Ceiling down"><b>↓</b><span data-i18n="measure.kindCeilingDown">Ceiling down</span></button>
     <button type="button" data-other-kind="From left wall"><b>→</b><span data-i18n="measure.kindFromLeft">From left</span></button>
@@ -1583,11 +1581,19 @@ load();
   const st=$('#measurePhotoStatus');if(st)st.textContent=count+' measurement'+(count===1?'':'s')+' saved · ready for the next photo';
   show('drawings');
  };
- $('#markupUndo').onclick=()=>{const m=ensure();if(m?.marks.length){m.marks.pop();save();render()}};$('#markupFit').onclick=fit;$('#markupZoomIn').onclick=()=>{zoom=Math.min(5,zoom*1.2);applyTransform()};$('#markupZoomOut').onclick=()=>{zoom=Math.max(.15,zoom/1.2);applyTransform()};
+ $('#markupUndo').onclick=()=>{const m=ensure();if(m?.marks.length){m.marks.pop();save();render()}};$('#markupFit').onclick=fit;
+ if($('#markupZoomIn'))$('#markupZoomIn').onclick=()=>{zoom=Math.min(5,zoom*1.2);applyTransform()};
+ if($('#markupZoomOut'))$('#markupZoomOut').onclick=()=>{zoom=Math.max(.15,zoom/1.2);applyTransform()};
  stage.addEventListener('wheel',e=>{e.preventDefault();const old=zoom,n=e.deltaY<0?Math.min(5,zoom*1.12):Math.max(.15,zoom/1.12),r=stage.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;panX=cx-(cx-panX)*(n/old);panY=cy-(cy-panY)*(n/old);zoom=n;applyTransform()},{passive:false});
  stage.addEventListener('pointerdown',e=>{if(!ensure()?.image)return;stage.setPointerCapture(e.pointerId);const p=point(e);drawing={pointer:e.pointerId,start:p,last:p,points:[p],startPanX:panX,startPanY:panY,startClient:{x:e.clientX,y:e.clientY}};if(mode==='curve')previewG.innerHTML=`<polyline class="markup-curve" points="${p.x},${p.y}"/>`});
  stage.addEventListener('pointermove',e=>{if(!drawing||drawing.pointer!==e.pointerId)return;const p=point(e);drawing.last=p;if(mode==='move'){panX=drawing.startPanX+(e.clientX-drawing.startClient.x);panY=drawing.startPanY+(e.clientY-drawing.startClient.y);applyTransform();return}if(mode==='curve'){drawing.points.push(p);previewG.innerHTML=`<polyline class="markup-curve" points="${drawing.points.map(q=>q.x+','+q.y).join(' ')}"/>`}else{previewG.innerHTML=lineMarkup({type:mode==='measure'?'measure':'line',x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y},true)}});
- stage.addEventListener('pointerup',e=>{if(!drawing||drawing.pointer!==e.pointerId)return;const m=ensure(),p=point(e);previewG.innerHTML='';if(mode==='move'){drawing=null;return}const dx=p.x-drawing.start.x,dy=p.y-drawing.start.y;if(Math.hypot(dx,dy)<8){drawing=null;return}if(mode==='curve'){m.marks.push({id:uid(),type:'curve',points:drawing.points});save();render()}else if(mode==='line'){m.marks.push({id:uid(),type:'line',x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y});save();render()}else{pending={type:'measure',kind,x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y,value:'',name:kind};openEditor(null)}drawing=null});
+ stage.addEventListener('pointerup',e=>{if(!drawing||drawing.pointer!==e.pointerId)return;const m=ensure(),p=point(e);previewG.innerHTML='';if(mode==='move'){drawing=null;return}
+  // The minimum-drag distance must be measured in actual screen pixels, not world/content
+  // coordinates -- when zoomed in (common while adding a precise line/curve), a real,
+  // deliberate finger drag divides down to a tiny world-space distance and was being
+  // silently discarded as a stray tap.
+  const dxScreen=e.clientX-drawing.startClient.x,dyScreen=e.clientY-drawing.startClient.y;
+  if(Math.hypot(dxScreen,dyScreen)<8){drawing=null;return}if(mode==='curve'){m.marks.push({id:uid(),type:'curve',points:drawing.points});save();render()}else if(mode==='line'){m.marks.push({id:uid(),type:'line',x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y});save();render()}else{pending={type:'measure',kind,x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y,value:'',name:kind};openEditor(null)}drawing=null});
  stage.addEventListener('pointercancel',()=>{drawing=null;previewG.innerHTML=''});
  // two-finger pinch zoom
  stage.addEventListener('touchstart',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1];pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),z:zoom};}}, {passive:true});
