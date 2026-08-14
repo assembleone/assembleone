@@ -1178,7 +1178,20 @@ function mergeStudioProject(incoming){
  const old=state.projects.find(x=>x.id===incoming.id);ensureExtras(incoming);
  if(old){
   incoming.siteMeasurements=(old.siteMeasurements||[]).length?old.siteMeasurements:incoming.siteMeasurements||[];
-  incoming.sitePhotos=(old.sitePhotos||[]).length?old.sitePhotos:incoming.sitePhotos||[];incoming.rooms=(old.rooms||[]).length?old.rooms:incoming.rooms||[];
+  incoming.sitePhotos=(old.sitePhotos||[]).length?old.sitePhotos:incoming.sitePhotos||[];
+  const oldRooms=old.rooms||[],incomingRooms=incoming.rooms||[];
+  const mergedRooms=incomingRooms.map(ir=>{
+   const or=oldRooms.find(x=>x.id===ir.id);
+   if(!or)return ir;
+   return {...ir,
+    beforePhotos:(or.beforePhotos&&or.beforePhotos.length)?or.beforePhotos:ir.beforePhotos,
+    designImages:(ir.designImages&&ir.designImages.length)?ir.designImages:or.designImages,
+    notes:or.notes||ir.notes,location:or.location||ir.location,
+    siteMarkup:or.siteMarkup||ir.siteMarkup,
+    measureCaptures:(or.measureCaptures&&or.measureCaptures.length)?or.measureCaptures:ir.measureCaptures};
+  });
+  oldRooms.forEach(or=>{if(!mergedRooms.some(mr=>mr.id===or.id))mergedRooms.push(or)});
+  incoming.rooms=mergedRooms;
   incoming.address=old.address||incoming.address||"";incoming.phone=old.phone||incoming.phone||"";incoming.notes=old.notes||incoming.notes||"";
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
  }
@@ -1198,6 +1211,7 @@ function mergeStudioProject(incoming){
   const idx=room.designImages.findIndex(d=>d.id===genId);
   if(idx>=0)room.designImages[idx]=entry;else room.designImages.unshift(entry);
  });
+ ensureExtras(incoming);
  const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);return incoming
 }
 
@@ -1828,7 +1842,13 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
         routedToPanel=openPanelRoute(state.pendingPanelRoute);
         state.pendingPanelRoute=null;
       }
-      if(!routedToPanel){state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null}
+      if(!routedToPanel){
+        state.currentProject=p.id;
+        const drawingCabinet=p.cabinets.find(c=>c.drawing&&c.drawingType!=="pdf")||p.cabinets[0];
+        state.currentCabinet=drawingCabinet?.id||p.cabinets[0]?.id||null;
+        state.currentPart=null;
+        if(drawingCabinet?.roomId&&(p.rooms||[]).some(r=>r.id===drawingCabinet.roomId))state.currentRoom=drawingCabinet.roomId;
+      }
       save();await window.removeMobilePacket(packet);
       const isCut=packet.sendType==="cutting-list"||packet.openScreen==="scan"||packet.includesCuttingList===true;
       if(routedToPanel){
