@@ -1881,25 +1881,39 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       if(!isNote&&(!units.length||!panels.length)){await window.removeMobilePacket(packet);throw new Error("Empty project")}
       const p=mergeStudioProject(incoming);
       let routedToPanel=false;
+      let drawingCabinet=null;
       if(state.pendingPanelRoute&&state.pendingPanelRoute.projectId===p.id){
         routedToPanel=openPanelRoute(state.pendingPanelRoute);
         state.pendingPanelRoute=null;
       }
       if(!routedToPanel){
         state.currentProject=p.id;
-        const drawingCabinet=p.cabinets.find(c=>c.drawing&&c.drawingType!=="pdf")||p.cabinets[0];
+        drawingCabinet=p.cabinets.find(c=>c.drawing&&c.drawingType!=="pdf")||p.cabinets[0];
         state.currentCabinet=drawingCabinet?.id||p.cabinets[0]?.id||null;
         state.currentPart=null;
         if(drawingCabinet?.roomId&&(p.rooms||[]).some(r=>r.id===drawingCabinet.roomId))state.currentRoom=drawingCabinet.roomId;
       }
       save();await window.removeMobilePacket(packet);
       const isCut=packet.sendType==="cutting-list"||packet.openScreen==="scan"||packet.includesCuttingList===true;
+      const activeScan=state.screen==='scan'&&typeof scanRunning!=='undefined'&&scanRunning;
+      const hasDrawing=!!(drawingCabinet&&drawingCabinet.drawing&&drawingCabinet.drawingType!=="pdf");
       if(routedToPanel){
         markCurrentPanelScanned();
-        show("install");
+        if(!activeScan)show("install");
+      }else if(activeScan){
+        renderAll();
       }else{
-        show(isCut?"install":"drawings");
-        setTimeout(()=>{renderAll()},40);
+        // A drawing means there is something to look at right away -- open the Install
+        // screen (where the Design Guide panel lives) and expand it automatically, instead
+        // of leaving the picture buried behind a manual "Design Guide" tap.
+        show(hasDrawing?"install":(isCut?"install":"drawings"));
+        setTimeout(()=>{
+          renderAll();
+          if(hasDrawing&&typeof renderDesignGuidePanel==="function"){
+            const panel=$("#designGuidePanel");
+            if(panel){panel.classList.remove("hidden");renderDesignGuidePanel()}
+          }
+        },40);
         if(isNote)alert(`New note from Studio:\n\n${p.notes||''}`);
         else alert(isCut?`New cutting list received: ${panels.length} panels and ${pieces} pieces.`:`New site job received: ${units.length} unit, ${panels.length} panels and ${pieces} pieces.`);
       }

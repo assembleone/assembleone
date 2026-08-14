@@ -687,7 +687,20 @@ async function firebasePut(path,value){const r=await fetch(`${ASSEMBLEONE_FIREBA
 async function firebaseGet(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{cache:"no-store"});if(!r.ok)throw new Error(`Firebase read failed: ${r.status}`);return r.json()}
 async function firebaseDelete(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"DELETE"});if(!r.ok)throw new Error(`Firebase delete failed: ${r.status}`)}
 async function sendPackToPhoneDirectly(pack){const packet={...pack,syncId:uid(),syncStatus:"waiting"};packet.syncId=firebaseSafeKey(packet.syncId);await firebasePut(`mobileInbox/${packet.syncId}`,packet);try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId})}catch(e){}return packet}
-async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();alert("Sent directly to Mobile. Open the phone app and the cutting list will appear automatically. No ZIP folder has been created.")}catch(e){console.error(e);alert("Direct phone connection is unavailable. Open Mobile and Studio from the same AssembleOne installation, then press Send to Phone again.")}}
+async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));
+ // Jobs that started as a phone Site Job are split into one Studio project per room
+ // (see mergeMobileSiteJob). Sending just this one room's project would land on the
+ // phone as a brand-new duplicate under a different id. Reassemble all sibling rooms
+ // under the original mobile job id so the phone recognises it as an update.
+ let outgoingProject=p;
+ if(p.siteMobileJobId){
+  const siblings=state.projects.filter(x=>x.siteMobileJobId===p.siteMobileJobId);
+  outgoingProject=JSON.parse(JSON.stringify(p));
+  outgoingProject.id=p.siteMobileJobId;
+  outgoingProject.rooms=siblings.flatMap(s=>s.rooms||[]);
+  outgoingProject.cabinets=siblings.flatMap(s=>s.cabinets||[]);
+ }
+ const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(outgoingProject))};try{await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();alert("Sent directly to Mobile. Open the phone app and the cutting list will appear automatically. No ZIP folder has been created.")}catch(e){console.error(e);alert("Direct phone connection is unavailable. Open Mobile and Studio from the same AssembleOne installation, then press Send to Phone again.")}}
 function mergeMobileSiteJob(incoming){
  if(!incoming?.id)throw new Error("Invalid project");
  const rooms=(incoming.rooms&&incoming.rooms.length)?incoming.rooms:[null];
