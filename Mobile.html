@@ -345,6 +345,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
  </div>
  <div class="card">
   <div class="mobile-home-actions">
+   <button class="btn primary mobile-new-site" id="newJob" type="button">＋ <span data-i18n="proj.newSiteJob">New Site Job</span></button>
    <label class="btn mobile-import-project" style="grid-column:1/-1">📥 <span data-i18n="proj.addStudioProject">Add Studio Project</span><input id="importStudio" type="file" accept=".zip,application/zip" hidden></label>
   </div>
   <div class="mobile-projects-title" data-i18n="proj.myProjects">My Projects</div>
@@ -763,6 +764,42 @@ function getPhotoBlob(id){
   req.onerror=()=>reject(req.error);
  })).catch(()=>null);
 }
+function deletePhotoBlob(id){
+ return photoDb().then(db=>new Promise((resolve,reject)=>{
+  const tx=db.transaction("photos","readwrite");
+  tx.objectStore("photos").delete(id);
+  tx.oncomplete=()=>resolve();
+  tx.onerror=()=>reject(tx.error);
+ })).catch(()=>{});
+}
+function collectProjectPhotoIds(p){
+ const ids=[];
+ (p.sitePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ (p.measureCaptures||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ if(p.siteMarkup)ids.push("sitemarkup:"+p.id);
+ for(const c of p.cabinets||[]){
+  if(c.id)ids.push("drawing:"+c.id);
+  for(const pt of c.parts||[])(pt.panelPhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ }
+ for(const r of p.rooms||[]){
+  (r.beforePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+  (r.designImages||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+  (r.measureCaptures||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+  if(r.siteMarkup)ids.push("sitemarkup:"+r.id);
+ }
+ return ids;
+}
+function deleteAllPhotosForProject(p){
+ collectProjectPhotoIds(p).forEach(id=>{deletePhotoBlob(id);photoPersistedIds.delete(id)});
+}
+function deleteAllPhotosForRoom(r){
+ const ids=[];
+ (r.beforePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ (r.designImages||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ (r.measureCaptures||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ if(r.siteMarkup)ids.push("sitemarkup:"+r.id);
+ ids.forEach(id=>{deletePhotoBlob(id);photoPersistedIds.delete(id)});
+}
 const photoPersistedIds=new Set();
 const pendingPhotoWrites=[];
 let photoPersistTimer=null;
@@ -867,7 +904,7 @@ function applyPanelRoute(route){
 // #panel=... in the URL would be silently ignored.
 window.addEventListener("hashchange",()=>{const route=parsePanelHash();if(route)applyPanelRoute(route)});
 async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{renderAll();applyI18n();paintLangButtons()}}
-function show(name){state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=name==='measure'?'drawings':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons()}
+function show(name){if(name!=='scan'&&typeof scanRunning!=='undefined'&&scanRunning&&typeof stopCamera==='function')stopCamera();state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=name==='measure'?'drawings':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons()}
 $$(".nav").forEach(b=>b.onclick=()=>show(b.dataset.screen));
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
@@ -896,7 +933,7 @@ function renderProjects(){
  const box=$("#jobList");
  box.innerHTML=state.projects.length?state.projects.map(p=>{const display=projectRoomDisplay(p);const rooms=(p.rooms||[]).length;const units=(p.cabinets||[]).length;const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);return `<div class="job"><div class="mobile-job-icon">${display.icon}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div><div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-id="${p.id}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`}).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
  $$(".open-job").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.id;const p=project();state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;save();show("drawings")});
- $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(`Delete "${p.name||"this project"}" from this phone?`))return;state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
+ $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(`Delete "${p.name||"this project"}" from this phone?`))return;if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
 }
 function renderMeasure(){
  const p=project();if(!p)return;
@@ -1019,7 +1056,7 @@ function roomCardHtml(p,r){
  const sentCount=p.sentPhotoCount||0;
  const capturesSection=captures.length?`<details style="margin-top:14px"><summary style="font-weight:800;color:var(--ink);cursor:pointer">${t('intake.savedPhotos')} (${captures.length})</summary><div class="room-photo-grid" style="margin-top:10px">${captures.map(cap=>{const mCount=(cap.marks||[]).filter(x=>x.type==='measure').length;return `<div class="room-photo-tile" style="position:relative"><img src="${cap.image}"><div class="design-caption">${mCount} ${mCount===1?t('room.measurement'):t('room.measurements')}</div><button type="button" class="capture-delete-btn" data-capture-id="${cap.id}" title="${t('detail.delete')}" style="position:absolute;top:8px;right:8px;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:900;font-size:19px;line-height:1">✕</button></div>`}).join('')}</div></details>`:'';
  const extraSections='';
- return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="Tap to change icon" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.floor')}<div class="floor-btn-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${floorPresets.map(f=>`<button type="button" class="btn floor-preset-btn ${roomFloor===f?'active':''}" data-floor="${f}" style="padding:8px 12px;font-size:13px">${floorLabel(f)}</button>`).join('')}</div><input id="siteRoomFloor" style="margin-top:6px" placeholder="${t('intake.floorPlaceholder')}" value="${safe(roomFloor)}"></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea></label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.readyToSendSuffix')}</div>${sentCount?`<div class="muted" style="margin-top:4px">${sentCount} ${sentCount===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.sentToStudioSuffix')}</div>`:''}<div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">↥ ${t('intake.sendToStudio')}</button></div>${extraSections}</div>`;
+ return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="Tap to change icon" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.floor')}<div class="floor-btn-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${floorPresets.map(f=>`<button type="button" class="btn floor-preset-btn ${roomFloor===f?'active':''}" data-floor="${f}" style="padding:8px 12px;font-size:13px">${floorLabel(f)}</button>`).join('')}</div><input id="siteRoomFloor" style="margin-top:6px" placeholder="${t('intake.floorPlaceholder')}" value="${safe(roomFloor)}"></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea></label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.readyToSendSuffix')}</div>${sentCount?`<div class="muted" style="margin-top:4px">${sentCount} ${sentCount===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.sentToStudioSuffix')}</div>`:''}<div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">↥ ${t('intake.sendToStudio')}</button>${r?`<button class="btn danger" id="deleteRoomBtn" type="button">🗑 ${t('detail.delete')}</button>`:''}</div>${extraSections}</div>`;
 }
 function wireRoomCard(p,r){
  if($('#openInMaps'))$('#openInMaps').onclick=()=>{if(p.geoLat!=null){window.open(`https://www.google.com/maps/search/?api=1&query=${p.geoLat},${p.geoLng}`,'_blank');return}const addr=$('#siteAddress').value.trim();if(!addr)return alert('Type the address first, or drop a pin on the map.');window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`,'_blank')};
@@ -1044,6 +1081,7 @@ function wireRoomCard(p,r){
  if($('#siteRoomIconBtn'))$('#siteRoomIconBtn').onclick=()=>openSiteRoomIconPicker(r||p,!!r);
  initSiteLocationMap(p);
  if($('#backToMeasure'))$('#backToMeasure').onclick=()=>show('measure');
+ if(r&&$('#deleteRoomBtn'))$('#deleteRoomBtn').onclick=()=>{if(confirm(`${t('detail.delete')} ${r.name||''}?`)){if(typeof deleteAllPhotosForRoom==='function')deleteAllPhotosForRoom(r);p.rooms=(p.rooms||[]).filter(x=>x.id!==r.id);state.currentRoom=null;p.startNewRoom=false;save();renderRooms()}};
  if($('#sendNewSiteToStudio'))$('#sendNewSiteToStudio').onclick=()=>{
   const name=$('#siteRoomName').value.trim(),customer=$('#siteCustomerName').value.trim(),address=$('#siteAddress').value.trim(),notes=$('#siteRoomNotes').value.trim(),floor=$('#siteRoomFloor')?.value.trim()||'';
   if(!name)return alert('Add the room name first.');
@@ -1053,9 +1091,12 @@ function wireRoomCard(p,r){
    room={id:uid(),type:'',name,icon:$('#siteRoomIconBtn')?.textContent||roomIconFromName(name,''),location:floor,beforePhotos:[],designImages:[],notes,siteMarkup:p.siteMarkup?JSON.parse(JSON.stringify(p.siteMarkup)):{image:null,w:0,h:0,marks:[]},measureCaptures:p.measureCaptures?JSON.parse(JSON.stringify(p.measureCaptures)):[]};
    p.rooms=p.rooms||[];p.rooms.unshift(room);
    sentCaptureCount=(room.measureCaptures||[]).length;
+   room.sentCaptureCount=sentCaptureCount;
   }else{
    room.name=name;room.icon=$('#siteRoomIconBtn')?.textContent||room.icon;room.notes=notes;room.location=floor;
-   sentCaptureCount=(room.measureCaptures||[]).length;
+   const totalCaptures=(room.measureCaptures||[]).length;
+   sentCaptureCount=Math.max(0,totalCaptures-(room.sentCaptureCount||0));
+   room.sentCaptureCount=totalCaptures;
   }
   p.name=p.name==='New Site Job'?name:p.name;
   p.sentPhotoCount=(p.sentPhotoCount||0)+sentCaptureCount;
@@ -1076,6 +1117,7 @@ function wireRoomCard(p,r){
   e.preventDefault();e.stopPropagation();
   if(!confirm('Delete this photo and its measurements?'))return;
   const holder=r||p;
+  if(typeof deletePhotoBlob==='function'){deletePhotoBlob(b.dataset.captureId);photoPersistedIds.delete(b.dataset.captureId)}
   holder.measureCaptures=(holder.measureCaptures||[]).filter(c=>c.id!==b.dataset.captureId);
   save();renderRooms();
  });
@@ -1352,7 +1394,7 @@ let damagePhotoData=null,lastDamageShare=null;
 $("#damagePhotoInput").onchange=e=>{const file=e.target.files&&e.target.files[0];if(!file)return;compressImage(file,data=>{damagePhotoData=data;$("#damagePhotoImg").src=data;$("#damagePhotoPreview").classList.remove("hidden")},()=>alert('That photo could not be loaded. Please try again.'))};
 $("#saveDamage").onclick=()=>{
  const found=locatePanelByCode($("#damagePanelCode").value);
- if(!found){$("#scanResult").textContent="Panel not found. Check the panel number.";return}
+ if(!found){alert("Panel not found. Check the panel number.");return}
  state.currentProject=found.pr.id;state.currentCabinet=found.cab.id;state.currentPart=found.pt.id;state.currentRoom=found.cab.roomId||null;
  const q=Math.max(1,Number(found.pt.qty)||1);
  found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
@@ -1364,8 +1406,9 @@ $("#saveDamage").onclick=()=>{
  $("#damagePanelCode").value=$("#damageNote").value="";
  $("#damagePhotoPreview").classList.add("hidden");$("#damagePhotoImg").src="";damagePhotoData=null;
  renderScanDashboard();
- $("#scanResult").textContent=`${found.pt.code} marked damaged.`;
+ if(typeof renderInstallDashboard==='function')renderInstallDashboard();
  $("#shareDamageWhatsapp").classList.remove("hidden");
+ alert(`${found.pt.code} marked damaged.`);
 };
 $("#shareDamageWhatsapp").onclick=async()=>{
  if(!lastDamageShare)return;
@@ -1378,7 +1421,7 @@ $("#shareDamageWhatsapp").onclick=async()=>{
     if(navigator.canShare({files:[file]})){await navigator.share({text,files:[file]});return}
    }
    await navigator.share({text});return
-  }catch(e){}
+  }catch(e){if(e&&e.name==="AbortError")return}
  }
  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
 };
@@ -1831,11 +1874,11 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     if(receivingStudioPack)return;receivingStudioPack=true;
     try{
       const packets=await window.mobileInboxPackets();if(!packets.length)return;const packet=packets[packets.length-1];
-      const incoming=packet.project||packet;if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
+      const incoming=packet.project||packet;if(!incoming?.id||!Array.isArray(incoming.cabinets)){await window.removeMobilePacket(packet);throw new Error("Invalid project")}
       if((state.deletedProjectIds||[]).includes(incoming.id)){await window.removeMobilePacket(packet);return}
       const units=incoming.cabinets,panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]),pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
       const isNote=packet.sendType==="note";
-      if(!isNote&&(!units.length||!panels.length))throw new Error("Empty project");
+      if(!isNote&&(!units.length||!panels.length)){await window.removeMobilePacket(packet);throw new Error("Empty project")}
       const p=mergeStudioProject(incoming);
       let routedToPanel=false;
       if(state.pendingPanelRoute&&state.pendingPanelRoute.projectId===p.id){
