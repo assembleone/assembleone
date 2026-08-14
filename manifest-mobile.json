@@ -1,0 +1,12 @@
+{
+  "name": "AssembleOne Mobile",
+  "short_name": "AssembleOne",
+  "start_url": "Mobile.html",
+  "display": "standalone",
+  "background_color": "#123a70",
+  "theme_color": "#174E98",
+  "icons": [
+    { "src": "assets/icon_192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon_512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
