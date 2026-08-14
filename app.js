@@ -711,7 +711,7 @@ function mergeMobileSiteJob(incoming){
    });
    state.projects.unshift(base);
   }else{
-   ["customer","address","phone","notes","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
+   ["customer","address","phone","notes","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined&&incoming[k]!==""&&incoming[k]!==null)base[k]=incoming[k]});
    if(room){
     base.rooms=base.rooms||[];
     let br=base.rooms.find(x=>x.id===room.id);
@@ -722,6 +722,12 @@ function mergeMobileSiteJob(incoming){
   }
   if(idx===0)focusProject=base;
  });
+ // Each room becomes its own Studio project, but a customer name typed in on any single
+ // room's send should apply to the whole job -- otherwise rooms sent before the customer
+ // name was filled in stay permanently blank and split off from the rest of the job.
+ const siblings=state.projects.filter(x=>x.siteMobileJobId===incoming.id);
+ const knownCustomer=siblings.map(x=>customerKey(x.customer)).find(Boolean);
+ if(knownCustomer)siblings.forEach(x=>{if(!customerKey(x.customer))x.customer=knownCustomer});
  return focusProject;
 }
 function customerKey(name){return String(name||"").trim()}
@@ -732,10 +738,31 @@ function allCustomerEntries(){
   if(!key)return;
   map.set(key,{id:c.id,name:c.name,address:c.address||"",phone:c.phone||"",notes:c.notes||"",geoLat:null,geoLng:null,projects:[]});
  });
+ // A phone site job is split into one Studio project per room (see mergeMobileSiteJob),
+ // so resolve one shared customer key per siteMobileJobId first -- using any sibling
+ // room's customer name if this one hasn't got it yet -- instead of letting rooms of the
+ // same job scatter across different (or missing) customer entries.
+ const jobKeys=new Map();
  (state.projects||[]).forEach(p=>{
-  const key=customerKey(p.customer);
+  if(!p.siteMobileJobId||jobKeys.has(p.siteMobileJobId))return;
+  const sibling=(state.projects||[]).find(x=>x.siteMobileJobId===p.siteMobileJobId&&customerKey(x.customer));
+  if(sibling)jobKeys.set(p.siteMobileJobId,customerKey(sibling.customer));
+ });
+ const noCustomerLabels=new Map();
+ (state.projects||[]).forEach(p=>{
+  let key=customerKey(p.customer)||(p.siteMobileJobId&&jobKeys.get(p.siteMobileJobId));
+  if(!key&&p.siteMobileJobId){
+   // A job sent from the phone before a customer name was typed would otherwise vanish
+   // from this screen entirely (it never gets a key). Group it under a findable label
+   // instead of dropping it, so nothing sent from site ever disappears from view.
+   if(!noCustomerLabels.has(p.siteMobileJobId)){
+    const label=(p.name||(p.rooms&&p.rooms[0]&&p.rooms[0].name)||"Site job").trim();
+    noCustomerLabels.set(p.siteMobileJobId,"No customer name — "+label);
+   }
+   key=noCustomerLabels.get(p.siteMobileJobId);
+  }
   if(!key)return;
-  if(!map.has(key))map.set(key,{id:null,name:p.customer,address:"",phone:"",notes:"",geoLat:null,geoLng:null,projects:[]});
+  if(!map.has(key))map.set(key,{id:null,name:key,address:"",phone:"",notes:"",geoLat:null,geoLng:null,projects:[]});
   const entry=map.get(key);
   entry.projects.push(p);
   if(!entry.address&&p.address)entry.address=p.address;
@@ -2906,7 +2933,20 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     p.bom=buildJobBom(p);
     p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));
     const isCut=mode==="cutting";
-    const packet={app:"AssembleOne",schema:"assembleone-project-v10.89",source:"studio",sendType:isCut?"cutting-list":"site-job",exportedAt:new Date().toISOString(),includesCuttingList:isCut,openScreen:isCut?"scan":"drawings",summary:n,project:copy(p),syncId:firebaseSafeKey(uid()),channel:CHANNEL};
+    // Jobs that started as a phone Site Job get split into one Studio project per room
+    // (see mergeMobileSiteJob). Sending back just this one room's project would land on
+    // the phone as a brand-new duplicate, since its id no longer matches the phone's
+    // original project. Reassemble all sibling rooms under the original mobile id so the
+    // phone recognises it as an update to the job it already has.
+    let outgoingProject=p;
+    if(p.siteMobileJobId){
+      const siblings=state.projects.filter(x=>x.siteMobileJobId===p.siteMobileJobId);
+      outgoingProject=copy(p);
+      outgoingProject.id=p.siteMobileJobId;
+      outgoingProject.rooms=siblings.flatMap(s=>s.rooms||[]);
+      outgoingProject.cabinets=siblings.flatMap(s=>s.cabinets||[]);
+    }
+    const packet={app:"AssembleOne",schema:"assembleone-project-v10.89",source:"studio",sendType:isCut?"cutting-list":"site-job",exportedAt:new Date().toISOString(),includesCuttingList:isCut,openScreen:isCut?"scan":"drawings",summary:n,project:copy(outgoingProject),syncId:firebaseSafeKey(uid()),channel:CHANNEL};
     const old=button?button.innerHTML:"";
     if(button){button.disabled=true;button.dataset.oldHtml=old;button.innerHTML='<span>⏳</span><strong>Sending…</strong><small>Please wait</small>';}
     try{
