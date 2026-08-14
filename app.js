@@ -480,10 +480,16 @@ const DEFAULT_MOBILE_APP_URL="https://assembleone.github.io/assembleone/Mobile.h
 function mobileAppBase(){const stored=(localStorage.getItem("assembleone_mobile_app_url")||"").trim().replace(/#.*$/,'');return stored||DEFAULT_MOBILE_APP_URL}
 function phoneQrText(p){
  const pr=project(),c=cabinet();
- const route=`${encodeURIComponent(pr?.id||"")}:${encodeURIComponent(c?.id||"")}:${encodeURIComponent(p.id)}`;
+ // Jobs that started as a phone Site Job are split into one Studio project per room
+ // (see mergeMobileSiteJob) and sent back to the phone reassembled under the original
+ // mobile job id (see exportProjectToMobile/publish). QR labels must reference that same
+ // id -- not this Studio-side split id -- or the phone can never match a scanned code
+ // back to the project it actually has.
+ const phoneProjectId=pr?.siteMobileJobId||pr?.id||"";
+ const route=`${encodeURIComponent(phoneProjectId)}:${encodeURIComponent(c?.id||"")}:${encodeURIComponent(p.id)}`;
  const base=mobileAppBase();
  if(base)return `${base}#panel=${route}`;
- return JSON.stringify({a:"A1",v:8,projectId:pr?.id||"",cabinetId:c?.id||"",panelId:p.id});
+ return JSON.stringify({a:"A1",v:8,projectId:phoneProjectId,cabinetId:c?.id||"",panelId:p.id});
 }
 function makeQr(el,text,size){
  if(!el)return;
