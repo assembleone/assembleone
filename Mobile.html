@@ -104,7 +104,7 @@ input,textarea,select{border-color:#D7D5E1;color:#174E98}input:focus,textarea:fo
 .notice,.location-note{border-left-color:#FFC600;background:#FFF8D8;color:#174E98}
 .panel-card{border-color:#FFC600;background:#FFFDF2}
 nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#FFC600}
-.markup-label-bg{fill:#fff;stroke:#174E98}.markup-label-value{fill:#174E98}.markup-label-name{fill:#174E98}.markup-measure-line,.markup-straight-line,.markup-curve{stroke:#FFC600}.markup-selected{filter:drop-shadow(0 0 4px #FFC600)}
+.markup-label-bg{fill:#fff;stroke:#174E98}.markup-label-value{fill:#174E98}.markup-label-name{fill:#174E98}.markup-measure-line,.markup-straight-line,.markup-curve{stroke:#FFC600}.markup-selected{filter:drop-shadow(0 0 4px #FFC600)}.markup-label-group{cursor:grab;touch-action:none}.markup-label-group.markup-dragging{cursor:grabbing}
 .site-trade-btn.selected,.site-status-btn.selected{background:#FFC600!important;color:#174E98!important;border-color:#E5B200!important}
 
 
@@ -1552,8 +1552,39 @@ load();
  function fit(){const m=ensure();if(!m||!m.w)return;const r=stage.getBoundingClientRect();zoom=Math.min(r.width/m.w,r.height/m.h);panX=(r.width-m.w*zoom)/2;panY=(r.height-m.h*zoom)/2;applyTransform()}
  function setMode(v){mode=v;['Measure','Line','Curve','Move'].forEach(n=>$('#mode'+n)?.classList.toggle('active',v===n.toLowerCase()));$('#markupHint').textContent=v==='measure'?'Measure mode: drag from one point to another. A straight arrow line will be created.':v==='line'?'Straight line mode: every finger or Pencil stroke becomes a clean straight line.':v==='curve'?'Curve mode: draw freely with your finger or Apple Pencil.':'Move mode: drag the photo. Pinch with two fingers to zoom.'}
  function point(e){const r=stage.getBoundingClientRect();return{x:(e.clientX-r.left-panX)/zoom,y:(e.clientY-r.top-panY)/zoom}}
- function lineMarkup(m,preview=false){const x1=m.x1,y1=m.y1,x2=m.x2,y2=m.y2;let h='';if(m.type==='measure'){h+=`<line class="markup-measure-line${m.id===editingId?' markup-selected':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" data-id="${m.id||''}"/>`;if(!preview&&m.value){const mx=(x1+x2)/2,my=(y1+y2)/2,w=Math.max(92,String(m.value).length*15,String(m.name||'').length*8+22);h+=`<g data-id="${m.id}" transform="translate(${mx-w/2},${my-27})"><rect class="markup-label-bg" width="${w}" height="54" rx="8"/><text class="markup-label-value" x="${w/2}" y="22" text-anchor="middle">${esc(m.value)} ${esc(m.unit||'mm')}</text><text class="markup-label-name" x="${w/2}" y="43" text-anchor="middle">${esc(m.name||m.kind||'Measurement')}</text></g>`}}else if(m.type==='line'){h+=`<line class="markup-straight-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" data-id="${m.id||''}"/>`}return h}
- function render(){const m=ensure();if(!m)return;marksG.innerHTML=(m.marks||[]).map(x=>x.type==='curve'?`<polyline class="markup-curve" points="${x.points.map(p=>p.x+','+p.y).join(' ')}" data-id="${x.id}"/>`:lineMarkup(x)).join('');marksG.querySelectorAll('[data-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();const id=el.dataset.id,item=m.marks.find(x=>x.id===id);if(item?.type==='measure')openEditor(item)}))}
+ function lineMarkup(m,preview=false){const x1=m.x1,y1=m.y1,x2=m.x2,y2=m.y2;let h='';if(m.type==='measure'){h+=`<line class="markup-measure-line${m.id===editingId?' markup-selected':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" data-id="${m.id||''}"/>`;if(!preview&&m.value){const mx=(x1+x2)/2+(m.labelDx||0),my=(y1+y2)/2+(m.labelDy||0),w=Math.max(92,String(m.value).length*15,String(m.name||'').length*8+22);h+=`<g class="markup-label-group" data-id="${m.id}" data-w="${w}" transform="translate(${mx-w/2},${my-27})"><rect class="markup-label-bg" width="${w}" height="54" rx="8"/><text class="markup-label-value" x="${w/2}" y="22" text-anchor="middle">${esc(m.value)} ${esc(m.unit||'mm')}</text><text class="markup-label-name" x="${w/2}" y="43" text-anchor="middle">${esc(m.name||m.kind||'Measurement')}</text></g>`}}else if(m.type==='line'){h+=`<line class="markup-straight-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" data-id="${m.id||''}"/>`}return h}
+ function wireLabelDrag(el,m){
+  const id=el.dataset.id;
+  let drag=null;
+  el.addEventListener('pointerdown',e=>{
+   e.stopPropagation();
+   const item=m.marks.find(x=>x.id===id);
+   if(!item)return;
+   try{el.setPointerCapture(e.pointerId)}catch(err){}
+   drag={pointerId:e.pointerId,startClient:{x:e.clientX,y:e.clientY},startDx:item.labelDx||0,startDy:item.labelDy||0,item,w:parseFloat(el.dataset.w||'92')};
+  });
+  el.addEventListener('pointermove',e=>{
+   if(!drag||drag.pointerId!==e.pointerId)return;
+   const dxScreen=e.clientX-drag.startClient.x,dyScreen=e.clientY-drag.startClient.y;
+   if(!drag.moved&&Math.hypot(dxScreen,dyScreen)>8){drag.moved=true;el.classList.add('markup-dragging')}
+   if(!drag.moved)return;
+   drag.item.labelDx=drag.startDx+dxScreen/zoom;
+   drag.item.labelDy=drag.startDy+dyScreen/zoom;
+   const mx=(drag.item.x1+drag.item.x2)/2+drag.item.labelDx,my=(drag.item.y1+drag.item.y2)/2+drag.item.labelDy;
+   el.setAttribute('transform',`translate(${mx-drag.w/2},${my-27})`);
+  });
+  const finish=e=>{
+   if(!drag||drag.pointerId!==e.pointerId)return;
+   const moved=drag.moved;
+   el.classList.remove('markup-dragging');
+   drag=null;
+   if(moved){save()}
+   else{const item=m.marks.find(x=>x.id===id);if(item?.type==='measure')openEditor(item)}
+  };
+  el.addEventListener('pointerup',finish);
+  el.addEventListener('pointercancel',()=>{if(drag){el.classList.remove('markup-dragging');if(drag.moved)save()}drag=null});
+ }
+ function render(){const m=ensure();if(!m)return;marksG.innerHTML=(m.marks||[]).map(x=>x.type==='curve'?`<polyline class="markup-curve" points="${x.points.map(p=>p.x+','+p.y).join(' ')}" data-id="${x.id}"/>`:lineMarkup(x)).join('');marksG.querySelectorAll('[data-id]').forEach(el=>{if(el.classList.contains('markup-label-group'))wireLabelDrag(el,m);else el.addEventListener('click',e=>{e.stopPropagation();const id=el.dataset.id,item=m.marks.find(x=>x.id===id);if(item?.type==='measure')openEditor(item)})})}
  function loadMarkup(){const m=ensure();if(!m){world.style.display='none';$('#markupEmpty').style.display='flex';return}if(m.image){world.style.display='block';$('#markupEmpty').style.display='none';const finish=()=>{m.w=img.naturalWidth||m.w||1200;m.h=img.naturalHeight||m.h||900;world.style.width=m.w+'px';world.style.height=m.h+'px';svg.setAttribute('viewBox',`0 0 ${m.w} ${m.h}`);requestAnimationFrame(()=>requestAnimationFrame(()=>{fit();render()}))};img.onload=finish;img.onerror=()=>{if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent='Could not load';world.style.display='none';$('#markupEmpty').style.display='flex'};img.src=m.image;if(img.complete&&img.naturalWidth)finish()}else{world.style.display='none';$('#markupEmpty').style.display='flex';if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent=''}render()}
  function openEditor(item){editingId=item?.id||null;pending=item||pending;$('#editorKind').textContent=measureKindLabel(pending.kind||kind);$('#editorValue').value=pending.value||'';$('#editorName').value=pending.name||pending.kind||kind;$('#deleteEditor').classList.toggle('hidden',!editingId);const uEl=$('#editorValueUnit');if(uEl)uEl.textContent=pending.unit||currentMeasureUnitLabel();$('#measureEditor').classList.remove('hidden');setTimeout(()=>{$('#editorValue').focus({preventScroll:true});window.scrollTo(0,0)},80)}
  function closeEditor(){editingId=null;pending=null;$('#measureEditor').classList.add('hidden');render()}
