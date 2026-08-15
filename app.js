@@ -2969,7 +2969,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     const old=button?button.innerHTML:"";
     if(button){button.disabled=true;button.dataset.oldHtml=old;button.innerHTML='<span>⏳</span><strong>Sending…</strong><small>Please wait</small>';}
     try{
-      await firebasePut(`${ROOT}/mobile/latest`,packet);
+      await firebasePut(`${ROOT}/mobileQueue/${firebaseSafeKey(packet.syncId)}`,packet);
       try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId,channel:CHANNEL})}catch(e){}
       p.lastMobileSync=packet.exportedAt;save();
       if(button){button.innerHTML='<span>✅</span><strong>Sent to Phone</strong><small>'+n.units+' unit · '+n.panels+' panels · '+n.pieces+' pieces</small>';setTimeout(()=>{button.innerHTML=old;button.disabled=false},2500);}
@@ -2989,7 +2989,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     const old=button?button.innerHTML:"";
     if(button){button.disabled=true;button.dataset.oldHtml=old;button.innerHTML='<span>⏳</span><strong>Sending…</strong><small>Please wait</small>';}
     try{
-      await firebasePut(`${ROOT}/mobile/latest`,packet);
+      await firebasePut(`${ROOT}/mobileQueue/${firebaseSafeKey(packet.syncId)}`,packet);
       try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId,channel:CHANNEL})}catch(e){}
       p.lastMobileSync=packet.exportedAt;save();
       if(button){button.innerHTML='<span>✅</span><strong>Note Sent</strong><small>The install team will see it</small>';setTimeout(()=>{button.innerHTML=old;button.disabled=false},2500);}

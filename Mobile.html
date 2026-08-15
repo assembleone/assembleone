@@ -1909,20 +1909,34 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
 (function(){
   const CHANNEL="mads_assembleone_1089";
   const ROOT=`sync_v3/${CHANNEL}`;
-  const LAST="assembleone_v1089_last_mobile_packet";
   window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
-  window.mobileInboxPackets=async function(){try{const packet=await firebaseGet(`${ROOT}/mobile/latest`);if(!packet)return [];const id=String(packet.syncId||packet.exportedAt||"");if(id&&localStorage.getItem(LAST)===id)return [];return [packet]}catch(e){console.error(e);return []}};
-  window.removeMobilePacket=async function(packet){localStorage.setItem(LAST,String(packet?.syncId||packet?.exportedAt||""))};
+  window.mobileInboxPackets=async function(){try{const all=await firebaseGet(`${ROOT}/mobileQueue`);if(!all)return [];return Object.values(all).sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}catch(e){console.error(e);return []}};
+  window.removeMobilePacket=async function(packet){try{await firebaseDelete(`${ROOT}/mobileQueue/${firebaseSafeKey(packet?.syncId||packet?.exportedAt||"")}`)}catch(e){console.error(e)}};
   window.receiveStudioDirect=async function(){
     if(receivingStudioPack)return;receivingStudioPack=true;
     try{
-      const packets=await window.mobileInboxPackets();if(!packets.length)return;const packet=packets[packets.length-1];
-      const incoming=packet.project||packet;if(!incoming?.id||!Array.isArray(incoming.cabinets)){await window.removeMobilePacket(packet);throw new Error("Invalid project")}
-      if((state.deletedProjectIds||[]).includes(incoming.id)){await window.removeMobilePacket(packet);return}
-      const units=incoming.cabinets,panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]),pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
-      const isNote=packet.sendType==="note";
-      if(!isNote&&(!units.length||!panels.length)){await window.removeMobilePacket(packet);throw new Error("Empty project")}
-      const p=mergeStudioProject(incoming);
+      const packets=await window.mobileInboxPackets();if(!packets.length)return;
+      // Studio may have queued more than one packet (e.g. a cutting list for one job
+      // then a note for another) since the last time this phone was online -- apply
+      // every one of them in order so none are silently lost, but only drive the
+      // screen/alert for the most recent so the installer isn't hit with a burst of
+      // pop-ups when catching up.
+      let lastApplied=null;
+      for(const packet of packets){
+        try{
+          const incoming=packet.project||packet;
+          if(!incoming?.id||!Array.isArray(incoming.cabinets)){await window.removeMobilePacket(packet);continue}
+          if((state.deletedProjectIds||[]).includes(incoming.id)){await window.removeMobilePacket(packet);continue}
+          const units=incoming.cabinets,panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]),pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
+          const isNote=packet.sendType==="note";
+          if(!isNote&&(!units.length||!panels.length)){await window.removeMobilePacket(packet);continue}
+          const p=mergeStudioProject(incoming);
+          save();await window.removeMobilePacket(packet);
+          lastApplied={packet,p,units,panels,pieces,isNote};
+        }catch(e){console.error("Failed to apply a queued Studio packet",e)}
+      }
+      if(!lastApplied)return;
+      const {packet,p,units,panels,pieces,isNote}=lastApplied;
       let routedToPanel=false;
       let drawingCabinet=null;
       if(state.pendingPanelRoute&&state.pendingPanelRoute.projectId===p.id){
@@ -1936,7 +1950,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
         state.currentPart=null;
         if(drawingCabinet?.roomId&&(p.rooms||[]).some(r=>r.id===drawingCabinet.roomId))state.currentRoom=drawingCabinet.roomId;
       }
-      save();await window.removeMobilePacket(packet);
+      save();
       const isCut=packet.sendType==="cutting-list"||packet.openScreen==="scan"||packet.includesCuttingList===true;
       const activeScan=state.screen==='scan'&&typeof scanRunning!=='undefined'&&scanRunning;
       const hasDrawing=!!(drawingCabinet&&drawingCabinet.drawing&&drawingCabinet.drawingType!=="pdf");
