@@ -1310,11 +1310,13 @@ async function firebaseDelete(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_
 async function sendPackDirectly(pack){const packet={...pack,syncId:firebaseSafeKey(uid()),syncStatus:"waiting"};await firebasePut(`studioInbox/${packet.syncId}`,packet);try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-update"})}catch(e){}return true}
 async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);p.lastStudioSync=pack.exportedAt;save();renderAll();alert("Sent to Studio. Open Studio and the new job will appear automatically.")}catch(e){console.error(e);download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside AssembleOne Studio."}]),(p.name||"AssembleOne_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert("Direct sync was unavailable, so a backup file was downloaded.")}}
 
-async function mobileInboxPackets(){let out=[];try{const cloud=await firebaseGet("mobileInbox");if(cloud)out.push(...Object.values(cloud))}catch(e){console.error("Firebase Mobile inbox read failed",e)}try{const db=await syncDb();const tx=db.transaction("mobileInbox","readonly"),req=tx.objectStore("mobileInbox").getAll();out.push(...await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)}));db.close()}catch(e){}try{out=[...out,...JSON.parse(localStorage.getItem("assembleone_mobile_direct_queue_v1")||"[]")]}catch(e){}const map=new Map();out.forEach(x=>map.set(x.syncId||x.exportedAt,x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
-async function removeMobilePacket(packet){try{await firebaseDelete(`mobileInbox/${firebaseSafeKey(packet.syncId||packet.exportedAt)}`)}catch(e){console.error(e)}try{const db=await syncDb();const tx=db.transaction("mobileInbox","readwrite");tx.objectStore("mobileInbox").delete(packet.syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}try{const key="assembleone_mobile_direct_queue_v1",arr=JSON.parse(localStorage.getItem(key)||"[]").filter(x=>(x.syncId||x.exportedAt)!==(packet.syncId||packet.exportedAt));localStorage.setItem(key,JSON.stringify(arr))}catch(e){}}
+// mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the original,
+// pre-channel Studio-to-phone receiver) lived here. They're superseded by the
+// "a201" block further down, which is the one that actually runs (its
+// window.receiveStudioDirect etc. overwrite these), so they were removed instead
+// of being left as a second, easy-to-mistakenly-edit copy of the same job.
 let receivingStudioPack=false;
-async function receiveStudioDirect(){if(receivingStudioPack)return;receivingStudioPack=true;try{const packets=await mobileInboxPackets();if(!packets.length)return;for(const packet of packets){const incoming=packet.project||packet;if(!incoming?.id||!Array.isArray(incoming.cabinets)){await removeMobilePacket(packet);continue}if((state.deletedProjectIds||[]).includes(incoming.id)){await removeMobilePacket(packet);continue}const p=mergeStudioProject(incoming);state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;save();await removeMobilePacket(packet);show((packet.openScreen||packet.includesCuttingList||p.cuttingList)?"scan":"drawings");setTimeout(()=>{renderAll();if(packet.includesCuttingList||p.cuttingList){const box=$("#cuttingProgress");if(box)box.classList.remove("hidden");renderScanDashboard()}},40);try{localStorage.setItem("assembleone_mobile_new_notice_v1","1")}catch(e){}alert("New cutting list received from Studio. It is ready for QR scanning.")}}catch(e){console.error(e)}finally{receivingStudioPack=false}}
-try{const directChannel=new BroadcastChannel("assembleone-sync");directChannel.addEventListener("message",e=>{if(e.data?.type==="studio-published"||e.data?.type==="mobile-update")receiveStudioDirect()})}catch(e){}
+try{const directChannel=new BroadcastChannel("assembleone-sync");directChannel.addEventListener("message",e=>{if(e.data?.type==="studio-published"||e.data?.type==="mobile-update")window.receiveStudioDirect()})}catch(e){}
 function pollStudioSync(){if(typeof window.receiveStudioDirect==="function")window.receiveStudioDirect()}
 window.addEventListener("focus",pollStudioSync);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pollStudioSync()});setInterval(pollStudioSync,2500);setTimeout(pollStudioSync,400);
 
@@ -1882,7 +1884,6 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
 (function(){
   const CHANNEL="mads_assembleone_1088";
   const ROOT=`sync_v2/${CHANNEL}`;
-  const LAST_MOBILE_KEY="assembleone_v1088_last_mobile_packet";
   window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
 
   window.sendPackDirectly=async function(pack){
@@ -1892,45 +1893,10 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     return true;
   };
 
-  window.mobileInboxPackets=async function(){
-    try{
-      const packet=await firebaseGet(`${ROOT}/mobile/latest`);
-      if(!packet)return [];
-      const id=String(packet.syncId||packet.exportedAt||"");
-      if(id&&(localStorage.getItem(LAST_MOBILE_KEY)||"")===id)return [];
-      return [packet];
-    }catch(e){console.error("Mobile inbox read failed",e);return [];}
-  };
-
-  window.removeMobilePacket=async function(packet){
-    localStorage.setItem(LAST_MOBILE_KEY,String(packet&& (packet.syncId||packet.exportedAt)||""));
-  };
-
-  window.receiveStudioDirect=async function(){
-    if(receivingStudioPack)return;
-    receivingStudioPack=true;
-    try{
-      const packets=await window.mobileInboxPackets();
-      if(!packets.length)return;
-      const packet=packets[packets.length-1];
-      const incoming=packet.project||packet;
-      if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid Studio project");
-      if((state.deletedProjectIds||[]).includes(incoming.id)){await window.removeMobilePacket(packet);return}
-      const units=incoming.cabinets;
-      const panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]);
-      const pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
-      if(packet.includesCuttingList&&(!units.length||!panels.length||!pieces))throw new Error("Studio sent an empty cutting list");
-      const p=mergeStudioProject(incoming);
-      state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;
-      save();await window.removeMobilePacket(packet);
-      show((packet.openScreen||packet.includesCuttingList||p.cuttingList)?"scan":"drawings");
-      setTimeout(()=>{renderAll();if(packet.includesCuttingList||p.cuttingList){const box=document.getElementById("cuttingProgress");if(box)box.classList.remove("hidden");renderScanDashboard()}},40);
-      alert(`New cutting list received: ${units.length} unit, ${panels.length} panel and ${pieces} pieces.`);
-    }catch(e){console.error(e);alert("A project arrived from Studio, but it contained no panel data. Send it again from Studio 10.88.");}
-    finally{receivingStudioPack=false;}
-  };
-
-  document.title='AssembleOne Mobile 10.88';
+  // mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the phone-to-Studio
+  // side of this same fix) lived here. They're superseded by the "a201" block further
+  // down -- this is the phone-to-Studio direction which was already correct, so only
+  // sendPackDirectly above is still the live implementation.
 })();
 </script>
 

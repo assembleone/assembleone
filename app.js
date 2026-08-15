@@ -692,21 +692,11 @@ function firebaseSafeKey(value){return String(value||uid()).replace(/[.#$\[\]/]/
 async function firebasePut(path,value){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(value)});if(!r.ok)throw new Error(`Firebase write failed: ${r.status}`);return r.json()}
 async function firebaseGet(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{cache:"no-store"});if(!r.ok)throw new Error(`Firebase read failed: ${r.status}`);return r.json()}
 async function firebaseDelete(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"DELETE"});if(!r.ok)throw new Error(`Firebase delete failed: ${r.status}`)}
-async function sendPackToPhoneDirectly(pack){const packet={...pack,syncId:uid(),syncStatus:"waiting"};packet.syncId=firebaseSafeKey(packet.syncId);await firebasePut(`mobileInbox/${packet.syncId}`,packet);try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId})}catch(e){}return packet}
-async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));
- // Jobs that started as a phone Site Job are split into one Studio project per room
- // (see mergeMobileSiteJob). Sending just this one room's project would land on the
- // phone as a brand-new duplicate under a different id. Reassemble all sibling rooms
- // under the original mobile job id so the phone recognises it as an update.
- let outgoingProject=p;
- if(p.siteMobileJobId){
-  const siblings=state.projects.filter(x=>x.siteMobileJobId===p.siteMobileJobId);
-  outgoingProject=JSON.parse(JSON.stringify(p));
-  outgoingProject.id=p.siteMobileJobId;
-  outgoingProject.rooms=siblings.flatMap(s=>s.rooms||[]);
-  outgoingProject.cabinets=siblings.flatMap(s=>s.cabinets||[]);
- }
- const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(outgoingProject))};try{await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();alert("Sent directly to Mobile. Open the phone app and the cutting list will appear automatically. No ZIP folder has been created.")}catch(e){console.error(e);alert("Direct phone connection is unavailable. Open Mobile and Studio from the same AssembleOne installation, then press Send to Phone again.")}}
+// sendPackToPhoneDirectly/exportProjectToMobile (the original, pre-channel Studio-to-
+// phone sender) lived here. It has no live caller left -- the "10.89 separate reliable
+// Supplier and Site Job sending" block (publish/publishNote) is what the actual
+// Send Cutting List/Send Note buttons use now -- so it was removed instead of being
+// left as a second, easy-to-mistakenly-edit copy of the same job.
 function mergeMobileSiteJob(incoming){
  if(!incoming?.id)throw new Error("Invalid project");
  const rooms=(incoming.rooms&&incoming.rooms.length)?incoming.rooms:[null];
@@ -1001,8 +991,7 @@ window.addEventListener('storage',e=>{if(e.key===DIRECT_SYNC_FALLBACK)paintSiteI
 setInterval(paintSiteInbox,1800);setTimeout(paintSiteInbox,200);
 
 async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);state.currentProject=incoming.id;state.currentCabinet=incoming.cabinets[0]?.id||null;state.currentPart=null;save();renderAll();show("jobs");alert("Project opened in AssembleOne Studio.")}catch(e){alert("This is not a valid AssembleOne project ZIP.")}}
-if($("#exportMobileBtn"))$("#exportMobileBtn").onclick=exportProjectToMobile;
-if($("#sendCuttingToPhoneBtn"))$("#sendCuttingToPhoneBtn").onclick=exportProjectToMobile;if($("#bomExportBtn"))$("#bomExportBtn").onclick=exportProjectToMobile;if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");if($("#refreshBomBtn"))$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
+if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");if($("#refreshBomBtn"))$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
 $("#importMobileInput").onchange=e=>{const f=e.target.files[0];const badge=document.getElementById('siteUpdateBadge');if(f&&badge)badge.textContent='Importing…';importMobileUpdates(f);setTimeout(()=>{if(badge)badge.textContent='Site updates imported ✓'},300);e.target.value=""};
 $("#openProjectInput").onchange=e=>{openProjectPackage(e.target.files[0]);e.target.value=""};
 $("#deleteJobBtn").onclick=()=>{const p=project();if(p&&confirm(`Delete the complete job "${p.name}"?\n\nThis removes all wardrobes, drawings, panels, cutting lists and QR labels in this job.`)){state.projects=state.projects.filter(x=>x.id!==p.id);state.currentProject=null;state.currentCabinet=null;state.currentPart=null;save();renderAll();show("jobs")}};
@@ -1599,20 +1588,10 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
   }));
   const qrBtn=document.getElementById('generateQrBtn');
   if(qrBtn)qrBtn.addEventListener('click',()=>{const p=project();if(p){p.qrReady=true;save();setTimeout(()=>updateWorkflowProgress(state.screen||'qr'),0)}});
-  const originalExport=exportProjectToMobile;
-  function guardedExport(){
-    const ready=readiness();
-    if(!ready.slice(0,5).every(Boolean)){
-      const names=['Start','Drawing','Panels','Cutting list','QR labels'];
-      alert('The project is not ready to send yet. Complete: '+names.filter((_,i)=>!ready[i]).join(', ')+'.');
-      updateWorkflowProgress(state.screen||'jobs');
-      return;
-    }
-    originalExport();
-  }
-  const exp=document.getElementById('exportMobileBtn');if(exp)exp.onclick=guardedExport;
-  const be=document.getElementById('bomExportBtn');if(be)be.onclick=guardedExport;
-  const rf=document.getElementById('refreshBomBtn');if(rf)rf.onclick=()=>{renderJobBom();guardedExport()};
+  // guardedExport (a readiness-gated wrapper around the old exportProjectToMobile) and
+  // its exportMobileBtn/bomExportBtn/refreshBomBtn bindings lived here. None of those
+  // three button ids exist in the current Studio markup and exportProjectToMobile no
+  // longer exists (see the sync block removal above), so this had no live effect.
   const oldRenderAll=renderAll;
   window.renderAll=function(){oldRenderAll();updateWorkflowProgress(state.screen||'jobs')};
   const stage=document.getElementById('drawingStage');
@@ -2866,48 +2845,14 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
 (function(){
   const CHANNEL="mads_assembleone_1088";
   const ROOT=`sync_v2/${CHANNEL}`;
-  const LAST_SITE_KEY="assembleone_v1088_last_site_packet";
   window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
 
-  function deepCopy(value){return JSON.parse(JSON.stringify(value));}
-  function totals(pr){
-    const units=(pr&&Array.isArray(pr.cabinets))?pr.cabinets:[];
-    const panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]);
-    return {rooms:Array.isArray(pr&&pr.rooms)?pr.rooms.length:0,units:units.length,panels:panels.length,pieces:panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0)};
-  }
-
-  window.sendPackToPhoneDirectly=async function(pack){
-    const packet={...pack,syncId:firebaseSafeKey(uid()),syncStatus:"waiting",channel:CHANNEL};
-    await firebasePut(`${ROOT}/mobile/latest`,packet);
-    try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId,channel:CHANNEL})}catch(e){}
-    return packet;
-  };
-
-  window.exportProjectToMobile=async function(){
-    const p=ensureSharedProject(project());
-    if(!p)return alert("Open a job first.");
-    const projectName=document.getElementById("projectName");
-    const customerName=document.getElementById("customerName");
-    if(projectName&&projectName.value.trim())p.name=projectName.value.trim();
-    if(customerName&&customerName.value.trim())p.customer=customerName.value.trim();
-    const count=totals(p);
-    if(!count.units||!count.panels||!count.pieces){
-      alert(`Nothing was sent. Studio currently has ${count.units} unit, ${count.panels} panel and ${count.pieces} pieces in this job. Open the correct job and unit before sending.`);
-      return;
-    }
-    p.bom=buildJobBom(p);
-    p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));
-    const pack={app:"AssembleOne",schema:"assembleone-project-v10.88",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",summary:count,project:deepCopy(p)};
-    try{
-      const packet=await window.sendPackToPhoneDirectly(pack);
-      p.lastMobileSync=pack.exportedAt;save();
-      alert(`Sent to Mobile: ${count.units} unit, ${count.panels} panel and ${count.pieces} pieces.`);
-      return packet;
-    }catch(e){
-      console.error(e);
-      alert("The direct phone connection failed. Check the internet connection on both devices and try once more.");
-    }
-  };
+  // Studio-to-phone sending (sendPackToPhoneDirectly/exportProjectToMobile) used to
+  // live here, but it was superseded by the "10.89 separate reliable Supplier and
+  // Site Job sending" block below (publish/publishNote, bound to the actual
+  // sendCuttingToPhoneBtn/sendNoteToPhoneBtn buttons) and had no live caller left --
+  // removed rather than left as a second, easy-to-mistakenly-edit copy.
+  // The phone-to-Studio direction below is still the live one.
 
   window.studioInboxPackets=async function(){
     try{
