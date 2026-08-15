@@ -815,7 +815,7 @@ function deleteAllPhotosForRoom(r){
  if(r.siteMarkup)ids.push("sitemarkup:"+r.id);
  ids.forEach(id=>{deletePhotoBlob(id);photoPersistedIds.delete(id)});
 }
-const photoPersistedIds=new Set();
+const photoPersistedIds=new Map();
 const pendingPhotoWrites=[];
 let photoPersistTimer=null;
 function schedulePhotoPersist(){
@@ -833,7 +833,7 @@ function collectPhotoField(obj,key,id,restore){
  if(typeof val==="string"&&val.startsWith("data:")){
   restore.push({obj,key,val});
   obj[key]="idb:"+id;
-  if(!photoPersistedIds.has(id)){pendingPhotoWrites.push({id,data:val});photoPersistedIds.add(id)}
+  if(photoPersistedIds.get(id)!==val){pendingPhotoWrites.push({id,data:val});photoPersistedIds.set(id,val)}
  }
 }
 function externalizeProjectPhotos(p,restore){
@@ -857,8 +857,7 @@ async function hydrateAllPhotos(st){
   const val=obj[key];
   if(typeof val==="string"&&val.startsWith("idb:")){
    const id=val.slice(4);
-   photoPersistedIds.add(id);
-   tasks.push(getPhotoBlob(id).then(data=>{if(data)obj[key]=data}));
+   tasks.push(getPhotoBlob(id).then(data=>{if(data){obj[key]=data;photoPersistedIds.set(id,data)}}));
   }
  }
  for(const p of st.projects||[]){
