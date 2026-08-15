@@ -1086,7 +1086,23 @@ function wireRoomCard(p,r){
    alert('Could not get your location. Check location permission and try again.');
   },{enableHighAccuracy:true,timeout:10000});
  };
- if($('#siteCustomerName'))$('#siteCustomerName').oninput=()=>{p.customer=$('#siteCustomerName').value;save()};
+ if($('#siteCustomerName')){
+  const custField=$('#siteCustomerName');
+  let custNameAtFocus=custField.value;
+  custField.addEventListener('focus',()=>{custNameAtFocus=custField.value});
+  custField.oninput=()=>{p.customer=custField.value;save()};
+  custField.addEventListener('change',()=>{
+   if(r)return;
+   const before=custNameAtFocus.trim(),after=custField.value.trim();
+   if(before&&after&&before!==after){
+    p.siteMarkup={image:null,w:0,h:0,marks:[]};
+    p.measureCaptures=[];
+    p.sitePhotos=[];
+    save();
+    renderRooms();
+   }
+  });
+ }
  if($('#siteAddress'))$('#siteAddress').oninput=()=>{p.address=$('#siteAddress').value;save()};
  if($('#siteRoomNotes'))$('#siteRoomNotes').oninput=()=>{const val=$('#siteRoomNotes').value;if(r)r.notes=val;else p.siteRoomNotes=val;save()};
  if($('#siteRoomFloor'))$('#siteRoomFloor').oninput=()=>{const val=$('#siteRoomFloor').value;if(r)r.location=val;else p.siteRoomLocation=val;save()};
