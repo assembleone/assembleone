@@ -217,8 +217,10 @@ function createPartAt(x,y){
  const c=cabinet();if(!c)return;
  const rememberedThickness=Number(c.lastThickness ?? getDefaultThicknessMM()) || getDefaultThicknessMM();
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
- const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:"",width:"",thickness:rememberedThickness,qty:"",material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
- c.parts.push(p);state.currentPart=p.id;save();renderAll();$("#fLength").focus()
+ const rememberedLength=c.lastLength!=null?c.lastLength:"";
+ const rememberedWidth=c.lastWidth!=null?c.lastWidth:"";
+ const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:rememberedLength,width:rememberedWidth,thickness:rememberedThickness,qty:"",material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
+ c.parts.push(p);state.currentPart=p.id;save();renderAll();$("#fLength").focus();$("#fLength").select()
 }
 function renderHeader(){
  const p=project();
@@ -2847,6 +2849,13 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     if(c){
       c.lastThickness=Number(thickness)||(typeof getDefaultThicknessMM==='function'?getDefaultThicknessMM():19);
       if(typeof setDefaultThicknessMM==='function')setDefaultThicknessMM(c.lastThickness);
+      // Most panels in a wardrobe repeat the same length/width (four
+      // shelves, matching sides, etc.) -- remember the last-saved size so
+      // the next new panel starts pre-filled with it instead of blank, the
+      // same way thickness already carries over. Still just a starting
+      // point: the length/width fields stay editable for a different size.
+      if(p.length!==''&&p.length!=null)c.lastLength=Number(p.length)||c.lastLength;
+      if(p.width!==''&&p.width!=null)c.lastWidth=Number(p.width)||c.lastWidth;
       const stage=field('drawingStage');
       c.viewState=c.viewState||{};
       c.viewState.zoom=Number(state.drawingZoom||1);
@@ -2865,8 +2874,8 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     requestAnimationFrame(function(){
       const t=field('fThickness'),l=field('fLength'),w=field('fWidth'),q=field('fQty');
       if(t)t.value=String(Number(thickness)||(typeof getDefaultThicknessMM==='function'?getDefaultThicknessMM():19));
-      if(l){l.value='';l.placeholder='';}
-      if(w){w.value='';w.placeholder='';}
+      if(l){l.value=c&&c.lastLength!=null?String(c.lastLength):'';l.placeholder='';}
+      if(w){w.value=c&&c.lastWidth!=null?String(c.lastWidth):'';w.placeholder='';}
       if(q){q.value='';q.placeholder='';}
       if(typeof updateEdgePreview==='function')updateEdgePreview();
       if(l){l.focus();try{l.select()}catch(_){} }
