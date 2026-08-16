@@ -569,13 +569,14 @@ th{background:#f1e3d3;font-family:Georgia,serif}
 .measurement-entry-card .measure-box .measure-wrap>span{font-size:14px}
 .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:26px;min-height:46px}
 #thicknessUnitLabel{font-size:13px}
-.quantity-card{border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:stretch;width:170px}
-.quantity-card .measure-field{border-right:0;width:100%;padding:10px 12px 11px}
-.quantity-card .measure-wrap input{font-size:22px;line-height:1.2;padding:6px 0;min-height:42px;color:var(--ink);opacity:1;max-width:none;width:100%}
+.quantity-card{border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:stretch;width:104px;align-self:flex-start}
+.quantity-card .measure-field{border-right:0;width:100%;padding:8px 8px 9px}
+.quantity-card .measure-field>span{font-size:11px}
+.quantity-card .measure-wrap input{font-size:16px;line-height:1.2;padding:5px 0;min-height:28px;color:var(--ink);opacity:1;max-width:none;width:100%}
 @media(max-width:1100px){
   .measurement-entry-card .measure-box .measure-wrap input{font-size:24px;min-height:46px}
   .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:22px;min-height:40px}
-  .quantity-card .measure-wrap input{font-size:18px;min-height:36px}
+  .quantity-card .measure-wrap input{font-size:14px;min-height:24px}
 }
 .quantity-card .measure-wrap>span{font-size:13px}
 .measurement-entry-card .edge-help{margin:6px 2px 0;font-size:11px}
@@ -588,13 +589,13 @@ th{background:#f1e3d3;font-family:Georgia,serif}
   .measurement-entry-card .measure-field,.quantity-card .measure-field{padding:9px}
   .measurement-entry-card .measure-box .measure-wrap input{font-size:23px;min-height:44px}
   .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:19px;min-height:36px}
-  .quantity-card{width:140px}
-  .quantity-card .measure-wrap input{font-size:16px;min-height:30px}
+  .quantity-card{width:80px}
+  .quantity-card .measure-wrap input{font-size:13px;min-height:22px}
   .measurement-entry-card .measure-field>span,.quantity-card .measure-field>span{font-size:11px}
   .measure-meta-box{grid-template-columns:1fr}
 }
 @media(max-width:480px){
-  .quantity-card{width:120px}
+  .quantity-card{width:70px}
   .measurement-entry-card .measure-box{grid-template-columns:.72fr 1.14fr 1.14fr}
 }
 
