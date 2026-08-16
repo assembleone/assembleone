@@ -235,11 +235,27 @@ function renderHeader(){
 }
 function renderJobs(){
  const box=$("#jobGrid"),active=project();
- box.innerHTML=state.projects.length?state.projects.map(p=>{const siteRoom=(p.rooms||[]).find(r=>r.siteMarkup?.image||(r.sitePhotos||[]).length||(r.beforePhotos||[]).length);const siteReceived=!!siteRoom;return `<article class="folder-card ${p.id===state.currentProject?"selected-job":""} ${siteReceived?"site-received":""}"><div class="folder-icon">${siteReceived?(siteRoom.icon||"📍"):"📁"}</div><h3>${safe(p.name)}</h3><div class="muted">${safe(p.customer||"No customer name")}<br>${(p.rooms||[]).length} room${(p.rooms||[]).length===1?"":"s"} · ${p.cabinets.length} unit${p.cabinets.length===1?"":"s"}</div>${siteReceived?'<div class="site-job-tag">✓ Site measurements received</div>':''}<div class="actions"><button class="btn primary" data-open-job="${p.id}">${p.id===state.currentProject?"Job open":"Open job"}</button>${siteReceived?`<button class="btn site-details-btn" data-site-details="${p.id}">Open details</button>`:''}<button class="btn trade-export-btn" data-export-trade="${p.id}">Export record</button><button class="btn danger" data-delete-job-card="${p.id}">Delete</button></div></article>`}).join(""):'<div class="empty">No jobs yet. Press “New job”.</div>';
+ box.innerHTML=state.projects.length?state.projects.map(p=>{const siteRoom=(p.rooms||[]).find(r=>r.siteMarkup?.image||(r.sitePhotos||[]).length||(r.beforePhotos||[]).length);const siteReceived=!!siteRoom;return `<article class="folder-card ${p.id===state.currentProject?"selected-job":""} ${siteReceived?"site-received":""}" draggable="true" data-drag-job="${p.id}" title="Drag onto your desktop or another app to save a copy of this job -- drag that file back onto this screen to reopen it"><div class="folder-icon">${siteReceived?(siteRoom.icon||"📍"):"📁"}</div><h3>${safe(p.name)}</h3><div class="muted">${safe(p.customer||"No customer name")}<br>${(p.rooms||[]).length} room${(p.rooms||[]).length===1?"":"s"} · ${p.cabinets.length} unit${p.cabinets.length===1?"":"s"}</div>${siteReceived?'<div class="site-job-tag">✓ Site measurements received</div>':''}<div class="actions"><button class="btn primary" data-open-job="${p.id}">${p.id===state.currentProject?"Job open":"Open job"}</button>${siteReceived?`<button class="btn site-details-btn" data-site-details="${p.id}">Open details</button>`:''}<button class="btn trade-export-btn" data-export-trade="${p.id}">Export record</button><button class="btn danger" data-delete-job-card="${p.id}">Delete</button></div></article>`}).join(""):'<div class="empty">No jobs yet. Press “New job”.</div>';
  const workspace=$("#combinedProjectWorkspace");if(workspace)workspace.classList.toggle("is-empty",!active);
  $$("[data-open-job]").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.openJob;state.currentCabinet=project()?.cabinets[0]?.id||null;state.currentPart=null;renderAll();show("jobs")});
  $$("[data-site-details]").forEach(b=>b.onclick=()=>openSiteRoomDetails(b.dataset.siteDetails));
  $$('[data-export-trade]').forEach(b=>b.onclick=()=>exportProjectRecord(b.dataset.exportTrade));
+ $$('[data-drag-job]').forEach(card=>{
+  card.addEventListener('dragstart',e=>{
+   const rec=buildProjectRecordZip(card.dataset.dragJob);
+   if(!rec){e.preventDefault();return}
+   const url=URL.createObjectURL(rec.blob);
+   e.dataTransfer.effectAllowed='copy';
+   // The DownloadURL trick is what lets dropping this onto the desktop, Finder,
+   // Explorer, or another app actually create a real .zip file there (same
+   // mechanism Gmail/Files use for drag-out attachments) -- supported in
+   // Chrome/Edge; other browsers fall back to the plain text/uri-list below.
+   e.dataTransfer.setData('DownloadURL',`application/zip:${rec.name}:${url}`);
+   e.dataTransfer.setData('text/uri-list',url);
+   e.dataTransfer.setData('text/plain',rec.name);
+   setTimeout(()=>URL.revokeObjectURL(url),30000);
+  });
+ });
  $$("[data-delete-job-card]").forEach(b=>b.onclick=()=>{
    const p=state.projects.find(x=>x.id===b.dataset.deleteJobCard);
    if(!p)return;
@@ -689,12 +705,18 @@ function jsonFromZip(entries){const key=Object.keys(entries).find(x=>/project\.j
 function download(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 function downloadA1(data,name){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:"application/json"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 function cleanFileName(name){return String(name||"AssembleOne_Job").replace(/[^\w-]+/g,"_")}
-function exportProjectRecord(projectId){
- const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert("Project not found.");
+function buildProjectRecordZip(projectId){
+ const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return null;
  const row=[p.customer||"",p.name||"",p.address||"",p.phone||"",(p.rooms||[]).length,(p.cabinets||[]).length,new Date().toLocaleDateString()];
  const summary="Customer,Project,Address,Phone,Rooms,Units,Exported\n"+row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
  const pack={app:"AssembleOne",schema:"assembleone-archive-v1",exportedAt:new Date().toISOString(),project:p};
- download(makeZip([{name:"project.json",data:JSON.stringify(pack)},{name:"tradebase-summary.csv",data:summary},{name:"README.txt",data:"Technical AssembleOne project record for attaching to the customer in your trade database."}]),cleanFileName((p.customer||p.name||"Project")+"_AssembleOne_Record")+".zip");
+ const blob=makeZip([{name:"project.json",data:JSON.stringify(pack)},{name:"tradebase-summary.csv",data:summary},{name:"README.txt",data:"Technical AssembleOne project record for attaching to the customer in your trade database."}]);
+ return {blob,name:cleanFileName((p.customer||p.name||"Project")+"_AssembleOne_Record")+".zip"};
+}
+function exportProjectRecord(projectId){
+ const rec=buildProjectRecordZip(projectId);
+ if(!rec)return alert("Project not found.");
+ download(rec.blob,rec.name);
 }
 async function mobileSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open("assembleone_direct_sync_v1",2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"});if(!db.objectStoreNames.contains("mobileInbox"))db.createObjectStore("mobileInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
 const ASSEMBLEONE_FIREBASE_URL="https://assembleone-fabac-default-rtdb.firebaseio.com";
@@ -1004,6 +1026,23 @@ async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZi
 if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");if($("#refreshBomBtn"))$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
 $("#importMobileInput").onchange=e=>{const f=e.target.files[0];const badge=document.getElementById('siteUpdateBadge');if(f&&badge)badge.textContent='Importing…';importMobileUpdates(f);setTimeout(()=>{if(badge)badge.textContent='Site updates imported ✓'},300);e.target.value=""};
 $("#openProjectInput").onchange=e=>{openProjectPackage(e.target.files[0]);e.target.value=""};
+(function(){
+ // Lets a job card dragged out to the desktop/another app (see the folder-card
+ // dragstart wiring in renderJobs) be dragged straight back in to resume it --
+ // wired once here rather than inside renderJobs, since #jobGrid itself is not
+ // recreated on every render (only its children are).
+ const jobGrid=document.getElementById("jobGrid");
+ if(!jobGrid)return;
+ const hasFile=dt=>{try{return [...(dt?.types||[])].includes("Files")}catch(e){return !!dt?.files?.length}};
+ jobGrid.addEventListener("dragover",e=>{if(hasFile(e.dataTransfer)){e.preventDefault();jobGrid.classList.add("drag-ready")}});
+ jobGrid.addEventListener("dragleave",e=>{if(!jobGrid.contains(e.relatedTarget))jobGrid.classList.remove("drag-ready")});
+ jobGrid.addEventListener("drop",e=>{
+  if(!hasFile(e.dataTransfer))return;
+  e.preventDefault();jobGrid.classList.remove("drag-ready");
+  const file=[...(e.dataTransfer.files||[])].find(f=>/\.zip$/i.test(f.name));
+  if(file)openProjectPackage(file);else alert("Drop an AssembleOne .zip job record to reopen it.");
+ });
+})();
 $("#deleteJobBtn").onclick=()=>{const p=project();if(p&&confirm(`Delete the complete job "${p.name}"?\n\nThis removes all wardrobes, drawings, panels, cutting lists and QR labels in this job.`)){state.projects=state.projects.filter(x=>x.id!==p.id);state.currentProject=null;state.currentCabinet=null;state.currentPart=null;save();renderAll();show("jobs")}};
 $("#cabinetSelect").onchange=e=>{state.currentCabinet=e.target.value;state.currentPart=null;save();renderAll()};
 const partNamePicker=$("#partNamePicker");
