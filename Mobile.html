@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AssembleOne">
-<title>AssembleOne Mobile 11.0.21 Cloud Sync</title>
+<title>AssembleOne Mobile 11.0.22 Cloud Sync</title>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
 *{box-sizing:border-box}.js-file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
@@ -121,8 +121,13 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 @media(max-width:560px){.room-guide-head{align-items:flex-start}.room-guide-list{grid-template-columns:1fr}.room-thumb{height:185px}.room-photo-grid{grid-template-columns:1fr 1fr}.room-photo-tile img{height:145px}.room-type-grid{grid-template-columns:repeat(3,1fr)}.room-guide-head .btn{padding:9px 10px;font-size:12px}}
 
 /* Version 8.4 Smart QR panel navigation */
-.panel-detail{display:grid;gap:12px}.panel-route{font-weight:800;color:var(--muted);font-size:14px}.panel-drawing{position:relative;border:1px solid #d8d8df;border-radius:16px;overflow:hidden;background:#f5f5f8;min-height:220px;display:grid;place-items:center}.panel-drawing img{display:block;width:100%;height:auto}.panel-highlight{position:absolute;width:76px;height:76px;border:8px solid #54a33b;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 4px rgba(255,255,255,.75);display:grid;place-items:center}
-.panel-highlight-num{background:#174E98;color:#fff;font-weight:900;font-size:16px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 2px #fff}.panel-big-code{font-size:34px;font-weight:900}.panel-size{font-size:22px;font-weight:900}.panel-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.panel-actions .btn{min-height:54px}.direct-open-help{background:#fff7d6;border:1px solid #e6c54a;border-radius:12px;padding:11px;margin-bottom:10px}.panel-back-row{display:flex;gap:8px;flex-wrap:wrap}
+.panel-detail{display:grid;gap:12px}.panel-route{font-weight:800;color:var(--muted);font-size:14px}.panel-drawing{position:relative;border:1px solid #d8d8df;border-radius:16px;overflow:hidden;background:#f5f5f8;min-height:220px;display:grid;place-items:center}.panel-drawing img{display:block;width:100%;height:auto}.panel-highlight{position:absolute;width:52px;height:52px;border:6px solid #9aa3b5;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 3px rgba(255,255,255,.75);display:grid;place-items:center;cursor:pointer;transition:width .15s,height .15s}
+.panel-highlight.status-installed{border-color:#16a34a}
+.panel-highlight.status-missing{border-color:#b5760a}
+.panel-highlight.status-damaged{border-color:#d92f38}
+.panel-highlight.active{width:76px;height:76px;border-width:8px;box-shadow:0 0 0 4px rgba(255,255,255,.85),0 0 0 8px rgba(23,78,152,.25);z-index:2}
+.panel-highlight-num{background:#174E98;color:#fff;font-weight:900;font-size:14px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 2px #fff}
+.panel-highlight.active .panel-highlight-num{font-size:16px;width:28px;height:28px}.panel-big-code{font-size:34px;font-weight:900}.panel-size{font-size:22px;font-weight:900}.panel-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.panel-actions .btn{min-height:54px}.direct-open-help{background:#fff7d6;border:1px solid #e6c54a;border-radius:12px;padding:11px;margin-bottom:10px}.panel-back-row{display:flex;gap:8px;flex-wrap:wrap}
 
 .installer-room-intro{display:flex;align-items:center;gap:16px;padding:18px;margin-bottom:14px;background:#f7f4ed;border:2px solid #e3ded4;border-radius:22px}.installer-room-icon{font-size:56px}.installer-room-title{font-size:30px;font-weight:900;color:#27224f}.installer-room-sub{font-size:17px;color:#6c687e;margin-top:3px}.installer-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 18px}.installer-guide-card{min-height:104px;border:3px solid #d8d6e0;border-radius:18px;background:#fff;padding:10px 8px;color:#27224f;font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}.installer-guide-card:active{transform:scale(.985)}.installer-guide-icon{font-size:28px;line-height:1}.installer-guide-card strong{font-size:16px}.installer-guide-card small{font-size:12px;color:#68647b}.installer-note-box{font-size:21px;line-height:1.45;background:#fff;border:2px solid #ddd9e4;border-radius:18px;padding:18px;color:#312b55;white-space:pre-wrap}.installer-send-update{width:100%;min-height:76px;font-size:24px;margin:14px 0 24px}.installer-design-section,.installer-notes-section{scroll-margin-top:12px}@media(max-width:520px){.installer-guide-grid{grid-template-columns:1fr 1fr}.installer-guide-card{min-height:92px}.installer-guide-card strong{font-size:14px}}
 .panel-check-list{display:flex;flex-direction:column;gap:8px}
@@ -354,7 +359,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.21 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.22 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -586,7 +591,7 @@ const I18N={
   "detail.backProjects":"← Projects","detail.delete":"Delete","detail.designGuide":"Design Guide","detail.noDesignViews":"No design views from Studio yet.","detail.roomNotes":"Room Notes","detail.noNotes":"No extra installation notes for this room.","detail.cuttingList":"Cutting List","detail.qrPanels":"QR Panels","detail.scanOrFind":"Scan or find panel","detail.sendSiteUpdate":"↥ Send Site Update","detail.openDrawings":"Open drawings","detail.notesReady":"Important notes ready","detail.view":"view","detail.views":"views","detail.panel":"panel","detail.panels":"panels","detail.currentProject":"Current project","detail.checkPanels":"Check Panels","detail.checkedShort":"checked","detail.checkPanelsAccounted":"accounted for","detail.noPanelsToCheck":"No panels in this room yet.","detail.notScanned":"Not scanned yet",
   "scan.title":"Scan QR","scan.openCamera":"Open camera","scan.cuttingList":"Cutting List","scan.pieces":"pieces","scan.reportDamage":"Report Damage","scan.panelDamaged":"Panel is damaged","scan.panelsScanned":"Panels scanned","scan.scanned":"Scanned","scan.remaining":"Remaining","scan.damaged":"Damaged","scan.complete":"Complete","scan.currentJob":"Current job","scan.changeJob":"Change job ›","scan.recentScans":"Recent scans","scan.viewAll":"View all ›","scan.noPanelsScanned":"No panels scanned yet.","scan.noPanelsProject":"No panels in this project yet.","scan.closeScanner":"✕ Close scanner","scan.started":"started","scan.completeSuffix":"complete","scan.of":"of","scan.noProjectOpen":"No project open","scan.moreOptions":"More scan options","scan.scanFromPhoto":"Scan from photo","scan.pasteQrText":"Paste QR text","scan.openQrText":"Open QR text","scan.findPanelPlaceholder":"Find panel number, for example P-001","scan.findPanel":"Find panel",
   "damage.title":"Damaged panel","damage.panelPlaceholder":"Panel number, for example P-001","damage.whatDamaged":"What is damaged?","damage.addPhoto":"📷 Add a photo","damage.save":"Save damaged panel","damage.shareWhatsapp":"💬 Send to supplier on WhatsApp",
-  "install.backRoom":"← Room","install.backPanels":"← Panels","install.noDrawing":"No image drawing attached to this wardrobe yet.","install.quantity":"Quantity:","install.material":"Material:","install.edging":"Edging:","install.notes":"Notes:","install.installed":"✓ Installed","install.missing":"? Missing","install.damagedBtn":"! Damaged","install.status":"Status:","install.noPanels":"No panels in this wardrobe.","install.openPanel":"Open highlighted panel","install.longEdge":"long edge","install.longEdges":"long edges","install.shortEdge":"short edge","install.shortEdges":"short edges","install.materialNotSet":"Material not set","install.roomNotAssigned":"Room not assigned","install.unnamedPanel":"Unnamed panel","install.installedLabel":"Installed","install.missingLabel":"Missing","install.panelsInstalled":"Panels installed","install.installationHeading":"Installation","install.statusReady":"Ready",
+  "install.backRoom":"← Room","install.backPanels":"← Panels","install.noDrawing":"No image drawing attached to this wardrobe yet.","install.marker":"Marker","install.quantity":"Quantity:","install.material":"Material:","install.edging":"Edging:","install.notes":"Notes:","install.installed":"✓ Installed","install.missing":"? Missing","install.damagedBtn":"! Damaged","install.status":"Status:","install.noPanels":"No panels in this wardrobe.","install.openPanel":"Open highlighted panel","install.longEdge":"long edge","install.longEdges":"long edges","install.shortEdge":"short edge","install.shortEdges":"short edges","install.materialNotSet":"Material not set","install.roomNotAssigned":"Room not assigned","install.unnamedPanel":"Unnamed panel","install.installedLabel":"Installed","install.missingLabel":"Missing","install.panelsInstalled":"Panels installed","install.installationHeading":"Installation","install.statusReady":"Ready",
   "bom.projectSummary":"Project Summary","bom.subtitle":"The complete project in one simple room by room overview.","bom.openProjectFirst":"Open a project first.","bom.rooms":"Rooms","bom.units":"Units","bom.panels":"Panels","bom.pieces":"Pieces","bom.materials":"Materials","bom.noMaterialsYet":"No materials yet.","bom.roomByRoom":"Room by room","bom.pcs":"pcs","bom.noUnitsAssigned":"No units assigned.","bom.noRoomsYet":"No rooms yet.",
   "intake.photoSingular":"photo","intake.photoPlural":"photos","intake.readyToSendSuffix":"ready to send to Studio","intake.sentToStudioSuffix":"sent to Studio so far","intake.floorBasement":"Basement","intake.floorGround":"Ground","intake.floor1st":"1st floor","intake.floor2nd":"2nd floor","intake.floor3rd":"3rd floor",
   "scan.scanningFor":"Scanning for","scan.scanningWholeProject":"Scanning the complete project","scan.typeOnlyPanelHint":"Type only the panel number, for example","scan.openCorrectJobFirst":"Open the correct published job first, then type its panel number.",
@@ -901,8 +906,8 @@ function save(){
  if(pendingPhotoWrites.length)schedulePhotoPersist();
  return ok;
 }
-function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):(.+)$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3])}:null}
-function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;state.screen="install";save();return true}return false}
+function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}:null}
+function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;const ci=q.copyIndex;state.selectedCopy=(ci!=null&&pt.copies&&pt.copies[ci])?ci:-1;state.screen="install";save();return true}return false}
 function applyPanelRoute(route){
  if(!route)return;
  if(openPanelRoute(route)){
@@ -1241,24 +1246,43 @@ $('#addRoomBtn').onclick=openRoomCreator;$('#roomBeforeCamera').onchange=e=>{add
 function statusLabel(status){return status==='installed'?t('install.installedLabel'):status==='missing'?t('install.missingLabel'):status==='damaged'?t('scan.damaged'):t('install.statusReady')}
 const MEASURE_KIND_I18N_KEYS={'Wall to wall':'measure.kindWallToWall','Floor to ceiling':'measure.kindFloorToCeiling','Depth':'measure.kindDepth','Floor up':'measure.kindFloorUp','Ceiling down':'measure.kindCeilingDown','From left wall':'measure.kindFromLeft','From right wall':'measure.kindFromRight','Custom':'measure.kindCustom'};
 function measureKindLabel(kind){const key=MEASURE_KIND_I18N_KEYS[kind];return key?t(key):kind}
+// A repeated panel (see pt.copies) is one part with several physical
+// instances -- each instance carries its own status now instead of sharing
+// one. state.selectedCopy picks which instance is "current": -1 (or
+// anything that doesn't match a real copy) means the primary instance.
+function currentMark(pt){
+ if(!pt)return null;
+ const i=Number(state.selectedCopy);
+ if(i>=0&&pt.copies&&pt.copies[i])return pt.copies[i];
+ return pt;
+}
 function renderInstall(){
  renderInstallDashboard();
  const c=cabinet(),pt=part(),box=$("#installList");
  if(pt&&c){
+  if(!(Number(state.selectedCopy)>=0&&pt.copies&&pt.copies[Number(state.selectedCopy)]))state.selectedCopy=-1;
   const p=project(),room=p?.rooms?.find(r=>r.id===c.roomId);
-  const panelPositions=[{x:pt.x,y:pt.y},...(pt.copies||[])];
-  const panelHighlights=panelPositions.map((m,i)=>`<div class="panel-highlight" style="left:${Number(m.x)||50}%;top:${Number(m.y)||50}%">${panelPositions.length>1?`<span class="panel-highlight-num">${i+1}</span>`:''}</div>`).join('');
+  const mark=currentMark(pt);
+  mark.status=mark.status||"ready";
+  const panelPositions=[{x:pt.x,y:pt.y,status:pt.status,copyIndex:-1},...(pt.copies||[]).map((m,i)=>({x:m.x,y:m.y,status:m.status||"ready",copyIndex:i}))];
+  const multi=panelPositions.length>1;
+  const panelHighlights=panelPositions.map((m,i)=>{
+   const active=m.copyIndex===Number(state.selectedCopy);
+   return `<div class="panel-highlight status-${m.status}${active?' active':''}" data-copy="${m.copyIndex}" style="left:${Number(m.x)||50}%;top:${Number(m.y)||50}%">${multi?`<span class="panel-highlight-num">${i+1}</span>`:''}</div>`;
+  }).join('');
   const drawing=c.drawing&&c.drawingType!=="pdf"?`<div class="panel-drawing"><img src="${c.drawing}" alt="Highlighted drawing for ${safe(pt.code)}">${panelHighlights}</div>`:`<div class="panel-drawing"><div class="muted">${t('install.noDrawing')}</div></div>`;
   const edgeInfo=`${Number(pt.edgeLong||0)} ${Number(pt.edgeLong||0)===1?t('install.longEdge'):t('install.longEdges')} · ${Number(pt.edgeShort||0)} ${Number(pt.edgeShort||0)===1?t('install.shortEdge'):t('install.shortEdges')}`;
-  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">${t('install.installed')}</button><button class="btn panel-status" data-status="missing">${t('install.missing')}</button><button class="btn danger panel-status" data-status="damaged">${t('install.damagedBtn')}</button></div><div><strong>${t('install.status')}</strong> ${safe(statusLabel(pt.status))}</div></div>`;
-  $("#backToPanels").onclick=()=>{state.currentPart=null;save();renderInstall()};
-  $("#backToRoom").onclick=()=>{state.currentRoom=c.roomId||null;state.currentPart=null;save();show("drawings")};
-  $$(".panel-status").forEach(b=>b.onclick=()=>{pt.status=b.dataset.status;save();renderInstall()});
+  const markLabel=multi?` · ${t('install.marker')} ${Number(state.selectedCopy)>=0?Number(state.selectedCopy)+2:1}/${panelPositions.length}`:'';
+  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}${safe(markLabel)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">${t('install.installed')}</button><button class="btn panel-status" data-status="missing">${t('install.missing')}</button><button class="btn danger panel-status" data-status="damaged">${t('install.damagedBtn')}</button></div><div><strong>${t('install.status')}</strong> ${safe(statusLabel(mark.status))}</div></div>`;
+  $("#backToPanels").onclick=()=>{state.currentPart=null;state.selectedCopy=-1;save();renderInstall()};
+  $("#backToRoom").onclick=()=>{state.currentRoom=c.roomId||null;state.currentPart=null;state.selectedCopy=-1;save();show("drawings")};
+  $$(".panel-status").forEach(b=>b.onclick=()=>{currentMark(pt).status=b.dataset.status;save();renderInstall()});
+  $$(".panel-highlight[data-copy]").forEach(el=>el.onclick=()=>{state.selectedCopy=Number(el.dataset.copy);save();renderInstall()});
   return;
  }
  wardrobeButtons("#installWardrobes",renderInstall);
  box.innerHTML=c?.parts.length?c.parts.map(p=>`<div class="measure-row"><div class="measure-main">${safe(p.code)} · ${safe(p.name)||t('install.unnamedPanel')}</div><div class="muted">${safe(p.length||"—")} × ${safe(p.width||"—")} × ${safe(p.thickness||"—")} mm · ${safe(statusLabel(p.status))}</div><button class="btn primary open-panel" data-id="${p.id}" style="margin-top:7px">${t('install.openPanel')}</button></div>`).join(""):`<div class="muted">${t('install.noPanels')}</div>`;
- $$(".open-panel").forEach(b=>b.onclick=()=>{state.currentPart=b.dataset.id;save();renderInstall()});
+ $$(".open-panel").forEach(b=>b.onclick=()=>{state.currentPart=b.dataset.id;state.selectedCopy=-1;save();renderInstall()});
 }
 function mergeStudioProject(incoming){
  if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
@@ -1360,8 +1384,8 @@ function parseOldQr(text){
  return {job:lines.job,wardrobe:lines.wardrobe,part:lines.part};
 }
 function openScannedText(text){
- let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q=obj}catch(e){}
- if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):(.+)$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3])}}
+ let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
+ if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
  if(q&&openPanelRoute(q)){markCurrentPanelScanned();stopCamera();show("install");return true}
  const old=parseOldQr(text);
  if(old){const p=state.projects.find(x=>x.name.trim().toLowerCase()===old.job.trim().toLowerCase());const c=p?.cabinets.find(x=>x.name.trim().toLowerCase()===old.wardrobe.trim().toLowerCase());const pt=c?.parts.find(x=>x.code.trim().toLowerCase()===old.part.trim().toLowerCase());if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;markCurrentPanelScanned();save();stopCamera();show("install");return true}}
@@ -1689,7 +1713,7 @@ load();
 
 <style>
 @keyframes aoMobilePulse{0%,100%{box-shadow:0 0 0 0 rgba(76,145,56,.65)}50%{box-shadow:0 0 0 24px rgba(76,145,56,0)}}
-.panel-highlight{animation:aoMobilePulse 1.1s ease-in-out 3}
+.panel-highlight.active{animation:aoMobilePulse 1.1s ease-in-out 3}
 </style>
 <script>
 (function(){
@@ -1984,7 +2008,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       }
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.21 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.22 Cloud Sync';
 })();
 </script>
 

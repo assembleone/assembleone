@@ -302,9 +302,14 @@ function renderRooms(){
  if(!c?.drawing)return;empty.style.display="none";
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
-   const marks=[{x:p.x,y:p.y,index:-1},...(p.copies||[]).map((m,index)=>({...m,index}))];
+   // Each repeated panel (see p.copies) is now its own trackable instance --
+   // the primary mark's status still lives on p.status (unchanged), but
+   // every copy carries its own status so the drawing can show which of
+   // several identical panels are actually installed, not just the part
+   // as a whole.
+   const marks=[{x:p.x,y:p.y,index:-1,status:p.status},...(p.copies||[]).map((m,index)=>({...m,index,status:m.status||"ready"}))];
    const numbered=marks.length>1;
-   marks.forEach((m,mi)=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}${numbered?" numbered":""}`;d.textContent=numbered?String(mi+1):(isSelected?p.code.replace("P-",""):"");d.title=`${p.code}${p.name?" — "+p.name:""}${numbered?" · marker "+(mi+1)+" of "+marks.length:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll()};canvas.appendChild(d)})
+   marks.forEach((m,mi)=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${m.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}${numbered?" numbered":""}`;d.textContent=numbered?String(mi+1):(isSelected?p.code.replace("P-",""):"");d.title=`${p.code}${p.name?" — "+p.name:""}${numbered?" · marker "+(mi+1)+" of "+marks.length+" · "+(statuses.find(s=>s[0]===m.status)?.[1]||m.status):""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll()};canvas.appendChild(d)})
  })
  if(state.currentPart&&state.focusMarker){requestAnimationFrame(()=>{const selected=stage.querySelector('.pin.selected');if(selected){const left=selected.offsetLeft-stage.clientWidth/2;const top=selected.offsetTop-stage.clientHeight/2;stage.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:'smooth'})}state.focusMarker=false})}
  else if(c?.viewState){requestAnimationFrame(()=>stage.scrollTo({left:Number(c.viewState.scrollLeft||0),top:Number(c.viewState.scrollTop||0)}))}
@@ -422,7 +427,9 @@ function renderNotesPicker(){
  }
 }
 function renderForm(){
- const p=part();const banner=$("#selectedPartBanner");banner.textContent=p?`${p.code} — ${p.name||st('drawing.partSelected')}`:st('drawing.noPanelSelected');banner.classList.toggle("has-panel",!!p);banner.classList.toggle("no-panel",!p);
+ const p=part();const banner=$("#selectedPartBanner");
+ const markLabel=p&&(1+(p.copies?.length||0))>1?` · marker ${Number(state.selectedCopy)>=0?Number(state.selectedCopy)+2:1} of ${1+(p.copies?.length||0)}`:"";
+ banner.textContent=p?`${p.code} — ${p.name||st('drawing.partSelected')}${markLabel}`:st('drawing.noPanelSelected');banner.classList.toggle("has-panel",!!p);banner.classList.toggle("no-panel",!p);
  const map={fLength:"length",fWidth:"width",fThickness:"thickness",fQty:"qty",fMaterial:"material",fNotes:"notes"};
  Object.entries(map).forEach(([id,key])=>{let v=p?.[key]??"";if(MEASURE_KEYS.includes(key)&&v!=="")v=mmToUnit(v,currentMeasureUnit());$("#"+id).value=v});
  renderUnitLabels();
@@ -433,9 +440,22 @@ function renderForm(){
  if(chosenSummary)chosenSummary.textContent=p?.name||state.lastChosenPartName||"Chosen Parts";
  if(p){p.copies=p.copies||[];p.edgeLong=Number(p.edgeLong||0);p.edgeShort=Number(p.edgeShort||0)}
  updateEdgePreview();
- $("#markerCount").textContent=p?(1+(p.copies?.length||0)):"0";
- $("#statusBar").innerHTML=statuses.map(([id,label])=>`<button class="status-btn ${p?.status===id?"active":""}" data-status="${id}">${label}</button>`).join("");
- $$("[data-status]").forEach(b=>b.onclick=()=>{if(p){p.status=b.dataset.status;save();renderAll()}})
+ const totalMarks=p?1+(p.copies?.length||0):0;
+ $("#markerCount").textContent=String(totalMarks);
+ // Status buttons act on whichever marker is currently selected on the
+ // drawing (state.selectedCopy) -- the primary marker if none is picked,
+ // or that specific repeated panel -- so ten identical shelves can each
+ // be marked installed/missing on their own instead of sharing one status.
+ const mark=currentMark(p);
+ if(mark)mark.status=mark.status||"ready";
+ $("#statusBar").innerHTML=statuses.map(([id,label])=>`<button class="status-btn ${mark?.status===id?"active":""}" data-status="${id}">${label}</button>`).join("");
+ $$("[data-status]").forEach(b=>b.onclick=()=>{const mk=currentMark(p);if(mk){mk.status=b.dataset.status;save();renderAll()}})
+}
+function currentMark(p){
+ if(!p)return null;
+ const i=Number(state.selectedCopy);
+ if(i>=0&&p.copies&&p.copies[i])return p.copies[i];
+ return p;
 }
 function renderPartList(){
  const c=cabinet(),box=$("#partList");box.innerHTML=c?.parts.length?c.parts.map(p=>`<div class="part-row ${p.id===state.currentPart?"active":""}" data-part="${p.id}"><span class="part-code">${p.code}</span><div><strong>${safe(p.name||"Unnamed part")}</strong><br><small>${p.length||"—"} × ${p.width||"—"} × ${p.thickness||"—"}</small></div><span>${statuses.find(s=>s[0]===p.status)?.[2]||""}</span></div>`).join(""):'<div class="empty">No panels marked yet.</div>';
@@ -492,7 +512,7 @@ function renderCutting(){
 function localGuideUrl(p){return location.href.split("#")[0]+`#guide=${encodeURIComponent(state.currentProject)}:${encodeURIComponent(state.currentCabinet)}:${encodeURIComponent(p.id)}`}
 const DEFAULT_MOBILE_APP_URL="https://assembleone.github.io/assembleone/Mobile.html";
 function mobileAppBase(){const stored=(localStorage.getItem("assembleone_mobile_app_url")||"").trim().replace(/#.*$/,'');return stored||DEFAULT_MOBILE_APP_URL}
-function phoneQrText(p){
+function phoneQrText(p,copyIndex){
  const pr=project(),c=cabinet();
  // Jobs that started as a phone Site Job are split into one Studio project per room
  // (see mergeMobileSiteJob) and sent back to the phone reassembled under the original
@@ -500,10 +520,15 @@ function phoneQrText(p){
  // id -- not this Studio-side split id -- or the phone can never match a scanned code
  // back to the project it actually has.
  const phoneProjectId=pr?.siteMobileJobId||pr?.id||"";
- const route=`${encodeURIComponent(phoneProjectId)}:${encodeURIComponent(c?.id||"")}:${encodeURIComponent(p.id)}`;
+ // copyIndex identifies one specific physical instance of a repeated panel
+ // (see p.copies) -- undefined/-1 means the primary marker. Appending it as
+ // a 4th route segment keeps existing (no-suffix) QR codes working exactly
+ // as before while letting each repeated panel get its own scannable code.
+ const idx=Number.isInteger(copyIndex)&&copyIndex>=0?copyIndex:null;
+ const route=`${encodeURIComponent(phoneProjectId)}:${encodeURIComponent(c?.id||"")}:${encodeURIComponent(p.id)}${idx!=null?":"+idx:""}`;
  const base=mobileAppBase();
  if(base)return `${base}#panel=${route}`;
- return JSON.stringify({a:"A1",v:8,projectId:phoneProjectId,cabinetId:c?.id||"",panelId:p.id});
+ return JSON.stringify({a:"A1",v:8,projectId:phoneProjectId,cabinetId:c?.id||"",panelId:p.id,copyIndex:idx});
 }
 function makeQr(el,text,size){
  if(!el)return;
@@ -524,18 +549,28 @@ function makeQr(el,text,size){
 function renderQr(){
  const urlInput=$("#mobileAppUrl");if(urlInput){urlInput.value=mobileAppBase();urlInput.onchange=()=>{localStorage.setItem("assembleone_mobile_app_url",urlInput.value.trim());renderQr()}}
  const parts=cabinetParts(),box=$("#qrGrid");
- box.innerHTML=parts.length?parts.map(p=>`<div class="qr-card">
-   <div id="qr-${p.id}" style="min-height:155px;display:grid;place-items:center"></div>
-   <h3>${p.code}</h3>
+ // One QR code per physical panel now, not one per part -- ten identical
+ // shelves (see p.copies) get ten separate, individually scannable stickers
+ // instead of sharing a single code, so each can be scanned and tracked
+ // on its own once it's actually fitted.
+ const cards=[];
+ parts.forEach(p=>{
+   const marks=[{copyIndex:null,status:p.status},...(p.copies||[]).map((m,i)=>({copyIndex:i,status:m.status||"ready"}))];
+   marks.forEach((mark,mi)=>cards.push({p,mark,mi,total:marks.length}));
+ });
+ const cardId=(p,mark)=>p.id+(mark.copyIndex!=null?"-"+mark.copyIndex:"");
+ box.innerHTML=cards.length?cards.map(({p,mark,mi,total})=>`<div class="qr-card">
+   <div id="qr-${cardId(p,mark)}" style="min-height:155px;display:grid;place-items:center"></div>
+   <h3>${p.code}${total>1?` · ${mi+1}/${total}`:""}</h3>
    <div>${safe(p.name||"Choose part name")}</div>
-   <div class="qr-meta">${p.length||"—"} × ${p.width||"—"} × ${p.thickness||"—"} mm<br>${safe(cabinet()?.name||"")} · ${safe(statuses.find(s=>s[0]===p.status)?.[1]||"")}</div>
-   <button class="btn primary test-link" data-test="${p.id}" style="margin-top:8px;width:100%">Test QR</button>
-   <div class="qr-test-result" id="qr-test-${p.id}" aria-live="polite">Not tested yet</div>
+   <div class="qr-meta">${p.length||"—"} × ${p.width||"—"} × ${p.thickness||"—"} mm<br>${safe(cabinet()?.name||"")} · ${safe(statuses.find(s=>s[0]===mark.status)?.[1]||"")}</div>
+   <button class="btn primary test-link" data-test="${p.id}" data-copy="${mark.copyIndex??""}" style="margin-top:8px;width:100%">Test QR</button>
+   <div class="qr-test-result" id="qr-test-${cardId(p,mark)}" aria-live="polite">Not tested yet</div>
  </div>`).join(""):'<div class="empty">No parts in this wardrobe.</div>';
 
- setTimeout(()=>parts.forEach(p=>{
-   const el=document.getElementById("qr-"+p.id);
-   const link=phoneQrText(p);
+ setTimeout(()=>cards.forEach(({p,mark})=>{
+   const el=document.getElementById("qr-"+cardId(p,mark));
+   const link=phoneQrText(p,mark.copyIndex);
    el.innerHTML="";
    if(window.QRCode){
      try{
@@ -554,7 +589,8 @@ function renderQr(){
  $$("[data-test]").forEach(b=>b.onclick=()=>{
    const selected=cabinetParts().find(p=>p.id===b.dataset.test);
    if(!selected)return;
-   const result=document.getElementById("qr-test-"+selected.id);
+   const copyIndex=b.dataset.copy!==""?Number(b.dataset.copy):null;
+   const result=document.getElementById("qr-test-"+selected.id+(copyIndex!=null?"-"+copyIndex:""));
    const c=cabinet();
    if(!c?.drawing){
      if(result){result.className="qr-test-result warning";result.textContent="Drawing missing — add the drawing before testing";}
@@ -1355,8 +1391,26 @@ $$('[data-quick-menu]').forEach(b=>b.onclick=e=>{e.stopPropagation();const menu=
 $$('[data-quick-name]').forEach(b=>b.onclick=e=>{e.stopPropagation();setPartName(b.dataset.quickName);$$('.quick-pop').forEach(x=>x.classList.remove('open'));const lib=b.closest('.common-part-library');if(lib)lib.open=false;const chosen=document.querySelector('.chosen-parts');if(chosen)chosen.open=false;});
 document.addEventListener('click',()=>$$('.quick-pop').forEach(x=>x.classList.remove('open')));
 $$("[data-template]").forEach(b=>b.onclick=()=>{const p=part();if(!p)return alert("Mark a panel first.");p.name=b.dataset.template;if($("#partNamePicker")) $("#partNamePicker").value=b.dataset.template;save();renderAll()});
-$("#addSameMarkerBtn").onclick=()=>{const p=part();if(!p)return alert("Choose a panel first.");p.copies=p.copies||[];p.copies.push({x:Math.min(94,(p.x||50)+5),y:Math.min(94,(p.y||50)+5)});p.qty=Math.max(Number(p.qty||1),1+p.copies.length);state.selectedCopy=p.copies.length-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false;alert("The same part number has been added again. Drag the new marker to the matching panel.")};
-$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert("Select one of the repeated markers first.");const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false};
+$("#addSameMarkerBtn").onclick=()=>{const p=part();if(!p)return alert("Choose a panel first.");p.copies=p.copies||[];p.copies.push({x:Math.min(94,(p.x||50)+5),y:Math.min(94,(p.y||50)+5),status:"ready"});p.qty=Math.max(Number(p.qty||1),1+p.copies.length);state.selectedCopy=p.copies.length-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false;alert("The same part number has been added again. Drag the new marker to the matching panel.")};
+$("#addAllMarkersBtn").onclick=()=>{
+ const p=part();if(!p)return alert("Choose a panel first.");
+ p.copies=p.copies||[];
+ const target=Math.max(1,Number(p.qty)||1);
+ const have=1+p.copies.length;
+ const need=target-have;
+ if(need<=0)return alert(have>1?`All ${target} markers are already on the drawing.`:"Set Quantity above 1 first, then use this to place a marker for every one at once.");
+ for(let n=have;n<target;n++){
+   const col=n%4,row=Math.floor(n/4);
+   const x=Math.min(94,Math.max(2,(p.x||50)+6+col*7));
+   const y=Math.min(94,Math.max(2,(p.y||50)+6+row*7));
+   p.copies.push({x,y,status:"ready"});
+ }
+ state.selectedCopy=p.copies.length-1;
+ save();renderAll();
+ const d=document.querySelector(".panel-options");if(d)d.open=false;
+ alert(`Added ${need} more marker${need===1?"":"s"} so all ${target} are on the drawing. Drag each one to its real spot, then scan its own QR code once it's fitted.`);
+};
+$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert("Select one of the repeated markers first.");const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.status=pos.status||"ready";copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false};
 
 
 function buildCuttingPrint(){
@@ -2198,11 +2252,12 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     t.textContent=message;t.style.background=isError?'#fff1f1':'#e9f8ed';t.style.borderColor=isError?'#e34a4a':'#55b873';t.style.color=isError?'#9b1c1c':'#08702d';t.classList.add('show');
     clearTimeout(window.__a125ToastTimer);window.__a125ToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
   }
-  function goToRealDrawing(panelId){
+  function goToRealDrawing(panelId,copyIndex){
     const p=cabinetParts().find(x=>x.id===panelId),c=cabinet();
     if(!p){toast('Panel not found',true);return}
     if(!c?.drawing){toast('Drawing missing for '+p.code,true);return}
-    state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=true;save();renderAll();show('mark');
+    const i=copyIndex!=null&&copyIndex!==''?Number(copyIndex):-1;
+    state.currentPart=p.id;state.selectedCopy=(i>=0&&p.copies?.[i])?i:-1;state.focusMarker=true;save();renderAll();show('mark');
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       const stage=document.getElementById('drawingStage');
       const pin=stage?.querySelector('.pin.selected');
@@ -2291,7 +2346,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
   if(print)print.onclick=function(e){e.preventDefault();printQrLabels()};
   document.addEventListener('click',e=>{
     const b=e.target.closest('#qrGrid [data-test]');if(!b)return;
-    e.preventDefault();e.stopImmediatePropagation();goToRealDrawing(b.dataset.test);
+    e.preventDefault();e.stopImmediatePropagation();goToRealDrawing(b.dataset.test,b.dataset.copy);
   },true);
   if(state?.screen==='qr')setTimeout(()=>{renderQr();installQrHandlers()},100);
 })();
