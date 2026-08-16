@@ -557,43 +557,44 @@ th{background:#f1e3d3;font-family:Georgia,serif}
 #screen-mark .drawing-stage{min-height:540px}
 .measurement-entry-card{margin-top:8px}
 .measurement-entry-card>h3{display:none}
-.measure-entry-row{display:grid;grid-template-columns:minmax(0,1fr) 78px;gap:10px;align-items:stretch}
+/* Quantity sits on its own row below Thickness/Length/Width now, instead of
+   squeezed alongside them -- that was the actual space fight: with Quantity
+   out of the way, Thickness can be sized comfortably again while Length and
+   Width (read constantly while marking/cutting) still get the most room. */
+.measure-entry-row{display:flex;flex-direction:column;gap:10px}
 .measurement-entry-card .measure-box{grid-template-columns:.82fr 1.32fr 1.32fr;border-radius:12px;min-height:92px}
 .measurement-entry-card .measure-field{padding:12px 14px 13px}
 .measurement-entry-card .measure-field>span{font-size:13px;margin-bottom:5px;color:var(--ink)}
 .measurement-entry-card .measure-box .measure-wrap input{font-size:30px;line-height:1.2;padding:6px 0;min-height:54px;color:var(--ink);opacity:1}
 .measurement-entry-card .measure-box .measure-wrap>span{font-size:14px}
-/* Thickness and Quantity are short, rarely-changing values -- keep them
-   compact so Length and Width (what's actually read constantly while
-   marking/cutting) get the space and stay comfortably readable. */
-.measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:20px;min-height:38px}
-#thicknessUnitLabel{font-size:11px}
-.quantity-card{border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:stretch;min-width:0}
-.quantity-card .measure-field{border-right:0;width:100%;padding:8px 6px 9px}
-.quantity-card .measure-wrap input{font-size:18px;line-height:1.2;padding:6px 0;min-height:36px;color:var(--ink);opacity:1;max-width:none;width:100%}
+.measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:26px;min-height:46px}
+#thicknessUnitLabel{font-size:13px}
+.quantity-card{border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:stretch;width:170px}
+.quantity-card .measure-field{border-right:0;width:100%;padding:10px 12px 11px}
+.quantity-card .measure-wrap input{font-size:22px;line-height:1.2;padding:6px 0;min-height:42px;color:var(--ink);opacity:1;max-width:none;width:100%}
 @media(max-width:1100px){
   .measurement-entry-card .measure-box .measure-wrap input{font-size:24px;min-height:46px}
-  .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:16px;min-height:32px}
-  .quantity-card .measure-wrap input{font-size:15px;min-height:32px}
+  .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:22px;min-height:40px}
+  .quantity-card .measure-wrap input{font-size:18px;min-height:36px}
 }
-.quantity-card .measure-wrap>span{font-size:11px}
+.quantity-card .measure-wrap>span{font-size:13px}
 .measurement-entry-card .edge-help{margin:6px 2px 0;font-size:11px}
 .measure-meta-box{display:grid;grid-template-columns:1.1fr 1fr;gap:8px;margin-top:8px}
 .measure-meta-box input,.measure-meta-box textarea{margin:0;min-height:48px;padding:11px 12px;font-size:15px;font-weight:600;border-radius:9px}
 .measure-meta-box textarea{height:48px;min-height:48px;resize:none}
 @media(max-width:760px){
   #screen-mark .drawing-stage{min-height:300px}
-  .measure-entry-row{grid-template-columns:minmax(0,1fr) 68px;gap:6px}
+  .measure-entry-row{gap:6px}
   .measurement-entry-card .measure-field,.quantity-card .measure-field{padding:9px}
   .measurement-entry-card .measure-box .measure-wrap input{font-size:23px;min-height:44px}
-  .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:14px;min-height:28px}
-  .quantity-card .measure-wrap input{font-size:14px;min-height:28px}
+  .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:19px;min-height:36px}
+  .quantity-card{width:140px}
+  .quantity-card .measure-wrap input{font-size:16px;min-height:30px}
   .measurement-entry-card .measure-field>span,.quantity-card .measure-field>span{font-size:11px}
   .measure-meta-box{grid-template-columns:1fr}
 }
 @media(max-width:480px){
-  .measure-entry-row{grid-template-columns:1fr}
-  .quantity-card{width:92px;justify-self:end}
+  .quantity-card{width:120px}
   .measurement-entry-card .measure-box{grid-template-columns:.72fr 1.14fr 1.14fr}
 }
 
@@ -608,8 +609,8 @@ th{background:#f1e3d3;font-family:Georgia,serif}
   overflow:visible;
 }
 .measurement-entry-card .measure-box .measure-wrap{min-width:0}
-.measurement-entry-card .measure-box .measure-field:first-child{min-width:90px;max-width:90px}
-.measurement-entry-card .measure-box{grid-template-columns:90px minmax(115px,1fr) minmax(115px,1fr);min-width:320px}
+.measurement-entry-card .measure-box .measure-field:first-child{min-width:110px;max-width:110px}
+.measurement-entry-card .measure-box{grid-template-columns:110px minmax(115px,1fr) minmax(115px,1fr);min-width:340px}
 .measure-entry-row{overflow-x:auto}
 .panel-action-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
 .panel-action-toolbar .panel-options{margin:0;padding:0;border:0;position:relative}
@@ -618,8 +619,8 @@ th{background:#f1e3d3;font-family:Georgia,serif}
 .panel-action-toolbar .panel-options[open] .group-box{position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:min(430px,78vw);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 22px rgba(46,41,78,.16);margin:0;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.panel-action-toolbar .panel-options[open] .group-box .btn{padding:8px 10px;font-size:12px}.panel-action-toolbar .panel-options[open] .group-box>span:first-child{font-size:12px;color:var(--muted)}
 .panel-action-toolbar #saveNextBtn{margin-right:auto}
 @media(max-width:760px){
-  .measurement-entry-card .measure-box{grid-template-columns:80px minmax(140px,1fr) minmax(140px,1fr);min-width:360px}
-  .measurement-entry-card .measure-box .measure-field:first-child{min-width:80px;max-width:80px}
+  .measurement-entry-card .measure-box{grid-template-columns:90px minmax(140px,1fr) minmax(140px,1fr);min-width:370px}
+  .measurement-entry-card .measure-box .measure-field:first-child{min-width:90px;max-width:90px}
   .measurement-entry-card .measure-box .measure-wrap input{padding-left:9px}
 }
 
