@@ -574,7 +574,6 @@ th{background:#f1e3d3;font-family:Georgia,serif}
 .measurement-entry-card .measure-field>span{font-size:13px;margin-bottom:5px;color:var(--ink)}
 .measurement-entry-card .measure-box .measure-wrap input{font-size:30px;line-height:1.2;padding:6px 0;min-height:54px;color:var(--ink);opacity:1}
 .measurement-entry-card .measure-box .measure-wrap>span{font-size:14px}
-.measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:26px;min-height:46px}
 #thicknessUnitLabel{font-size:13px}
 .quantity-card{border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:stretch;width:104px;align-self:flex-start;flex:0 0 auto}
 .quantity-card .measure-field{border-right:0;width:100%;padding:8px 8px 9px}
@@ -587,7 +586,6 @@ th{background:#f1e3d3;font-family:Georgia,serif}
 #screen-mark .qty-actions-row .quick-main{flex:1 1 200px;min-width:0;margin:0;grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:1100px){
   .measurement-entry-card .measure-box .measure-wrap input{font-size:24px;min-height:46px}
-  .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:22px;min-height:40px}
   .quantity-card .measure-wrap input{font-size:14px;min-height:24px}
 }
 .quantity-card .measure-wrap>span{font-size:13px}
@@ -600,7 +598,6 @@ th{background:#f1e3d3;font-family:Georgia,serif}
   .measure-entry-row{gap:6px}
   .measurement-entry-card .measure-field,.quantity-card .measure-field{padding:9px}
   .measurement-entry-card .measure-box .measure-wrap input{font-size:23px;min-height:44px}
-  .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:19px;min-height:36px}
   .quantity-card{width:80px}
   .quantity-card .measure-wrap input{font-size:13px;min-height:22px}
   .measurement-entry-card .measure-field>span,.quantity-card .measure-field>span{font-size:11px}
@@ -632,8 +629,8 @@ th{background:#f1e3d3;font-family:Georgia,serif}
 .panel-action-toolbar .panel-options[open] .group-box{position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:min(430px,78vw);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 22px rgba(46,41,78,.16);margin:0;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.panel-action-toolbar .panel-options[open] .group-box .btn{padding:8px 10px;font-size:12px}.panel-action-toolbar .panel-options[open] .group-box>span:first-child{font-size:12px;color:var(--muted)}
 .panel-action-toolbar #saveNextBtn{margin-right:auto}
 @media(max-width:760px){
-  .measurement-entry-card .measure-box{grid-template-columns:90px minmax(140px,1fr) minmax(140px,1fr);min-width:370px}
-  .measurement-entry-card .measure-box .measure-field:first-child{min-width:90px;max-width:90px}
+  .measurement-entry-card .measure-box{grid-template-columns:104px minmax(140px,1fr) minmax(140px,1fr);min-width:384px}
+  .measurement-entry-card .measure-box .measure-field:first-child{min-width:104px;max-width:104px}
   .measurement-entry-card .measure-box .measure-wrap input{padding-left:9px}
 }
 
