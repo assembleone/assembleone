@@ -569,10 +569,15 @@ th{background:#f1e3d3;font-family:Georgia,serif}
 .measurement-entry-card .measure-box .measure-wrap>span{font-size:14px}
 .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:26px;min-height:46px}
 #thicknessUnitLabel{font-size:13px}
-.quantity-card{border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:stretch;width:104px;align-self:flex-start}
+.quantity-card{border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:stretch;width:104px;align-self:flex-start;flex:0 0 auto}
 .quantity-card .measure-field{border-right:0;width:100%;padding:8px 8px 9px}
 .quantity-card .measure-field>span{font-size:11px}
 .quantity-card .measure-wrap input{font-size:16px;line-height:1.2;padding:5px 0;min-height:28px;color:var(--ink);opacity:1;max-width:none;width:100%}
+/* Quantity sits beside the Left/Right, Top/Bottom, Back, Chosen Parts
+   buttons now (in the empty space next to the small Quantity box) instead
+   of them sitting in their own row further down -- less vertical scrolling. */
+.qty-actions-row{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
+#screen-mark .qty-actions-row .quick-main{flex:1 1 200px;min-width:0;margin:0;grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:1100px){
   .measurement-entry-card .measure-box .measure-wrap input{font-size:24px;min-height:46px}
   .measurement-entry-card .measure-box .measure-wrap input#fThickness{font-size:22px;min-height:40px}

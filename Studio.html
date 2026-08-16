@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="AssembleOne">
 <title>AssembleOne Studio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=39">
+<link rel="stylesheet" href="styles.css?v=40">
 
 
 
@@ -176,13 +176,9 @@
 <label class="measure-field"><span data-i18n="drawing.length">Length</span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" title="Double-click to add edge banding" data-i18n-title="drawing.edgeBandingTitle" type="number"/><span id="lengthUnitLabel">mm</span><span aria-hidden="true" class="edge-lines"><i></i><i></i></span></div></label>
 <label class="measure-field"><span data-i18n="drawing.width">Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" title="Double-click to add edge banding" data-i18n-title="drawing.edgeBandingTitle" type="number"/><span id="widthUnitLabel">mm</span><span aria-hidden="true" class="edge-lines"><i></i><i></i></span></div></label>
 </div>
+<div class="qty-actions-row">
 <div class="quantity-card">
 <label class="measure-field"><span data-i18n="drawing.quantity">Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" type="number" value="1"/><span data-i18n="bom.pcsShort">pcs</span></div></label>
-</div>
-</div>
-<div class="edge-help" data-i18n="drawing.edgeHelp">Double-click the length or width number to add edge banding: no line → one line → double line.</div>
-<div aria-hidden="true" class="edge-control hidden-edge-control">
-<span id="edgeThickness"></span><button id="lengthEdgeBtn" type="button"><span id="lengthEdgeText"></span></button><button id="widthEdgeBtn" type="button"><span id="widthEdgeText"></span></button>
 </div>
 <div class="quick-main">
 <div class="quick-group">
@@ -206,6 +202,12 @@
 </datalist>
 </div>
 </details>
+</div>
+</div>
+</div>
+<div class="edge-help" data-i18n="drawing.edgeHelp">Double-click the length or width number to add edge banding: no line → one line → double line.</div>
+<div aria-hidden="true" class="edge-control hidden-edge-control">
+<span id="edgeThickness"></span><button id="lengthEdgeBtn" type="button"><span id="lengthEdgeText"></span></button><button id="widthEdgeBtn" type="button"><span id="widthEdgeText"></span></button>
 </div>
 </div>
 <details class="common-part-library">
@@ -563,4 +565,4 @@
 
 
 
-<script src="app.js?v=65"></script>
+<script src="app.js?v=66"></script>
