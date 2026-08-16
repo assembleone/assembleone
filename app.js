@@ -240,22 +240,7 @@ function renderJobs(){
  $$("[data-open-job]").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.openJob;state.currentCabinet=project()?.cabinets[0]?.id||null;state.currentPart=null;renderAll();show("jobs")});
  $$("[data-site-details]").forEach(b=>b.onclick=()=>openSiteRoomDetails(b.dataset.siteDetails));
  $$('[data-export-trade]').forEach(b=>b.onclick=()=>exportProjectRecord(b.dataset.exportTrade));
- $$('[data-drag-job]').forEach(card=>{
-  card.addEventListener('dragstart',e=>{
-   const rec=buildProjectRecordZip(card.dataset.dragJob);
-   if(!rec){e.preventDefault();return}
-   const url=URL.createObjectURL(rec.blob);
-   e.dataTransfer.effectAllowed='copy';
-   // The DownloadURL trick is what lets dropping this onto the desktop, Finder,
-   // Explorer, or another app actually create a real .zip file there (same
-   // mechanism Gmail/Files use for drag-out attachments) -- supported in
-   // Chrome/Edge; other browsers fall back to the plain text/uri-list below.
-   e.dataTransfer.setData('DownloadURL',`application/zip:${rec.name}:${url}`);
-   e.dataTransfer.setData('text/uri-list',url);
-   e.dataTransfer.setData('text/plain',rec.name);
-   setTimeout(()=>URL.revokeObjectURL(url),30000);
-  });
- });
+ wireJobDragOut(box);
  $$("[data-delete-job-card]").forEach(b=>b.onclick=()=>{
    const p=state.projects.find(x=>x.id===b.dataset.deleteJobCard);
    if(!p)return;
@@ -718,6 +703,37 @@ function exportProjectRecord(projectId){
  if(!rec)return alert("Project not found.");
  download(rec.blob,rec.name);
 }
+function wireJobDragOut(scopeEl){
+ (scopeEl||document).querySelectorAll('[data-drag-job]').forEach(card=>{
+  card.addEventListener('dragstart',e=>{
+   const id=card.dataset.dragJob;
+   const p=state.projects.find(x=>x.id===id);
+   const rec=buildProjectRecordZip(id);
+   if(!rec){e.preventDefault();return}
+   const url=URL.createObjectURL(rec.blob);
+   const photo=p?customerRoomPhoto(p):"";
+   const lines=[
+    p?.customer?`Customer: ${p.customer}`:null,
+    p?.address?`Address: ${p.address}`:null,
+    p?.phone?`Phone: ${p.phone}`:null,
+    `Job: ${p?.name||"Untitled job"}`,
+    `${(p?.rooms||[]).length} room${(p?.rooms||[]).length===1?"":"s"} · ${(p?.cabinets||[]).length} unit${(p?.cabinets||[]).length===1?"":"s"}`
+   ].filter(Boolean);
+   e.dataTransfer.effectAllowed="copy";
+   // Multiple formats at once, since we can't know how the drop target (the
+   // desktop, or another site's own note/attachment field) reads a drag:
+   // DownloadURL/uri-list is what makes a real .zip file appear on the desktop
+   // or in Finder/Explorer; text/html carries the customer details AND the
+   // photo for a rich-text drop target (like a notes box); text/plain is the
+   // fallback for a plain text field.
+   e.dataTransfer.setData("DownloadURL",`application/zip:${rec.name}:${url}`);
+   e.dataTransfer.setData("text/uri-list",url);
+   e.dataTransfer.setData("text/html",`<div>${lines.map(l=>safe(l)).join("<br>")}${photo?`<br><img src="${photo}" style="max-width:240px;display:block;margin-top:6px">`:""}</div>`);
+   e.dataTransfer.setData("text/plain",lines.join("\n"));
+   setTimeout(()=>URL.revokeObjectURL(url),30000);
+  });
+ });
+}
 async function mobileSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open("assembleone_direct_sync_v1",2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"});if(!db.objectStoreNames.contains("mobileInbox"))db.createObjectStore("mobileInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
 const ASSEMBLEONE_FIREBASE_URL="https://assembleone-fabac-default-rtdb.firebaseio.com";
 function firebaseSafeKey(value){return String(value||uid()).replace(/[.#$\[\]/]/g,"_")}
@@ -895,8 +911,9 @@ function renderCustomerDetail(name,entry){
   const r=(p.rooms||[])[0]||{};
   const photo=customerRoomPhoto(p);
   const {photos,measures}=customerRoomCounts(p);
-  return `<div class="customer-job-card">${photo?`<img class="customer-job-photo" src="${photo}">`:`<div class="customer-job-photo customer-job-photo-empty">${safe(r.icon||"🏠")}</div>`}<div class="customer-job-info"><strong>${safe(r.icon||"🏠")} ${safe(p.name||r.name||"Room")}</strong><span class="customer-job-meta"><span>📷 ${photos}</span><span>📏 ${measures}</span></span></div><div class="customer-job-actions"><button class="btn primary" type="button" data-open-customer-project="${safe(p.id)}">Open ›</button><button class="btn danger" type="button" data-delete-customer-project="${safe(p.id)}">Delete</button></div></div>`;
+  return `<div class="customer-job-card" draggable="true" data-drag-job="${safe(p.id)}" title="Drag onto your trade database, the desktop, or another app to save a copy of this job">${photo?`<img class="customer-job-photo" src="${photo}">`:`<div class="customer-job-photo customer-job-photo-empty">${safe(r.icon||"🏠")}</div>`}<div class="customer-job-info"><strong>${safe(r.icon||"🏠")} ${safe(p.name||r.name||"Room")}</strong><span class="customer-job-meta"><span>📷 ${photos}</span><span>📏 ${measures}</span></span></div><div class="customer-job-actions"><button class="btn primary" type="button" data-open-customer-project="${safe(p.id)}">Open ›</button><button class="btn danger" type="button" data-delete-customer-project="${safe(p.id)}">Delete</button></div></div>`;
  }).join(""):'<div class="empty">No jobs yet for this customer.</div>';
+ if(jobList)wireJobDragOut(jobList);
  if(jobList)jobList.querySelectorAll("[data-open-customer-project]").forEach(b=>b.onclick=()=>{
   state.currentProject=b.dataset.openCustomerProject;
   const p=project();

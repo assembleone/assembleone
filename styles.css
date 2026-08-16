@@ -752,7 +752,8 @@ thead{background:#174E98;color:white}tbody tr:nth-child(even){background:#FAFAFC
 .customer-card-meta{display:block;font-size:13px;color:#716c7e;font-weight:750;margin-top:4px}
 .customer-card-arrow{font-size:26px;color:#a39ec4;flex:none}
 #customerJobList{display:grid;gap:12px}
-.customer-job-card{display:flex;align-items:center;gap:14px;border:2px solid #e4e1eb;background:#fff;border-radius:20px;padding:14px}
+.customer-job-card{display:flex;align-items:center;gap:14px;border:2px solid #e4e1eb;background:#fff;border-radius:20px;padding:14px;cursor:grab}
+.customer-job-card:active{cursor:grabbing}
 .customer-job-photo{width:56px;height:56px;border-radius:14px;object-fit:cover;flex:none;background:#f2f0f8}
 .customer-job-photo-empty{display:grid;place-items:center;font-size:26px}
 .customer-job-info{flex:1;min-width:0}
