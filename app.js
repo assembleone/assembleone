@@ -309,7 +309,14 @@ function renderRooms(){
    // as a whole.
    const marks=[{x:p.x,y:p.y,index:-1,status:p.status},...(p.copies||[]).map((m,index)=>({...m,index,status:m.status||"ready"}))];
    const numbered=marks.length>1;
-   marks.forEach((m,mi)=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${m.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}${numbered?" numbered":""}`;d.textContent=numbered?String(mi+1):(isSelected?p.code.replace("P-",""):"");d.title=`${p.code}${p.name?" — "+p.name:""}${numbered?" · marker "+(mi+1)+" of "+marks.length+" · "+(statuses.find(s=>s[0]===m.status)?.[1]||m.status):""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll()};canvas.appendChild(d)})
+   marks.forEach((m,mi)=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${m.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}${numbered?" numbered":""}`;d.textContent=numbered?String(mi+1):(isSelected?p.code.replace("P-",""):"");d.title=`${p.code}${p.name?" — "+p.name:""}${numbered?" · marker "+(mi+1)+" of "+marks.length+" · "+(statuses.find(s=>s[0]===m.status)?.[1]||m.status):""} · double-click to tick off`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll()};
+     // Double-click a marker to tick it off directly on the drawing --
+     // toggles ready<->installed without opening the status buttons, so
+     // checking that all five (or however many) repeated panels are
+     // present/fitted is one quick double-click per dot, not a detour
+     // through the form for each one.
+     d.ondblclick=e=>{e.stopPropagation();e.preventDefault();const target=m.index>=0?p.copies[m.index]:p;target.status=target.status==="installed"?"ready":"installed";state.currentPart=p.id;state.selectedCopy=m.index;save();renderAll()};
+     canvas.appendChild(d)})
  })
  if(state.currentPart&&state.focusMarker){requestAnimationFrame(()=>{const selected=stage.querySelector('.pin.selected');if(selected){const left=selected.offsetLeft-stage.clientWidth/2;const top=selected.offsetTop-stage.clientHeight/2;stage.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:'smooth'})}state.focusMarker=false})}
  else if(c?.viewState){requestAnimationFrame(()=>stage.scrollTo({left:Number(c.viewState.scrollLeft||0),top:Number(c.viewState.scrollTop||0)}))}
