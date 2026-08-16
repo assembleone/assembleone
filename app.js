@@ -221,7 +221,17 @@ function createPartAt(x,y){
  c.parts.push(p);state.currentPart=p.id;save();renderAll();$("#fLength").focus()
 }
 function renderHeader(){
- const p=project(),c=cabinet();if($("#headerContext"))$("#headerContext").textContent=p?(p.name+(c?"  ›  "+c.name:"")):"No project open"
+ const p=project();
+ const tag=document.getElementById("headerTag");
+ if(!tag)return;
+ if(p&&p.customer){
+  const label=p.customer+(p.address?" · "+p.address:"");
+  tag.textContent=label;
+  tag.title=label;
+ }else{
+  tag.textContent="Rooms · Cutting Lists · QR Panels";
+  tag.title="Rooms · Cutting Lists · QR Panels";
+ }
 }
 function renderJobs(){
  const box=$("#jobGrid"),active=project();
@@ -1744,7 +1754,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     let changed=false;
     if(n && p.name!==n.value){p.name=n.value;changed=true}
     if(c && p.customer!==c.value){p.customer=c.value;changed=true}
-    if(changed){try{save()}catch(e){}}
+    if(changed){try{save()}catch(e){}try{renderHeader()}catch(e){}}
   }
   function refreshGuide(screen){
     const ready=workflowReady();

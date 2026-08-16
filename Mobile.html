@@ -929,7 +929,14 @@ function renderHeader(){
  const p=project(),c=cabinet();
  if(!p){$("#context").textContent="Project · Room Guide · Scan · Measure · Install";return}
  const showName=p.name&&p.name!=='New Site Job';
- $("#context").textContent=showName?(p.name+(c?" › "+c.name:"")):(c?c.name:"");
+ const trail=showName?(p.name+(c?" › "+c.name:"")):(c?c.name:"");
+ // Customer name comes first so it always stays visible even when the header
+ // truncates -- the CSS ellipsis only ever cuts off the end of the line.
+ const parts=[p.customer,p.address,trail].filter(Boolean);
+ const label=parts.length?parts.join(" · "):"";
+ const el=$("#context");
+ el.textContent=label;
+ el.title=label;
 }
 function roomIconFromName(name,type){
  const text=((type||"")+" "+(name||"")).toLowerCase();
