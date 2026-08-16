@@ -3148,7 +3148,12 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     if(!saveRow){saveRow=document.createElement('div');saveRow.className='a93-save-row';}
     saveRow.append(save);
     if(del)saveRow.append(del);
-    [measure,quick,library,meta,saveRow,options,list].forEach(el=>{if(el)form.append(el)});
+    // Left/Right, Top/Bottom, Back and Chosen Parts now live inside the same
+    // measurement card as Thickness/Length/Width/Quantity, not as a separate
+    // block below it -- keep that nesting instead of pulling quick back out
+    // as a sibling of measure on every normalize pass.
+    measure.append(quick);
+    [measure,library,meta,saveRow,options,list].forEach(el=>{if(el)form.append(el)});
     if(toolbar && toolbar.children.length===0)toolbar.remove();
   }
   function closeNameMenus(){
