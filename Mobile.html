@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AssembleOne">
-<title>AssembleOne Mobile 11.0.23 Cloud Sync</title>
+<title>AssembleOne Mobile 11.0.25 Cloud Sync</title>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
 *{box-sizing:border-box}.js-file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
@@ -359,7 +359,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.23 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.25 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -568,10 +568,10 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 </main></section>
 
 <nav class="modern-bottom-nav">
-<button class="nav active" data-screen="projects"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_project.png?v=2"></b><span data-i18n="nav.project">Project</span></button>
-<button class="nav" data-screen="drawings"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_room.png?v=2"></b><span data-i18n="nav.roomGuide">Room Guide</span></button>
+<button class="nav active" data-screen="projects"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_project.png?v=2"></b><span data-i18n="nav.project">Job</span></button>
+<button class="nav" data-screen="drawings"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_room.png?v=2"></b><span data-i18n="nav.roomGuide">New Job</span></button>
 <button class="nav scan-main" data-screen="scan"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_scan.png?v=2"></b><span data-i18n="nav.scan">Scan</span></button>
-<button class="nav" data-screen="install"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_install.png?v=2"></b><span data-i18n="nav.install">Install</span></button>
+<button class="nav" data-screen="install"><b class="nav-icon nav-img" aria-hidden="true"><img alt="" src="assets/nav_install.png?v=2"></b><span data-i18n="nav.install">Install Guide</span></button>
 </nav>
 <script>
 const KEY="assembleone_mobile_v2";
@@ -586,7 +586,7 @@ function ensureJsQR(){if(typeof jsQR!=="undefined")return Promise.resolve();if(!
 let leafletLoadPromise=null;
 function ensureLeaflet(){if(typeof L!=="undefined")return Promise.resolve();if(!leafletLoadPromise)leafletLoadPromise=Promise.all([loadStyleOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"),loadScriptOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")]);return leafletLoadPromise}
 const I18N={
- en:{"nav.project":"Project","nav.roomGuide":"Room Guide","nav.scan":"Scan","nav.install":"Install",
+ en:{"nav.project":"Job","nav.roomGuide":"New Job","nav.scan":"Scan","nav.install":"Install Guide",
   "proj.newSiteJob":"New Site Job","proj.addStudioProject":"Add Studio Project","proj.myProjects":"My Projects","proj.tapToContinue":"Tap one project to continue.","proj.open":"Open","proj.noCustomer":"No customer","proj.empty":"No projects yet.","proj.emptyHint":"Tap New Site Job to begin.","proj.room":"room","proj.rooms":"rooms","proj.unit":"unit","proj.units":"units","proj.roomFallback":"Room","proj.projectFallback":"Project",
   "room.title":"Room Guide","room.subtitle":"Open the room guide and install from the Studio information.","room.addRoom":"+ Add room","room.addRoomLabel":"Add room","room.openRoom":"Open room","room.measurement":"measurement","room.measurements":"measurements","room.designView":"design view","room.designViews":"design views","room.fromStudio":"Room from Studio",
   "intake.title":"Name this room","intake.subtitle":"Add the customer, address and room before sending it to Studio.","intake.customerName":"Customer name","intake.customerPlaceholder":"Example: Mrs Jones","intake.roomName":"Room name","intake.roomPlaceholder":"Example: Main bedroom","intake.address":"Address","intake.addressPlaceholder":"Example: 12 High Street, Springfield","intake.floor":"Floor / Level","intake.floorPlaceholder":"e.g. Ground floor, or 3rd floor","intake.maps":"Maps","intake.exactLocation":"Exact location","intake.useCurrentLocation":"Use My Current Location","intake.pinSet":"Pin set","intake.tapMapHint":"Tap the map to drop a pin exactly where the job is.","intake.notes":"Notes","intake.notesPlaceholder":"Anything Studio must remember","intake.measurementsTaken":"measurement(s) taken","intake.measurementsBtn":"Measurements","intake.sendToStudio":"Send to Studio","intake.savedPhotos":"Saved photos & measurements",
@@ -935,7 +935,7 @@ if($("#newJob"))$("#newJob").onclick=newJob;
 $('#langCurrentBtn').onclick=openLangPicker;
 function renderHeader(){
  const p=project(),c=cabinet();
- if(!p){$("#context").textContent="Project · Room Guide · Scan · Measure · Install";return}
+ if(!p){$("#context").textContent="Job · New Job · Scan · Measure · Install Guide";return}
  const showName=p.name&&p.name!=='New Site Job';
  const trail=showName?(p.name+(c?" › "+c.name:"")):(c?c.name:"");
  // Customer name comes first so it always stays visible even when the header
@@ -1888,7 +1888,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
 .modern-bottom-nav .nav:not(.scan-main){background:transparent!important;border-radius:18px!important;min-height:60px!important;margin:0 3px!important}
 .modern-bottom-nav .nav.active:not(.scan-main){background:transparent!important;box-shadow:none!important}
 .modern-bottom-nav .nav.active:not(.scan-main) .nav-img{box-shadow:0 0 0 2px rgba(255,198,0,.55);border-radius:18px}
-.modern-bottom-nav .scan-main{margin-top:-34px!important}
+.modern-bottom-nav .scan-main{margin-top:0!important}
 .modern-bottom-nav .scan-main:before{content:none!important}
 .modern-bottom-nav .nav-img{width:56px;height:56px;display:grid;place-items:center;filter:none!important}
 .modern-bottom-nav .nav-img img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
@@ -2011,7 +2011,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       }
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.23 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.25 Cloud Sync';
 })();
 </script>
 
