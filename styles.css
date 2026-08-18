@@ -787,6 +787,7 @@ thead{background:#174E98;color:white}tbody tr:nth-child(even){background:#FAFAFC
 .customer-job-info strong{display:block;font-size:17px;color:#17234a}
 .customer-job-meta{display:flex;gap:8px;margin-top:6px}
 .customer-job-meta span{background:#f2f4f8;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}
+.sibling-room-tag{margin-top:6px;font-size:11px;font-weight:800;color:#9a6a00;background:#fff6dd;border:1px solid #f1cf7a;border-radius:8px;padding:4px 8px;display:inline-block}
 .customer-job-actions{display:flex;gap:8px;flex:none;align-items:center}
 @media(max-width:480px){.customer-job-card{flex-wrap:wrap}.customer-job-actions{width:100%;justify-content:flex-end}}
 @media(max-width:700px){.site-job-inbox-card{grid-template-columns:52px 1fr}.site-job-room-icon{width:52px;height:52px;font-size:30px}.site-job-open{grid-column:1/-1;width:100%;text-align:center}.site-job-main strong{font-size:20px}.site-jobs-panel{padding:13px;border-radius:22px}}

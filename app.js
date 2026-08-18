@@ -237,7 +237,7 @@ function renderHeader(){
 }
 function renderJobs(){
  const box=$("#jobGrid"),active=project();
- box.innerHTML=state.projects.length?state.projects.map(p=>{const siteRoom=(p.rooms||[]).find(r=>r.siteMarkup?.image||(r.sitePhotos||[]).length||(r.beforePhotos||[]).length);const siteReceived=!!siteRoom;return `<article class="folder-card ${p.id===state.currentProject?"selected-job":""} ${siteReceived?"site-received":""}" draggable="true" data-drag-job="${p.id}" title="Drag onto your desktop or another app to save a copy of this job -- drag that file back onto this screen to reopen it"><div class="folder-icon">${siteReceived?(siteRoom.icon||"📍"):"📁"}</div><h3>${safe(p.name)}</h3><div class="muted">${safe(p.customer||"No customer name")}<br>${(p.rooms||[]).length} room${(p.rooms||[]).length===1?"":"s"} · ${p.cabinets.length} unit${p.cabinets.length===1?"":"s"}</div>${siteReceived?'<div class="site-job-tag">✓ Site measurements received</div>':''}<div class="actions"><button class="btn primary" data-open-job="${p.id}">${p.id===state.currentProject?"Job open":"Open job"}</button>${siteReceived?`<button class="btn site-details-btn" data-site-details="${p.id}">Open details</button>`:''}<button class="btn trade-export-btn" data-export-trade="${p.id}">Export record</button><button class="btn danger" data-delete-job-card="${p.id}">Delete</button></div></article>`}).join(""):'<div class="empty">No jobs yet. Press “New job”.</div>';
+ box.innerHTML=state.projects.length?state.projects.map(p=>{const siteRoom=(p.rooms||[]).find(r=>r.siteMarkup?.image||(r.sitePhotos||[]).length||(r.beforePhotos||[]).length);const siteReceived=!!siteRoom;const sib=siblingRoomInfo(p);const sibTag=sib?`<div class="sibling-room-tag" title="${safe(sib.names.join(', '))}">🔗 Room ${sib.index} of ${sib.total} from the same site visit — not a duplicate</div>`:'';return `<article class="folder-card ${p.id===state.currentProject?"selected-job":""} ${siteReceived?"site-received":""}" draggable="true" data-drag-job="${p.id}" title="Drag onto your desktop or another app to save a copy of this job -- drag that file back onto this screen to reopen it"><div class="folder-icon">${siteReceived?(siteRoom.icon||"📍"):"📁"}</div><h3>${safe(p.name)}</h3><div class="muted">${safe(p.customer||"No customer name")}<br>${(p.rooms||[]).length} room${(p.rooms||[]).length===1?"":"s"} · ${p.cabinets.length} unit${p.cabinets.length===1?"":"s"}</div>${siteReceived?'<div class="site-job-tag">✓ Site measurements received</div>':''}${sibTag}<div class="actions"><button class="btn primary" data-open-job="${p.id}">${p.id===state.currentProject?"Job open":"Open job"}</button>${siteReceived?`<button class="btn site-details-btn" data-site-details="${p.id}">Open details</button>`:''}<button class="btn trade-export-btn" data-export-trade="${p.id}">Export record</button><button class="btn danger" data-delete-job-card="${p.id}">Delete</button></div></article>`}).join(""):'<div class="empty">No jobs yet. Press “New job”.</div>';
  const workspace=$("#combinedProjectWorkspace");if(workspace)workspace.classList.toggle("is-empty",!active);
  $$("[data-open-job]").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.openJob;state.currentCabinet=project()?.cabinets[0]?.id||null;state.currentPart=null;renderAll();show("jobs")});
  $$("[data-site-details]").forEach(b=>b.onclick=()=>openSiteRoomDetails(b.dataset.siteDetails));
@@ -246,7 +246,7 @@ function renderJobs(){
  $$("[data-delete-job-card]").forEach(b=>b.onclick=()=>{
    const p=state.projects.find(x=>x.id===b.dataset.deleteJobCard);
    if(!p)return;
-   const ok=confirm(`Delete the complete job "${p.name}"?\n\nThis removes all wardrobes, drawings, panels, cutting lists and QR labels in this job.`);
+   const ok=confirm(deleteJobConfirmMessage(p));
    if(!ok)return;
    state.projects=state.projects.filter(x=>x.id!==p.id);
    if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
@@ -912,6 +912,28 @@ function customerRoomCounts(p){
  const measures=(r.siteMarkup?.marks?.filter(x=>x.type==="measure").length||0)+(r.measureCaptures||[]).reduce((n,c)=>n+(c.marks||[]).filter(x=>x.type==="measure").length,0);
  return {photos,measures};
 }
+// A Site Job sent from the phone gets split into one Studio project per room
+// (see mergeMobileSiteJob), so two rooms of the exact same phone job show up
+// as separate-looking cards here. Without a visible link between them, a
+// second room's card reads as an accidental duplicate of the first -- which
+// is exactly what led to a job's photos being deleted by mistake. Surface
+// that link wherever these cards render, and in the delete confirmation.
+function siblingRoomInfo(p){
+ if(!p?.siteMobileJobId)return null;
+ const siblings=(state.projects||[]).filter(x=>x.siteMobileJobId===p.siteMobileJobId);
+ if(siblings.length<2)return null;
+ const index=siblings.findIndex(x=>x.id===p.id)+1;
+ return {index,total:siblings.length,names:siblings.map(x=>x.name||"Room")};
+}
+function deleteJobConfirmMessage(p){
+ const r=(p.rooms||[])[0]||{};
+ const photoCount=(r.measureCaptures?.length||0)+(r.beforePhotos?.length||0)+(r.designImages?.length||0)+(r.sitePhotos?.length||0);
+ const sib=siblingRoomInfo(p);
+ let msg=`Delete "${p.name}"?\n\nThis permanently deletes all wardrobes, drawings, panels, cutting lists, QR labels -- AND any photos or measurements saved for this job.`;
+ if(photoCount)msg+=`\n\nThis job has ${photoCount} photo${photoCount===1?"":"s"} saved on it. They will be gone unless the phone still has them and you resend.`;
+ if(sib)msg+=`\n\n⚠️ This looks like room ${sib.index} of ${sib.total} from the same site visit (${sib.names.join(", ")}) -- make sure this is the one you actually want gone, not a room you mistook for a duplicate.`;
+ return msg;
+}
 let currentCustomerName=null;
 let customerSearchTerm="";
 function renderCustomers(){
@@ -957,7 +979,9 @@ function renderCustomerDetail(name,entry){
   const r=(p.rooms||[])[0]||{};
   const photo=customerRoomPhoto(p);
   const {photos,measures}=customerRoomCounts(p);
-  return `<div class="customer-job-card" draggable="true" data-drag-job="${safe(p.id)}" title="Drag onto your trade database, the desktop, or another app to save a copy of this job">${photo?`<img class="customer-job-photo" src="${photo}">`:`<div class="customer-job-photo customer-job-photo-empty">${safe(r.icon||"🏠")}</div>`}<div class="customer-job-info"><strong>${safe(r.icon||"🏠")} ${safe(p.name||r.name||"Room")}</strong><span class="customer-job-meta"><span>📷 ${photos}</span><span>📏 ${measures}</span></span></div><div class="customer-job-actions"><button class="btn primary" type="button" data-open-customer-project="${safe(p.id)}">Open ›</button><button class="btn danger" type="button" data-delete-customer-project="${safe(p.id)}">Delete</button></div></div>`;
+  const sib=siblingRoomInfo(p);
+  const sibTag=sib?`<div class="sibling-room-tag" title="${safe(sib.names.join(', '))}">🔗 Room ${sib.index} of ${sib.total} from the same site visit — not a duplicate</div>`:'';
+  return `<div class="customer-job-card" draggable="true" data-drag-job="${safe(p.id)}" title="Drag onto your trade database, the desktop, or another app to save a copy of this job">${photo?`<img class="customer-job-photo" src="${photo}">`:`<div class="customer-job-photo customer-job-photo-empty">${safe(r.icon||"🏠")}</div>`}<div class="customer-job-info"><strong>${safe(r.icon||"🏠")} ${safe(p.name||r.name||"Room")}</strong><span class="customer-job-meta"><span>📷 ${photos}</span><span>📏 ${measures}</span></span>${sibTag}</div><div class="customer-job-actions"><button class="btn primary" type="button" data-open-customer-project="${safe(p.id)}">Open ›</button><button class="btn danger" type="button" data-delete-customer-project="${safe(p.id)}">Delete</button></div></div>`;
  }).join(""):'<div class="empty">No jobs yet for this customer.</div>';
  if(jobList)wireJobDragOut(jobList);
  if(jobList)jobList.querySelectorAll("[data-open-customer-project]").forEach(b=>b.onclick=()=>{
@@ -972,7 +996,7 @@ function renderCustomerDetail(name,entry){
   const id=b.dataset.deleteCustomerProject;
   const p=(state.projects||[]).find(x=>x.id===id);
   if(!p)return;
-  if(!confirm(`Delete the complete job "${p.name}"?\n\nThis removes all wardrobes, drawings, panels, cutting lists and QR labels in this job.`))return;
+  if(!confirm(deleteJobConfirmMessage(p)))return;
   state.projects=state.projects.filter(x=>x.id!==id);
   if(state.currentProject===id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
   save();renderAll();
@@ -1106,7 +1130,7 @@ $("#openProjectInput").onchange=e=>{openProjectPackage(e.target.files[0]);e.targ
   if(file)openProjectPackage(file);else alert("Drop an AssembleOne .zip job record to reopen it.");
  });
 })();
-$("#deleteJobBtn").onclick=()=>{const p=project();if(p&&confirm(`Delete the complete job "${p.name}"?\n\nThis removes all wardrobes, drawings, panels, cutting lists and QR labels in this job.`)){state.projects=state.projects.filter(x=>x.id!==p.id);state.currentProject=null;state.currentCabinet=null;state.currentPart=null;save();renderAll();show("jobs")}};
+$("#deleteJobBtn").onclick=()=>{const p=project();if(p&&confirm(deleteJobConfirmMessage(p))){state.projects=state.projects.filter(x=>x.id!==p.id);state.currentProject=null;state.currentCabinet=null;state.currentPart=null;save();renderAll();show("jobs")}};
 $("#cabinetSelect").onchange=e=>{state.currentCabinet=e.target.value;state.currentPart=null;save();renderAll()};
 const partNamePicker=$("#partNamePicker");
 if(partNamePicker){
