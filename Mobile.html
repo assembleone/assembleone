@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AssembleOne">
-<title>AssembleOne Mobile 11.0.26 Cloud Sync</title>
+<title>AssembleOne Mobile 11.0.27 Cloud Sync</title>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
 *{box-sizing:border-box}.js-file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
@@ -117,6 +117,8 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .site-pin-toolbar button{border:1px solid #D8D7E0;background:#fff;color:#174E98;border-radius:9px;padding:8px 11px;font-weight:900;cursor:pointer}.site-pin-toolbar .danger{background:#E53935;color:#fff;border-color:#E53935}.site-pin-toolbar .primary{background:#FFC600;border-color:#FFC600}.site-pin-toolbar .active{outline:3px solid #174E98}.site-map.move-mode{cursor:crosshair}.site-map.move-mode::after{content:'Tap the new position for this pin';position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#174E98;color:#fff;padding:7px 12px;border-radius:999px;font-weight:800;z-index:15}.direct-chat-grid{display:grid;grid-template-columns:minmax(160px,.35fr) 1fr;gap:10px}.direct-chat-list{display:flex;flex-direction:column;gap:6px;max-height:350px;overflow:auto}.direct-chat-contact{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid #D8D7E0;background:#fff;border-radius:10px;padding:9px;cursor:pointer;font-weight:800}.direct-chat-contact.active{border-color:#FFC600;background:#FFF8D6}.direct-chat-window{border:1px solid #D8D7E0;border-radius:10px;padding:10px;min-height:250px;display:flex;flex-direction:column}.direct-chat-messages{flex:1;max-height:270px;overflow:auto}.direct-chat-compose{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}.direct-msg{background:#F3F2F7;border-radius:10px;padding:8px;margin:6px 0}.direct-msg.me{background:#FFF4B8;margin-left:12%}.direct-msg small{display:block;color:#777;margin-top:4px}@media(max-width:700px){.direct-chat-grid{grid-template-columns:1fr}.direct-chat-list{display:grid;grid-template-columns:repeat(2,1fr);max-height:none}.site-pin-toolbar{bottom:6px}}
 
 /* Version 8.4 Room Guide */
+.current-job-banner{display:flex;align-items:center;gap:12px;background:#FFC600;color:#174E98;border-radius:16px;padding:12px 14px;margin-bottom:12px;box-shadow:0 6px 16px rgba(255,198,0,.35)}.current-job-icon{font-size:26px;flex:none}.current-job-banner>div{flex:1;min-width:0}.current-job-banner small{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;opacity:.75}.current-job-banner strong{display:block;font-size:17px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.current-job-banner .btn{flex:none;background:#174E98;color:#fff;border-color:#174E98;font-size:12px;padding:9px 12px}.current-job-banner.no-job{background:#f0f0f4;color:#66637b}.current-job-banner.no-job .btn{background:#fff;color:#174E98;border-color:#d7d5e1}
+@media(max-width:520px){.current-job-banner{padding:10px 12px}.current-job-banner strong{font-size:15px}.current-job-icon{font-size:22px}}
 .room-guide-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.room-guide-head h2{margin:0}.room-guide-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:12px}.room-card{background:#fff;border:1px solid var(--line);border-radius:15px;overflow:hidden;box-shadow:0 7px 20px rgba(46,41,78,.08)}.room-thumb{height:170px;background:#e9e8ee;display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:850;overflow:hidden}.room-thumb img{width:100%;height:100%;object-fit:cover}.room-card-body{padding:12px}.room-card-title{font-size:21px;font-weight:900;color:var(--ink)}.room-card-meta{font-size:12px;color:var(--muted);margin:4px 0 10px}.room-guide-detail{display:block}.room-detail-top{display:flex;gap:8px;align-items:center;margin-bottom:10px}.room-detail-top h2{margin:0;flex:1}.room-section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}.room-photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.room-photo-tile{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#f1f1f5}.room-photo-tile img{display:block;width:100%;height:170px;object-fit:cover}.room-photo-tile button{position:absolute;right:6px;top:6px;border:0;border-radius:999px;background:#E53935;color:#fff;width:31px;height:31px;font-weight:900}.room-empty{padding:24px;text-align:center;background:#f5f5f8;border:1px dashed #c9c8d2;border-radius:11px;color:var(--muted)}.room-actions{display:flex;gap:7px;flex-wrap:wrap}.room-notes{min-height:95px}.room-count{display:inline-block;padding:4px 8px;border-radius:999px;background:#FFF4B8;color:#174E98;font-size:11px;font-weight:900}.room-type-dialog{position:fixed;z-index:5000;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center}.room-type-sheet{width:min(620px,100%);max-height:87vh;overflow:auto;background:#fff;border-radius:18px 18px 0 0;padding:15px;padding-bottom:calc(15px + env(safe-area-inset-bottom))}.room-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.room-type-btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:12px 5px;font-weight:850;color:var(--ink)}.room-type-btn.active{border-color:#FFC600;background:#fffbea;border-width:2px}.room-type-btn b{font-size:23px;display:block}.room-name-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}.design-caption{padding:7px;font-size:12px;font-weight:800}
 @media(max-width:560px){.room-guide-head{align-items:flex-start}.room-guide-list{grid-template-columns:1fr}.room-thumb{height:185px}.room-photo-grid{grid-template-columns:1fr 1fr}.room-photo-tile img{height:145px}.room-type-grid{grid-template-columns:repeat(3,1fr)}.room-guide-head .btn{padding:9px 10px;font-size:12px}}
 
@@ -359,7 +361,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.26 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.27 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -449,6 +451,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 </section>
 
 <section id="drawings" class="screen">
+ <div class="current-job-banner" id="currentJobBanner"><span class="current-job-icon">📍</span><div><small data-i18n="room.workingOn">You're working on</small><strong id="currentJobBannerText">—</strong></div><button type="button" class="btn" id="currentJobBannerSwitch" data-i18n="room.notThisJob">Not this job? Switch ›</button></div>
  <div class="card room-guide-head" id="roomGuideHead">
   <div><h2 data-i18n="room.title">Room Guide</h2><div class="muted" data-i18n="room.subtitle">Open the room guide and install from the Studio information.</div></div>
   <button class="btn primary" id="addRoomBtn">＋ <span data-i18n="room.addRoomLabel">Add room</span></button>
@@ -588,7 +591,7 @@ function ensureLeaflet(){if(typeof L!=="undefined")return Promise.resolve();if(!
 const I18N={
  en:{"nav.project":"Studio Jobs","nav.roomGuide":"Site Measure","nav.scan":"Scan","nav.install":"Install Guide",
   "proj.newSiteJob":"New Site Job","proj.addStudioProject":"Add Studio Project","proj.myProjects":"My Projects","proj.tapToContinue":"Tap one project to continue.","proj.open":"Open","proj.noCustomer":"No customer","proj.empty":"No projects yet.","proj.emptyHint":"Tap New Site Job to begin.","proj.room":"room","proj.rooms":"rooms","proj.unit":"unit","proj.units":"units","proj.roomFallback":"Room","proj.projectFallback":"Project",
-  "room.title":"Room Guide","room.subtitle":"Open the room guide and install from the Studio information.","room.addRoom":"+ Add room","room.addRoomLabel":"Add room","room.openRoom":"Open room","room.measurement":"measurement","room.measurements":"measurements","room.designView":"design view","room.designViews":"design views","room.fromStudio":"Room from Studio",
+  "room.title":"Room Guide","room.subtitle":"Open the room guide and install from the Studio information.","room.addRoom":"+ Add room","room.addRoomLabel":"Add room","room.openRoom":"Open room","room.measurement":"measurement","room.measurements":"measurements","room.designView":"design view","room.designViews":"design views","room.fromStudio":"Room from Studio","room.workingOn":"You're working on","room.notThisJob":"Not this job? Switch ›",
   "intake.title":"Name this room","intake.subtitle":"Add the customer, address and room before sending it to Studio.","intake.customerName":"Customer name","intake.customerPlaceholder":"Example: Mrs Jones","intake.roomName":"Room name","intake.roomPlaceholder":"Example: Main bedroom","intake.address":"Address","intake.addressPlaceholder":"Example: 12 High Street, Springfield","intake.floor":"Floor / Level","intake.floorPlaceholder":"e.g. Ground floor, or 3rd floor","intake.maps":"Maps","intake.exactLocation":"Exact location","intake.useCurrentLocation":"Use My Current Location","intake.pinSet":"Pin set","intake.tapMapHint":"Tap the map to drop a pin exactly where the job is.","intake.notes":"Notes","intake.notesPlaceholder":"Anything Studio must remember","intake.measurementsTaken":"measurement(s) taken","intake.measurementsBtn":"Measurements","intake.sendToStudio":"Send to Studio","intake.savedPhotos":"Saved photos & measurements",
   "detail.backProjects":"← Projects","detail.delete":"Delete","detail.designGuide":"Design Guide","detail.noDesignViews":"No design views from Studio yet.","detail.roomNotes":"Room Notes","detail.noNotes":"No extra installation notes for this room.","detail.cuttingList":"Cutting List","detail.qrPanels":"QR Panels","detail.scanOrFind":"Scan or find panel","detail.sendSiteUpdate":"↥ Send Site Update","detail.openDrawings":"Open drawings","detail.notesReady":"Important notes ready","detail.view":"view","detail.views":"views","detail.panel":"panel","detail.panels":"panels","detail.currentProject":"Current project","detail.checkPanels":"Check Panels","detail.checkedShort":"checked","detail.checkPanelsAccounted":"accounted for","detail.noPanelsToCheck":"No panels in this room yet.","detail.notScanned":"Not scanned yet",
   "scan.title":"Scan QR","scan.openCamera":"Open camera","scan.cuttingList":"Cutting List","scan.pieces":"pieces","scan.reportDamage":"Report Damage","scan.panelDamaged":"Panel is damaged","scan.panelsScanned":"Panels scanned","scan.scanned":"Scanned","scan.remaining":"Remaining","scan.damaged":"Damaged","scan.complete":"Complete","scan.currentJob":"Current job","scan.changeJob":"Change job ›","scan.recentScans":"Recent scans","scan.viewAll":"View all ›","scan.noPanelsScanned":"No panels scanned yet.","scan.noPanelsProject":"No panels in this project yet.","scan.closeScanner":"✕ Close scanner","scan.started":"started","scan.completeSuffix":"complete","scan.of":"of","scan.noProjectOpen":"No project open","scan.moreOptions":"More scan options","scan.scanFromPhoto":"Scan from photo","scan.pasteQrText":"Paste QR text","scan.openQrText":"Open QR text","scan.findPanelPlaceholder":"Find panel number, for example P-001","scan.findPanel":"Find panel",
@@ -1171,6 +1174,19 @@ function renderRooms(){
  let p=project();
  if(!p){p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;save()}
  p.rooms=p.rooms||[];
+ // Adding a room silently continues whichever job happens to be "current" --
+ // if that's leftover from a previous job instead of a fresh one, the new
+ // room (and its photos/measurements) ends up mixed into the wrong customer
+ // once it syncs to Studio. Make it unmissable which job you're about to
+ // add to, with a one-tap way out if it's the wrong one.
+ const banner=$('#currentJobBanner'),bannerText=$('#currentJobBannerText');
+ if(banner&&bannerText){
+  const jobName=p.name&&p.name!=='New Site Job'?p.name:'';
+  const label=[p.customer,jobName].filter(Boolean).join(' — ');
+  bannerText.textContent=label||'New job — no customer name yet';
+  banner.classList.toggle('no-job',!p.customer);
+ }
+ if($('#currentJobBannerSwitch'))$('#currentJobBannerSwitch').onclick=()=>show('projects');
  const list=$('#roomGuideList'),detail=$('#roomGuideDetail'),head=$('#roomGuideHead');
  if(head)head.classList.add('hidden');
  let r=currentRoom();
@@ -2011,7 +2027,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       }
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.26 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.27 Cloud Sync';
 })();
 </script>
 
