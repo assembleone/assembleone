@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="AssembleOne">
 <title>AssembleOne Studio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=45">
+<link rel="stylesheet" href="styles.css?v=46">
 
 
 
@@ -492,6 +492,19 @@
 <div id="a131RecoveryBar">Saved automatically</div>
 <div aria-hidden="true" id="a131PrintOverlay"><div id="a131PrintPanel"><div id="a131PrintHead"><strong>Supplier print preview</strong><button class="btn" id="a131PrintNow" type="button">Print</button><button class="btn primary" id="a131ClosePrint" type="button">Back to Studio</button></div><iframe id="a131PrintFrame" title="Print preview"></iframe></div></div>
 
+<!-- Site room photo/measurement details modal. Previously only existed inside
+     an unrelated iframe preview's srcdoc string (openGuidePreviewForPanel in
+     app.js) and was never part of the live page, so "Open details" on a
+     site-received job card silently did nothing. -->
+<div class="site-room-modal" id="siteRoomDetailsModal" aria-hidden="true">
+ <div class="site-room-dialog" role="dialog" aria-modal="true" aria-labelledby="siteRoomDetailsTitle">
+  <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
+  <div class="site-room-body">
+   <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-picture-caption" id="siteRoomPictureCaption"></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
+   <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomPhotoCount">0</b><span>Photos</span></div><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div><div class="site-fact"><b>Ready</b><span>Site package</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div></div><div class="site-drawing-placeholder">SketchUp drawing area<br>Use the site picture beside your drawing while designing</div><div class="site-detail-actions"><button class="btn primary" id="sitePhotoToDrawing" type="button">Use in Drawing</button><button class="btn" id="siteOpenProject" type="button">Open project details</button></div></section>
+  </div>
+ </div>
+</div>
 
 
 
@@ -566,4 +579,4 @@
 
 
 
-<script src="app.js?v=72"></script>
+<script src="app.js?v=73"></script>

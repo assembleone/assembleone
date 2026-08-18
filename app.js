@@ -254,28 +254,54 @@ function renderJobs(){
  });
 }
 
+// Returns {src,label,takenAt} for every picture a phone site visit produced,
+// including notePhotos -- these were being silently dropped here, so a photo
+// taken alongside a note never showed up anywhere in Studio at all. Kept as
+// plain reference material (label + timestamp) rather than auto-picked as
+// the cabinet drawing -- "Use in Drawing" below still requires an explicit
+// tap on a specific photo, so nothing here can land in the drawing by itself.
 function siteRoomPictures(room){
- const out=[];const add=x=>{if(!x)return;const src=typeof x==='string'?x:(x.data||x.src||x.url||x.image);if(src&&!out.includes(src))out.push(src)};
- add(room?.siteMarkup?.image);(room?.measureCaptures||[]).forEach(c=>add(c.image));(room?.sitePhotos||[]).forEach(add);(room?.beforePhotos||[]).forEach(add);(room?.designImages||[]).forEach(add);return out
+ const out=[];
+ const add=(x,label)=>{
+  if(!x)return;
+  const src=typeof x==='string'?x:(x.data||x.src||x.url||x.image);
+  if(!src||out.some(p=>p.src===src))return;
+  const takenAt=(x&&typeof x==='object')?(x.takenAt||x.createdAt||null):null;
+  out.push({src,label,takenAt});
+ };
+ add(room?.siteMarkup?.image,'Measurement sketch');
+ (room?.measureCaptures||[]).forEach(c=>add(c.image,'Measurement photo'));
+ (room?.sitePhotos||[]).forEach(x=>add(x,'Site photo'));
+ (room?.beforePhotos||[]).forEach(x=>add(x,'Before photo'));
+ (room?.designImages||[]).forEach(x=>add(x,'Design view'));
+ (room?.notePhotos||[]).forEach(x=>add(x,'Note photo'));
+ return out;
 }
 function siteRoomMeasureCount(room){return room?.siteMarkup?.marks?.filter(x=>x.type==='measure').length||room?.measurements?.length||0}
+function siteRoomPictureCaption(pic){
+ if(!pic)return'';
+ const when=pic.takenAt?new Date(pic.takenAt):null;
+ const stamp=when&&!isNaN(when)?when.toLocaleDateString([],{day:'2-digit',month:'short',year:'numeric'})+' · '+when.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+ return [pic.label,stamp].filter(Boolean).join(' · ');
+}
 function openSiteRoomDetails(projectId,roomId){
  const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return;
  const room=p.rooms.find(r=>r.id===roomId)||p.rooms.find(r=>siteRoomPictures(r).length)||p.rooms[0]||{name:'Site room',icon:'📍'};
  const pics=siteRoomPictures(room),measures=siteRoomMeasureCount(room),floor=room.floor||room.location||'Not selected',notes=room.notes||room.siteNotes||p.notes||'';
  const overlay=document.getElementById('siteRoomDetailsModal');if(!overlay)return;overlay.dataset.projectId=p.id;overlay.dataset.roomId=room.id||'';overlay.dataset.pictureIndex='0';
  document.getElementById('siteRoomDetailsTitle').textContent=room.name||'Site room';document.getElementById('siteRoomDetailsIcon').textContent=room.icon||'📍';document.getElementById('siteRoomDetailsMeta').textContent=`${p.name||'Project'} · ${floor}`;
- const frame=document.getElementById('siteRoomReferenceFrame');frame.innerHTML=pics.length?`<img id="siteRoomMainImage" src="${pics[0]}" alt="Site measurement photo">`:'<div class="site-reference-empty">No site picture received</div>';
- const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=pics.map((src,i)=>`<img class="site-thumb ${i===0?'active':''}" data-site-thumb="${i}" src="${src}" alt="Photo ${i+1}">`).join('');
+ const frame=document.getElementById('siteRoomReferenceFrame');frame.innerHTML=pics.length?`<img id="siteRoomMainImage" src="${pics[0].src}" alt="Site measurement photo">`:'<div class="site-reference-empty">No site picture received</div>';
+ const caption=document.getElementById('siteRoomPictureCaption');if(caption)caption.textContent=siteRoomPictureCaption(pics[0]);
+ const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=pics.map((pic,i)=>`<img class="site-thumb ${i===0?'active':''}" data-site-thumb="${i}" src="${pic.src}" alt="${safe(pic.label)}" title="${safe(siteRoomPictureCaption(pic))}">`).join('');
  document.getElementById('siteRoomPhotoCount').textContent=pics.length;document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;document.getElementById('siteRoomNotes').textContent=notes||'No extra notes';
- thumbs.querySelectorAll('[data-site-thumb]').forEach(t=>t.onclick=()=>{overlay.dataset.pictureIndex=t.dataset.siteThumb;document.getElementById('siteRoomMainImage').src=pics[+t.dataset.siteThumb];thumbs.querySelectorAll('.site-thumb').forEach(x=>x.classList.toggle('active',x===t))});
+ thumbs.querySelectorAll('[data-site-thumb]').forEach(t=>t.onclick=()=>{overlay.dataset.pictureIndex=t.dataset.siteThumb;const pic=pics[+t.dataset.siteThumb];document.getElementById('siteRoomMainImage').src=pic.src;if(caption)caption.textContent=siteRoomPictureCaption(pic);thumbs.querySelectorAll('.site-thumb').forEach(x=>x.classList.toggle('active',x===t))});
  overlay.classList.add('open');overlay.setAttribute('aria-hidden','false')
 }
 function closeSiteRoomDetails(){const m=document.getElementById('siteRoomDetailsModal');m?.classList.remove('open');m?.setAttribute('aria-hidden','true')}
 function sendSitePhotoToDrawing(){
- const m=document.getElementById('siteRoomDetailsModal'),p=ensureSharedProject(state.projects.find(x=>x.id===m?.dataset.projectId));if(!p)return;const room=p.rooms.find(r=>r.id===m.dataset.roomId)||p.rooms[0];const pics=siteRoomPictures(room);const src=pics[+(m.dataset.pictureIndex||0)];if(!src)return alert('No site picture is available.');
+ const m=document.getElementById('siteRoomDetailsModal'),p=ensureSharedProject(state.projects.find(x=>x.id===m?.dataset.projectId));if(!p)return;const room=p.rooms.find(r=>r.id===m.dataset.roomId)||p.rooms[0];const pics=siteRoomPictures(room);const pic=pics[+(m.dataset.pictureIndex||0)];if(!pic)return alert('No site picture is available.');
  let c=p.cabinets.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' design',roomId:room?.id||'',drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
- c.drawing=src;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=null;renderAll();save();closeSiteRoomDetails();show('mark');alert('The site photo is now beside the drawing tools as your reference.')
+ c.drawing=pic.src;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=null;renderAll();save();closeSiteRoomDetails();show('mark');alert('The site photo is now beside the drawing tools as your reference.')
 }
 function renderProject(){
  const p=project();$("#projectName").value=p?.name||"";$("#customerName").value=p?.customer||"";
@@ -908,7 +934,7 @@ function customerRoomPhoto(p){
 }
 function customerRoomCounts(p){
  const r=(p.rooms||[])[0]||{};
- const photos=(r.measureCaptures?.length||0)+(r.beforePhotos?.length||0)+(r.designImages?.length||0)+(r.sitePhotos?.length||0);
+ const photos=(r.measureCaptures?.length||0)+(r.beforePhotos?.length||0)+(r.designImages?.length||0)+(r.sitePhotos?.length||0)+(r.notePhotos?.length||0);
  const measures=(r.siteMarkup?.marks?.filter(x=>x.type==="measure").length||0)+(r.measureCaptures||[]).reduce((n,c)=>n+(c.marks||[]).filter(x=>x.type==="measure").length,0);
  return {photos,measures};
 }
@@ -1083,13 +1109,18 @@ async function saveSitePacketToCustomer(syncId){
 async function removeInboxPacket(syncId){try{await firebaseDelete(`studioInbox/${firebaseSafeKey(syncId)}`)}catch(e){console.error(e)}try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK)}
 function ensureSiteReferenceCabinet(merged){
  const room=merged.rooms?.[0];
- const pics=siteRoomPictures(room);
+ // Note photos are reference material for the notes, not measurement/design
+ // pictures -- excluded here so a photo taken alongside a note can never get
+ // auto-picked as the cabinet's drawing the moment a site job is opened.
+ // They're still visible (and still manually usable via "Use in Drawing")
+ // in the site room details view.
+ const pics=siteRoomPictures(room).filter(pic=>pic.label!=='Note photo');
  let c=merged.cabinets?.find(x=>x.roomId===room?.id);
  if(!c){c={id:uid(),name:(room?.name||'Site room')+' drawing',roomId:room?.id||'',drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}
- if(pics[0]&&(!c.drawing||c.siteReference)&&c.drawing!==pics[0]){
-  c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];
-  const capture=(room?.measureCaptures||[]).find(cap=>cap.image===pics[0]);
-  const markupSource=room?.siteMarkup?.image===pics[0]?room.siteMarkup:capture;
+ if(pics[0]&&(!c.drawing||c.siteReference)&&c.drawing!==pics[0].src){
+  c.drawing=pics[0].src;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0].src;
+  const capture=(room?.measureCaptures||[]).find(cap=>cap.image===pics[0].src);
+  const markupSource=room?.siteMarkup?.image===pics[0].src?room.siteMarkup:capture;
   c.siteMarkup=markupSource?JSON.parse(JSON.stringify({image:markupSource.image,w:markupSource.w,h:markupSource.h,marks:markupSource.marks||[]})):null;
  }
  return c;
@@ -1569,7 +1600,7 @@ function openGuidePreviewForPanel(p){
  <div class="site-room-dialog" role="dialog" aria-modal="true" aria-labelledby="siteRoomDetailsTitle">
   <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
   <div class="site-room-body">
-   <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
+   <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-picture-caption" id="siteRoomPictureCaption"></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
    <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomPhotoCount">0</b><span>Photos</span></div><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div><div class="site-fact"><b>Ready</b><span>Site package</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div></div><div class="site-drawing-placeholder">SketchUp drawing area<br>Use the site picture beside your drawing while designing</div><div class="site-detail-actions"><button class="btn primary" id="sitePhotoToDrawing" type="button">Use in Drawing</button><button class="btn" id="siteOpenProject" type="button">Open project details</button></div></section>
   </div>
  </div>

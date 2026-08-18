@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AssembleOne">
-<title>AssembleOne Mobile 11.0.28 Cloud Sync</title>
+<title>AssembleOne Mobile 11.0.29 Cloud Sync</title>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
 *{box-sizing:border-box}.js-file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
@@ -361,7 +361,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.28 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.29 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -1092,7 +1092,8 @@ function roomCardHtml(p,r){
  // check back against on the day, instead of hunting through separate
  // photo sections for the picture a note was talking about.
  const notePhotos=holder.notePhotos||[];
- const notePhotosSection=`<div style="margin-top:10px"><div class="room-photo-grid" style="margin-bottom:8px">${notePhotos.map(np=>`<div class="room-photo-tile" style="position:relative"><img src="${np.data}"><button type="button" class="note-photo-delete-btn" data-note-photo-id="${np.id}" title="${t('detail.delete')}" style="position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:900;font-size:15px;line-height:1">✕</button></div>`).join('')}</div><button type="button" class="btn" id="addNotePhotoBtn">📷 ${t('intake.addNotePhoto')}</button><input id="notePhotoInput" type="file" accept="image/*" multiple hidden></div>`;
+ const notePhotoStamp=iso=>{if(!iso)return'';const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString([],{day:'2-digit',month:'short'})+' · '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
+ const notePhotosSection=`<div style="margin-top:10px"><div class="room-photo-grid" style="margin-bottom:8px">${notePhotos.map(np=>`<div class="room-photo-tile" style="position:relative"><img src="${np.data}"><div class="design-caption">${notePhotoStamp(np.takenAt)}</div><button type="button" class="note-photo-delete-btn" data-note-photo-id="${np.id}" title="${t('detail.delete')}" style="position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:900;font-size:15px;line-height:1">✕</button></div>`).join('')}</div><button type="button" class="btn" id="addNotePhotoBtn">📷 ${t('intake.addNotePhoto')}</button><input id="notePhotoInput" type="file" accept="image/*" multiple hidden></div>`;
  const extraSections='';
  return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="Tap to change icon" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.floor')}<div class="floor-btn-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${floorPresets.map(f=>`<button type="button" class="btn floor-preset-btn ${roomFloor===f?'active':''}" data-floor="${f}" style="padding:8px 12px;font-size:13px">${floorLabel(f)}</button>`).join('')}</div><input id="siteRoomFloor" style="margin-top:6px" placeholder="${t('intake.floorPlaceholder')}" value="${safe(roomFloor)}"></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea>${notePhotosSection}</label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.readyToSendSuffix')}</div>${sentCount?`<div class="muted" style="margin-top:4px">${sentCount} ${sentCount===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.sentToStudioSuffix')}</div>`:''}<div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">↥ ${t('intake.sendToStudio')}</button>${r?`<button class="btn danger" id="deleteRoomBtn" type="button">🗑 ${t('detail.delete')}</button>`:''}</div>${extraSections}</div>`;
 }
@@ -1105,7 +1106,7 @@ function wireRoomCard(p,r){
   files.forEach(file=>{
    compressImage(file,data=>{
     notePhotoHolder.notePhotos=notePhotoHolder.notePhotos||[];
-    notePhotoHolder.notePhotos.push({id:uid(),data});
+    notePhotoHolder.notePhotos.push({id:uid(),data,takenAt:new Date().toISOString()});
     save();
     renderRooms();
    },()=>alert('That photo could not be loaded. Please try again.'));
@@ -2052,7 +2053,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       }
     }catch(e){console.error(e);alert("A project arrived from Studio but could not be opened.")}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.28 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.29 Cloud Sync';
 })();
 </script>
 
