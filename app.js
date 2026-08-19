@@ -234,7 +234,9 @@ function createPartAt(x,y){
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
  const rememberedLength=c.lastLength!=null?c.lastLength:"";
  const rememberedWidth=c.lastWidth!=null?c.lastWidth:"";
- const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:rememberedLength,width:rememberedWidth,thickness:rememberedThickness,qty:1,material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
+ const rememberedEdgeLong=Number(c.lastEdgeLong||0);
+ const rememberedEdgeShort=Number(c.lastEdgeShort||0);
+ const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:rememberedLength,width:rememberedWidth,thickness:rememberedThickness,qty:1,material:inheritedMaterial,edgeLong:rememberedEdgeLong,edgeShort:rememberedEdgeShort,notes:"",status:"ready",x,y,copies:[]};
  c.parts.push(p);state.currentPart=p.id;save();renderAll();$("#fLength").focus();$("#fLength").select()
 }
 function renderHeader(){
@@ -1449,14 +1451,15 @@ function updateEdgePreview(){
  if(lw) lw.className="measure-wrap "+(Number(p?.edgeLong||0)===1?"edge-one":Number(p?.edgeLong||0)===2?"edge-two":"");
  if(ww) ww.className="measure-wrap "+(Number(p?.edgeShort||0)===1?"edge-one":Number(p?.edgeShort||0)===2?"edge-two":"");
 }
-$("#lengthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeLong=(Number(p.edgeLong||0)+1)%3;save();updateEdgePreview();renderCutting()};
-$("#widthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeShort=(Number(p.edgeShort||0)+1)%3;save();updateEdgePreview();renderCutting()};
+$("#lengthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeLong=(Number(p.edgeLong||0)+1)%3;const c=cabinet();if(c)c.lastEdgeLong=p.edgeLong;save();updateEdgePreview();renderCutting()};
+$("#widthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeShort=(Number(p.edgeShort||0)+1)%3;const c=cabinet();if(c)c.lastEdgeShort=p.edgeShort;save();updateEdgePreview();renderCutting()};
 ["fLength","fWidth","fThickness"].forEach(id=>$("#"+id).addEventListener("input",updateEdgePreview));
 function cycleMeasurementEdge(kind,e){
  if(e){e.preventDefault();e.stopPropagation()}
  const p=part();if(!p)return alert(st('msg.markOrSelectPanelFirst'));
  const key=kind==="length"?"edgeLong":"edgeShort";
  p[key]=(Number(p[key]||0)+1)%3;
+ const c=cabinet();if(c)c[kind==="length"?"lastEdgeLong":"lastEdgeShort"]=p[key];
  save();updateEdgePreview();renderCutting();
 }
 [["fLength","lengthMeasureWrap","length"],["fWidth","widthMeasureWrap","width"]].forEach(([inputId,wrapId,kind])=>{
