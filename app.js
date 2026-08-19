@@ -3029,8 +3029,8 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     requestAnimationFrame(function(){
       const t=field('fThickness'),l=field('fLength'),w=field('fWidth'),q=field('fQty');
       if(t)t.value=String(Number(thickness)||(typeof getDefaultThicknessMM==='function'?getDefaultThicknessMM():19));
-      if(l){l.value=c&&c.lastLength!=null?String(c.lastLength):'';l.placeholder='';}
-      if(w){w.value=c&&c.lastWidth!=null?String(c.lastWidth):'';w.placeholder='';}
+      if(l){l.value='';l.placeholder='';}
+      if(w){w.value='';w.placeholder='';}
       if(q){q.value='';q.placeholder='';}
       if(typeof updateEdgePreview==='function')updateEdgePreview();
       if(l){l.focus();try{l.select()}catch(_){} }
