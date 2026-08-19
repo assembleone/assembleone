@@ -760,7 +760,7 @@ function renderUnitLabels(){const u=unitLabel(currentMeasureUnit());["thicknessU
 const THICKNESS_DEFAULT_KEY="assembleone_default_thickness_mm";
 function getDefaultThicknessMM(){const v=Number(localStorage.getItem(THICKNESS_DEFAULT_KEY));return v>0?v:19}
 function setDefaultThicknessMM(mm){mm=Number(mm);if(mm>0)try{localStorage.setItem(THICKNESS_DEFAULT_KEY,String(mm))}catch(e){}}
-function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;let val=["length","width","thickness","qty"].includes(key)?($("#"+id).value===""?"":+$("#"+id).value):$("#"+id).value;if(MEASURE_KEYS.includes(key)&&val!=="")val=unitToMM(val,currentMeasureUnit());p[key]=val;if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key];setDefaultThicknessMM(p[key])}save();renderPartList();renderCutting();renderPhone()}}
+function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;let val=["length","width","thickness","qty"].includes(key)?($("#"+id).value===""?"":+$("#"+id).value):$("#"+id).value;if(MEASURE_KEYS.includes(key)&&val!=="")val=unitToMM(val,currentMeasureUnit());p[key]=val;if(val!==""&&(key==="thickness"||key==="length"||key==="width")){const c=cabinet();if(c){if(key==="thickness"){c.lastThickness=val;setDefaultThicknessMM(val)}else if(key==="length"){c.lastLength=val}else if(key==="width"){c.lastWidth=val}}}save();renderPartList();renderCutting();renderPhone()}}
 ["fLength","fWidth","fQty"].forEach(id=>{const el=$("#"+id);if(el)el.placeholder=""});
 ["fLength:length","fWidth:width","fThickness:thickness","fQty:qty","fNotes:notes"].forEach(x=>{const[a,b]=x.split(":");bindField(a,b)});
 function setPartName(name){state.lastChosenPartName=name;const p=part();if(p)p.name=name;save();renderAll()}
