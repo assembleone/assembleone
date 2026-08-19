@@ -3915,6 +3915,15 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
       name=(prompt(st('drawing.enterCustomerNamePrompt'))||'').trim();
       if(!name)return;
       p.customer=name;
+      // A phone site visit can split into several room projects (see
+      // mergeMobileSiteJob) -- typing the name here should stick for all of
+      // them, not just this one, so the next room from the same visit never
+      // asks again.
+      if(p.siteMobileJobId){
+        (state.projects||[]).forEach(sib=>{
+          if(sib.siteMobileJobId===p.siteMobileJobId&&!String(sib.customer||'').trim())sib.customer=name;
+        });
+      }
     }
     if(typeof save==='function')save();
     showSavedToCustomerToast(name);
