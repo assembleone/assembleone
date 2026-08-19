@@ -233,7 +233,7 @@ function createPartAt(x,y){
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
  const rememberedLength=c.lastLength!=null?c.lastLength:"";
  const rememberedWidth=c.lastWidth!=null?c.lastWidth:"";
- const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:rememberedLength,width:rememberedWidth,thickness:rememberedThickness,qty:"",material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
+ const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:rememberedLength,width:rememberedWidth,thickness:rememberedThickness,qty:1,material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
  c.parts.push(p);state.currentPart=p.id;save();renderAll();$("#fLength").focus();$("#fLength").select()
 }
 function renderHeader(){
