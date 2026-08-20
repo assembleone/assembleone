@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AssembleOne">
-<title>AssembleOne Mobile 11.0.46 Cloud Sync</title>
+<title>AssembleOne Mobile 11.0.47 Cloud Sync</title>
 <style>
 :root{--ink:#28231e;--muted:#746b61;--paper:#fffdfa;--cream:#f4ede4;--line:#d9c7b4;--bronze:#b7793c;--dark:#1d1a17;--green:#5d874d;--red:#ac5146;--orange:#bd7c35}
 *{box-sizing:border-box}.js-file-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--cream);color:var(--ink)}
@@ -211,7 +211,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 
 <style id="a151-mobile-flow">
 .job-room-name{font-weight:900;color:#174E98;margin:2px 0 4px;font-size:16px}.job-note{margin-top:8px;padding:8px 10px;background:#fff8e1;border:2px solid #ffc600;border-radius:10px;font-weight:800;color:#5a4a00;font-size:13px}.room-measure-next{border:3px solid #2f80d4!important;background:#eef6ff!important}.room-measure-next .btn{width:100%;font-size:18px;min-height:52px}
-.job-status-badge{display:inline-block;margin-top:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800}.job-status-badge.ready{background:#e7f6ec;color:#1c7a3c;border:1px solid #b9e6c6}.job-status-badge.drawing{background:#fff3d6;color:#8a6300;border:1px solid #f0d896}.job-location{margin-top:5px;font-size:13px;color:var(--muted);font-weight:700}
+.job-status-badge{display:inline-block;margin-top:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800}.job-status-badge.ready{background:#e7f6ec;color:#1c7a3c;border:1px solid #b9e6c6}.job-status-badge.pending{background:#fff3d6;color:#8a6300;border:1px solid #f0d896}.job-location{margin-top:5px;font-size:13px;color:var(--muted);font-weight:700}
 </style>
 
 <style id="a156-modern-bottom-navigation">
@@ -362,7 +362,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <meta http-equiv="Expires" content="0">
 </head>
 <body>
-<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.46 · Cloud Sync</div></header>
+<header class="slim-header"><div class="brand brand-lockup"><span class="a-mark" aria-label="AssembleOne"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path class="a-white" d="M23 78 43 22h15l20 56H63l-4-13H41l-4 13zm22-25h10l-5-17z"/><path class="a-gold" d="m59 78 10-24 12 24z"/></svg></span><span>AssembleOne</span></div><div id="context" class="context">Phone v11.0.47 · Cloud Sync</div></header>
 <main>
 <section id="projects" class="screen active">
  <div class="lang-switch">
@@ -991,7 +991,7 @@ function renderProjects(){
  // the master copy and this only reorders the display, so any job (started
  // or not) is always one tap away via Studio Jobs in the bottom nav.
  const sorted=[...state.projects].sort((a,b)=>(hasCuttingList(a)?0:1)-(hasCuttingList(b)?0:1));
- box.innerHTML=sorted.length?sorted.map(p=>{const display=projectRoomDisplay(p);const rooms=(p.rooms||[]).length;const units=(p.cabinets||[]).length;const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);const ready=hasCuttingList(p);const badge=ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge drawing">✎ ${t('proj.stillDrawing')}</span>`;const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';return `<div class="job"><div class="mobile-job-icon">${display.icon}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${badge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-id="${p.id}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`}).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
+ box.innerHTML=sorted.length?sorted.map(p=>{const display=projectRoomDisplay(p);const rooms=(p.rooms||[]).length;const units=(p.cabinets||[]).length;const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);const ready=hasCuttingList(p);const badge=ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`;const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';return `<div class="job"><div class="mobile-job-icon">${display.icon}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${badge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-id="${p.id}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`}).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
  $$(".open-job").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.id;const p=project();state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;jobConfirmedThisSession=true;save();const hasCuttingList=(p.cabinets||[]).some(c=>(c.parts||[]).length>0);show(hasCuttingList?"install":"drawings")});
  $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
 }
@@ -2093,7 +2093,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       }
     }catch(e){console.error(e);alert(t('msg.projectArrivedCouldNotOpen'))}finally{receivingStudioPack=false}
   };
-  document.title='AssembleOne Mobile 11.0.46 Cloud Sync';
+  document.title='AssembleOne Mobile 11.0.47 Cloud Sync';
 })();
 </script>
 
