@@ -955,7 +955,8 @@ function customerRoomCounts(p){
  const r=(p.rooms||[])[0]||{};
  const photos=(r.measureCaptures?.length||0)+(r.beforePhotos?.length||0)+(r.designImages?.length||0)+(r.sitePhotos?.length||0)+(r.notePhotos?.length||0);
  const measures=(r.siteMarkup?.marks?.filter(x=>x.type==="measure").length||0)+(r.measureCaptures||[]).reduce((n,c)=>n+(c.marks||[]).filter(x=>x.type==="measure").length,0);
- return {photos,measures};
+ const panels=(p.cabinets||[]).reduce((n,c)=>n+(c.parts||[]).length,0);
+ return {photos,measures,panels};
 }
 // A Site Job sent from the phone gets split into one Studio project per room
 // (see mergeMobileSiteJob), so two rooms of the exact same phone job show up
@@ -1023,10 +1024,10 @@ function renderCustomerDetail(name,entry){
  if(jobList)jobList.innerHTML=projects.length?projects.map(p=>{
   const r=(p.rooms||[])[0]||{};
   const photo=customerRoomPhoto(p);
-  const {photos,measures}=customerRoomCounts(p);
+  const {photos,measures,panels}=customerRoomCounts(p);
   const sib=siblingRoomInfo(p);
   const sibTag=sib?`<div class="sibling-room-tag" title="${safe(sib.names.join(', '))}">${st('common.siblingRoomTag',[sib.index,sib.total])}</div>`:'';
-  return `<div class="customer-job-card" draggable="true" data-drag-job="${safe(p.id)}" title="${st('common.dragToTradeDbTitle')}">${photo?`<img class="customer-job-photo" src="${photo}">`:`<div class="customer-job-photo customer-job-photo-empty">${safe(r.icon||"🏠")}</div>`}<div class="customer-job-info"><strong>${safe(r.icon||"🏠")} ${safe(p.name||r.name||st('common.roomFallback'))}</strong><span class="customer-job-meta"><span>📷 ${photos}</span><span>📏 ${measures}</span></span>${sibTag}</div><div class="customer-job-actions"><button class="btn primary" type="button" data-open-customer-project="${safe(p.id)}">${st('common.openArrowBtn')}</button><button class="btn danger" type="button" data-delete-customer-project="${safe(p.id)}">${st('common.delete')}</button></div></div>`;
+  return `<div class="customer-job-card" draggable="true" data-drag-job="${safe(p.id)}" title="${st('common.dragToTradeDbTitle')}">${photo?`<img class="customer-job-photo" src="${photo}">`:`<div class="customer-job-photo customer-job-photo-empty">${safe(r.icon||"🏠")}</div>`}<div class="customer-job-info"><strong>${safe(r.icon||"🏠")} ${safe(p.name||r.name||st('common.roomFallback'))}</strong><span class="customer-job-meta"><span>📷 ${photos}</span><span>📏 ${measures}</span>${panels?`<span>🧩 ${panels}</span>`:''}</span>${sibTag}</div><div class="customer-job-actions"><button class="btn primary" type="button" data-open-customer-project="${safe(p.id)}">${st('common.openArrowBtn')}</button><button class="btn danger" type="button" data-delete-customer-project="${safe(p.id)}">${st('common.delete')}</button></div></div>`;
  }).join(""):`<div class="empty">${st('common.noJobsYetCustomer')}</div>`;
  if(jobList)wireJobDragOut(jobList);
  if(jobList)jobList.querySelectorAll("[data-open-customer-project]").forEach(b=>b.onclick=()=>{
@@ -3911,11 +3912,15 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
   };
   // A job that's already open (you got here by opening its card) already has
   // an unambiguous identity -- it doesn't need a customer name on file before
-  // it can be saved. Never block or prompt here; just save and go back to
-  // the job list, the same place the card you opened it from lives. If a
-  // customer name IS already on file, carry it to sibling rooms from the
-  // same phone site visit (see mergeMobileSiteJob) so it's not asked for
-  // room by room -- but a missing name is never a reason to stop and ask.
+  // it can be saved. Never block or prompt here; just save, and take the
+  // drawing (photo + panels, already part of this project's data) back to
+  // that customer's own card -- not just the generic job list -- so it's
+  // obvious it landed under the right customer, ready to start the next
+  // room or job from there. If a customer name IS already on file, carry it
+  // to sibling rooms from the same phone site visit (see mergeMobileSiteJob)
+  // so it's not asked for room by room -- but a missing name is never a
+  // reason to stop and ask; without one there's no specific card to land on,
+  // so it falls back to the job list.
   function finalizeSaveToCustomer(p,name){
     if(name&&p.siteMobileJobId){
       (state.projects||[]).forEach(sib=>{
@@ -3924,8 +3929,11 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     }
     if(typeof save==='function')save();
     showSavedToCustomerToast(name||p.name||'');
-    if(name){currentCustomerName=name;if(typeof renderCustomers==='function')renderCustomers()}
-    if(typeof show==='function')show('jobs');
+    if(name){
+      currentCustomerName=name;
+      if(typeof renderCustomers==='function')renderCustomers();
+      if(typeof show==='function')show('customers');
+    }else if(typeof show==='function')show('jobs');
   }
   document.addEventListener('click',function(e){
     const btn=e.target.closest('#saveToCustomerBtn');
