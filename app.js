@@ -3936,7 +3936,13 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
         if(sib.siteMobileJobId===p.siteMobileJobId&&!String(sib.customer||'').trim())sib.customer=name;
       });
     }
+    // Saving means you're done with this one -- clear the current selection
+    // so Drawing (and every other screen) comes up empty and ready for the
+    // next job, instead of continuing to show the job you just finished
+    // until something else happens to change it.
+    state.currentProject=null;state.currentCabinet=null;state.currentPart=null;
     if(typeof save==='function')save();
+    if(typeof renderAll==='function')renderAll();
     showSavedToCustomerToast(name||p.name||'');
     if(name){
       currentCustomerName=name;
