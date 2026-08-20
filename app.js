@@ -767,7 +767,16 @@ function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;le
 ["fLength","fWidth","fQty"].forEach(id=>{const el=$("#"+id);if(el)el.placeholder=""});
 ["fLength:length","fWidth:width","fThickness:thickness","fQty:qty","fNotes:notes"].forEach(x=>{const[a,b]=x.split(":");bindField(a,b)});
 function setPartName(name){state.lastChosenPartName=name;const p=part();if(p)p.name=name;save();renderAll()}
-$$(".nav-btn").forEach(b=>b.onclick=()=>show(b.dataset.screen));
+$$(".nav-btn").forEach(b=>b.onclick=()=>{
+  // show() only toggles which screen is visible -- it never re-renders
+  // content, so whatever was last drawn (a previous job's photo and
+  // panels, say) stays sitting in the DOM until something else happens
+  // to call renderAll(). Force a full refresh before switching screens
+  // so the destination always reflects the current project/cabinet,
+  // regardless of what sequence of actions got you here.
+  if(typeof renderAll==='function')renderAll();
+  show(b.dataset.screen);
+});
 const toolsToggle=document.getElementById('toolsToggleBtn');const toolsMenu=document.getElementById('toolsMenu');if(toolsToggle&&toolsMenu){toolsToggle.onclick=(e)=>{e.stopPropagation();toolsMenu.classList.toggle('open')};document.addEventListener('click',(e)=>{if(!e.target.closest('.studio-tools'))toolsMenu.classList.remove('open')});}
 $("#newJobBtn").onclick=newJob;$("#newCabinetBtn").onclick=addCabinet;$("#studioAddRoomBtn").onclick=addStudioRoom;$("#studioRoomBackBtn").onclick=()=>show("jobs");
 $("#saveProjectBtn").onclick=()=>{const p=project();if(!p)return;p.name=$("#projectName").value;p.customer=$("#customerName").value;save();renderAll();alert(st('msg.jobSaved'))};
