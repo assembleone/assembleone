@@ -1,0 +1,8 @@
+{
+  "name": "fittersiq-admin-scripts",
+  "private": true,
+  "description": "Local-only scripts that need a Firebase service account key. Never deploy this folder.",
+  "dependencies": {
+    "firebase-admin": "^12.6.0"
+  }
+}

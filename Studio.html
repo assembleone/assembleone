@@ -1110,6 +1110,12 @@ document.addEventListener('DOMContentLoaded', function(){
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  sendEmailVerification, sendPasswordResetEmail, reload
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -1123,8 +1129,55 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 window.db = getDatabase(app);
+window.fiqAuth = getAuth(app);
+window.fiqFunctions = getFunctions(app);
+window.fiqFirestore = getFirestore(app);
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc };
+window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
-<body>
+<body class="fiq-locked">
+<div id="fiqAuthGate" class="fiq-auth-gate">
+  <div class="fiq-auth-card">
+    <div class="fiq-auth-logo"><img alt="FittersIQ" src="" id="fiqGateLogo" style="width:100%;height:100%;display:block;object-fit:contain"/></div>
+
+    <div class="fiq-auth-state" id="fiqStateChecking">
+      <p class="fiq-auth-lead">Checking your account&hellip;</p>
+    </div>
+
+    <div class="fiq-auth-state" id="fiqStateSignIn" hidden>
+      <h1>Sign in to FittersIQ Studio</h1>
+      <p class="fiq-auth-lead">Use your FittersIQ email and password.</p>
+      <div class="fiq-auth-msg" id="fiqSignInMsg"></div>
+      <form id="fiqSignInForm">
+        <label class="fiq-auth-field">Email<input id="fiqEmail" type="email" required autocomplete="email"></label>
+        <label class="fiq-auth-field">Password<input id="fiqPassword" type="password" required autocomplete="current-password"></label>
+        <button class="btn primary fiq-auth-submit" id="fiqSignInBtn" type="submit">Sign In</button>
+      </form>
+      <button class="fiq-auth-link" id="fiqForgotBtn" type="button">Forgot password?</button>
+    </div>
+
+    <div class="fiq-auth-state" id="fiqStateVerify" hidden>
+      <h1>Verify your email</h1>
+      <p class="fiq-auth-lead" id="fiqVerifyLead">We've sent a verification link to your email.</p>
+      <div class="fiq-auth-msg" id="fiqVerifyMsg"></div>
+      <button class="btn primary fiq-auth-submit" id="fiqVerifyContinueBtn" type="button">I've verified — Continue</button>
+      <button class="fiq-auth-link" id="fiqResendBtn" type="button">Resend verification email</button>
+      <button class="fiq-auth-link" id="fiqVerifySignOutBtn" type="button">Sign out</button>
+    </div>
+
+    <div class="fiq-auth-state" id="fiqStateNoCompany" hidden>
+      <h1>Almost there</h1>
+      <p class="fiq-auth-lead">This sign in isn't linked to a FittersIQ company yet. Finish creating your account on the FittersIQ website, or ask your company owner for an invitation.</p>
+      <button class="fiq-auth-link" id="fiqNoCompanySignOutBtn" type="button">Sign out</button>
+    </div>
+
+    <div class="fiq-auth-state" id="fiqStateSuspended" hidden>
+      <h1>Account suspended</h1>
+      <p class="fiq-auth-lead">This account no longer has access. Contact your company owner or FittersIQ support.</p>
+      <button class="fiq-auth-link" id="fiqSuspendedSignOutBtn" type="button">Sign out</button>
+    </div>
+  </div>
+</div>
 <div class="app">
 <aside class="sidebar">
 
@@ -1139,7 +1192,7 @@ window.db = getDatabase(app);
 <main class="main">
 <header class="header">
 <div class="header-brand"><span class="header-logo"><div class="brand"><img src="data:image/jpeg;base64,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" alt="FittersIQ" style="width:100%;height:100%;display:block;object-fit:contain"/></div></span><div class="header-text"><h1>Fitters<span style="color:#6BBF3A">IQ</span> Studio</h1><div class="tag">Plan it · <span style="color:#6BBF3A">Scan it</span> · <span style="color:#2563EB">Fit it</span></div></div></div>
-<div class="header-right"><div class="studio-tools" style="display:none"><button class="btn tools-toggle" id="toolsToggleBtn" type="button" title="Tools">⚙</button><div class="tools-menu" id="toolsMenu"><button class="btn" id="refreshBomBtn" type="button">↻ Refresh project</button></div></div><div class="header-right-stack"><div class="flag-language-label"><span>Language</span><div class="flag-language-buttons" id="flagLanguageButtons" aria-label="Choose language"><button type="button" data-lang="en" title="English" aria-label="English"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#21468B"/><path d="M0 0L60 36M60 0L0 36" stroke="#fff" stroke-width="8"/><path d="M0 0L60 36M60 0L0 36" stroke="#C8102E" stroke-width="4"/><path d="M30 0v36M0 18h60" stroke="#fff" stroke-width="12"/><path d="M30 0v36M0 18h60" stroke="#C8102E" stroke-width="7"/></svg></span></button><button type="button" data-lang="es" title="Español" aria-label="Español"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#AA151B"/><rect y="9" width="60" height="18" fill="#F1BF00"/></svg></span></button><button type="button" data-lang="da" title="Dansk" aria-label="Dansk"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#C60C30"/><rect x="18" width="5" height="36" fill="#fff"/><rect y="15" width="60" height="5" fill="#fff"/></svg></span></button><button type="button" data-lang="de" title="Deutsch" aria-label="Deutsch"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="12" fill="#000"/><rect y="12" width="60" height="12" fill="#DD0000"/><rect y="24" width="60" height="12" fill="#FFCE00"/></svg></span></button><button type="button" data-lang="fr" title="Français" aria-label="Français"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#0055A4"/><rect x="20" width="20" height="36" fill="#fff"/><rect x="40" width="20" height="36" fill="#EF4135"/></svg></span></button><button type="button" data-lang="ro" title="Română" aria-label="Română"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#002B7F"/><rect x="20" width="20" height="36" fill="#FCD116"/><rect x="40" width="20" height="36" fill="#CE1126"/></svg></span></button><button type="button" data-lang="it" title="Italiano" aria-label="Italiano"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#009246"/><rect x="20" width="20" height="36" fill="#fff"/><rect x="40" width="20" height="36" fill="#CE2B37"/></svg></span></button><button type="button" data-lang="pt" title="Português" aria-label="Português"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="24" height="36" fill="#046A38"/><rect x="24" width="36" height="36" fill="#DA291C"/><circle cx="24" cy="18" r="6" fill="#FFCD00"/></svg></span></button><button type="button" data-lang="nl" title="Nederlands" aria-label="Nederlands"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="12" fill="#AE1C28"/><rect y="12" width="60" height="12" fill="#fff"/><rect y="24" width="60" height="12" fill="#21468B"/></svg></span></button><button type="button" data-lang="pl" title="Polski" aria-label="Polski"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="18" fill="#fff"/><rect y="18" width="60" height="18" fill="#DC143C"/></svg></span></button></div><select id="appLanguage" class="flag-language-select flag-language-native" aria-label="Choose language"><option value="en">English</option><option value="es">Español</option><option value="da">Dansk</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="ro">Română</option><option value="it">Italiano</option><option value="pt">Português</option><option value="nl">Nederlands</option><option value="pl">Polski</option></select></div><span class="header-version">v10.86</span></div></div><div class="context" id="headerContext"></div><span class="version">Version 10.87</span>
+<div class="header-right"><div class="fiq-account-badge" id="fiqAccountBadge" style="display:none"><span id="fiqAccountEmail"></span><button id="fiqSignOutBtn" type="button">Sign out</button></div><div class="studio-tools" style="display:none"><button class="btn tools-toggle" id="toolsToggleBtn" type="button" title="Tools">⚙</button><div class="tools-menu" id="toolsMenu"><button class="btn" id="refreshBomBtn" type="button">↻ Refresh project</button></div></div><div class="header-right-stack"><div class="flag-language-label"><span>Language</span><div class="flag-language-buttons" id="flagLanguageButtons" aria-label="Choose language"><button type="button" data-lang="en" title="English" aria-label="English"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#21468B"/><path d="M0 0L60 36M60 0L0 36" stroke="#fff" stroke-width="8"/><path d="M0 0L60 36M60 0L0 36" stroke="#C8102E" stroke-width="4"/><path d="M30 0v36M0 18h60" stroke="#fff" stroke-width="12"/><path d="M30 0v36M0 18h60" stroke="#C8102E" stroke-width="7"/></svg></span></button><button type="button" data-lang="es" title="Español" aria-label="Español"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#AA151B"/><rect y="9" width="60" height="18" fill="#F1BF00"/></svg></span></button><button type="button" data-lang="da" title="Dansk" aria-label="Dansk"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#C60C30"/><rect x="18" width="5" height="36" fill="#fff"/><rect y="15" width="60" height="5" fill="#fff"/></svg></span></button><button type="button" data-lang="de" title="Deutsch" aria-label="Deutsch"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="12" fill="#000"/><rect y="12" width="60" height="12" fill="#DD0000"/><rect y="24" width="60" height="12" fill="#FFCE00"/></svg></span></button><button type="button" data-lang="fr" title="Français" aria-label="Français"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#0055A4"/><rect x="20" width="20" height="36" fill="#fff"/><rect x="40" width="20" height="36" fill="#EF4135"/></svg></span></button><button type="button" data-lang="ro" title="Română" aria-label="Română"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#002B7F"/><rect x="20" width="20" height="36" fill="#FCD116"/><rect x="40" width="20" height="36" fill="#CE1126"/></svg></span></button><button type="button" data-lang="it" title="Italiano" aria-label="Italiano"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#009246"/><rect x="20" width="20" height="36" fill="#fff"/><rect x="40" width="20" height="36" fill="#CE2B37"/></svg></span></button><button type="button" data-lang="pt" title="Português" aria-label="Português"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="24" height="36" fill="#046A38"/><rect x="24" width="36" height="36" fill="#DA291C"/><circle cx="24" cy="18" r="6" fill="#FFCD00"/></svg></span></button><button type="button" data-lang="nl" title="Nederlands" aria-label="Nederlands"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="12" fill="#AE1C28"/><rect y="12" width="60" height="12" fill="#fff"/><rect y="24" width="60" height="12" fill="#21468B"/></svg></span></button><button type="button" data-lang="pl" title="Polski" aria-label="Polski"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="18" fill="#fff"/><rect y="18" width="60" height="18" fill="#DC143C"/></svg></span></button></div><select id="appLanguage" class="flag-language-select flag-language-native" aria-label="Choose language"><option value="en">English</option><option value="es">Español</option><option value="da">Dansk</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="ro">Română</option><option value="it">Italiano</option><option value="pt">Português</option><option value="nl">Nederlands</option><option value="pl">Polski</option></select></div><span class="header-version">v10.86</span></div></div><div class="context" id="headerContext"></div><span class="version">Version 10.87</span>
 </header>
 <section class="screen active" id="screen-jobs">
 <div class="title-row"><div><h2 id="startTitle">Start Project</h2><div class="muted" id="startHelp">Type in the job and choose what you are building. Rooms stay inside the project and are sent to the phone automatically.</div></div></div>
@@ -4710,5 +4763,150 @@ body.guide-only .a131-back-studio{display:block}
     if(typeof save==='function')save();
   });
   aoRenderUnitLabels();
+})();
+</script>
+<style id="a180-fiq-auth-gate">
+body.fiq-locked .app{display:none!important}
+.fiq-auth-gate{position:fixed;inset:0;z-index:99999;background:linear-gradient(160deg,#0b2545,#173657);display:flex;align-items:center;justify-content:center;padding:20px}
+.fiq-auth-card{width:min(420px,100%);background:#fff;border-radius:20px;padding:32px 28px;box-shadow:0 30px 70px rgba(0,0,0,.35)}
+.fiq-auth-logo{width:96px;height:96px;margin:0 auto 20px}
+.fiq-auth-state h1{font-size:22px;margin:0 0 6px;color:#0b2545;text-align:center}
+.fiq-auth-lead{color:#5B6B7C;font-size:14px;margin:0 0 18px;text-align:center}
+.fiq-auth-field{display:block;font-size:12px;font-weight:800;color:#0b2545;margin-bottom:14px}
+.fiq-auth-field input{width:100%;margin-top:5px;border:1px solid #d7dfea;border-radius:9px;padding:11px 12px;font-size:14px;font:inherit;box-sizing:border-box}
+.fiq-auth-submit{width:100%;margin-top:4px}
+.fiq-auth-link{display:block;width:100%;text-align:center;border:0;background:transparent;color:#2563EB;font-weight:800;font-size:12px;margin-top:14px;cursor:pointer;padding:4px}
+.fiq-auth-msg{border-radius:9px;padding:10px 12px;font-size:12px;font-weight:700;margin-bottom:14px;display:none}
+.fiq-auth-msg.show{display:block}
+.fiq-auth-msg.error{background:#fdeaea;color:#b3261e}
+.fiq-auth-msg.ok{background:#eef8e9;color:#347d18}
+.fiq-account-badge{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#425066;margin-right:2px}
+.fiq-account-badge button{border:1px solid #d7dfea;background:#fff;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#0b2545}
+@media(max-width:480px){.fiq-account-badge span{display:none}}
+</style>
+<script id="a180-fiq-auth-gate-script">
+(function(){
+  if(window.fiqAuthFns){ initFiqAuthGate(); } else { window.addEventListener('fiqFirebaseReady', initFiqAuthGate, {once:true}); }
+  function initFiqAuthGate(){
+  function $(id){return document.getElementById(id)}
+  function showState(id){
+    ['fiqStateChecking','fiqStateSignIn','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended'].forEach(function(s){
+      var el=$(s); if(el) el.hidden = (s!==id);
+    });
+  }
+  function showMsg(el, text, kind){ el.textContent=text; el.className='fiq-auth-msg show '+kind; }
+
+  var headerLogoImg = document.querySelector('.header-brand .header-logo img');
+  var gateLogoImg = $('fiqGateLogo');
+  if(headerLogoImg && gateLogoImg) gateLogoImg.src = headerLogoImg.src;
+
+  var authFns = window.fiqAuthFns, auth = window.fiqAuth, db = window.fiqFirestore;
+
+  function lockToSignIn(){
+    document.body.classList.add('fiq-locked');
+    $('fiqAuthGate').style.display='flex';
+    var badge=$('fiqAccountBadge'); if(badge) badge.style.display='none';
+    showState('fiqStateSignIn');
+  }
+
+  function unlockApp(user, claims){
+    window.fittersiqUser = { uid:user.uid, email:user.email, companyId:claims.companyId||null, role:claims.role||null, isAdmin: claims.fittersiq_admin===true };
+    document.body.classList.remove('fiq-locked');
+    $('fiqAuthGate').style.display='none';
+    var badge=$('fiqAccountBadge');
+    if(badge){badge.style.display='flex'; $('fiqAccountEmail').textContent=user.email;}
+  }
+
+  async function evaluate(user){
+    if(!user){ lockToSignIn(); return; }
+    if(!user.emailVerified){
+      $('fiqVerifyLead').textContent = "We've sent a verification link to " + user.email + ".";
+      showState('fiqStateVerify');
+      return;
+    }
+    var tokenResult = await user.getIdTokenResult();
+    var claims = tokenResult.claims || {};
+    if(!claims.companyId && !claims.fittersiq_admin){
+      showState('fiqStateNoCompany');
+      return;
+    }
+    if(claims.companyId){
+      try{
+        var memberSnap = await authFns.getDoc(authFns.doc(db,'companies',claims.companyId,'members',user.uid));
+        if(!memberSnap.exists() || memberSnap.data().status !== 'active'){
+          showState('fiqStateSuspended');
+          return;
+        }
+      }catch(e){
+        showState('fiqStateSuspended');
+        return;
+      }
+    }
+    unlockApp(user, claims);
+  }
+
+  authFns.onAuthStateChanged(auth, function(user){ evaluate(user).catch(function(){ lockToSignIn(); }); });
+
+  $('fiqSignInForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var email=$('fiqEmail').value.trim(), password=$('fiqPassword').value;
+    var btn=$('fiqSignInBtn'), msg=$('fiqSignInMsg');
+    btn.disabled=true; btn.textContent='Signing in…';
+    try{
+      await authFns.signInWithEmailAndPassword(auth,email,password);
+    }catch(err){
+      btn.disabled=false; btn.textContent='Sign In';
+      if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].indexOf(err.code)>=0){
+        showMsg(msg,'Email or password is incorrect.','error');
+      } else if(err.code==='auth/too-many-requests'){
+        showMsg(msg,'Too many attempts. Please wait a moment and try again.','error');
+      } else {
+        showMsg(msg,'Something went wrong signing in. Please try again.','error');
+      }
+    }
+  });
+
+  $('fiqForgotBtn').addEventListener('click', async function(){
+    var email=$('fiqEmail').value.trim();
+    var msg=$('fiqSignInMsg');
+    if(!email){ showMsg(msg,'Type your email above first, then tap Forgot password.','error'); return; }
+    try{ await authFns.sendPasswordResetEmail(auth,email); }catch(e){}
+    showMsg(msg,'If an account exists for this email, a reset message has been sent.','ok');
+  });
+
+  $('fiqVerifyContinueBtn').addEventListener('click', async function(){
+    var btn=$('fiqVerifyContinueBtn'), msg=$('fiqVerifyMsg');
+    btn.disabled=true; btn.textContent='Checking…';
+    try{
+      await authFns.reload(auth.currentUser);
+      if(!auth.currentUser.emailVerified){
+        showMsg(msg,"Not verified yet — open the link in the email we sent, then try again.",'error');
+        btn.disabled=false; btn.textContent="I've verified — Continue";
+        return;
+      }
+      await auth.currentUser.getIdToken(true);
+      await evaluate(auth.currentUser);
+      btn.disabled=false; btn.textContent="I've verified — Continue";
+    }catch(e){
+      showMsg(msg,'Something went wrong. Please try again.','error');
+      btn.disabled=false; btn.textContent="I've verified — Continue";
+    }
+  });
+
+  var resendCooling=false;
+  $('fiqResendBtn').addEventListener('click', async function(){
+    if(resendCooling || !auth.currentUser) return;
+    resendCooling=true;
+    var btn=$('fiqResendBtn');
+    btn.disabled=true;
+    try{ await authFns.sendEmailVerification(auth.currentUser); showMsg($('fiqVerifyMsg'),'Verification email sent again.','ok'); }catch(e){}
+    var s=30; btn.textContent='Resend verification email ('+s+'s)';
+    var t=setInterval(function(){ s--; if(s<=0){clearInterval(t); btn.disabled=false; btn.textContent='Resend verification email'; resendCooling=false;} else btn.textContent='Resend verification email ('+s+'s)'; },1000);
+  });
+
+  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn'].forEach(function(id){
+    var el=$(id); if(el) el.addEventListener('click', function(){ authFns.signOut(auth); });
+  });
+  } // end initFiqAuthGate
 })();
 </script>

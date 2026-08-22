@@ -1,0 +1,90 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isFittersIQAdmin() {
+      return signedIn() && request.auth.token.fittersiq_admin == true;
+    }
+
+    function memberPath(companyId) {
+      return /databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid);
+    }
+
+    function isCompanyMember(companyId) {
+      return signedIn() && exists(memberPath(companyId))
+             && get(memberPath(companyId)).data.status == 'active';
+    }
+
+    function memberRole(companyId) {
+      return get(memberPath(companyId)).data.role;
+    }
+
+    function isCompanyOwner(companyId) {
+      return isCompanyMember(companyId) && memberRole(companyId) == 'company_owner';
+    }
+
+    match /users/{uid} {
+      allow read: if isFittersIQAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    match /companies/{companyId} {
+      allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+
+      // Company creation should normally be done by trusted onboarding backend.
+      allow create: if false;
+
+      allow update: if isFittersIQAdmin() || isCompanyOwner(companyId);
+      allow delete: if false;
+
+      match /members/{uid} {
+        allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+
+        // Membership changes should go through trusted invitation/admin backend.
+        allow create, delete: if false;
+
+        // Prevent a customer client from changing membership roles itself.
+        allow update: if false;
+      }
+
+      match /jobs/{jobId} {
+        allow read, create, update: if isFittersIQAdmin() || isCompanyMember(companyId);
+        allow delete: if isFittersIQAdmin() || isCompanyOwner(companyId);
+      }
+
+      match /invitations/{inviteId} {
+        allow read: if isFittersIQAdmin() || isCompanyOwner(companyId);
+        allow write: if false;
+      }
+
+      match /licences/{licenceId} {
+        allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+        allow write: if isFittersIQAdmin();
+      }
+    }
+
+    match /supportSessions/{sessionId} {
+      allow read: if isFittersIQAdmin()
+                  || (signedIn()
+                      && resource.data.companyId is string
+                      && isCompanyOwner(resource.data.companyId));
+      allow write: if false;
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isFittersIQAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

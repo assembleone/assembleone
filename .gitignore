@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+functions/node_modules/
+scripts/node_modules/
+
+# Firebase tooling
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Never commit service account keys or other secrets
+*serviceAccount*.json
+*service-account*.json
+*.pem
+*.key
+.env
+.env.*
