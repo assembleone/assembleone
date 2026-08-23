@@ -1,7 +1,7 @@
 {
-  "name": "FittersIQ Mobile",
+  "name": "FittersIQ Dashboard",
   "short_name": "FittersIQ",
-  "start_url": "Mobile.html",
+  "start_url": "Dashboard.html",
   "display": "standalone",
   "background_color": "#0B2545",
   "theme_color": "#0B2545",
