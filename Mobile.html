@@ -707,7 +707,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <span class="fitters-wordmark"><span class="brand-title-row"><strong>Fitters</strong><strong class="iq-green">IQ</strong><small>Mobile</small></span><em class="fitters-tagline">Plan it · <b>Scan it</b> · <u>Fit it</u></em></span>
   </div>
   <div id="context" class="context">Cloud Sync</div>
-  <div class="fiq-account-badge" id="fiqAccountBadge" style="display:none"><span id="fiqAccountEmail"></span><button id="fiqSignOutBtn" type="button">Sign out</button></div>
+  <div class="fiq-account-badge" id="fiqAccountBadge" style="display:none"><span id="fiqAccountEmail"></span><button id="fiqSignOutBtn" type="button" aria-label="Sign out" title="Sign out">⏻</button></div>
 </header>
 <main>
 <section id="projects" class="screen active">
@@ -2718,9 +2718,9 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
 .fiq-auth-msg.show{display:block}
 .fiq-auth-msg.error{background:#fdeaea;color:#b3261e}
 .fiq-auth-msg.ok{background:#eef8e9;color:#347d18}
-.fiq-account-badge{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#425066}
-.fiq-account-badge button{border:1px solid #d7dfea;background:#fff;border-radius:8px;padding:5px 9px;font-size:10px;font-weight:800;cursor:pointer;color:#0b2545}
-@media(max-width:380px){.fiq-account-badge span{display:none}}
+.fiq-account-badge{display:flex;align-items:center;flex:0 0 auto}
+.fiq-account-badge span{display:none}
+.fiq-account-badge button{border:1px solid rgba(255,255,255,.35);background:transparent;border-radius:8px;width:28px;height:28px;padding:0;font-size:14px;cursor:pointer;color:inherit;line-height:1}
 </style>
 <script id="fiq-auth-gate-script">
 (function(){
