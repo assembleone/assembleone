@@ -18,7 +18,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#1d1a17,#302820);color:white;padding:14px 16px;border-bottom:1px solid #5a4430}
 .brand{font:700 27px Georgia,serif;color:#f1c698}.brand small{display:block;font:11px Segoe UI,Arial;color:#bcb1a7;letter-spacing:1.5px;margin-top:2px}
 .context{font-size:12px;color:#d3c9c0;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-main{max-width:950px;margin:auto;padding:13px 13px 100px}
+main{max-width:950px;margin:auto;padding:22px 13px 100px}
 .screen{display:none}.screen.active{display:block}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:12px;box-shadow:0 8px 24px rgba(74,47,22,.06)}
 h2{font:27px Georgia,serif;margin:0 0 10px}h3{margin:0 0 8px}.muted{font-size:12px;color:var(--muted)}
@@ -67,7 +67,7 @@ nav{position:fixed;z-index:30;left:0;right:0;bottom:0;background:#1d1a17;display
 .other-kinds-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}.other-kinds-head button{border:0;background:transparent;font-size:25px;line-height:1}
 .other-kinds-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.other-kinds-grid button{border:1px solid var(--line);border-radius:9px;background:#fff;min-height:55px;padding:7px;display:flex;align-items:center;gap:8px;text-align:left;font-weight:800}.other-kinds-grid button b{font-size:25px}.other-kinds-grid button span{font-size:12px}.other-kinds-grid .other-wide{grid-column:1/-1}
 #measure.screen{position:relative}.markup-app{height:calc(100dvh - 123px);gap:4px}.markup-topbar{padding:0;min-height:34px}.mini-btn{padding:5px 7px;font-size:11px}.markup-stage{min-height:390px}.markup-hint{height:14px;padding:0 3px}
-@media(max-width:520px){.slim-header{height:38px;padding:0 7px}.slim-header .brand{font-size:19px}.slim-header .context{font-size:9px}main{padding-top:3px}.markup-app{height:calc(100dvh - 103px);min-height:445px}.markup-topbar{gap:3px}.mini-btn{padding:5px 6px}.quick-measure-types{gap:3px}.measure-kind{height:46px;gap:3px}.measure-kind b{font-size:20px}.measure-kind span{font-size:9px;line-height:10px}.other-kinds{top:91px}.markup-stage{min-height:390px}}
+@media(max-width:520px){.slim-header{height:38px;padding:0 7px}.slim-header .brand{font-size:19px}.slim-header .context{font-size:9px}main{padding-top:16px}.markup-app{height:calc(100dvh - 103px);min-height:445px}.markup-topbar{gap:3px}.mini-btn{padding:5px 6px}.quick-measure-types{gap:3px}.measure-kind{height:46px;gap:3px}.measure-kind b{font-size:20px}.measure-kind span{font-size:9px;line-height:10px}.other-kinds{top:91px}.markup-stage{min-height:390px}}
 
 /* Version 4.5: simple, friendly floor-plan trade board */
 #site main{max-width:1100px;padding-top:6px}
@@ -2197,7 +2197,7 @@ load();
 .a174-notice-dot{position:absolute;right:12%;top:8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#18a957;color:#fff;border:3px solid #174e98;display:none;align-items:center;justify-content:center;font:900 10px Arial;line-height:1;box-shadow:0 2px 7px #0004;z-index:20}
 .a174-notice-dot.show{display:flex}
 body:has(#measure.active){overflow:hidden}
-body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;padding-top:2px;padding-bottom:78px}
+body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;padding-top:14px;padding-bottom:78px}
 #measure.active{height:100%;overflow:hidden}
 #measure.active .markup-app{height:100%!important;min-height:0!important;display:flex;overflow:hidden;gap:3px}
 #measure.active .measure-simple-topbar{flex:0 0 auto;min-height:0}
@@ -2208,7 +2208,7 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
 #measure.active .measure-sheet{max-height:calc(100dvh - 92px);overflow:auto;padding:11px 12px 12px}
 @media(max-width:620px){
  body:has(#measure.active) header{height:42px;min-height:42px}
- body:has(#measure.active) main{height:calc(100dvh - 42px);padding:2px 4px 74px}
+ body:has(#measure.active) main{height:calc(100dvh - 42px);padding:14px 4px 74px}
  #measure.active .measure-simple-topbar{grid-template-columns:1fr 1fr 1fr;gap:3px}
  #measure.active .measure-simple-topbar .mini-btn{padding:5px 4px;font-size:10px;min-height:38px}
  #measure.active .three-main-measures{gap:3px}

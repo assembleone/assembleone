@@ -902,5 +902,33 @@ document.querySelectorAll("[data-legal]").forEach(btn=>{
 });
 document.getElementById("legalClose").addEventListener("click",()=>document.getElementById("legalDialog").close());
 </script>
+<style id="preview-lock-style">
+.preview-banner{position:sticky;top:0;z-index:999;background:#0b2545;color:#fff;text-align:center;padding:10px 16px;font-size:13px;font-weight:800;letter-spacing:.02em}
+.preview-banner span{color:#8fd85f}
+.preview-lock-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);background:#0b2545;color:#fff;padding:12px 18px;border-radius:999px;font-size:13px;font-weight:800;box-shadow:0 12px 30px rgba(11,37,69,.28);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;z-index:1000}
+.preview-lock-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+a,button{cursor:not-allowed!important}
+</style>
+<div class="preview-banner">FittersIQ is launching soon <span>&mdash; preview only, nothing is clickable yet</span></div>
+<div class="preview-lock-toast" id="previewLockToast">Coming soon &mdash; not live yet</div>
+<script id="preview-lock-script">
+(function(){
+  var toast = document.getElementById('previewLockToast');
+  var hideTimer;
+  function showToast(){
+    toast.classList.add('show');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function(){ toast.classList.remove('show'); }, 1600);
+  }
+  document.addEventListener('click', function(e){
+    var el = e.target.closest('a,button,[data-legal]');
+    if(!el) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    showToast();
+  }, true);
+  document.addEventListener('submit', function(e){ e.preventDefault(); showToast(); }, true);
+})();
+</script>
 </body>
 </html>
