@@ -566,6 +566,7 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 /* Version 3.16 — compact single-box measurements */
 .measure-box{display:grid;grid-template-columns:.8fr 1.25fr 1.25fr .52fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;margin-top:2px}
 .measure-field{padding:7px 9px 8px;min-width:0;border-right:1px solid var(--line)}
+.with-grain-tag{display:inline-block;margin-left:5px;padding:2px 6px;border-radius:999px;background:#e9f8ec;color:#307508;font-style:normal;font-weight:900;font-size:9px;letter-spacing:.02em;vertical-align:middle}
 .measure-field:last-child{border-right:0}
 .measure-field>span{display:block;font-size:11px;font-weight:800;color:var(--muted);margin-bottom:2px}
 .measure-box .measure-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;position:relative}
@@ -1284,7 +1285,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="measure-entry-row">
 <div class="measure-box">
 <label class="measure-field"><span>Thickness</span><div class="measure-wrap unit-mm"><input id="fThickness" step="0.1" type="number" value="19"/><span id="thicknessUnitLabel">mm</span></div></label>
-<label class="measure-field"><span>Length</span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" title="Double-click to add edge banding" type="number"/><span id="lengthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
+<label class="measure-field"><span>Length <em class="with-grain-tag" title="The first measurement always follows the grain direction">With Grain</em></span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" title="Double-click to add edge banding" type="number"/><span id="lengthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
 <label class="measure-field"><span>Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" title="Double-click to add edge banding" type="number"/><span id="widthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
 </div>
 <div class="quantity-card">
@@ -2063,7 +2064,7 @@ function renderJobBom(){
 function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();renderCustomers();updateUnitAddWording();show(state.screen||"jobs")}
 
 function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;const raw=$("#"+id).value;const isMeasure=["length","width","thickness"].includes(key);p[key]=isMeasure?(raw===""?"":(typeof aoUnitToMm==='function'?aoUnitToMm(+raw):+raw)):(key==="qty"?(raw===""?"":+raw):raw);if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key]}save();renderPartList();renderCutting();renderPhone()}}
-["fLength","fWidth","fQty"].forEach(id=>{const el=$("#"+id);if(el)el.placeholder="Type number"});
+Object.entries({fThickness:"Insert thickness",fLength:"Insert length",fWidth:"Insert width",fQty:"Insert quantity"}).forEach(([id,ph])=>{const el=$("#"+id);if(el)el.placeholder=ph});
 ["fLength:length","fWidth:width","fThickness:thickness","fQty:qty","fNotes:notes"].forEach(x=>{const[a,b]=x.split(":");bindField(a,b)});
 function setPartName(name){state.lastChosenPartName=name;const p=part();if(p)p.name=name;save();renderAll()}
 $$(".nav-btn").forEach(b=>b.onclick=()=>show(b.dataset.screen));
@@ -2240,6 +2241,8 @@ async function importRoomsFile(file){
    c.drawing=data;
    c.drawingType=isPdf?"pdf":"image";
    c.drawingName=file.name||"Photo or screenshot";
+   c.viewState=c.viewState||{};c.viewState.zoom=1;c.viewState.scrollLeft=0;c.viewState.scrollTop=0;
+   state.drawingZoom=1;
    stage.classList.remove("importing");
    state.screen="mark";
    renderAll();
@@ -4151,7 +4154,7 @@ body.guide-only .a131-back-studio{display:block}
 
 <style id="a104-panel-check-zoom">
 /* Version 10.4: natural drawing zoom and clear Panel Check handoff */
-#screen-mark .drawing-stage{overflow:auto!important;place-items:start center!important}
+#screen-mark .drawing-stage{overflow:auto!important;place-items:center!important}
 #screen-mark .drawing-canvas{max-width:none!important;max-height:none!important;overflow:visible!important;flex:0 0 auto!important}
 #screen-mark #drawingImage{position:static!important;inset:auto!important;max-width:none!important;max-height:none!important;object-fit:contain!important}
 .drawing-next-action{display:flex;justify-content:flex-end;padding:12px 0 4px}
@@ -4486,6 +4489,28 @@ body.guide-only .a131-back-studio{display:block}
     }));
   };
   try{renderParts=window.renderParts}catch(e){}
+  if(!window.__fiqReviewDblclickBound){
+    window.__fiqReviewDblclickBound=true;
+    document.addEventListener('dblclick',function(e){
+      const el=e.target.closest('[data-review-panel]');
+      if(!el)return;
+      const c=typeof cabinet==='function'?cabinet():null;
+      const p=(c&&c.parts||[]).find(x=>String(x.id)===String(el.dataset.reviewPanel));
+      if(!p)return;
+      const miss=typeof baseMissing==='function'?baseMissing(p):[];
+      if(miss.length){
+        state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=true;
+        save();renderAll();show('mark');
+        setTimeout(()=>alert('Please add: '+miss.join(', ')),50);
+        return;
+      }
+      if(typeof sig==='function')p.reviewSignature=sig(p);
+      save();
+      if(typeof window.renderParts==='function')window.renderParts();
+      if(typeof renderCutting==='function')renderCutting();
+      if(typeof updateWorkflowProgress==='function')updateWorkflowProgress();
+    });
+  }
 
   // Any edit invalidates the old check automatically because the signature changes.
   document.addEventListener('input',function(e){
