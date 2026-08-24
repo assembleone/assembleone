@@ -1315,7 +1315,7 @@ function show(name){
 $$(".nav").forEach(b=>b.onclick=()=>show(b.dataset.screen));
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
-function newJob(){const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("measure")}
+function newJob(){if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('site_job_created');const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("measure")}
 if($("#newJob"))$("#newJob").onclick=newJob;
 $('#langCurrentBtn').onclick=openLangPicker;
 function renderHeader(){
@@ -1822,7 +1822,7 @@ function parseOldQr(text){
 function openScannedText(text){
  let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
  if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
- if(q&&openPanelRoute(q)){markCurrentPanelScanned();stopCamera();show("install");return true}
+ if(q&&openPanelRoute(q)){markCurrentPanelScanned();if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');stopCamera();show("install");return true}
  const old=parseOldQr(text);
  if(old){const p=state.projects.find(x=>x.name.trim().toLowerCase()===old.job.trim().toLowerCase());const c=p?.cabinets.find(x=>x.name.trim().toLowerCase()===old.wardrobe.trim().toLowerCase());const pt=c?.parts.find(x=>x.code.trim().toLowerCase()===old.part.trim().toLowerCase());if(p&&c&&pt){state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;markCurrentPanelScanned();save();stopCamera();show("install");return true}}
  $("#scanResult").textContent=t('msg.qrReadJobNotOnDevice');return false;

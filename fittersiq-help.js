@@ -317,6 +317,26 @@
     window.fiqHelpReportBug = function(description){
       submitSupport(description||"Bug reported from "+currentContext().label, [], "bug");
     };
+
+    // Lightweight usage tracking for the FittersIQ admin (Monthly Active Companies/Users,
+    // new customers, six month trend). Fire-and-forget: never blocks or breaks the app
+    // if it's not signed in yet, offline, or the write fails for any reason.
+    window.fiqLogActivity = function(type){
+      try{
+        const fns = window.fiqAuthFns;
+        if(!window.fiqFirestore || !fns || !fns.addDoc || !fns.collection) return;
+        if(!window.fiqAuth || !window.fiqAuth.currentUser) return;
+        const companyId = window.fittersiqUser && window.fittersiqUser.companyId;
+        if(!companyId) return;
+        fns.addDoc(fns.collection(window.fiqFirestore,"activityLog"), {
+          type: String(type||"").slice(0,60),
+          companyId,
+          uid: window.fiqAuth.currentUser.uid,
+          app: window.FIQ_HELP_APP||"studio",
+          createdAt: fns.serverTimestamp ? fns.serverTimestamp() : new Date()
+        }).catch(()=>{});
+      }catch(e){}
+    };
   }
 
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);

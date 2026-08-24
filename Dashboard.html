@@ -1070,6 +1070,12 @@ html,body{background:#fff!important;font-family:"Segoe UI",Arial,sans-serif!impo
 .howitworks-rule{text-align:center}
 .howitworks-owner-rule{font-size:16px;font-weight:900;color:var(--navy);margin:0 0 10px}
 .howitworks-update-note{color:var(--muted);font-size:11px;line-height:1.6;margin:0}
+.usage-trend,.usage-by-type{display:grid;gap:10px;margin-top:4px}
+.usage-bar-row{display:grid;grid-template-columns:60px 1fr 34px;align-items:center;gap:10px;font-size:11px}
+.usage-bar-row b{font-weight:900;color:var(--text)}
+.usage-bar-track{height:10px;border-radius:999px;background:#eef1f6;overflow:hidden}
+.usage-bar-fill{height:100%;background:var(--green2);border-radius:999px}
+.usage-bar-row span{text-align:right;color:var(--muted);font-weight:800}
 .fiq-support-inbox{margin-top:14px;padding:22px}
 .support-ticket-list{margin-top:12px;display:grid;gap:10px}
 .support-ticket-row{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
@@ -1475,6 +1481,30 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         <article class="launch-card"><span class="launch-icon blue">👥</span><div><small>Customers</small><strong id="reportCustomers">0</strong><p>Accounts in this prototype.</p></div></article>
         <article class="launch-card"><span class="launch-icon purple">◷</span><div><small>Trials</small><strong id="reportTrials">0</strong><p>Potential conversions.</p></div></article>
       </div>
+
+      <div class="section-head" style="margin-top:22px"><div><h2>Usage</h2><p>Are customers actually using FittersIQ, and is that changing?</p></div></div>
+      <div class="launch-grid three">
+        <article class="launch-card"><span class="launch-icon green">▣</span><div><small>Monthly Active Companies</small><strong id="usageActiveCompanies">–</strong><p>Any activity in the last 30 days.</p></div></article>
+        <article class="launch-card"><span class="launch-icon blue">👤</span><div><small>Monthly Active Users</small><strong id="usageActiveUsers">–</strong><p>Any activity in the last 30 days.</p></div></article>
+        <article class="launch-card"><span class="launch-icon purple">＋</span><div><small>New Customers This Month</small><strong id="usageNewCustomers">–</strong><p>Companies created this calendar month.</p></div></article>
+      </div>
+
+      <div class="launch-grid two-col">
+        <section class="admin-card launch-list">
+          <h3>Needs attention</h3>
+          <div><span>Inactive 30+ days</span><b class="needs" id="usageInactive30">–</b></div>
+          <div><span>Inactive 60+ days</span><b class="needs" id="usageInactive60">–</b></div>
+        </section>
+        <section class="admin-card note-card">
+          <h3>Last 6 months</h3>
+          <div id="usageTrend" class="usage-trend"><p class="muted">No activity recorded yet.</p></div>
+        </section>
+      </div>
+
+      <section class="admin-card note-card">
+        <h3>What's driving that activity</h3>
+        <div id="usageByType" class="usage-by-type"><p class="muted">No activity recorded yet.</p></div>
+      </section>
     </section>
 
     <section class="page admin-section" id="settingsPage">
@@ -1767,6 +1797,80 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     }
   }
 
+  async function loadUsageStats(){
+    var setText=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+    try{
+      var companySnap=await authFns.getDocs(authFns.collection(db,'companies'));
+      var companies=[];
+      companySnap.forEach(function(d){var c=d.data();companies.push({id:d.id,createdAt:c.createdAt,name:c.name||'Unnamed company'});});
+
+      var q=authFns.query(authFns.collection(db,'activityLog'), authFns.orderBy('createdAt','desc'), authFns.limit(3000));
+      var snap=await authFns.getDocs(q);
+      var events=[];
+      snap.forEach(function(d){
+        var e=d.data();
+        if(e.createdAt&&e.createdAt.toDate)events.push({type:e.type||'activity',companyId:e.companyId,uid:e.uid,at:e.createdAt.toDate()});
+      });
+
+      var now=new Date();
+      var day=24*60*60*1000;
+      var since30=new Date(now.getTime()-30*day);
+      var since60=new Date(now.getTime()-60*day);
+      var monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+
+      var last30=events.filter(function(e){return e.at>=since30;});
+      var activeCompanies30=new Set(last30.map(function(e){return e.companyId;}));
+      var activeUsers30=new Set(last30.map(function(e){return e.uid;}));
+      setText('usageActiveCompanies', activeCompanies30.size);
+      setText('usageActiveUsers', activeUsers30.size);
+
+      var newThisMonth=companies.filter(function(c){return c.createdAt&&c.createdAt.toDate&&c.createdAt.toDate()>=monthStart;});
+      setText('usageNewCustomers', newThisMonth.length);
+
+      var lastActiveByCompany={};
+      events.forEach(function(e){
+        if(!e.companyId)return;
+        if(!lastActiveByCompany[e.companyId]||e.at>lastActiveByCompany[e.companyId])lastActiveByCompany[e.companyId]=e.at;
+      });
+      var inactive30=0, inactive60=0;
+      companies.forEach(function(c){
+        var last=lastActiveByCompany[c.id];
+        if(!last || last<since30) inactive30++;
+        if(!last || last<since60) inactive60++;
+      });
+      setText('usageInactive30', inactive30);
+      setText('usageInactive60', inactive60);
+
+      var trendEl=document.getElementById('usageTrend');
+      if(trendEl){
+        var months=[];
+        for(var i=5;i>=0;i--){
+          var d0=new Date(now.getFullYear(),now.getMonth()-i,1);
+          var d1=new Date(now.getFullYear(),now.getMonth()-i+1,1);
+          months.push({label:d0.toLocaleDateString('en-GB',{month:'short'}),count:events.filter(function(e){return e.at>=d0&&e.at<d1;}).length});
+        }
+        var max=Math.max(1, Math.max.apply(null, months.map(function(m){return m.count;})));
+        trendEl.innerHTML = events.length ? months.map(function(m){
+          return '<div class="usage-bar-row"><b>'+m.label+'</b><div class="usage-bar-track"><div class="usage-bar-fill" style="width:'+Math.round(m.count/max*100)+'%"></div></div><span>'+m.count+'</span></div>';
+        }).join('') : '<p class="muted">No activity recorded yet.</p>';
+      }
+
+      var byTypeEl=document.getElementById('usageByType');
+      if(byTypeEl){
+        var labels={project_created:'Projects created',panel_created:'Panels created',job_sent_to_mobile:'Jobs sent to Mobile',site_job_created:'Site Jobs created',qr_scan:'QR scans'};
+        var counts={};
+        events.forEach(function(e){counts[e.type]=(counts[e.type]||0)+1;});
+        var typeKeys=Object.keys(counts);
+        var maxT=Math.max(1, Math.max.apply(null, typeKeys.map(function(k){return counts[k];})));
+        byTypeEl.innerHTML = typeKeys.length ? typeKeys.sort(function(a,b){return counts[b]-counts[a];}).map(function(k){
+          return '<div class="usage-bar-row"><b>'+(labels[k]||k)+'</b><div class="usage-bar-track"><div class="usage-bar-fill" style="width:'+Math.round(counts[k]/maxT*100)+'%"></div></div><span>'+counts[k]+'</span></div>';
+        }).join('') : '<p class="muted">No activity recorded yet.</p>';
+      }
+    }catch(e){
+      console.error('Could not load usage stats', e);
+    }
+  }
+
   var supportTicketDocs = {};
   async function loadSupportTickets(){
     var list = document.getElementById('supportTicketList');
@@ -1818,6 +1922,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     if(emailEl) emailEl.textContent = user.email;
     loadRealCustomers();
     loadSupportTickets();
+    loadUsageStats();
   }
 
   async function evaluate(user){

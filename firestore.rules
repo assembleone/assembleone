@@ -95,6 +95,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Lightweight usage tracking for the FittersIQ admin (Monthly Active Companies/Users,
+    // new customers, inactivity, the 6 month trend). A signed-in company member can log
+    // their own event; only admin reads the log - individual customers never see it.
+    match /activityLog/{eventId} {
+      allow create: if signedIn()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.companyId is string
+                    && isCompanyMember(request.resource.data.companyId);
+      allow read: if isFittersIQAdmin();
+      allow update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

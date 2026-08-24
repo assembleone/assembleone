@@ -1587,6 +1587,7 @@ function parseGuideHash(){
 function updateWorkflowProgress(name){const order=["jobs","mark","parts","cutting","qr","bom"],current=Math.max(0,order.indexOf(name));$$("[data-step-screen]").forEach((el,i)=>{el.classList.toggle("current",i===current);el.classList.toggle("complete",i<current);const badge=el.querySelector(".workflow-status");if(badge)badge.textContent=i<current?"✓":String(i+1)})}
 function show(name){if(name==="project"||name==="rooms")name="jobs";state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===`screen-${name}`));$$(".nav-btn").forEach(x=>x.classList.toggle("active",x.dataset.screen===name));updateWorkflowProgress(name);save()}
 function newJob(){
+ if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('project_created');
  const p={id:uid(),name:"",customer:"",rooms:[],cabinets:[]};
  state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;
  const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
@@ -1622,6 +1623,7 @@ function addCabinet(){
 function nextCode(c){return `P-${String(c.parts.length+1).padStart(3,"0")}`}
 function createPartAt(x,y){
  const c=cabinet();if(!c)return;
+ if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('panel_created');
  const rememberedThickness=Number(c.lastThickness ?? 19) || 19;
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
  const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:"",width:"",thickness:rememberedThickness,qty:"",material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
@@ -2732,6 +2734,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
       updateWorkflowProgress(state.screen||'jobs');
       return;
     }
+    if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('job_sent_to_mobile');
     originalExport();
   }
   const exp=document.getElementById('exportMobileBtn');if(exp)exp.onclick=guardedExport;
