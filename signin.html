@@ -96,8 +96,7 @@ function showMsg(text, kind) {
 
 onAuthStateChanged(auth, (user) => {
   if (user && user.emailVerified) {
-    signInCard.style.display = "none";
-    signedInCard.classList.add("show");
+    location.href = "account.html";
   } else if (user && !user.emailVerified) {
     location.href = "verify.html";
   }

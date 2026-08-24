@@ -627,7 +627,7 @@ footer{background:#fff;border-top:1px solid var(--line);padding:26px 0}
       <a href="#demo">Demo</a>
       <a href="#pricing">Pricing</a>
       <a href="#contact">Contact</a>
-      <a href="signin.html">Sign In</a>
+      <a href="signin.html" id="headerSignInLink">Sign In</a>
     </nav>
     <a class="primary" href="signup.html">Start Free Trial</a>
   </div>
@@ -921,15 +921,46 @@ a,button{cursor:not-allowed!important}
     clearTimeout(hideTimer);
     hideTimer = setTimeout(function(){ toast.classList.remove('show'); }, 1600);
   }
+  function isAccountLink(el){
+    var href = el.getAttribute && el.getAttribute('href');
+    if(!href) return false;
+    return /^(signin|signup|reset|verify|account)\.html(\?|$)/.test(href);
+  }
   document.addEventListener('click', function(e){
     var el = e.target.closest('a,button,[data-legal]');
     if(!el) return;
+    if(isAccountLink(el)) return; // let sign in / start trial / account links through
     e.preventDefault();
     e.stopImmediatePropagation();
     showToast();
   }, true);
   document.addEventListener('submit', function(e){ e.preventDefault(); showToast(); }, true);
 })();
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
+  authDomain: "assembleone-fabac.firebaseapp.com",
+  databaseURL: "https://assembleone-fabac-default-rtdb.firebaseio.com",
+  projectId: "assembleone-fabac",
+  storageBucket: "assembleone-fabac.firebasestorage.app",
+  messagingSenderId: "906839446136",
+  appId: "1:906839446136:web:1f78d18408b0796752d38d"
+};
+const auth = getAuth(initializeApp(firebaseConfig));
+onAuthStateChanged(auth, function(user){
+  var link = document.getElementById('headerSignInLink');
+  if(!link) return;
+  if(user && user.emailVerified){
+    link.textContent = 'My Account';
+    link.href = 'account.html';
+  } else {
+    link.textContent = 'Sign In';
+    link.href = 'signin.html';
+  }
+});
 </script>
 </body>
 </html>

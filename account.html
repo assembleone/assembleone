@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My FittersIQ Account</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon_32.png?v=4">
+<link rel="apple-touch-icon" href="assets/icon_180.png?v=4">
+<style>
+:root{
+  --navy:#0b2545;--navy-deep:#071a33;--green:#65c536;--green-dark:#4da721;
+  --blue:#2b62d9;--text:#15283d;--muted:#66758a;--line:#e3e8ef;--bg:#f6f8fa;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Arial,Segoe UI,sans-serif;background:var(--bg);color:var(--text);display:grid;place-items:center;padding:24px}
+a{color:inherit}
+.auth-shell{width:min(440px,94vw)}
+.auth-card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 16px 40px rgba(24,45,70,.08);padding:32px 30px}
+.auth-card h1{font-size:24px;margin:0 0 6px}
+.auth-card p.lead{color:var(--muted);margin:0 0 22px;font-size:14px}
+.acct-row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13px}
+.acct-row:last-of-type{border-bottom:0}
+.acct-row span:first-child{color:var(--muted);font-weight:700}
+.acct-row span:last-child{font-weight:800;text-align:right}
+.acct-apps{display:grid;gap:10px;margin-top:22px}
+.primary{display:block;width:100%;border:0;border-radius:12px;background:var(--green);color:#fff;padding:14px;font-weight:900;font-size:15px;cursor:pointer;text-align:center;text-decoration:none}
+.primary:hover{background:var(--green-dark)}
+.secondary{display:block;width:100%;border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:12px;padding:14px;font-weight:900;font-size:15px;cursor:pointer;text-align:center;text-decoration:none}
+.msg{border-radius:10px;padding:11px 13px;font-size:13px;font-weight:700;margin-bottom:16px;display:none}
+.msg.show{display:block}
+.msg.error{background:#fdeaea;color:#b3261e}
+.msg.ok{background:#eef8e9;color:#347d18}
+.signout-row{text-align:center;margin-top:18px}
+.signout-row button{border:0;background:transparent;color:var(--muted);font-weight:800;font-size:12px;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="auth-shell">
+  <div class="auth-card" id="loadingCard">
+    <p class="lead">Checking your account&hellip;</p>
+  </div>
+  <div class="auth-card" id="acctCard" style="display:none">
+    <h1>My FittersIQ Account</h1>
+    <p class="lead">Signed in as <strong id="acctEmail"></strong></p>
+    <div class="msg" id="setupMsg">Your company details are still being set up. If this doesn't clear up shortly, use Contact FittersIQ Support.</div>
+    <div id="acctDetails" style="display:none">
+      <div class="acct-row"><span>Company</span><span id="acctCompany">–</span></div>
+      <div class="acct-row"><span>Plan</span><span id="acctPlan">–</span></div>
+      <div class="acct-row"><span>Status</span><span id="acctStatus">–</span></div>
+    </div>
+    <div class="acct-apps">
+      <a class="primary" href="Studio.html">Open FittersIQ Studio</a>
+      <a class="secondary" href="Mobile.html">Open FittersIQ Mobile</a>
+    </div>
+    <div class="signout-row"><button type="button" id="signOutBtn">Sign out</button></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
+  authDomain: "assembleone-fabac.firebaseapp.com",
+  databaseURL: "https://assembleone-fabac-default-rtdb.firebaseio.com",
+  projectId: "assembleone-fabac",
+  storageBucket: "assembleone-fabac.firebasestorage.app",
+  messagingSenderId: "906839446136",
+  appId: "1:906839446136:web:1f78d18408b0796752d38d"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const loadingCard = document.getElementById("loadingCard");
+const acctCard = document.getElementById("acctCard");
+
+function statusWord(company){
+  if(company.status === "suspended") return "Suspended";
+  if(company.status === "cancelled") return "Cancelled";
+  const s = company.subscriptionStatus;
+  if(s === "active") return "Active";
+  if(s === "past_due") return "Payment due";
+  return "Trial";
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if(!user){ location.href = "signin.html"; return; }
+  if(!user.emailVerified){ location.href = "verify.html"; return; }
+
+  loadingCard.style.display = "none";
+  acctCard.style.display = "block";
+  document.getElementById("acctEmail").textContent = user.email || "";
+
+  try{
+    const tokenResult = await user.getIdTokenResult();
+    const companyId = tokenResult.claims.companyId;
+    if(!companyId){
+      document.getElementById("setupMsg").classList.add("show");
+      return;
+    }
+    const snap = await getDoc(doc(db, "companies", companyId));
+    if(snap.exists()){
+      const c = snap.data();
+      document.getElementById("acctCompany").textContent = c.name || "–";
+      document.getElementById("acctPlan").textContent = c.plan || "Trial";
+      document.getElementById("acctStatus").textContent = statusWord(c);
+      document.getElementById("acctDetails").style.display = "block";
+    } else {
+      document.getElementById("setupMsg").classList.add("show");
+    }
+  }catch(e){
+    console.warn("Could not load company details", e);
+    document.getElementById("setupMsg").classList.add("show");
+  }
+});
+
+document.getElementById("signOutBtn").addEventListener("click", async () => {
+  await signOut(auth);
+  location.href = "signin.html";
+});
+</script>
+</body>
+</html>
