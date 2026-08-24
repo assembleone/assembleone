@@ -737,13 +737,13 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .site-jobs-list{display:grid;gap:12px}.site-jobs-empty{padding:4px 2px;text-align:center;color:#9a96a8;font-weight:600;background:none;font-size:12px}
 .site-job-inbox-card{appearance:none;width:100%;border:2px solid #c7deb9;background:#fff;border-radius:22px;padding:16px;display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:14px;text-align:left;color:#212e3f;cursor:pointer;box-shadow:0 5px 14px rgba(35,31,63,.06);font:inherit}.site-job-inbox-card:hover{transform:translateY(-1px);border-color:#4da918}.site-job-room-icon{width:64px;height:64px;border-radius:18px;background:#f0f8ec;display:grid;place-items:center;font-size:36px}.site-job-main strong{display:block;font-size:23px;color:#172e4a;line-height:1.1}.site-job-main .site-project-name{display:block;font-size:14px;color:#716c7e;font-weight:750;margin-top:5px}.site-job-main .site-job-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}.site-job-main .site-job-meta span{background:#f2f4f8;border-radius:999px;padding:6px 9px;font-size:13px;font-weight:800}.site-job-open{background:#0051ff;color:#1b3350;border:2px solid #0046dc;border-radius:16px;padding:13px 17px;font-weight:900;white-space:nowrap;font-size:16px}.site-job-open:after{content:'  ›';font-size:22px;vertical-align:-1px}
 @media(max-width:700px){.site-job-inbox-card{grid-template-columns:52px 1fr}.site-job-room-icon{width:52px;height:52px;font-size:30px}.site-job-open{grid-column:1/-1;width:100%;text-align:center}.site-job-main strong{font-size:20px}.site-jobs-panel{padding:13px;border-radius:22px}}
-/* Home cards: smaller, square/consistent images, matching font sizes, compact empty Site Jobs. */
+/* Home cards: same height as Site Jobs, consistent font sizes, images centred and never cropped. */
 .studio-home-actions{gap:10px!important}
-.home-action-card{min-height:0!important;padding:12px 16px!important}
-.new-project-card,.open-project-card{min-height:0!important}
-.mascot-icon{height:56px!important;width:56px!important;display:grid!important;place-items:center!important;border-radius:14px!important;overflow:hidden}
-.mascot-icon img{height:56px!important;width:56px!important;object-fit:cover!important}
-.site-jobs-panel{padding:14px!important}
+.home-action-card{min-height:112px!important;padding:12px 16px!important;align-items:center!important}
+.new-project-card,.open-project-card{min-height:112px!important}
+.mascot-icon{height:80px!important;width:56px!important;display:grid!important;place-items:center!important;border-radius:14px!important;overflow:visible}
+.mascot-icon img{height:auto!important;width:auto!important;max-height:80px!important;max-width:56px!important;object-fit:contain!important}
+.site-jobs-panel{padding:14px!important;min-height:112px!important;box-sizing:border-box!important}
 .site-jobs-heading{margin-bottom:8px!important}
 .site-jobs-heading strong{font-size:20px!important}
 .site-jobs-heading small{font-size:13.3333px!important}
@@ -890,7 +890,7 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 #jobGrid.a100-open{display:grid!important}
 #combinedProjectWorkspace{border:0!important;padding-top:0!important;margin-top:0!important}
 #combinedProjectWorkspace .start-block{display:none!important}
-.a100-start-shell{display:grid;gap:14px}
+.a100-start-shell{display:none!important}
 .a100-bottom-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .a100-action-btn{width:100%;min-height:96px;border-radius:22px;border:2px solid var(--line);background:#fff;color:var(--ink);display:flex;align-items:center;gap:14px;padding:18px;text-align:left;cursor:pointer}
 .a100-action-btn:hover,.a100-action-btn:focus{border-color:var(--yellow);background:#f0f5ff;outline:4px solid rgba(255,196,0,.15)}
@@ -1590,7 +1590,7 @@ function newJob(){
  const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
  if(n)n.value="";if(cust)cust.value="";
  save();renderAll();show("jobs");
- setTimeout(()=>{const n2=document.getElementById('projectName');if(n2)n2.focus()},50);
+ setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn)editBtn.click()},90);
 }
 function selectedStudioRoom(){const p=ensureSharedProject(project());return p?.rooms.find(r=>r.id===state.currentRoom)||null}
 function unitLabelForRoom(room){
@@ -4154,7 +4154,7 @@ body.guide-only .a131-back-studio{display:block}
 
 <style id="a104-panel-check-zoom">
 /* Version 10.4: natural drawing zoom and clear Panel Check handoff */
-#screen-mark .drawing-stage{overflow:auto!important;place-items:center!important}
+#screen-mark .drawing-stage{overflow:auto!important;place-items:center!important;justify-content:center!important;align-content:center!important}
 #screen-mark .drawing-canvas{max-width:none!important;max-height:none!important;overflow:visible!important;flex:0 0 auto!important}
 #screen-mark #drawingImage{position:static!important;inset:auto!important;max-width:none!important;max-height:none!important;object-fit:contain!important}
 .drawing-next-action{display:flex;justify-content:flex-end;padding:12px 0 4px}
