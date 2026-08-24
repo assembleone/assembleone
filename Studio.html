@@ -1115,7 +1115,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -1132,7 +1132,7 @@ window.db = getDatabase(app);
 window.fiqAuth = getAuth(app);
 window.fiqFunctions = getFunctions(app);
 window.fiqFirestore = getFirestore(app);
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, collection, addDoc, serverTimestamp };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <body class="fiq-locked">
@@ -4910,3 +4910,7 @@ body.fiq-locked .app{display:none!important}
   } // end initFiqAuthGate
 })();
 </script>
+<script>window.FIQ_HELP_APP="studio";</script>
+<script src="fittersiq-help.js"></script>
+</body>
+</html>

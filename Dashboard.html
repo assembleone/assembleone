@@ -1070,6 +1070,16 @@ html,body{background:#fff!important;font-family:"Segoe UI",Arial,sans-serif!impo
 .howitworks-rule{text-align:center}
 .howitworks-owner-rule{font-size:16px;font-weight:900;color:var(--navy);margin:0 0 10px}
 .howitworks-update-note{color:var(--muted);font-size:11px;line-height:1.6;margin:0}
+.fiq-support-inbox{margin-top:14px;padding:22px}
+.support-ticket-list{margin-top:12px;display:grid;gap:10px}
+.support-ticket-row{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.support-ticket-row.resolved{opacity:.6}
+.support-ticket-top{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--muted);font-weight:800}
+.support-ticket-top b{color:var(--text);font-size:12px}
+.support-ticket-top time{margin-left:auto}
+.support-ticket-row p{margin:8px 0;font-size:12px;color:var(--text)}
+.support-ticket-meta{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--muted)}
+.support-ticket-meta .ready{color:#1d8d38;font-weight:900}
 @media(max-width:1100px){.exact-master-logo img{width:70px!important;margin:auto!important}.dashboard-logo{padding-bottom:12px!important}.launch-grid.three,.settings-grid,.support-layout,.launch-grid.two-col,.howitworks-parts-grid,.howitworks-status-grid{grid-template-columns:1fr}.customer-table-head{display:none}.launch-row{grid-template-columns:1.4fr .7fr .8fr .3fr}.launch-row>*:nth-child(4),.launch-row>*:nth-child(5),.launch-row>*:nth-child(6){display:none}}
 
 
@@ -1194,7 +1204,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -1209,7 +1219,7 @@ const fiqApp = initializeApp(firebaseConfig);
 window.fiqAuth = getAuth(fiqApp);
 window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, collection, getDocs, query, orderBy, limit };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, updateDoc, collection, getDocs, query, orderBy, limit };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <div id="fiqAuthGate" class="fiq-auth-gate">
@@ -1451,6 +1461,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         </section>
         <section class="admin-card launch-list"><h3>Launch safety</h3><div><span>Customer consent / visible notice</span><b class="needs">Required</b></div><div><span>Automatic expiry</span><b>Included</b></div><div><span>Admin audit log</span><b class="needs">Connect backend</b></div><div><span>No password sharing</span><b>Included</b></div></section>
       </div>
+      <section class="admin-card note-card fiq-support-inbox">
+        <h3>Support Inbox</h3>
+        <p>Questions the AI Helper couldn't answer, and bug reports, from Studio and Mobile.</p>
+        <div id="supportTicketList" class="support-ticket-list"><p class="muted">No support tickets yet.</p></div>
+      </section>
     </section>
 
     <section class="page admin-section" id="reportsPage">
@@ -1752,6 +1767,49 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     }
   }
 
+  var supportTicketDocs = {};
+  async function loadSupportTickets(){
+    var list = document.getElementById('supportTicketList');
+    if(!list) return;
+    try{
+      var q = authFns.query(authFns.collection(db,'supportTickets'), authFns.orderBy('createdAt','desc'), authFns.limit(50));
+      var snap = await authFns.getDocs(q);
+      supportTicketDocs = {};
+      var rows = [];
+      snap.forEach(function(d){
+        supportTicketDocs[d.id] = d;
+        var t = d.data();
+        rows.push({id:d.id, t:t});
+      });
+      if(!rows.length){ list.innerHTML = '<p class="muted">No support tickets yet.</p>'; return; }
+      list.innerHTML = rows.map(function(r){
+        var t = r.t;
+        var kind = t.type === 'bug' ? '🐞 Bug' : '💬 Help';
+        var when = (t.createdAt && t.createdAt.toDate) ? t.createdAt.toDate().toLocaleString() : '';
+        var resolved = t.status === 'resolved';
+        return '<div class="support-ticket-row' + (resolved ? ' resolved' : '') + '">' +
+          '<div class="support-ticket-top"><b>' + kind + '</b><span>' + (t.screenLabel || t.app || '') + '</span><time>' + when + '</time></div>' +
+          '<p>' + (t.question ? String(t.question).replace(/</g,'&lt;') : '') + '</p>' +
+          '<div class="support-ticket-meta"><span>' + (t.email || 'unknown user') + '</span>' +
+          (resolved ? '<b class="ready">Resolved</b>' : '<button type="button" class="secondary" data-resolve-ticket="' + r.id + '">Mark resolved</button>') +
+          '</div></div>';
+      }).join('');
+      list.querySelectorAll('[data-resolve-ticket]').forEach(function(btn){
+        btn.addEventListener('click', async function(){
+          var id = btn.dataset.resolveTicket;
+          btn.disabled = true; btn.textContent = 'Saving…';
+          try{
+            await authFns.updateDoc(authFns.doc(db,'supportTickets',id), {status:'resolved'});
+            loadSupportTickets();
+          }catch(e){ console.error('Could not resolve ticket', e); btn.disabled=false; btn.textContent='Mark resolved'; }
+        });
+      });
+    }catch(e){
+      console.error('Could not load support tickets', e);
+      list.innerHTML = '<p class="muted">Could not load support tickets.</p>';
+    }
+  }
+
   function unlockApp(user){
     window.fittersiqUser = { uid:user.uid, email:user.email, isAdmin:true };
     document.body.classList.remove('fiq-locked');
@@ -1759,6 +1817,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     var emailEl = $('fiqAccountEmail');
     if(emailEl) emailEl.textContent = user.email;
     loadRealCustomers();
+    loadSupportTickets();
   }
 
   async function evaluate(user){

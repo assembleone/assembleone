@@ -83,6 +83,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // AI Helper escalations: a help question the KB couldn't answer, or a bug report.
+    // Any signed-in user can raise one for themselves; a company owner can see their
+    // company's tickets; only FittersIQ admin can see/manage the full Support Inbox.
+    match /supportTickets/{ticketId} {
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow read: if isFittersIQAdmin()
+                  || (signedIn() && resource.data.uid == request.auth.uid)
+                  || (signedIn() && resource.data.companyId is string && isCompanyOwner(resource.data.companyId));
+      allow update: if isFittersIQAdmin();
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
