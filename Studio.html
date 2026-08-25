@@ -56,8 +56,10 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-card-head strong{font-size:19px}
 .customer-job-count{background:#F3EEFE;color:#6b3fbf;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
 .customer-job-list{display:flex;flex-direction:column;gap:6px}
+.customer-job-item{display:flex;flex-direction:column;gap:6px}
 .customer-job-row{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);background:#fafcff;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;width:100%;text-align:left}
 .customer-job-row:hover{border-color:#8B5CF6;background:#F8F5FF}
+.customer-site-to-drawing{width:100%;text-align:center}
 .folder-card h3{font:700 23px 'Inter',sans-serif;margin:0 0 5px}.folder-icon{font-size:30px;margin-bottom:7px}
 .folder-card .actions{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}.folder-card .actions .danger{margin-left:auto}
 .cabinet-card{background:white;border:1px solid var(--line);border-radius:11px;padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -985,8 +987,8 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 #workflowProgress .workflow-check.complete .workflow-icon,#workflowProgress .workflow-check.complete .workflow-label{opacity:1!important}
 @media(max-width:900px){#workflowProgress.workflow-checks{grid-template-columns:repeat(3,minmax(110px,1fr))!important}}
 @media(max-width:560px){#workflowProgress.workflow-checks{grid-template-columns:repeat(2,minmax(110px,1fr))!important}.flag-language-label{min-width:155px}.flag-language-select{font-size:16px}}
-.flag-language-buttons{display:grid;grid-template-columns:repeat(5,32px);align-items:center;gap:6px;max-width:190px;position:relative;z-index:5}.flag-language-buttons button:not(.active){display:none}.flag-language-buttons:hover button,.flag-language-buttons:focus-within button{display:flex}.flag-language-buttons:hover,.flag-language-buttons:focus-within{background:#fff;padding:6px;border-radius:11px;box-shadow:0 10px 24px rgba(18,35,59,.18)}
-.flag-language-buttons button{appearance:none;border:1.5px solid #d4e3e1;background:linear-gradient(180deg,#ffffff 0%,#f3f8f7 100%);border-radius:9px;width:32px;height:26px;padding:2px;cursor:pointer;box-shadow:0 2px 6px rgba(35,31,63,.14);transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease,background .15s ease;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.flag-language-buttons{display:grid;grid-template-columns:repeat(5,32px);align-items:center;gap:6px;max-width:190px;position:relative;z-index:5;direction:rtl;justify-content:end}.flag-language-buttons button:not(.active){display:none}.flag-language-buttons:hover button,.flag-language-buttons:focus-within button{display:flex}.flag-language-buttons:hover,.flag-language-buttons:focus-within{background:#fff;padding:6px;border-radius:11px;box-shadow:0 10px 24px rgba(18,35,59,.18)}
+.flag-language-buttons button{direction:ltr;appearance:none;border:1.5px solid #d4e3e1;background:linear-gradient(180deg,#ffffff 0%,#f3f8f7 100%);border-radius:9px;width:32px;height:26px;padding:2px;cursor:pointer;box-shadow:0 2px 6px rgba(35,31,63,.14);transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease,background .15s ease;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
 .flag-language-buttons .flag-art{display:block;width:24px;height:15px;border-radius:3px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.22);background:#fff}.flag-language-buttons .flag-art svg{display:block;width:100%;height:100%}
 .flag-language-buttons .flag-code{display:none}
 .flag-language-buttons button:hover{transform:translateY(-3px) scale(1.04);border-color:#0051ff;box-shadow:0 7px 15px rgba(35,31,63,.18)}
@@ -1127,7 +1129,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -1144,7 +1146,7 @@ window.db = getDatabase(app);
 window.fiqAuth = getAuth(app);
 window.fiqFunctions = getFunctions(app);
 window.fiqFirestore = getFirestore(app);
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, collection, addDoc, serverTimestamp };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <body class="fiq-locked">
@@ -1485,10 +1487,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </section>
 <section class="screen supplier-redesign" id="screen-cutting">
 <div class="supplier-hero"><div><h2>Supplier</h2><div class="muted">Final cutting information and matching QR stickers.</div></div><div class="supplier-ready" id="supplierReadyBadge">Checking panels…</div></div>
+<button class="btn primary sheet-optim-toggle-btn" type="button" id="sheetOptimiserToggleBtn">📐 Sheet Optimiser — see how many sheets this job needs</button>
 <div class="notice" id="cuttingValidation" style="display:none;margin-bottom:12px"></div>
 <div class="supplier-summary" id="supplierSummary"></div>
 <div class="supplier-materials-card"><h3>Materials</h3><div id="supplierMaterialSummary"></div></div>
-<div class="supplier-materials-card sheet-optim-card" id="sheetOptimiserCard"><h3>Sheet Optimiser</h3><div class="muted">Full sheets required, cutting layout and offcut for each material — check this before ordering.</div><div id="sheetOptimiserBody"></div></div>
+<div class="supplier-materials-card sheet-optim-card" id="sheetOptimiserCard" hidden><h3>Sheet Optimiser</h3><div class="muted">Full sheets required, cutting layout and offcut for each material — check this before ordering.</div><div id="sheetOptimiserBody"></div></div>
 <div class="supplier-actions supplier-actions-simple">
 <button class="supplier-action export" id="exportSupplierCsvBtn" type="button"><span class="supplier-action-icon">⇩</span><strong>Download CSV</strong><small>Excel and CNC suppliers</small></button>
 <button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong>Print Supplier Pack</strong><small>Cutting list + matching QR stickers</small></button>
@@ -1562,6 +1565,21 @@ const project=()=>state.projects.find(x=>x.id===state.currentProject)||null;
 const cabinet=()=>project()?.cabinets.find(x=>x.id===state.currentCabinet)||null;
 const part=()=>cabinet()?.parts.find(x=>x.id===state.currentPart)||null;
 const cabinetParts=()=>cabinet()?.parts||[];
+// Switching the active job must resync #projectName/#customerName immediately, before
+// anything else runs. save() (aliased to stableSave -> commitVisible) copies those two
+// input fields straight into project().name/customer on every call, including the
+// periodic 4s autosave and any click/input listener firing in between. If a caller sets
+// state.currentProject and lets save() fire before renderProject() has repainted those
+// fields for the *new* job, the outgoing job's stale name/customer text gets written
+// into the job just switched to -- this is how job details end up attached to the wrong
+// customer. Routing every "open a different job" call site through this one function
+// closes that window instead of relying on each call site getting the order right.
+function switchToProject(id,cabinetId,partId){
+ state.currentProject=id;
+ state.currentCabinet=cabinetId!==undefined?cabinetId:null;
+ state.currentPart=partId!==undefined?partId:null;
+ if(typeof renderProject==='function')renderProject();
+}
 
 function save(){
  try{
@@ -1635,7 +1653,7 @@ function renderJobs(){
  const named=state.projects.filter(p=>String(p.name||"").trim());
  box.innerHTML=named.length?named.map(p=>{const siteRoom=(p.rooms||[]).find(r=>r.siteMarkup?.image||(r.sitePhotos||[]).length||(r.beforePhotos||[]).length);const siteReceived=!!siteRoom;return `<article class="folder-card ${p.id===state.currentProject?"selected-job":""} ${siteReceived?"site-received":""}"><div class="folder-icon">${siteReceived?(siteRoom.icon||"📍"):"📁"}</div><h3>${safe(p.name)}</h3><div class="muted">${safe(p.customer||"No customer name")}<br>${(p.rooms||[]).length} room${(p.rooms||[]).length===1?"":"s"} · ${p.cabinets.length} unit${p.cabinets.length===1?"":"s"}</div>${siteReceived?'<div class="site-job-tag">✓ Site measurements received</div>':''}<div class="actions"><button class="btn primary" data-open-job="${p.id}">${p.id===state.currentProject?"Job open":"Open job"}</button>${siteReceived?`<button class="btn site-details-btn" data-site-details="${p.id}">Open details</button>`:''}<button class="btn trade-export-btn" data-export-trade="${p.id}">Export record</button><button class="btn danger" data-delete-job-card="${p.id}">Delete</button></div></article>`}).join(""):'<div class="empty">No jobs yet. Press “New job”.</div>';
  const workspace=$("#combinedProjectWorkspace");if(workspace)workspace.classList.toggle("is-empty",!active);
- $$("[data-open-job]").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.openJob;state.currentCabinet=project()?.cabinets[0]?.id||null;state.currentPart=null;renderAll();show("jobs")});
+ $$("[data-open-job]").forEach(b=>b.onclick=()=>{const np=state.projects.find(x=>x.id===b.dataset.openJob);switchToProject(b.dataset.openJob,np?.cabinets[0]?.id||null);renderAll();show("jobs")});
  $$("[data-site-details]").forEach(b=>b.onclick=()=>openSiteRoomDetails(b.dataset.siteDetails));
  $$('[data-export-trade]').forEach(b=>b.onclick=()=>exportProjectRecord(b.dataset.exportTrade));
  $$("[data-delete-job-card]").forEach(b=>b.onclick=()=>{
@@ -1670,7 +1688,26 @@ function closeSiteRoomDetails(){const m=document.getElementById('siteRoomDetails
 function sendSitePhotoToDrawing(){
  const m=document.getElementById('siteRoomDetailsModal'),p=ensureSharedProject(state.projects.find(x=>x.id===m?.dataset.projectId));if(!p)return;const room=p.rooms.find(r=>r.id===m.dataset.roomId)||p.rooms[0];const pics=siteRoomPictures(room);const src=pics[+(m.dataset.pictureIndex||0)];if(!src)return alert('No site picture is available.');
  let c=p.cabinets.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' design',roomId:room?.id||'',drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
- c.drawing=src;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=null;save();closeSiteRoomDetails();renderAll();show('mark');alert('The site photo is now beside the drawing tools as your reference.')
+ c.drawing=src;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');alert('The site photo is now beside the drawing tools as your reference.')
+}
+function openCustomerSiteJobInDrawing(projectId){
+ const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert('Job not found.');
+ // Photos can live on a specific room (the multi-room "Room Guide" flow) or directly on
+ // the project itself (the simpler "New Site Job" flow attaches sitePhotos/siteMarkup
+ // to the project, never creating a room at all) -- check both, or the picture from a
+ // job captured the simple way would be silently missed here.
+ const room=p.rooms.find(r=>siteRoomPictures(r).length);
+ const pics=room?siteRoomPictures(room):siteRoomPictures(p);
+ if(!pics.length)return alert('No site measurements are attached to this job yet.');
+ const roomId=room?.id||'';
+ let c=p.cabinets.find(x=>x.roomId===roomId);
+ if(!c){c={id:uid(),name:(room?.name||p.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
+ c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||p.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];
+ const markupSource=room?.siteMarkup||p.siteMarkup;
+ c.siteMarkup=markupSource?JSON.parse(JSON.stringify(markupSource)):null;
+ switchToProject(p.id,c.id);
+ renderAll();save();show('mark');
+ toast('Site measurements opened in Drawing — customer, room, photos and notes are preserved.');
 }
 function renderProject(){
  const p=project();$("#projectName").value=p?.name||"";$("#customerName").value=p?.customer||"";
@@ -1842,9 +1879,13 @@ function renderCustomers(){
  const names=Object.keys(byCustomer).sort((a,b)=>a.localeCompare(b));
  box.innerHTML=names.length?names.map(name=>{
    const jobs=byCustomer[name];
-   return `<div class="customer-card"><div class="customer-card-head"><strong>${safe(name)}</strong><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></div><div class="customer-job-list">${jobs.map(p=>`<button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${safe(p.name||"Untitled job")}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span></button>`).join("")}</div></div>`;
+   return `<div class="customer-card"><div class="customer-card-head"><strong>${safe(name)}</strong><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></div><div class="customer-job-list">${jobs.map(p=>{
+     const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
+     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${safe(p.name||"Untitled job")}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span></button>${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}</div>`;
+   }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
- box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.openJob;state.currentCabinet=null;state.currentPart=null;save();renderAll();show("jobs")})
+ box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);renderAll();save();show("jobs")});
+ box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=()=>openCustomerSiteJobInDrawing(b.dataset.siteToDrawing));
 }
 function renderParts(){
  const allParts=cabinetParts(),parts=allParts.filter(isCompleteSupplierPart),missing=allParts.length-parts.length,box=$("#partsSummary"),warning=$("#componentsValidation");
@@ -2095,17 +2136,28 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
 incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
-async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);const merged=mergeMobileProject(incoming);state.currentProject=merged.id;state.currentCabinet=merged.cabinets[0]?.id||null;state.currentPart=null;save();renderAll();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
+async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
 function studioSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open(DIRECT_SYNC_DB,1);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
 function fallbackPackets(){try{return JSON.parse(localStorage.getItem(DIRECT_SYNC_FALLBACK)||"[]")||[]}catch(e){return []}}
-async function studioInboxPackets(){let out=[];try{const db=await studioSyncDb();const tx=db.transaction("studioInbox","readonly"),req=tx.objectStore("studioInbox").getAll();out=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close()}catch(e){}const map=new Map();[...out,...fallbackPackets()].forEach(x=>map.set(x.syncId||x.exportedAt||Math.random(),x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
+async function fetchCloudSitePackets(){
+ try{
+  const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+  if(!fs||!db||!user||!user.companyId)return [];
+  const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'),fs.where('status','==','waiting'));
+  const snap=await fs.getDocs(q);
+  const out=[];
+  snap.forEach(docSnap=>{const data=docSnap.data()||{};out.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
+  return out;
+ }catch(e){console.error('Cloud site job fetch failed',e);return []}
+}
+async function studioInboxPackets(){let out=[];try{const db=await studioSyncDb();const tx=db.transaction("studioInbox","readonly"),req=tx.objectStore("studioInbox").getAll();out=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close()}catch(e){}const cloud=await fetchCloudSitePackets();const map=new Map();[...out,...fallbackPackets(),...cloud].forEach(x=>map.set(x.syncId||x.exportedAt||Math.random(),x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
 function inboxSummary(pack){const p=pack?.project||pack||{};const room=p.rooms?.find(r=>r.draft)||p.rooms?.[0]||{};const measures=room.siteMarkup?.marks?.filter(x=>x.type==='measure').length||p.siteMeasurements?.length||0;const photos=(room.sitePhotos?.length||0)+(room.designImages?.length||0)+(p.sitePhotos?.length||0);return {syncId:pack?.syncId||pack?.exportedAt||'',customer:p.customer||'Customer not named',project:p.name||'New site job',icon:room.icon||'📍',room:room.name||'Room not named',floor:room.floor||'',measures,photos}}
 function showInboxPopup(items){return}
 async function paintSiteInbox(){const badge=document.getElementById('siteUpdateBadge'),panel=document.getElementById('directSiteInbox'),list=document.getElementById('siteJobsList');try{const items=await studioInboxPackets();if(badge){badge.textContent=items.length?`${items.length} NEW`:'';badge.style.display=items.length?'':'none'}panel?.classList.toggle('inbox-ready',!!items.length);if(!list)return;if(!items.length){list.innerHTML='<div class="site-jobs-empty">No new site jobs</div>';return}list.innerHTML=items.map(pack=>{const x=inboxSummary(pack);return `<button class="site-job-inbox-card" type="button" data-open-site-packet="${safe(x.syncId)}"><span class="site-job-room-icon">${x.icon}</span><span class="site-job-main"><strong>${safe(x.customer)}</strong><span class="site-project-name">${safe(x.project)} · ${safe(x.room)}${x.floor?' · '+safe(x.floor):''}</span><span class="site-job-meta"><span>📷 ${x.photos}</span><span>📏 ${x.measures}</span></span></span><span class="site-job-open">Open Drawing</span></button>`}).join('');list.querySelectorAll('[data-open-site-packet]').forEach(b=>b.onclick=()=>receiveSitePacket(b.dataset.openSitePacket))}catch(e){if(badge){badge.textContent='Use backup file';badge.style.display=''}if(list)list.innerHTML='<div class="site-jobs-empty">Direct sync unavailable. Use the backup file.</div>';document.querySelector('.site-file-backup')?.classList.add('visible')}}
-async function removeInboxPacket(syncId){try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK)}
-async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileProject(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const room=merged.rooms?.find(r=>siteRoomPictures(r).length)||merged.rooms?.[0];const pics=siteRoomPictures(room);let c=merged.cabinets?.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' drawing',roomId:room?.id||'',drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}if(pics[0]){c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||'Site room')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];c.siteMarkup=room?.siteMarkup?JSON.parse(JSON.stringify(room.siteMarkup)):null}state.currentProject=merged.id;state.currentCabinet=c.id;state.currentPart=null;save();renderAll();await paintSiteInbox();show('mark');toast('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
+async function removeInboxPacket(syncId){try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK);if(String(syncId||'').startsWith('cloud:')){try{const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;const cloudId=String(syncId).slice(6);if(fs&&db2&&user&&user.companyId){await fs.updateDoc(fs.doc(db2,'companies',user.companyId,'jobs',cloudId),{status:'received',receivedAt:fs.serverTimestamp()})}}catch(e){console.error('Could not mark cloud site job received',e)}}}
+async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileProject(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const room=merged.rooms?.find(r=>siteRoomPictures(r).length)||merged.rooms?.[0];const pics=(room&&siteRoomPictures(room).length)?siteRoomPictures(room):siteRoomPictures(merged);const roomId=room?.id||'';let c=merged.cabinets?.find(x=>x.roomId===roomId);if(!c){c={id:uid(),name:(room?.name||merged.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}if(pics[0]){c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||merged.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];const markupSource=room?.siteMarkup||merged.siteMarkup;c.siteMarkup=markupSource?JSON.parse(JSON.stringify(markupSource)):null}switchToProject(merged.id,c.id);renderAll();save();await paintSiteInbox();show('mark');toast('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
 async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert('No new site jobs are waiting.');return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
 document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
@@ -2113,14 +2165,15 @@ document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveS
 document.getElementById('siteRoomDetailsClose')?.addEventListener('click',closeSiteRoomDetails);
 document.getElementById('siteRoomDetailsModal')?.addEventListener('click',e=>{if(e.target.id==='siteRoomDetailsModal')closeSiteRoomDetails()});
 document.getElementById('sitePhotoToDrawing')?.addEventListener('click',sendSitePhotoToDrawing);
-document.getElementById('siteOpenProject')?.addEventListener('click',()=>{const m=document.getElementById('siteRoomDetailsModal');if(!m)return;state.currentProject=m.dataset.projectId;state.currentCabinet=project()?.cabinets?.[0]?.id||null;save();closeSiteRoomDetails();renderAll();show('jobs')});
+document.getElementById('siteOpenProject')?.addEventListener('click',()=>{const m=document.getElementById('siteRoomDetailsModal');if(!m)return;const np=state.projects.find(x=>x.id===m.dataset.projectId);switchToProject(m.dataset.projectId,np?.cabinets?.[0]?.id||null);closeSiteRoomDetails();renderAll();save();show('jobs')});
 
 document.getElementById('siteInboxLater')?.addEventListener('click',()=>document.getElementById('siteInboxModal')?.classList.remove('open'));
 try{const syncChannel=new BroadcastChannel("assembleone-sync");syncChannel.onmessage=()=>paintSiteInbox()}catch(e){}
 window.addEventListener('storage',e=>{if(e.key===DIRECT_SYNC_FALLBACK)paintSiteInbox()});
+setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox()},120000);
 setInterval(paintSiteInbox,1800);setTimeout(paintSiteInbox,200);
 
-async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);state.currentProject=incoming.id;state.currentCabinet=incoming.cabinets[0]?.id||null;state.currentPart=null;save();renderAll();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
+async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);switchToProject(incoming.id,incoming.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
 $("#exportMobileBtn").onclick=exportProjectToMobile;
 if($("#sendCuttingToPhoneBtn"))$("#sendCuttingToPhoneBtn").onclick=exportProjectToMobile;if($("#bomExportBtn"))$("#bomExportBtn").onclick=exportProjectToMobile;if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
 $("#importMobileInput").onchange=e=>{const f=e.target.files[0];const badge=document.getElementById('siteUpdateBadge');if(f&&badge)badge.textContent='Importing…';importMobileUpdates(f);setTimeout(()=>{if(badge)badge.textContent='Site updates imported ✓'},300);e.target.value=""};
@@ -3450,6 +3503,10 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     t.textContent=message;t.style.background=isError?'#fff1f1':'#eef8e9';t.style.borderColor=isError?'#e34a4a':'#79b855';t.style.color=isError?'#9b1c1c':'#2e7008';t.classList.add('show');
     clearTimeout(window.__a125ToastTimer);window.__a125ToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
   }
+  // toast() is called by receiveSitePacket and openCustomerSiteJobInDrawing, which are
+  // declared outside this IIFE — it must be reachable globally or those calls throw
+  // (silently swallowed by their own try/catch as a false "sync unavailable" error).
+  window.toast=toast;
   function goToRealDrawing(panelId){
     const p=cabinetParts().find(x=>x.id===panelId),c=cabinet();
     if(!p){toast('Panel not found',true);return}
@@ -4860,6 +4917,7 @@ body.fiq-locked .app{display:none!important}
     $('fiqAuthGate').style.display='none';
     var badge=$('fiqAccountBadge');
     if(badge){badge.style.display='flex'; $('fiqAccountEmail').textContent=user.email;}
+    if(typeof paintSiteInbox==='function')paintSiteInbox();
   }
 
   async function evaluate(user){
@@ -4957,6 +5015,9 @@ body.fiq-locked .app{display:none!important}
 </script>
 
 <style id="a181-sheet-optimiser-style">
+.sheet-optim-toggle-btn{width:100%;min-height:56px;font-size:17px;font-weight:900;margin-bottom:12px;background:#eef3ff;border-color:#8fa8df;color:#23364e}
+.sheet-optim-toggle-btn:hover{border-color:#496ebf;box-shadow:0 0 0 4px rgba(73,111,191,.12)}
+.sheet-optim-toggle-btn.open{background:#0051ff;color:#fff;border-color:#0046dc}
 .sheet-optim-card .muted{margin-bottom:4px}
 .sheet-optim-empty{padding:10px 2px;color:#716c7e;font-weight:600}
 .sheet-optim-group{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px;background:#fff}
@@ -4979,23 +5040,26 @@ body.fiq-locked .app{display:none!important}
 <script id="a181-sheet-optimiser-script">
 (function(){
   var SETTINGS_KEY='assembleone_sheet_settings';
-  var DEFAULT_CFG={w:2440,h:1220,kerf:3,grain:true};
+  var DEFAULT_CFG={w:2440,h:1220,kerf:3,trim:5,grain:true};
   var PALETTE=['#8ecae6','#ffb703','#fb8500','#a7c957','#f4a261','#e76f51','#adb5bd','#cdb4db','#90be6d','#f9c74f','#6bbf3a','#5b9bd5'];
 
   function loadSettings(){try{return JSON.parse(localStorage.getItem(SETTINGS_KEY))||{}}catch(e){return {}}}
   function saveSetting(key,cfg){var all=loadSettings();all[key]=cfg;try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(all))}catch(e){}}
-  function cfgFor(all,material){var key=String(material||'').trim().toLowerCase();var c=all[key];return {key:key,w:Number(c&&c.w)||DEFAULT_CFG.w,h:Number(c&&c.h)||DEFAULT_CFG.h,kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,grain:c&&c.grain!=null?!!c.grain:DEFAULT_CFG.grain}}
+  function cfgFor(all,material){var key=String(material||'').trim().toLowerCase();var c=all[key];return {key:key,w:Number(c&&c.w)||DEFAULT_CFG.w,h:Number(c&&c.h)||DEFAULT_CFG.h,kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,trim:c&&c.trim!=null?Number(c.trim):DEFAULT_CFG.trim,grain:c&&c.grain!=null?!!c.grain:DEFAULT_CFG.grain}}
 
   function colorFor(code){var s=String(code||''),h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PALETTE[h%PALETTE.length]}
 
   // Guillotine bin packing: best-area-fit placement, shorter-leftover-axis split, optional 90deg rotation.
-  function pack(pieces,sheetW,sheetH,kerf,allowRotate){
+  // trim is a factory edge allowance trimmed off all four sides of the raw sheet before nesting starts.
+  function pack(pieces,sheetW,sheetH,kerf,allowRotate,trim){
     kerf=Math.max(0,Number(kerf)||0);
+    trim=Math.max(0,Number(trim)||0);
+    var usableW=Math.max(1,sheetW-2*trim),usableH=Math.max(1,sheetH-2*trim);
     var order=pieces.slice().sort(function(a,b){return Math.max(b.w,b.h)-Math.max(a.w,a.h)||(b.w*b.h-a.w*a.h)});
     var sheets=[],unplaced=[];
     function fitsSheet(p){
-      if(p.w<=sheetW&&p.h<=sheetH)return true;
-      if(allowRotate&&p.h<=sheetW&&p.w<=sheetH)return true;
+      if(p.w<=usableW&&p.h<=usableH)return true;
+      if(allowRotate&&p.h<=usableW&&p.w<=usableH)return true;
       return false;
     }
     function orientations(p){
@@ -5033,10 +5097,10 @@ body.fiq-locked .app{display:none!important}
         });
       });
       if(!best){
-        var sheet={w:sheetW,h:sheetH,placements:[],free:[{x:0,y:0,w:sheetW,h:sheetH}]};
+        var sheet={w:sheetW,h:sheetH,placements:[],free:[{x:trim,y:trim,w:usableW,h:usableH}]};
         sheets.push(sheet);
         var idx=0,chosen=orientations(piece)[0];
-        orientations(piece).forEach(function(orient){if(orient.w<=sheetW&&orient.h<=sheetH)chosen=orient});
+        orientations(piece).forEach(function(orient){if(orient.w<=usableW&&orient.h<=usableH)chosen=orient});
         best={sheet:sheet,rectIndex:idx,orient:chosen,leftover:0};
       }
       place(best.sheet,best.rectIndex,best.orient,piece);
@@ -5051,6 +5115,7 @@ body.fiq-locked .app{display:none!important}
     var codeFont=Math.max(28,Math.min(W,H)*0.045),dimFont=codeFont*0.62;
     var parts=['<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">'];
     parts.push('<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="#ffffff" stroke="#23364e" stroke-width="6"/>');
+    if(cfg.trim>0){parts.push('<rect x="'+cfg.trim+'" y="'+cfg.trim+'" width="'+Math.max(0,W-2*cfg.trim)+'" height="'+Math.max(0,H-2*cfg.trim)+'" fill="none" stroke="#c7c7c7" stroke-width="2" stroke-dasharray="6 6"/>')}
     var usableOffcut=sheet.free.filter(function(r){return r.w*r.h>=90000});
     usableOffcut.forEach(function(r){
       parts.push('<rect x="'+r.x+'" y="'+r.y+'" width="'+r.w+'" height="'+r.h+'" fill="#f2f2f2" stroke="#c7c7c7" stroke-width="3" stroke-dasharray="14 10"/>');
@@ -5076,7 +5141,7 @@ body.fiq-locked .app{display:none!important}
   function groupResult(materialLabel,thickness,partsList,cfg){
     var pieces=[];
     partsList.forEach(function(p){var n=Math.max(1,Number(p.qty)||1);for(var i=0;i<n;i++)pieces.push({w:Number(p.length)||0,h:Number(p.width)||0,code:p.code,name:p.name||''})});
-    var res=pack(pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain);
+    var res=pack(pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
     var sheetArea=cfg.w*cfg.h,usedArea=0;
     res.sheets.forEach(function(s){s.placements.forEach(function(p){usedArea+=p.w*p.h})});
     var totalArea=res.sheets.length*sheetArea;
@@ -5098,6 +5163,7 @@ body.fiq-locked .app{display:none!important}
         '<label>Sheet length (mm)<input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
         '<label>Sheet width (mm)<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label>'+
         '<label>Saw kerf (mm)<input type="number" min="0" max="15" step="0.5" data-sheet-kerf="'+idx+'" value="'+cfg.kerf+'"></label>'+
+        '<label>Trim allowance (mm)<input type="number" min="0" max="50" step="1" data-sheet-trim="'+idx+'" value="'+cfg.trim+'"></label>'+
         '<label class="sheet-optim-grain"><input type="checkbox" data-sheet-grain="'+idx+'" '+(cfg.grain?'checked':'')+'> Has grain direction (don’t rotate panels)</label>'+
       '</div>'+
       '<div class="sheet-optim-stats">'+
@@ -5137,14 +5203,15 @@ body.fiq-locked .app{display:none!important}
       return groupResult(g.material,g.thickness,g.parts,cfg);
     });
     box.innerHTML=lastGroups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
-    box.querySelectorAll('[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-grain]').forEach(function(el){
+    box.querySelectorAll('[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
       el.addEventListener('change',function(){
-        var idx=Number(el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetGrain);
+        var idx=Number(el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetTrim??el.dataset.sheetGrain);
         var g=lastGroups[idx];if(!g)return;
         var cur=cfgFor(loadSettings(),g.materialLabel);
         if(el.dataset.sheetW!=null)cur.w=Math.max(300,Number(el.value)||DEFAULT_CFG.w);
         if(el.dataset.sheetH!=null)cur.h=Math.max(300,Number(el.value)||DEFAULT_CFG.h);
         if(el.dataset.sheetKerf!=null)cur.kerf=Math.max(0,Number(el.value)||0);
+        if(el.dataset.sheetTrim!=null)cur.trim=Math.max(0,Number(el.value)||0);
         if(el.dataset.sheetGrain!=null)cur.grain=!!el.checked;
         saveSetting(cur.key,cur);
         render();
@@ -5159,6 +5226,17 @@ body.fiq-locked .app{display:none!important}
   var prevRenderCutting=window.renderCutting;
   window.renderCutting=function(){if(typeof prevRenderCutting==='function')prevRenderCutting();render()};
   try{render()}catch(e){}
+
+  var toggleBtn=document.getElementById('sheetOptimiserToggleBtn'),card=document.getElementById('sheetOptimiserCard');
+  if(toggleBtn&&card){
+    toggleBtn.addEventListener('click',function(){
+      var opening=card.hasAttribute('hidden');
+      if(opening){card.removeAttribute('hidden');render();card.scrollIntoView({behavior:'smooth',block:'start'})}
+      else{card.setAttribute('hidden','')}
+      toggleBtn.classList.toggle('open',opening);
+      toggleBtn.textContent=opening?'📐 Hide Sheet Optimiser':'📐 Sheet Optimiser — see how many sheets this job needs';
+    });
+  }
 })();
 </script>
 <script>window.FIQ_HELP_APP="studio";</script>

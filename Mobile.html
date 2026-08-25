@@ -1779,7 +1779,7 @@ async function firebasePut(path,value){const r=await fetch(`${ASSEMBLEONE_FIREBA
 async function firebaseGet(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{cache:"no-store"});if(!r.ok)throw new Error(`Firebase read failed: ${r.status}`);return r.json()}
 async function firebaseDelete(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"DELETE"});if(!r.ok)throw new Error(`Firebase delete failed: ${r.status}`)}
 async function sendPackDirectly(pack){const packet={...pack,syncId:firebaseSafeKey(uid()),syncStatus:"waiting"};await firebasePut(`studioInbox/${packet.syncId}`,packet);try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-update"})}catch(e){}return true}
-async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert(t('msg.directSyncUnavailableBackup'))}}
+async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert((e&&e.message?e.message+' ':'')+t('msg.directSyncUnavailableBackup'))}}
 
 // mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the original,
 // pre-channel Studio-to-phone receiver) lived here. They're superseded by the
@@ -2360,10 +2360,35 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   const ROOT=`sync_v2/${CHANNEL}`;
   window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
 
+  // Site Jobs must be visible to Studio on a different device, so this can no longer
+  // write to a hardcoded, non-company Realtime Database channel that Studio never
+  // reads anyway. It now writes to the same company-scoped Firestore "jobs"
+  // collection Studio's Customer Library and auth gate already use, so a phone and a
+  // different computer signed in to the same company both see it.
   window.sendPackDirectly=async function(pack){
-    const packet={...pack,syncId:firebaseSafeKey(uid()),syncStatus:"waiting",channel:CHANNEL};
-    await firebasePut(`${ROOT}/studioQueue/${packet.syncId}`,packet);
-    try{new BroadcastChannel("assembleone-sync").postMessage({type:"mobile-update",syncId:packet.syncId,channel:CHANNEL})}catch(e){}
+    const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+    if(!fs||!db)throw new Error("Not connected to FittersIQ yet. Please try again in a moment.");
+    if(!user||!user.companyId)throw new Error("This account is not linked to a company yet, so it cannot be shared with Studio.");
+    const envelope={
+      kind:"siteJobPacket",
+      status:"waiting",
+      companyId:user.companyId,
+      createdBy:user.uid,
+      createdByEmail:user.email||"",
+      createdAt:fs.serverTimestamp(),
+      exportedAt:pack.exportedAt||new Date().toISOString(),
+      app:pack.app||"AssembleOne",
+      schema:pack.schema||"",
+      source:pack.source||"mobile",
+      project:pack.project||pack
+    };
+    // Firestore documents are capped at ~1MiB. Photos are already compressed, but a
+    // room with several of them can still get close, so check before writing rather
+    // than let the job vanish behind a cryptic SDK error.
+    let approxBytes=0;try{approxBytes=new Blob([JSON.stringify(envelope)]).size}catch(e){approxBytes=JSON.stringify(envelope).length}
+    if(approxBytes>900000)throw new Error("This site job's photos are too large to send to Studio in one go (about "+Math.round(approxBytes/1024)+"KB). Remove a photo or two, or use the backup file instead.");
+    const ref=await fs.addDoc(fs.collection(db,"companies",user.companyId,"jobs"),envelope);
+    try{new BroadcastChannel("assembleone-sync").postMessage({type:"mobile-update",syncId:ref.id,channel:CHANNEL})}catch(e){}
     return true;
   };
 
