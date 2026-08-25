@@ -890,7 +890,7 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 #jobGrid.a100-open{display:grid!important}
 #combinedProjectWorkspace{border:0!important;padding-top:0!important;margin-top:0!important}
 #combinedProjectWorkspace .start-block{display:none!important}
-.a100-start-shell{display:none!important}
+.a100-start-shell{display:grid;gap:14px}
 .a100-bottom-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .a100-action-btn{width:100%;min-height:96px;border-radius:22px;border:2px solid var(--line);background:#fff;color:var(--ink);display:flex;align-items:center;gap:14px;padding:18px;text-align:left;cursor:pointer}
 .a100-action-btn:hover,.a100-action-btn:focus{border-color:var(--yellow);background:#f0f5ff;outline:4px solid rgba(255,196,0,.15)}
@@ -1488,6 +1488,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="notice" id="cuttingValidation" style="display:none;margin-bottom:12px"></div>
 <div class="supplier-summary" id="supplierSummary"></div>
 <div class="supplier-materials-card"><h3>Materials</h3><div id="supplierMaterialSummary"></div></div>
+<div class="supplier-materials-card sheet-optim-card" id="sheetOptimiserCard"><h3>Sheet Optimiser</h3><div class="muted">Full sheets required, cutting layout and offcut for each material — check this before ordering.</div><div id="sheetOptimiserBody"></div></div>
 <div class="supplier-actions supplier-actions-simple">
 <button class="supplier-action export" id="exportSupplierCsvBtn" type="button"><span class="supplier-action-icon">⇩</span><strong>Download CSV</strong><small>Excel and CNC suppliers</small></button>
 <button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong>Print Supplier Pack</strong><small>Cutting list + matching QR stickers</small></button>
@@ -3537,7 +3538,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
 
 </head><body>${html}</body></html>`);w.document.close();setTimeout(()=>{w.focus();w.print()},350);return true}
  function qrData(text){const box=document.createElement('div');box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);makeQr(box,text,180);const c=box.querySelector('canvas'),i=box.querySelector('img');let d='';try{d=c?c.toDataURL('image/png'):(i?.src||'')}catch(e){}box.remove();return d}
- function printSupplierPack(){const list=rows();if(!list.length){setStatus('No complete panels are ready to print.','err');return}const btn=document.getElementById('printSupplierPackBtn');if(btn)btn.disabled=true;setStatus('Building supplier pack…');try{const pr=project(),ref=window.assembleOneJobRef?assembleOneJobRef(pr):'';const cutting=`<section><h1>Supplier Cutting List</h1><p>${safe(pr?.name||'Project')} · ${safe(cabinet()?.name||'Unit')}</p>${list.map(p=>`<div class="card"><div class="row"><div><div class="code">${safe(p.code)}</div><div class="name">${safe(p.name||'')}</div></div><div class="qty">Qty ${Number(p.qty||1)}</div></div><div class="measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="small">Material: ${safe(mat(p))}</div><div class="small">Edging: ${edge(p.edgeLong,'long')} · ${edge(p.edgeShort,'short')}</div>${p.notes?`<div class="small">Notes: ${safe(p.notes)}</div>`:''}</div>`).join('')}</section>`;const stickers=`<section style="break-before:page;page-break-before:always"><h1>Supplier QR Stickers</h1><p>${safe(pr?.name||'Project')} · ${safe(cabinet()?.name||'Unit')}</p><div class="stickers">${list.map(p=>{const q=qrData(phoneQrText(p));return `<div class="sticker"><div><div class="row"><div class="code">${safe(p.code)}</div><div class="qty">Qty ${Number(p.qty||1)}</div></div><div class="name">${safe(p.name||'')}</div><div class="measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="small">Material: ${safe(mat(p))}</div><div class="small">${safe(ref)} · ${safe(pr?.name||'')}</div></div>${q?`<img src="${q}">`:''}</div>`}).join('')}</div></section>`;if(openPrint('Supplier Pack',cutting+stickers))setStatus('✓ Supplier pack ready to print')}catch(e){console.error(e);setStatus('Supplier pack could not be created.','err')}finally{if(btn)setTimeout(()=>btn.disabled=false,400)}}
+ function printSupplierPack(){const list=rows();if(!list.length){setStatus('No complete panels are ready to print.','err');return}const btn=document.getElementById('printSupplierPackBtn');if(btn)btn.disabled=true;setStatus('Building supplier pack…');try{const pr=project(),ref=window.assembleOneJobRef?assembleOneJobRef(pr):'';const cutting=`<section><h1>Supplier Cutting List</h1><p>${safe(pr?.name||'Project')} · ${safe(cabinet()?.name||'Unit')}</p>${list.map(p=>`<div class="card"><div class="row"><div><div class="code">${safe(p.code)}</div><div class="name">${safe(p.name||'')}</div></div><div class="qty">Qty ${Number(p.qty||1)}</div></div><div class="measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="small">Material: ${safe(mat(p))}</div><div class="small">Edging: ${edge(p.edgeLong,'long')} · ${edge(p.edgeShort,'short')}</div>${p.notes?`<div class="small">Notes: ${safe(p.notes)}</div>`:''}</div>`).join('')}</section>`;const stickers=`<section style="break-before:page;page-break-before:always"><h1>Supplier QR Stickers</h1><p>${safe(pr?.name||'Project')} · ${safe(cabinet()?.name||'Unit')}</p><div class="stickers">${list.map(p=>{const q=qrData(phoneQrText(p));return `<div class="sticker"><div><div class="row"><div class="code">${safe(p.code)}</div><div class="qty">Qty ${Number(p.qty||1)}</div></div><div class="name">${safe(p.name||'')}</div><div class="measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="small">Material: ${safe(mat(p))}</div><div class="small">${safe(ref)} · ${safe(pr?.name||'')}</div></div>${q?`<img src="${q}">`:''}</div>`}).join('')}</div></section>`;const sheetSection=(typeof window.a181SheetOptimPrintHtml==='function')?window.a181SheetOptimPrintHtml():'';if(openPrint('Supplier Pack',cutting+sheetSection+stickers))setStatus('✓ Supplier pack ready to print')}catch(e){console.error(e);setStatus('Supplier pack could not be created.','err')}finally{if(btn)setTimeout(()=>btn.disabled=false,400)}}
  document.getElementById('exportSupplierCsvBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();exportCsv()},true);document.getElementById('printSupplierPackBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();printSupplierPack()},true);renderSupplierPage();
 })();
 </script>
@@ -3659,7 +3660,8 @@ body.guide-only .a131-back-studio{display:block}
     const esc=x=>safe(x==null?'':x),edge=(v,n)=>Number(v||0)+' '+n+' edge'+(Number(v||0)===1?'':'s');
     const cutting='<section><h1>Supplier Cutting List</h1><p>'+esc(pr?.name||'Project')+' · '+esc(unit?.name||'Unit')+'</p>'+list.map(p=>'<div class="card"><div class="row"><div><div class="code">'+esc(p.code)+'</div><div class="name">'+esc(p.name||'')+'</div></div><strong>Qty '+Number(p.qty||1)+'</strong></div><div class="measure">'+esc(p.thickness)+' mm · '+esc(p.length)+' × '+esc(p.width)+' mm</div><div class="small">Material: '+esc(mat(p))+'</div><div class="small">Edging: '+edge(p.edgeLong,'long')+' · '+edge(p.edgeShort,'short')+'</div>'+(p.notes?'<div class="small">Notes: '+esc(p.notes)+'</div>':'')+'</div>').join('')+'</section>';
     const stickers='<section style="page-break-before:always"><h1>Supplier QR Stickers</h1><div class="stickers">'+list.map(p=>{let q='';try{q=typeof qrData==='function'?qrData(phoneQrText(p)):''}catch(err){}return '<div class="sticker"><div><div class="row"><div class="code">'+esc(p.code)+'</div><strong>Qty '+Number(p.qty||1)+'</strong></div><div class="name">'+esc(p.name||'')+'</div><div class="measure">'+esc(p.thickness)+' mm · '+esc(p.length)+' × '+esc(p.width)+' mm</div><div class="small">Material: '+esc(mat(p))+'</div></div>'+(q?'<img src="'+q+'">':'')+'</div>'}).join('')+'</div></section>';
-    window.a131OpenPrintPreview('Supplier Pack',cutting+stickers);
+    const sheetSection=(typeof window.a181SheetOptimPrintHtml==='function')?window.a181SheetOptimPrintHtml():'';
+    window.a131OpenPrintPreview('Supplier Pack',cutting+sheetSection+stickers);
   },true);
   // QR label print also stays inside Studio.
   document.addEventListener('click',function(e){const btn=e.target.closest('#printQrBtn');if(!btn)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();stableSave(false);if(typeof renderQr==='function')renderQr();setTimeout(()=>{const grid=document.getElementById('qrGrid');if(!grid||!grid.children.length){alert('Generate QR codes first.');return}window.a131OpenPrintPreview('QR Labels','<div class="stickers">'+grid.innerHTML+'</div>')},80)},true);
@@ -4951,6 +4953,212 @@ body.fiq-locked .app{display:none!important}
     var el=$(id); if(el) el.addEventListener('click', function(){ authFns.signOut(auth); });
   });
   } // end initFiqAuthGate
+})();
+</script>
+
+<style id="a181-sheet-optimiser-style">
+.sheet-optim-card .muted{margin-bottom:4px}
+.sheet-optim-empty{padding:10px 2px;color:#716c7e;font-weight:600}
+.sheet-optim-group{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px;background:#fff}
+.sheet-optim-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px 14px;align-items:baseline;margin-bottom:6px}
+.sheet-optim-head h4{margin:0;font-size:19px}
+.sheet-optim-settings{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:8px 0 12px;padding:10px;background:#f7f8fb;border-radius:10px}
+.sheet-optim-settings label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:800;color:#5c5668}
+.sheet-optim-settings input[type=number]{width:76px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit}
+.sheet-optim-settings .sheet-optim-grain{flex-direction:row;align-items:center;gap:6px;font-weight:700}
+.sheet-optim-stats{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 12px}
+.sheet-optim-stat{background:#f0f5ff;border-radius:10px;padding:8px 12px;font-weight:800;color:#23364e;font-size:13px;white-space:nowrap}
+.sheet-optim-stat.warn{background:#fdecea;color:#9c2b1f}
+.sheet-optim-warn-list{color:#9c2b1f;font-weight:700;font-size:13px;margin:6px 0}
+.sheet-optim-sheets{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px}
+.sheet-optim-sheet{border:1px solid var(--line);border-radius:10px;padding:8px;background:#fafcff;width:340px}
+.sheet-optim-sheet svg{display:block;width:100%;height:auto;border-radius:4px}
+.sheet-optim-sheet .sheet-caption{font-size:12px;font-weight:800;margin-top:6px;color:#3a4658}
+.sheet-optim-recalc{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer}
+</style>
+<script id="a181-sheet-optimiser-script">
+(function(){
+  var SETTINGS_KEY='assembleone_sheet_settings';
+  var DEFAULT_CFG={w:2440,h:1220,kerf:3,grain:true};
+  var PALETTE=['#8ecae6','#ffb703','#fb8500','#a7c957','#f4a261','#e76f51','#adb5bd','#cdb4db','#90be6d','#f9c74f','#6bbf3a','#5b9bd5'];
+
+  function loadSettings(){try{return JSON.parse(localStorage.getItem(SETTINGS_KEY))||{}}catch(e){return {}}}
+  function saveSetting(key,cfg){var all=loadSettings();all[key]=cfg;try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(all))}catch(e){}}
+  function cfgFor(all,material){var key=String(material||'').trim().toLowerCase();var c=all[key];return {key:key,w:Number(c&&c.w)||DEFAULT_CFG.w,h:Number(c&&c.h)||DEFAULT_CFG.h,kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,grain:c&&c.grain!=null?!!c.grain:DEFAULT_CFG.grain}}
+
+  function colorFor(code){var s=String(code||''),h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PALETTE[h%PALETTE.length]}
+
+  // Guillotine bin packing: best-area-fit placement, shorter-leftover-axis split, optional 90deg rotation.
+  function pack(pieces,sheetW,sheetH,kerf,allowRotate){
+    kerf=Math.max(0,Number(kerf)||0);
+    var order=pieces.slice().sort(function(a,b){return Math.max(b.w,b.h)-Math.max(a.w,a.h)||(b.w*b.h-a.w*a.h)});
+    var sheets=[],unplaced=[];
+    function fitsSheet(p){
+      if(p.w<=sheetW&&p.h<=sheetH)return true;
+      if(allowRotate&&p.h<=sheetW&&p.w<=sheetH)return true;
+      return false;
+    }
+    function orientations(p){
+      var out=[{w:p.w,h:p.h,rot:false}];
+      if(allowRotate&&p.w!==p.h)out.push({w:p.h,h:p.w,rot:true});
+      return out;
+    }
+    function place(sheet,rectIndex,orient,piece){
+      var r=sheet.free[rectIndex];
+      sheet.free.splice(rectIndex,1);
+      sheet.placements.push({x:r.x,y:r.y,w:orient.w,h:orient.h,rot:orient.rot,code:piece.code,name:piece.name});
+      var rightW=r.w-orient.w-kerf; if(rightW<0)rightW=0;
+      var bottomH=r.h-orient.h-kerf; if(bottomH<0)bottomH=0;
+      var rects=[];
+      if(rightW<=bottomH){
+        if(rightW>0)rects.push({x:r.x+orient.w+kerf,y:r.y,w:rightW,h:r.h});
+        if(bottomH>0)rects.push({x:r.x,y:r.y+orient.h+kerf,w:orient.w,h:bottomH});
+      }else{
+        if(bottomH>0)rects.push({x:r.x,y:r.y+orient.h+kerf,w:r.w,h:bottomH});
+        if(rightW>0)rects.push({x:r.x+orient.w+kerf,y:r.y,w:rightW,h:orient.h});
+      }
+      rects.forEach(function(rr){if(rr.w>0.01&&rr.h>0.01)sheet.free.push(rr)});
+    }
+    order.forEach(function(piece){
+      if(!fitsSheet(piece)){unplaced.push(piece);return}
+      var best=null;
+      sheets.forEach(function(sheet){
+        sheet.free.forEach(function(rect,idx){
+          orientations(piece).forEach(function(orient){
+            if(orient.w<=rect.w+0.001&&orient.h<=rect.h+0.001){
+              var leftover=rect.w*rect.h-orient.w*orient.h;
+              if(!best||leftover<best.leftover)best={sheet:sheet,rectIndex:idx,orient:orient,leftover:leftover};
+            }
+          });
+        });
+      });
+      if(!best){
+        var sheet={w:sheetW,h:sheetH,placements:[],free:[{x:0,y:0,w:sheetW,h:sheetH}]};
+        sheets.push(sheet);
+        var idx=0,chosen=orientations(piece)[0];
+        orientations(piece).forEach(function(orient){if(orient.w<=sheetW&&orient.h<=sheetH)chosen=orient});
+        best={sheet:sheet,rectIndex:idx,orient:chosen,leftover:0};
+      }
+      place(best.sheet,best.rectIndex,best.orient,piece);
+    });
+    return {sheets:sheets,unplaced:unplaced};
+  }
+
+  function fmt(n){return Math.round(n*10)/10}
+
+  function sheetSvg(sheet,cfg){
+    var W=sheet.w,H=sheet.h,scale=1;
+    var codeFont=Math.max(28,Math.min(W,H)*0.045),dimFont=codeFont*0.62;
+    var parts=['<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">'];
+    parts.push('<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="#ffffff" stroke="#23364e" stroke-width="6"/>');
+    var usableOffcut=sheet.free.filter(function(r){return r.w*r.h>=90000});
+    usableOffcut.forEach(function(r){
+      parts.push('<rect x="'+r.x+'" y="'+r.y+'" width="'+r.w+'" height="'+r.h+'" fill="#f2f2f2" stroke="#c7c7c7" stroke-width="3" stroke-dasharray="14 10"/>');
+      if(r.w>W*0.12&&r.h>H*0.08)parts.push('<text x="'+(r.x+r.w/2)+'" y="'+(r.y+r.h/2)+'" font-size="'+dimFont+'" fill="#8a8a8a" text-anchor="middle" dominant-baseline="middle">Offcut '+Math.round(r.w)+'×'+Math.round(r.h)+'</text>');
+    });
+    sheet.placements.forEach(function(p){
+      var fill=colorFor(p.code);
+      parts.push('<rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" fill="'+fill+'" stroke="#1f2329" stroke-width="4"/>');
+      var cx=p.x+p.w/2,cy=p.y+p.h/2;
+      parts.push('<text x="'+cx+'" y="'+(cy-dimFont*0.3)+'" font-size="'+codeFont+'" font-weight="900" fill="#1f2329" text-anchor="middle" dominant-baseline="middle">'+safe(p.code||'')+'</text>');
+      parts.push('<text x="'+cx+'" y="'+(cy+dimFont*0.9)+'" font-size="'+dimFont+'" fill="#1f2329" text-anchor="middle" dominant-baseline="middle">'+Math.round(p.w)+'×'+Math.round(p.h)+'</text>');
+      if(cfg.grain&&!p.rot&&p.w>dimFont*3){
+        var ay=cy+dimFont*1.9<p.y+p.h-6?cy+dimFont*1.9:p.y+p.h-6;
+        var ax1=p.x+p.w*0.18,ax2=p.x+p.w*0.82;
+        parts.push('<line x1="'+ax1+'" y1="'+ay+'" x2="'+ax2+'" y2="'+ay+'" stroke="#1f2329" stroke-width="3" marker-start="url(#a181arrow)" marker-end="url(#a181arrow)"/>');
+      }
+    });
+    parts.push('<defs><marker id="a181arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f2329"/></marker></defs>');
+    parts.push('</svg>');
+    return parts.join('');
+  }
+
+  function groupResult(materialLabel,thickness,partsList,cfg){
+    var pieces=[];
+    partsList.forEach(function(p){var n=Math.max(1,Number(p.qty)||1);for(var i=0;i<n;i++)pieces.push({w:Number(p.length)||0,h:Number(p.width)||0,code:p.code,name:p.name||''})});
+    var res=pack(pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain);
+    var sheetArea=cfg.w*cfg.h,usedArea=0;
+    res.sheets.forEach(function(s){s.placements.forEach(function(p){usedArea+=p.w*p.h})});
+    var totalArea=res.sheets.length*sheetArea;
+    var wastePct=totalArea>0?fmt(100*(1-usedArea/totalArea)):0;
+    return {materialLabel:materialLabel,thickness:thickness,cfg:cfg,sheets:res.sheets,unplaced:res.unplaced,wastePct:wastePct,sheetArea:sheetArea,usedArea:usedArea};
+  }
+
+  function renderGroupHtml(g,idx){
+    var cfg=g.cfg;
+    var warn=g.unplaced.length?'<div class="sheet-optim-warn-list">⚠️ '+g.unplaced.length+' panel'+(g.unplaced.length===1?'':'s')+' larger than the sheet size and could not be placed ('+g.unplaced.map(function(p){return safe(p.code)}).join(', ')+'). Increase the sheet size for this material or split the panel.</div>':'';
+    var sheetsHtml=g.sheets.map(function(s,i){
+      var used=0;s.placements.forEach(function(p){used+=p.w*p.h});
+      var wp=fmt(100*(1-used/(cfg.w*cfg.h)));
+      return '<div class="sheet-optim-sheet">'+sheetSvg(s,cfg)+'<div class="sheet-caption">Sheet '+(i+1)+' of '+g.sheets.length+' · '+s.placements.length+' panel'+(s.placements.length===1?'':'s')+' · '+wp+'% waste</div></div>';
+    }).join('');
+    return '<div class="sheet-optim-group" data-sheet-group="'+idx+'">'+
+      '<div class="sheet-optim-head"><h4>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</h4></div>'+
+      '<div class="sheet-optim-settings">'+
+        '<label>Sheet length (mm)<input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
+        '<label>Sheet width (mm)<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label>'+
+        '<label>Saw kerf (mm)<input type="number" min="0" max="15" step="0.5" data-sheet-kerf="'+idx+'" value="'+cfg.kerf+'"></label>'+
+        '<label class="sheet-optim-grain"><input type="checkbox" data-sheet-grain="'+idx+'" '+(cfg.grain?'checked':'')+'> Has grain direction (don’t rotate panels)</label>'+
+      '</div>'+
+      '<div class="sheet-optim-stats">'+
+        '<span class="sheet-optim-stat">Sheets required: '+g.sheets.length+'</span>'+
+        '<span class="sheet-optim-stat'+(g.wastePct>25?' warn':'')+'">Waste: '+g.wastePct+'%</span>'+
+        '<span class="sheet-optim-stat">Sheet size: '+cfg.w+' × '+cfg.h+'mm</span>'+
+      '</div>'+warn+
+      '<div class="sheet-optim-sheets">'+sheetsHtml+'</div>'+
+    '</div>';
+  }
+
+  function renderGroupPrintHtml(g,i){
+    var sheetsHtml=g.sheets.map(function(s,idx){
+      var used=0;s.placements.forEach(function(p){used+=p.w*p.h});
+      var wp=fmt(100*(1-used/(g.cfg.w*g.cfg.h)));
+      return '<div style="page-break-inside:avoid;margin-bottom:14px"><div style="width:320px">'+sheetSvg(s,g.cfg)+'</div><div class="small">Sheet '+(idx+1)+' of '+g.sheets.length+' — '+s.placements.length+' panel'+(s.placements.length===1?'':'s')+' — '+wp+'% waste</div></div>';
+    }).join('');
+    return '<div class="card"><div class="name">'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm — sheet size '+g.cfg.w+' × '+g.cfg.h+'mm</div><div class="measure">Sheets required: '+g.sheets.length+' · Overall waste: '+g.wastePct+'%</div>'+(g.unplaced.length?'<div class="small">⚠️ Could not place: '+g.unplaced.map(function(p){return safe(p.code)}).join(', ')+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px">'+sheetsHtml+'</div></div>';
+  }
+
+  var lastGroups=[];
+
+  function render(){
+    var box=document.getElementById('sheetOptimiserBody');if(!box)return;
+    var parts=(typeof supplierParts==='function')?supplierParts():[];
+    if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">Add complete panels first — the sheet optimiser calculates once panels are ready for the supplier.</div>';lastGroups=[];window.a181SheetOptimPrintHtml=function(){return ''};return}
+    var settings=loadSettings();
+    var byKey={};
+    parts.forEach(function(p){
+      var mat=(typeof materialForPanel==='function'?materialForPanel(p):p.material)||'Material not set';
+      var key=mat.trim().toLowerCase()+'__'+(p.thickness||0);
+      (byKey[key]=byKey[key]||{material:mat,thickness:p.thickness,parts:[]}).parts.push(p);
+    });
+    lastGroups=Object.keys(byKey).map(function(key){
+      var g=byKey[key];
+      var cfg=cfgFor(settings,g.material);
+      return groupResult(g.material,g.thickness,g.parts,cfg);
+    });
+    box.innerHTML=lastGroups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
+    box.querySelectorAll('[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-grain]').forEach(function(el){
+      el.addEventListener('change',function(){
+        var idx=Number(el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetGrain);
+        var g=lastGroups[idx];if(!g)return;
+        var cur=cfgFor(loadSettings(),g.materialLabel);
+        if(el.dataset.sheetW!=null)cur.w=Math.max(300,Number(el.value)||DEFAULT_CFG.w);
+        if(el.dataset.sheetH!=null)cur.h=Math.max(300,Number(el.value)||DEFAULT_CFG.h);
+        if(el.dataset.sheetKerf!=null)cur.kerf=Math.max(0,Number(el.value)||0);
+        if(el.dataset.sheetGrain!=null)cur.grain=!!el.checked;
+        saveSetting(cur.key,cur);
+        render();
+      });
+    });
+    var pr=(typeof project==='function')?project():null,unit=(typeof cabinet==='function')?cabinet():null;
+    window.a181SheetOptimPrintHtml=function(){
+      return '<section style="break-before:page;page-break-before:always"><h1>Sheet Optimisation Summary</h1><p>'+safe(pr?.name||'Project')+' · '+safe(unit?.name||'Unit')+'</p>'+lastGroups.map(function(g,i){return renderGroupPrintHtml(g,i)}).join('')+'</section>';
+    };
+  }
+
+  var prevRenderCutting=window.renderCutting;
+  window.renderCutting=function(){if(typeof prevRenderCutting==='function')prevRenderCutting();render()};
+  try{render()}catch(e){}
 })();
 </script>
 <script>window.FIQ_HELP_APP="studio";</script>
