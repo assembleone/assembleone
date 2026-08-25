@@ -740,7 +740,7 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .site-job-inbox-card{appearance:none;width:100%;border:2px solid #c7deb9;background:#fff;border-radius:22px;padding:16px;display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:14px;text-align:left;color:#212e3f;cursor:pointer;box-shadow:0 5px 14px rgba(35,31,63,.06);font:inherit}.site-job-inbox-card:hover{transform:translateY(-1px);border-color:#4da918}.site-job-room-icon{width:64px;height:64px;border-radius:18px;background:#f0f8ec;display:grid;place-items:center;font-size:36px}.site-job-main strong{display:block;font-size:23px;color:#172e4a;line-height:1.1}.site-job-main .site-project-name{display:block;font-size:14px;color:#716c7e;font-weight:750;margin-top:5px}.site-job-main .site-job-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}.site-job-main .site-job-meta span{background:#f2f4f8;border-radius:999px;padding:6px 9px;font-size:13px;font-weight:800}.site-job-open{background:#0051ff;color:#1b3350;border:2px solid #0046dc;border-radius:16px;padding:13px 17px;font-weight:900;white-space:nowrap;font-size:16px}.site-job-open:after{content:'  ›';font-size:22px;vertical-align:-1px}
 @media(max-width:700px){.site-job-inbox-card{grid-template-columns:52px 1fr}.site-job-room-icon{width:52px;height:52px;font-size:30px}.site-job-open{grid-column:1/-1;width:100%;text-align:center}.site-job-main strong{font-size:20px}.site-jobs-panel{padding:13px;border-radius:22px}}
 /* Home cards: same height as Site Jobs, consistent font sizes, images centred and never cropped. */
-.studio-home-actions{gap:10px!important}
+.studio-home-actions{gap:5px!important;margin-bottom:2px!important}
 .home-action-card{min-height:112px!important;padding:12px 16px!important;align-items:center!important}
 .new-project-card,.open-project-card{min-height:112px!important}
 .mascot-icon{height:80px!important;width:56px!important;display:grid!important;place-items:center!important;border-radius:14px!important;overflow:visible}
@@ -890,11 +890,14 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 #workflowProgress{margin:4px 0 16px!important}
 #jobGrid{display:none}
 #jobGrid.a100-open{display:grid!important}
-#combinedProjectWorkspace{border:0!important;padding-top:0!important;margin-top:0!important}
+#combinedProjectWorkspace{border:0!important;padding-top:0!important;margin-top:0!important;order:2}
+.open-project-card{order:3!important}
+.site-jobs-panel{order:4!important}
+.customers-card{order:5!important}
 #combinedProjectWorkspace .start-block{display:none!important}
 .a100-start-shell{display:grid;gap:14px}
 .a100-bottom-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.a100-action-btn{width:100%;min-height:96px;border-radius:22px;border:2px solid var(--line);background:#fff;color:var(--ink);display:flex;align-items:center;gap:14px;padding:18px;text-align:left;cursor:pointer}
+.a100-action-btn{width:100%;min-height:78px;border-radius:22px;border:2px solid var(--line);background:#fff;color:var(--ink);display:flex;align-items:center;gap:14px;padding:12px 18px;text-align:left;cursor:pointer;box-sizing:border-box}
 .a100-action-btn:hover,.a100-action-btn:focus{border-color:var(--yellow);background:#f0f5ff;outline:4px solid rgba(255,196,0,.15)}
 .a100-action-icon{font-size:38px;line-height:1;flex-shrink:0}
 .a100-action-copy{flex:1;min-width:0}
@@ -2133,7 +2136,7 @@ async function mobileSyncDb(){return new Promise((resolve,reject)=>{const q=inde
 async function sendPackToPhoneDirectly(pack){const packet={...pack,syncId:uid(),syncStatus:"waiting"};let stored=false;try{const db=await mobileSyncDb();const tx=db.transaction("mobileInbox","readwrite");tx.objectStore("mobileInbox").put(packet);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();stored=true}catch(e){console.error(e)}try{const key="assembleone_mobile_direct_queue_v1",arr=JSON.parse(localStorage.getItem(key)||"[]");arr.push(packet);localStorage.setItem(key,JSON.stringify(arr.slice(-20)));stored=true}catch(e){}try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId})}catch(e){}if(!stored)throw new Error("Direct phone storage unavailable");return packet}
 async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();alert("Sent directly to Mobile. Open the phone app and the cutting list will appear automatically. No ZIP folder has been created.")}catch(e){console.error(e);alert("Direct phone connection is unavailable. Open Mobile and Studio from the same AssembleOne installation, then press Send to Phone again.")}}
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){state.projects.unshift(incoming);return incoming}
-["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
+["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
 incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
@@ -5237,6 +5240,16 @@ body.fiq-locked .app{display:none!important}
       toggleBtn.textContent=opening?'📐 Hide Sheet Optimiser':'📐 Sheet Optimiser — see how many sheets this job needs';
     });
   }
+})();
+</script>
+<script id="a183-home-layout-move">
+(function(){
+  // Layout move only: the "New Job / Choose Project" workspace becomes a grid item of
+  // .studio-home-actions (order:2, set in CSS) so it renders directly under New Project
+  // instead of below all four home cards. Its own markup, classes and behaviour are
+  // untouched -- only its parent changes.
+  var actions=document.querySelector('.studio-home-actions'),workspace=document.getElementById('combinedProjectWorkspace');
+  if(actions&&workspace)actions.appendChild(workspace);
 })();
 </script>
 <script>window.FIQ_HELP_APP="studio";</script>
