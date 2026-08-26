@@ -59,6 +59,9 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-map-link:hover{text-decoration:underline}
 .customer-card-updated{color:var(--muted);font-size:11px;margin-top:4px;font-style:italic}
 .customer-job-count{background:#F3EEFE;color:#6b3fbf;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
+.customer-card-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.customer-edit-btn{padding:5px 10px;font-size:12px;font-weight:800;min-height:0;border-radius:8px}
+.customer-new-tag{display:inline-block;background:#ffe3e3;color:#c81e1e;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:900;margin:0 6px 4px 0;vertical-align:middle}
 .customer-job-list{display:flex;flex-direction:column;gap:6px}
 .customer-job-item{display:flex;flex-direction:column;gap:6px}
 .customer-job-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border:1px solid var(--line);background:#fafcff;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;width:100%;text-align:left}
@@ -1578,7 +1581,7 @@ function applyAppLanguage(lang){
 
 const STORE="buildSOS_v12";
 const statuses=[["ready","Ready"],["installed","Installed"],["missing","Missing"]];
-let state={projects:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,lastChosenPartName:"",numbering:false,screen:"jobs"};
+let state={projects:[],customers:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,lastChosenPartName:"",numbering:false,screen:"jobs"};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const safe=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -1586,6 +1589,46 @@ const project=()=>state.projects.find(x=>x.id===state.currentProject)||null;
 const cabinet=()=>project()?.cabinets.find(x=>x.id===state.currentCabinet)||null;
 const part=()=>cabinet()?.parts.find(x=>x.id===state.currentPart)||null;
 const cabinetParts=()=>cabinet()?.parts||[];
+
+// Customers are a real record (state.customers), not just a string repeated on every
+// project -- this is what lets renaming/correcting a customer update every one of their
+// projects at once, instead of silently creating a second, disconnected customer card.
+function customerKeyFor(name){return String(name||"").trim().toLowerCase()}
+function findCustomerByName(name){
+ const key=customerKeyFor(name);
+ if(!key)return null;
+ return state.customers.find(c=>customerKeyFor(c.name)===key)||null;
+}
+function customerFor(p){return state.customers.find(c=>c.id===p?.customerId)||null}
+function customerProjects(customerId){return state.projects.filter(p=>p.customerId===customerId)}
+function ensureCustomerForProject(p){
+ state.customers=state.customers||[];
+ if(p.customerId&&state.customers.find(c=>c.id===p.customerId))return p.customerId;
+ const name=(p.customer||"").trim();
+ let c=name?findCustomerByName(name):null;
+ if(!c){
+   c={id:uid(),name:name||"No customer name",address:p.address||"",phone:p.phone||"",createdAt:p.updatedAt||Date.now(),updatedAt:p.updatedAt||Date.now()};
+   state.customers.push(c);
+ }
+ p.customerId=c.id;
+ return c.id;
+}
+function migrateCustomers(){
+ state.customers=state.customers||[];
+ state.projects.forEach(p=>{if(!p.customerId||!state.customers.find(c=>c.id===p.customerId))ensureCustomerForProject(p)});
+}
+function updateCustomerDetails(customerId,fields){
+ const c=state.customers.find(x=>x.id===customerId);if(!c)return;
+ if(fields.name!==undefined)c.name=String(fields.name||"").trim()||c.name;
+ if(fields.address!==undefined)c.address=String(fields.address||"").trim();
+ if(fields.phone!==undefined)c.phone=String(fields.phone||"").trim();
+ c.updatedAt=Date.now();
+ customerProjects(customerId).forEach(p=>{
+   p.customer=c.name;
+   if(fields.address!==undefined)p.address=c.address;
+   if(fields.phone!==undefined)p.phone=c.phone;
+ });
+}
 // Switching the active job must resync #projectName/#customerName immediately, before
 // anything else runs. save() (aliased to stableSave -> commitVisible) copies those two
 // input fields straight into project().name/customer on every call, including the
@@ -1600,6 +1643,8 @@ function switchToProject(id,cabinetId,partId){
  state.currentCabinet=cabinetId!==undefined?cabinetId:null;
  state.currentPart=partId!==undefined?partId:null;
  state.showStartShell=true;
+ const opened=state.projects.find(x=>x.id===id);
+ if(opened&&opened.isNewFromSite)opened.isNewFromSite=false;
  if(typeof renderProject==='function')renderProject();
 }
 
@@ -1614,6 +1659,7 @@ function save(){
 }
 function load(){
  try{const s=JSON.parse(localStorage.getItem(STORE));if(s)state=s}catch(e){}
+ migrateCustomers();
  const guide=parseGuideHash();
  if(guide){state.currentProject=guide.project;state.currentCabinet=guide.cabinet;state.currentPart=guide.part;document.body.classList.add("guide-only");state.screen="phone"}
  renderAll();updateWorkflowProgress(state.screen||"jobs")
@@ -1649,7 +1695,8 @@ window.addEventListener('popstate',function(e){
 });
 function newJob(){
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('project_created');
- const p={id:uid(),name:"",customer:"",rooms:[],cabinets:[]};
+ const p={id:uid(),name:"",customer:"",rooms:[],cabinets:[],updatedAt:Date.now()};
+ ensureCustomerForProject(p);
  state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;state.showStartShell=true;
  const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
  if(n)n.value="";if(cust)cust.value="";
@@ -1957,35 +2004,59 @@ function timeAgo(ts){
  const mo=Math.floor(d/30);if(mo<12)return mo+" month"+(mo===1?"":"s")+" ago";
  const y=Math.floor(mo/12);return y+" year"+(y===1?"":"s")+" ago";
 }
+function openEditCustomerDialog(customerId){
+ const c=state.customers.find(x=>x.id===customerId);if(!c)return;
+ const o=document.createElement('div');o.className='a100-edit-dialog';
+ o.innerHTML=`<div class="a100-edit-sheet"><h2>Edit customer</h2><label>Customer name<input id="editCustName"></label><label>Address<input id="editCustAddress"></label><label>Phone<input id="editCustPhone"></label><div class="a100-edit-actions"><button class="btn" id="editCustCancel">Cancel</button><button class="btn primary" id="editCustSave">Save</button></div></div>`;
+ document.body.appendChild(o);
+ o.querySelector('#editCustName').value=c.name||"";
+ o.querySelector('#editCustAddress').value=c.address||"";
+ o.querySelector('#editCustPhone').value=c.phone||"";
+ const close=()=>o.remove();
+ o.querySelector('#editCustCancel').onclick=close;
+ o.onclick=e=>{if(e.target===o)close()};
+ o.querySelector('#editCustSave').onclick=()=>{
+   updateCustomerDetails(customerId,{
+     name:o.querySelector('#editCustName').value,
+     address:o.querySelector('#editCustAddress').value,
+     phone:o.querySelector('#editCustPhone').value
+   });
+   // renderAll() (via renderProject()) must repaint #customerName/#projectName from the
+   // just-updated data *before* save() runs -- save() commits whatever those fields
+   // currently show back onto the active project, so doing it the other way round would
+   // immediately overwrite the rename with the stale text still sitting in the DOM.
+   close();renderAll();save();
+ };
+}
 function renderCustomers(){
  const box=$("#customersList");if(!box)return;
- const byCustomer={};
- state.projects.forEach(p=>{
-   const raw=(p.customer||"").trim();
-   const key=raw?raw.toLowerCase():"__none__";
-   if(!byCustomer[key])byCustomer[key]={display:raw||"No customer name",jobs:[]};
-   byCustomer[key].jobs.push(p);
+ migrateCustomers();
+ const groups=state.customers.map(c=>({customer:c,jobs:customerProjects(c.id)})).filter(g=>g.jobs.length);
+ groups.sort((a,b)=>{
+   const aLast=Math.max(a.customer.updatedAt||0,...a.jobs.map(p=>p.updatedAt||0),0);
+   const bLast=Math.max(b.customer.updatedAt||0,...b.jobs.map(p=>p.updatedAt||0),0);
+   return bLast-aLast;
  });
- const groups=Object.values(byCustomer).sort((a,b)=>a.display.localeCompare(b.display));
  box.innerHTML=groups.length?groups.map(g=>{
+   const c=g.customer;
    const jobs=g.jobs.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-   const withAddress=jobs.find(p=>String(p.address||"").trim());
-   const withPhone=jobs.find(p=>String(p.phone||"").trim());
+   const newCount=jobs.filter(p=>p.isNewFromSite).length;
    const contactBits=[];
-   if(withAddress)contactBits.push(`📍 ${safe(withAddress.address)} <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(withAddress.address)}" target="_blank" rel="noopener" class="customer-map-link" onclick="event.stopPropagation()">View map ↗</a>`);
-   if(withPhone)contactBits.push(`📞 ${safe(withPhone.phone)}`);
+   if(c.address)contactBits.push(`📍 ${safe(c.address)} <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="customer-map-link" onclick="event.stopPropagation()">View map ↗</a>`);
+   if(c.phone)contactBits.push(`📞 ${safe(c.phone)}`);
    const contactHtml=contactBits.length?`<div class="customer-card-contact">${contactBits.join("<br>")}</div>`:"";
-   const lastUpdated=Math.max(0,...jobs.map(p=>p.updatedAt||0));
-   const searchText=[g.display,withAddress?.address,...jobs.map(p=>p.name)].filter(Boolean).join(" ").toLowerCase();
-   return `<div class="customer-card" data-search="${safe(searchText)}"><div class="customer-card-head"><div><strong>${safe(g.display)}</strong>${contactHtml}${lastUpdated?`<div class="customer-card-updated">Last updated ${timeAgo(lastUpdated)}</div>`:""}</div><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></div><div class="customer-job-list">${jobs.map(p=>{
+   const lastUpdated=Math.max(c.updatedAt||0,...jobs.map(p=>p.updatedAt||0),0);
+   const searchText=[c.name,c.address,...jobs.map(p=>p.name)].filter(Boolean).join(" ").toLowerCase();
+   return `<div class="customer-card" data-search="${safe(searchText)}"><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">🆕 New from Site</span>`:""}${contactHtml}${lastUpdated?`<div class="customer-card-updated">Last updated ${timeAgo(lastUpdated)}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="Edit customer details">✏️ Edit</button><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></span></div><div class="customer-job-list">${jobs.map(p=>{
      const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
      const status=jobStatusInfo(p);
      const rooms=(p.rooms||[]).map(r=>r.name).filter(Boolean).join(", ");
-     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span><strong>${safe(p.name||"Untitled job")}</strong>${rooms?`<span class="muted"> · ${safe(rooms)}</span>`:""}</span><span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button>${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}</div>`;
+     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong>${rooms?`<span class="muted"> · ${safe(rooms)}</span>`:""}</span><span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button>${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}</div>`;
    }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
  box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);renderAll();save();show("jobs")});
  box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=()=>openCustomerSiteJobInDrawing(b.dataset.siteToDrawing));
+ box.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
  const search=$("#customerSearchInput");
  if(search&&!search.dataset.wired){
    search.dataset.wired="1";
@@ -2270,7 +2341,7 @@ async function sendPackToPhoneDirectly(pack){
  return {...packet,cloudSent,cloudError};
 }
 async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
-function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();state.projects.unshift(incoming);return incoming}
+function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 base.updatedAt=Date.now();
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
@@ -2296,7 +2367,33 @@ function inboxSummary(pack){const p=pack?.project||pack||{};const room=(p.rooms|
 function showInboxPopup(items){return}
 async function paintSiteInbox(){const badge=document.getElementById('siteUpdateBadge'),panel=document.getElementById('directSiteInbox'),list=document.getElementById('siteJobsList');try{const items=await studioInboxPackets();if(badge){badge.textContent=items.length?`${items.length} NEW`:'';badge.style.display=items.length?'':'none'}panel?.classList.toggle('inbox-ready',!!items.length);if(!list)return;if(!items.length){list.innerHTML='<div class="site-jobs-empty">No new site jobs</div>';return}list.innerHTML=items.map(pack=>{const x=inboxSummary(pack);return `<button class="site-job-inbox-card" type="button" data-open-site-packet="${safe(x.syncId)}"><span class="site-job-room-icon">${x.icon}</span><span class="site-job-main"><strong>${safe(x.customer)}</strong><span class="site-project-name">${safe(x.project)} · ${safe(x.room)}${x.floor?' · '+safe(x.floor):''}</span><span class="site-job-meta"><span>📷 ${x.photos}</span><span>📏 ${x.measures}</span></span></span><span class="site-job-open">Open Drawing</span></button>`}).join('');list.querySelectorAll('[data-open-site-packet]').forEach(b=>b.onclick=()=>receiveSitePacket(b.dataset.openSitePacket))}catch(e){if(badge){badge.textContent='Use backup file';badge.style.display=''}if(list)list.innerHTML='<div class="site-jobs-empty">Direct sync unavailable. Use the backup file.</div>';document.querySelector('.site-file-backup')?.classList.add('visible')}}
 async function removeInboxPacket(syncId){try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK);if(String(syncId||'').startsWith('cloud:')){try{const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;const cloudId=String(syncId).slice(6);if(fs&&db2&&user&&user.companyId){await fs.updateDoc(fs.doc(db2,'companies',user.companyId,'jobs',cloudId),{status:'received',receivedAt:fs.serverTimestamp()})}}catch(e){console.error('Could not mark cloud site job received',e)}}}
-async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileProject(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0];const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(merged);const roomId=room?.id||'';let c=merged.cabinets?.find(x=>x.roomId===roomId);if(!c){c={id:uid(),name:(room?.name||merged.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}if(ref.image){c.drawing=ref.image;c.drawingType='image';c.drawingName=(room?.name||merged.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=ref.image;c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null}switchToProject(merged.id,c.id);renderAll();save();await paintSiteInbox();show('mark');toast('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
+async function applyOneSitePacket(pack){
+ const incoming=ensureSharedProject(pack.project||pack);
+ const merged=mergeMobileProject(incoming);
+ await removeInboxPacket(pack.syncId||pack.exportedAt);
+ const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0];
+ const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(merged);
+ const roomId=room?.id||'';
+ let c=merged.cabinets?.find(x=>x.roomId===roomId);
+ if(!c){c={id:uid(),name:(room?.name||merged.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}
+ if(ref.image){c.drawing=ref.image;c.drawingType='image';c.drawingName=(room?.name||merged.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=ref.image;c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null}
+ return {merged,cabinet:c};
+}
+async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const {merged,cabinet:c}=await applyOneSitePacket(pack);switchToProject(merged.id,c.id);renderAll();save();await paintSiteInbox();show('mark');toast('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
+// A site job no longer waits in a manual "inbox" list for someone to click Open --
+// it lands straight in the Customer Library (existing or auto-created customer),
+// tagged isNewFromSite so it surfaces there with a notification instead.
+async function autoImportSitePackets(){
+ try{
+   const packets=await studioInboxPackets();
+   if(!packets.length)return false;
+   for(const pack of packets){
+     try{await applyOneSitePacket(pack)}catch(e){console.error('Auto-import of one site packet failed',e)}
+   }
+   save();renderAll();
+   return true;
+ }catch(e){console.error('Auto-import of site packets failed',e);return false}
+}
 async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert('No new site jobs are waiting.');return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
 document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
@@ -2307,9 +2404,9 @@ document.getElementById('sitePhotoToDrawing')?.addEventListener('click',sendSite
 document.getElementById('siteOpenProject')?.addEventListener('click',()=>{const m=document.getElementById('siteRoomDetailsModal');if(!m)return;const np=state.projects.find(x=>x.id===m.dataset.projectId);switchToProject(m.dataset.projectId,np?.cabinets?.[0]?.id||null);closeSiteRoomDetails();renderAll();save();show('jobs')});
 
 document.getElementById('siteInboxLater')?.addEventListener('click',()=>document.getElementById('siteInboxModal')?.classList.remove('open'));
-try{const syncChannel=new BroadcastChannel("assembleone-sync");syncChannel.onmessage=()=>paintSiteInbox()}catch(e){}
-window.addEventListener('storage',e=>{if(e.key===DIRECT_SYNC_FALLBACK)paintSiteInbox()});
-setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox()},120000);
+try{const syncChannel=new BroadcastChannel("assembleone-sync");syncChannel.onmessage=()=>{paintSiteInbox();autoImportSitePackets()}}catch(e){}
+window.addEventListener('storage',e=>{if(e.key===DIRECT_SYNC_FALLBACK){paintSiteInbox();autoImportSitePackets()}});
+setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox();if(typeof autoImportSitePackets==='function')autoImportSitePackets()},120000);
 setInterval(paintSiteInbox,1800);setTimeout(paintSiteInbox,200);
 
 async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);switchToProject(incoming.id,incoming.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
@@ -3415,7 +3512,18 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     o.innerHTML='<div class="a100-edit-sheet"><h2>Edit job</h2><label>Job name<input id="a100JobName"></label><label>Customer<input id="a100Customer"></label><div class="a100-edit-actions"><button class="btn" id="a100Cancel">Cancel</button><button class="btn primary" id="a100Save">Save</button></div></div>';
     document.body.appendChild(o); o.querySelector('#a100JobName').value=p.name||''; o.querySelector('#a100Customer').value=p.customer||'';
     const close=()=>o.remove(); o.querySelector('#a100Cancel').onclick=close; o.onclick=e=>{if(e.target===o)close()};
-    o.querySelector('#a100Save').onclick=()=>{p.name=o.querySelector('#a100JobName').value.trim()||p.name;p.customer=o.querySelector('#a100Customer').value.trim();const pn=document.getElementById('projectName'),cn=document.getElementById('customerName');if(pn)pn.value=p.name;if(cn)cn.value=p.customer;save();close();renderAll();renderA100Start()};
+    o.querySelector('#a100Save').onclick=()=>{
+      p.name=o.querySelector('#a100JobName').value.trim()||p.name;
+      const newCustomerName=o.querySelector('#a100Customer').value.trim();
+      const current=customerFor(p);
+      // Typing a *different* customer name here means "this job belongs to someone else"
+      // (attach to that customer, or create them if they're new) -- it does not rename the
+      // customer that's already linked. Fixing a typo on an existing customer's own name
+      // is done from their Customer Card instead, so a correction never looks like a move.
+      if(customerKeyFor(newCustomerName)!==customerKeyFor(current?.name)){
+        p.customerId=null;p.customer=newCustomerName;ensureCustomerForProject(p);
+      }
+      const pn=document.getElementById('projectName'),cn=document.getElementById('customerName');if(pn)pn.value=p.name;if(cn)cn.value=p.customer;save();close();renderAll();renderA100Start()};
   }
   window.renderA100Start=function(){
     const workspace=document.getElementById('combinedProjectWorkspace'); if(!workspace)return;
@@ -3828,6 +3936,7 @@ body.guide-only .a131-back-studio{display:block}
     const rec=await getProjectState();
     if(!rec?.state||!Array.isArray(rec.state.projects)||!rec.state.projects.length)return false;
     state=rec.state;
+    if(typeof migrateCustomers==='function')migrateCustomers();
     try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}
     renderAll();show(state.screen||'jobs');showSaved();
     return true;
@@ -5059,6 +5168,7 @@ body.fiq-locked .app{display:none!important}
     var badge=$('fiqAccountBadge');
     if(badge){badge.style.display='flex'; $('fiqAccountEmail').textContent=user.email;}
     if(typeof paintSiteInbox==='function')paintSiteInbox();
+    if(typeof autoImportSitePackets==='function')autoImportSitePackets();
     if(typeof window.a202SyncTopbarName==='function')window.a202SyncTopbarName();
     if(claims.companyId){
       authFns.getDoc(authFns.doc(db,'companies',claims.companyId)).then(function(snap){
@@ -5583,6 +5693,64 @@ body.fiq-locked .app{display:none!important}
     if(el)el.textContent=(window.fittersiqUser&&(window.fittersiqUser.companyName||window.fittersiqUser.email))||'';
   };
   window.a202SyncTopbarName();
+})();
+</script>
+<style id="a203-homepage-simplify-style">
+/* Home now has two main actions: New Project and Customers. Open Project and the
+   Site Jobs inbox list are hidden here -- their underlying data/import paths are
+   untouched, they're just no longer separate homepage entry points. */
+.open-project-card{display:none!important}
+#directSiteInbox.site-jobs-panel{display:none!important}
+.home-notify-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:8px;background:#e0302f;color:#fff;border-radius:999px;font-size:12px;font-weight:900;vertical-align:middle}
+.needs-attention-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:#fff3cd;border:1.5px solid #f0ad4e;color:#8a5b00;border-radius:16px;padding:14px 18px;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:2px;text-align:left;order:0;box-sizing:border-box}
+.needs-attention-banner:hover{background:#ffe9b3}
+</style>
+<script id="a203-homepage-simplify-script">
+(function(){
+ function needsAttentionItems(){
+   const items=[];
+   (state.projects||[]).forEach(p=>{
+     (p.cabinets||[]).forEach(c=>{
+       (c.parts||[]).forEach(part=>{
+         if(part.status==='missing'||part.status==='damaged')items.push({projectId:p.id,cabinetId:c.id,partId:part.id,reason:part.status});
+       });
+     });
+   });
+   return items;
+ }
+ function renderHomeNotifications(){
+   const customersBtn=document.querySelector('.customers-card');
+   if(customersBtn){
+     const strongEl=customersBtn.querySelector('strong');
+     let badge=document.getElementById('customersNewBadge');
+     const newCount=(state.projects||[]).filter(p=>p.isNewFromSite).length;
+     if(newCount){
+       if(!badge&&strongEl){badge=document.createElement('span');badge.id='customersNewBadge';badge.className='home-notify-badge';strongEl.appendChild(badge)}
+       if(badge){badge.textContent=newCount;badge.style.display=''}
+     }else if(badge){badge.style.display='none'}
+   }
+   const actions=document.querySelector('.studio-home-actions');
+   if(actions){
+     let banner=document.getElementById('needsAttentionBanner');
+     const items=needsAttentionItems();
+     if(items.length){
+       if(!banner){banner=document.createElement('button');banner.type='button';banner.id='needsAttentionBanner';banner.className='needs-attention-banner';actions.insertBefore(banner,actions.firstChild)}
+       banner.innerHTML='<span>⚠️ '+items.length+' panel'+(items.length===1?'':'s')+' need'+(items.length===1?'s':'')+' attention</span><span>→</span>';
+       banner.onclick=function(){
+         const first=items[0];
+         switchToProject(first.projectId,first.cabinetId,first.partId);
+         renderAll();save();show('parts');
+         setTimeout(function(){
+           const el=document.querySelector('[data-review-panel="'+first.partId+'"]');
+           if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.outline='3px solid #f0ad4e'}
+         },80);
+       };
+     }else if(banner){banner.remove()}
+   }
+ }
+ const prevRenderAll=window.renderAll;
+ window.renderAll=function(){const r=prevRenderAll?prevRenderAll.apply(this,arguments):undefined;renderHomeNotifications();return r};
+ try{renderHomeNotifications()}catch(e){}
 })();
 </script>
 <script id="a183-home-layout-move">
