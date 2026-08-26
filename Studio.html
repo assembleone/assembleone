@@ -1745,7 +1745,7 @@ function renderJobs(){
  const named=state.projects.filter(p=>String(p.name||"").trim());
  box.innerHTML=named.length?named.map(p=>{const siteRoom=(p.rooms||[]).find(r=>r.siteMarkup?.image||(r.sitePhotos||[]).length||(r.beforePhotos||[]).length);const siteReceived=!!siteRoom;return `<article class="folder-card ${p.id===state.currentProject?"selected-job":""} ${siteReceived?"site-received":""}"><div class="folder-icon">${siteReceived?(siteRoom.icon||"📍"):"📁"}</div><h3>${safe(p.name)}</h3><div class="muted">${safe(p.customer||"No customer name")}<br>${(p.rooms||[]).length} room${(p.rooms||[]).length===1?"":"s"} · ${p.cabinets.length} unit${p.cabinets.length===1?"":"s"}</div>${siteReceived?'<div class="site-job-tag">✓ Site measurements received</div>':''}<div class="actions"><button class="btn primary" data-open-job="${p.id}">${p.id===state.currentProject?"Job open":"Open job"}</button>${siteReceived?`<button class="btn site-details-btn" data-site-details="${p.id}">Open details</button>`:''}<button class="btn trade-export-btn" data-export-trade="${p.id}">Export record</button><button class="btn danger" data-delete-job-card="${p.id}">Delete</button></div></article>`}).join(""):'<div class="empty">No jobs yet. Press “New job”.</div>';
  const workspace=$("#combinedProjectWorkspace");if(workspace)workspace.classList.toggle("is-empty",!(active&&state.showStartShell));
- $$("[data-open-job]").forEach(b=>b.onclick=()=>{const np=state.projects.find(x=>x.id===b.dataset.openJob);switchToProject(b.dataset.openJob,np?.cabinets[0]?.id||null);renderAll();show("jobs")});
+ $$("[data-open-job]").forEach(b=>b.onclick=()=>{const np=state.projects.find(x=>x.id===b.dataset.openJob);switchToProject(b.dataset.openJob,np?.cabinets[0]?.id||null);if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
  $$("[data-site-details]").forEach(b=>b.onclick=()=>openSiteRoomDetails(b.dataset.siteDetails));
  $$('[data-export-trade]').forEach(b=>b.onclick=()=>exportProjectRecord(b.dataset.exportTrade));
  $$("[data-delete-job-card]").forEach(b=>b.onclick=()=>{
@@ -2054,7 +2054,7 @@ function renderCustomers(){
      return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong>${rooms?`<span class="muted"> · ${safe(rooms)}</span>`:""}</span><span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button>${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}</div>`;
    }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
- box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);renderAll();save();show("jobs")});
+ box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
  box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=()=>openCustomerSiteJobInDrawing(b.dataset.siteToDrawing));
  box.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
  const search=$("#customerSearchInput");
@@ -3523,8 +3523,22 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
       if(customerKeyFor(newCustomerName)!==customerKeyFor(current?.name)){
         p.customerId=null;p.customer=newCustomerName;ensureCustomerForProject(p);
       }
-      const pn=document.getElementById('projectName'),cn=document.getElementById('customerName');if(pn)pn.value=p.name;if(cn)cn.value=p.customer;save();close();renderAll();renderA100Start()};
+      const pn=document.getElementById('projectName'),cn=document.getElementById('customerName');if(pn)pn.value=p.name;if(cn)cn.value=p.customer;save();close();renderAll();renderA100Start();
+      if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
+    };
   }
+  window.a100RoomLabel=roomLabel;
+  window.a100EnsureCabinetForRoom=function(p,room){
+    let c=(p.cabinets||[]).find(x=>x.roomId===room.id);
+    if(!c){
+      const base=roomLabel(room),same=(p.cabinets||[]).filter(x=>x.roomId===room.id).length;
+      const name=(base.charAt(0).toUpperCase()+base.slice(1))+(same?` ${same+1}`:'');
+      c={id:uid(),name,roomId:room.id,drawing:null,drawingType:null,parts:[]};
+      p.cabinets=p.cabinets||[];
+      p.cabinets.push(c);
+    }
+    return c;
+  };
   window.renderA100Start=function(){
     const workspace=document.getElementById('combinedProjectWorkspace'); if(!workspace)return;
     let shell=document.getElementById('a100StartShell');
@@ -5751,6 +5765,48 @@ body.fiq-locked .app{display:none!important}
  const prevRenderAll=window.renderAll;
  window.renderAll=function(){const r=prevRenderAll?prevRenderAll.apply(this,arguments):undefined;renderHomeNotifications();return r};
  try{renderHomeNotifications()}catch(e){}
+})();
+</script>
+<style id="a204-remove-currently-working-on-style">
+/* The "Currently working on" panel (job name / choose room boxes) no longer sits on the
+   homepage at all -- opening or creating a job now goes straight into its room/drawing
+   instead (see a204-remove-currently-working-on-script). Choosing which job to open is
+   the Customer Library's job now. */
+#combinedProjectWorkspace{display:none!important}
+</style>
+<script id="a204-remove-currently-working-on-script">
+(function(){
+  // Replaces what the "Choose Room" / "Continue to Drawing" buttons on the now-removed
+  // homepage panel used to do: opening a job (new or existing) goes straight to its most
+  // recent room's drawing, creating that room's first unit if it doesn't have one yet, or
+  // straight to the room picker if the job has no rooms at all.
+  window.enterProjectWorkspace=function(){
+    const p=(typeof project==='function')?project():null;
+    if(!p){renderAll();show('jobs');return}
+    if(!(p.rooms||[]).length){
+      renderAll();
+      if(typeof addStudioRoom==='function')addStudioRoom();else show('jobs');
+      return;
+    }
+    let room=(p.rooms||[]).find(r=>r.id===state.currentRoom)||p.rooms[0];
+    state.currentRoom=room.id;
+    const c=(typeof window.a100EnsureCabinetForRoom==='function')?window.a100EnsureCabinetForRoom(p,room):(p.cabinets||[])[0];
+    if(!c){save();renderAll();show('jobs');return}
+    state.currentCabinet=c.id;state.currentPart=null;
+    save();renderAll();show('mark');
+  };
+  // createStudioRoom() (fired by picking a room in the "Choose room" dialog) doesn't
+  // navigate anywhere on its own -- it just records the room. When that dialog was opened
+  // by enterProjectWorkspace() because the job had no rooms yet, continue straight into
+  // that new room's drawing instead of leaving the user back on the plain homepage.
+  const prevCreateStudioRoom=window.createStudioRoom;
+  if(prevCreateStudioRoom){
+    window.createStudioRoom=function(){
+      const r=prevCreateStudioRoom.apply(this,arguments);
+      if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
+      return r;
+    };
+  }
 })();
 </script>
 <script id="a183-home-layout-move">
