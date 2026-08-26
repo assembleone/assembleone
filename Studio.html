@@ -55,11 +55,22 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px}
 .customer-card-head strong{font-size:19px}
 .customer-card-contact{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.5}
+.customer-map-link{color:#0051ff;font-weight:800;text-decoration:none;margin-left:6px;white-space:nowrap}
+.customer-map-link:hover{text-decoration:underline}
+.customer-card-updated{color:var(--muted);font-size:11px;margin-top:4px;font-style:italic}
 .customer-job-count{background:#F3EEFE;color:#6b3fbf;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
 .customer-job-list{display:flex;flex-direction:column;gap:6px}
 .customer-job-item{display:flex;flex-direction:column;gap:6px}
-.customer-job-row{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);background:#fafcff;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;width:100%;text-align:left}
+.customer-job-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border:1px solid var(--line);background:#fafcff;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;width:100%;text-align:left}
 .customer-job-row:hover{border-color:#8B5CF6;background:#F8F5FF}
+.customer-job-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:700}
+.customer-job-status{border-radius:999px;padding:4px 9px;font-size:11px;font-weight:900}
+.customer-job-status.status-new{background:#e7f0ff;color:#1452d8}
+.customer-job-status.status-progress{background:#fff3d6;color:#8a5b00}
+.customer-job-status.status-done{background:#e6f6e1;color:#347d18}
+.customer-search-wrap{margin-bottom:14px}
+.customer-search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--line);border-radius:12px;font-weight:600}
+.customer-search-input:focus{outline:none;border-color:#0051ff;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
 .customer-site-to-drawing{width:100%;text-align:center}
 .folder-card h3{font:700 23px 'Inter',sans-serif;margin:0 0 5px}.folder-icon{font-size:30px;margin-bottom:7px}
 .folder-card .actions{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}.folder-card .actions .danger{margin-left:auto}
@@ -897,7 +908,8 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .customers-card{order:5!important}
 #combinedProjectWorkspace .start-block{display:none!important}
 .a100-start-shell{display:grid;gap:14px}
-.a100-shell-head{display:flex;justify-content:flex-end}
+.a100-shell-head{display:flex;justify-content:space-between;align-items:center}
+.a100-shell-title{font-size:13px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
 .a100-close-btn{border:none;background:transparent;color:var(--muted);font-weight:800;font-size:14px;cursor:pointer;padding:4px 6px}
 .a100-close-btn:hover,.a100-close-btn:focus{color:var(--ink)}
 .a100-bottom-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -1537,6 +1549,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </section>
 <section class="screen" id="screen-customers">
 <div class="title-row"><div><h2>Customer Library</h2><div class="muted">Every customer with a job on file, pulled from your saved projects.</div></div></div>
+<div class="customer-search-wrap"><input type="text" id="customerSearchInput" class="customer-search-input" placeholder="🔍 Search by customer, project or address…" autocomplete="off"></div>
 <div id="customersList"></div>
 </section>
 
@@ -1921,26 +1934,68 @@ function renderPartList(){
  const c=cabinet(),box=$("#partList");box.innerHTML=c?.parts.length?c.parts.map(p=>`<div class="part-row ${p.id===state.currentPart?"active":""}" data-part="${p.id}"><span class="part-code">${p.code}</span><div><strong>${safe(p.name||"Unnamed part")}</strong><br><small>${p.length||"—"} × ${p.width||"—"} × ${p.thickness||"—"}</small></div><span>${statuses.find(s=>s[0]===p.status)?.[2]||""}</span></div>`).join(""):'<div class="empty">No panels marked yet.</div>';
  $$("[data-part]").forEach(r=>r.onclick=()=>{state.currentPart=r.dataset.part;state.selectedCopy=-1;state.focusMarker=true;renderAll()})
 }
+function jobStatusInfo(p){
+ const parts=(p.cabinets||[]).reduce((n,c)=>n.concat(c.parts||[]),[]);
+ const hasSite=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
+ const hasDrawing=(p.cabinets||[]).some(c=>c.drawing||c.hasStoredDrawing);
+ const allInstalled=parts.length>0&&parts.every(x=>x.status==="installed");
+ const someInstalled=parts.some(x=>x.status==="installed");
+ if(allInstalled)return{label:"✅ Installed",cls:"status-done"};
+ if(someInstalled)return{label:"🔧 Installing",cls:"status-progress"};
+ if(parts.length)return{label:"📐 Cutting list ready",cls:"status-progress"};
+ if(hasDrawing)return{label:"✏️ Drawing in progress",cls:"status-progress"};
+ if(hasSite)return{label:"📍 Site measurements received",cls:"status-new"};
+ return{label:"🆕 New job",cls:"status-new"};
+}
+function timeAgo(ts){
+ if(!ts)return"";
+ const s=Math.floor((Date.now()-ts)/1000);
+ if(s<60)return"just now";
+ const m=Math.floor(s/60);if(m<60)return m+" minute"+(m===1?"":"s")+" ago";
+ const h=Math.floor(m/60);if(h<24)return h+" hour"+(h===1?"":"s")+" ago";
+ const d=Math.floor(h/24);if(d<30)return d+" day"+(d===1?"":"s")+" ago";
+ const mo=Math.floor(d/30);if(mo<12)return mo+" month"+(mo===1?"":"s")+" ago";
+ const y=Math.floor(mo/12);return y+" year"+(y===1?"":"s")+" ago";
+}
 function renderCustomers(){
  const box=$("#customersList");if(!box)return;
  const byCustomer={};
- state.projects.forEach(p=>{const name=(p.customer||"").trim()||"No customer name";(byCustomer[name]=byCustomer[name]||[]).push(p)});
- const names=Object.keys(byCustomer).sort((a,b)=>a.localeCompare(b));
- box.innerHTML=names.length?names.map(name=>{
-   const jobs=byCustomer[name];
+ state.projects.forEach(p=>{
+   const raw=(p.customer||"").trim();
+   const key=raw?raw.toLowerCase():"__none__";
+   if(!byCustomer[key])byCustomer[key]={display:raw||"No customer name",jobs:[]};
+   byCustomer[key].jobs.push(p);
+ });
+ const groups=Object.values(byCustomer).sort((a,b)=>a.display.localeCompare(b.display));
+ box.innerHTML=groups.length?groups.map(g=>{
+   const jobs=g.jobs.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
    const withAddress=jobs.find(p=>String(p.address||"").trim());
    const withPhone=jobs.find(p=>String(p.phone||"").trim());
    const contactBits=[];
-   if(withAddress)contactBits.push(`📍 ${safe(withAddress.address)}`);
+   if(withAddress)contactBits.push(`📍 ${safe(withAddress.address)} <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(withAddress.address)}" target="_blank" rel="noopener" class="customer-map-link" onclick="event.stopPropagation()">View map ↗</a>`);
    if(withPhone)contactBits.push(`📞 ${safe(withPhone.phone)}`);
    const contactHtml=contactBits.length?`<div class="customer-card-contact">${contactBits.join("<br>")}</div>`:"";
-   return `<div class="customer-card"><div class="customer-card-head"><div><strong>${safe(name)}</strong>${contactHtml}</div><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></div><div class="customer-job-list">${jobs.map(p=>{
+   const lastUpdated=Math.max(0,...jobs.map(p=>p.updatedAt||0));
+   const searchText=[g.display,withAddress?.address,...jobs.map(p=>p.name)].filter(Boolean).join(" ").toLowerCase();
+   return `<div class="customer-card" data-search="${safe(searchText)}"><div class="customer-card-head"><div><strong>${safe(g.display)}</strong>${contactHtml}${lastUpdated?`<div class="customer-card-updated">Last updated ${timeAgo(lastUpdated)}</div>`:""}</div><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></div><div class="customer-job-list">${jobs.map(p=>{
      const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
-     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${safe(p.name||"Untitled job")}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span></button>${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}</div>`;
+     const status=jobStatusInfo(p);
+     const rooms=(p.rooms||[]).map(r=>r.name).filter(Boolean).join(", ");
+     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span><strong>${safe(p.name||"Untitled job")}</strong>${rooms?`<span class="muted"> · ${safe(rooms)}</span>`:""}</span><span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button>${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}</div>`;
    }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
  box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);renderAll();save();show("jobs")});
  box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=()=>openCustomerSiteJobInDrawing(b.dataset.siteToDrawing));
+ const search=$("#customerSearchInput");
+ if(search&&!search.dataset.wired){
+   search.dataset.wired="1";
+   search.addEventListener("input",()=>{
+     const q=search.value.trim().toLowerCase();
+     $$("#customersList .customer-card").forEach(card=>{
+       card.style.display=(!q||(card.dataset.search||"").includes(q))?"":"none";
+     });
+   });
+ }
 }
 function renderParts(){
  const allParts=cabinetParts(),parts=allParts.filter(isCompleteSupplierPart),missing=allParts.length-parts.length,box=$("#partsSummary"),warning=$("#componentsValidation");
@@ -2185,10 +2240,39 @@ function exportProjectRecord(projectId){
  download(makeZip([{name:"project.json",data:JSON.stringify(pack)},{name:"tradebase-summary.csv",data:summary},{name:"README.txt",data:"Technical FittersIQ project record for attaching to the customer in your trade database."}]),cleanFileName((p.customer||p.name||"Project")+"_FittersIQ_Record")+".zip");
 }
 async function mobileSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open("assembleone_direct_sync_v1",2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"});if(!db.objectStoreNames.contains("mobileInbox"))db.createObjectStore("mobileInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
-async function sendPackToPhoneDirectly(pack){const packet={...pack,syncId:uid(),syncStatus:"waiting"};let stored=false;try{const db=await mobileSyncDb();const tx=db.transaction("mobileInbox","readwrite");tx.objectStore("mobileInbox").put(packet);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();stored=true}catch(e){console.error(e)}try{const key="assembleone_mobile_direct_queue_v1",arr=JSON.parse(localStorage.getItem(key)||"[]");arr.push(packet);localStorage.setItem(key,JSON.stringify(arr.slice(-20)));stored=true}catch(e){}try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId})}catch(e){}if(!stored)throw new Error("Direct phone storage unavailable");return packet}
-async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();alert("Sent directly to Mobile. Open the phone app and the cutting list will appear automatically. No ZIP folder has been created.")}catch(e){console.error(e);alert("Direct phone connection is unavailable. Open Mobile and Studio from the same AssembleOne installation, then press Send to Phone again.")}}
-function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){state.projects.unshift(incoming);return incoming}
+async function sendPackToPhoneDirectly(pack){
+ const packet={...pack,syncId:uid(),syncStatus:"waiting"};
+ let stored=false;
+ // Same-device convenience path: works only when Studio and Mobile share a browser profile.
+ try{const db=await mobileSyncDb();const tx=db.transaction("mobileInbox","readwrite");tx.objectStore("mobileInbox").put(packet);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();stored=true}catch(e){console.error(e)}
+ try{const key="assembleone_mobile_direct_queue_v1",arr=JSON.parse(localStorage.getItem(key)||"[]");arr.push(packet);localStorage.setItem(key,JSON.stringify(arr.slice(-20)));stored=true}catch(e){}
+ try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId})}catch(e){}
+ // Cross-device path: Studio and the installer's phone are almost always different
+ // devices, so the same-browser queue above never reaches them in real use. Mirror the
+ // already-working Mobile-to-Studio path (a200-sync-v1088-fix) so any phone signed into
+ // the same company can pick this up regardless of device.
+ let cloudSent=false,cloudError=null;
+ const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;
+ if(fs&&db2&&user&&user.companyId){
+   const envelope={kind:"studioToMobilePacket",status:"waiting",companyId:user.companyId,createdBy:user.uid,createdByEmail:user.email||"",createdAt:fs.serverTimestamp(),...packet};
+   let approxBytes=0;
+   try{approxBytes=new Blob([JSON.stringify(envelope)]).size}catch(e){approxBytes=JSON.stringify(envelope).length}
+   if(approxBytes>900000){
+     cloudError="This job's photos and drawings are too large to send to the phone in one go (about "+Math.round(approxBytes/1024)+"KB). Remove a large drawing image or photo and try again.";
+   }else{
+     try{await fs.addDoc(fs.collection(db2,"companies",user.companyId,"jobs"),envelope);cloudSent=true}
+     catch(e){console.error("Cloud send to Mobile failed",e);cloudError=e?.message||"Could not reach the cloud."}
+   }
+ }else if(!user||!user.companyId){
+   cloudError="This account is not linked to a company yet, so it cannot reach a phone on a different device.";
+ }
+ if(!stored&&!cloudSent)throw new Error(cloudError||"Direct phone storage unavailable");
+ return {...packet,cloudSent,cloudError};
+}
+async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
+function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
+base.updatedAt=Date.now();
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
 incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
@@ -3341,7 +3425,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     if(!p){shell.innerHTML='<div class="a100-empty-note">Create a new job or open a saved job.</div>';return}
     const room=selectedRoom(); const units=(p.cabinets||[]).filter(c=>room&&c.roomId===room.id);
     shell.innerHTML=`
-      <div class="a100-shell-head"><button class="a100-close-btn" id="a100CloseShell" title="Close">✕ Close</button></div>
+      <div class="a100-shell-head"><span class="a100-shell-title">📂 Currently working on</span><button class="a100-close-btn" id="a100CloseShell" title="Close">✕ Close</button></div>
       <div class="a100-bottom-actions">
         <button class="a100-action-btn" id="a100EditJob">
           <span class="a100-action-icon">📁</span>
@@ -3707,7 +3791,7 @@ body.guide-only .a131-back-studio{display:block}
     try{
       const p=typeof project==='function'?project():null,partNow=typeof part==='function'?part():null,c=typeof cabinet==='function'?cabinet():null;
       const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
-      if(p){if(n&&n.value.trim())p.name=n.value.trim();if(cust)p.customer=cust.value.trim()}
+      if(p){if(n&&n.value.trim())p.name=n.value.trim();if(cust)p.customer=cust.value.trim();p.updatedAt=Date.now()}
       if(partNow){
         const map={fThickness:'thickness',fLength:'length',fWidth:'width',fQty:'qty',fMaterial:'material',fNotes:'notes'};
         Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width'].includes(k))v=v===''?'':(typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v));else if(k==='qty')v=v===''?'':Number(v);if(v!==''||k==='notes'||k==='material')partNow[k]=v});
@@ -4975,6 +5059,15 @@ body.fiq-locked .app{display:none!important}
     var badge=$('fiqAccountBadge');
     if(badge){badge.style.display='flex'; $('fiqAccountEmail').textContent=user.email;}
     if(typeof paintSiteInbox==='function')paintSiteInbox();
+    if(typeof window.a202SyncTopbarName==='function')window.a202SyncTopbarName();
+    if(claims.companyId){
+      authFns.getDoc(authFns.doc(db,'companies',claims.companyId)).then(function(snap){
+        if(snap.exists()){
+          window.fittersiqUser.companyName = snap.data().name || '';
+          if(typeof window.a202SyncTopbarName==='function')window.a202SyncTopbarName();
+        }
+      }).catch(function(){});
+    }
   }
 
   async function evaluate(user){
@@ -5363,6 +5456,133 @@ body.fiq-locked .app{display:none!important}
   var prevRenderParts=window.renderParts;
   window.renderParts=function(){var r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
   try{render()}catch(e){}
+})();
+</script>
+<style id="a202-topbar-style">
+.flag-language-label{display:none!important}
+.fiq-topbar-account{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #d7dfea;border-radius:14px;padding:5px 8px 5px 12px;box-shadow:0 2px 8px rgba(18,35,59,.06)}
+.fiq-topbar-who{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:#0b2545;padding-right:9px;border-right:1px solid #e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.fiq-topbar-dot{width:8px;height:8px;border-radius:50%;background:#3aa757;flex:0 0 auto}
+.fiq-topbar-who-label{color:#5B6B7C;font-weight:700}
+.fiq-lang-wrap{position:relative}
+.fiq-lang-chip{display:flex!important;flex-direction:row!important;align-items:center;gap:6px;border:1px solid #d7dfea;background:#f6f9ff;border-radius:10px;padding:5px 9px;cursor:pointer;font-size:13px;font-weight:800;color:#0b2545;width:auto;height:auto}
+.fiq-lang-chip:hover,.fiq-lang-chip:focus{border-color:#0051ff;background:#eef3ff;transform:none}
+.fiq-lang-chip-flag{display:block;width:22px;height:14px;border-radius:3px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.22);flex:0 0 auto}
+.fiq-lang-chip-flag svg{display:block;width:100%;height:100%}
+.fiq-lang-chip-chevron{font-size:10px;color:#5B6B7C;transition:transform .15s ease}
+.fiq-lang-wrap.open .fiq-lang-chip-chevron{transform:rotate(180deg)}
+.fiq-lang-panel{position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #d7dfea;border-radius:12px;box-shadow:0 12px 28px rgba(18,35,59,.18);padding:8px;display:none;z-index:50;min-width:230px}
+.fiq-lang-wrap.open .fiq-lang-panel{display:block}
+.fiq-lang-panel .flag-language-buttons{display:grid!important;grid-template-columns:1fr 1fr!important;direction:ltr!important;max-width:none!important;gap:6px!important;background:none!important;padding:0!important;box-shadow:none!important;position:static!important}
+.fiq-lang-panel .flag-language-buttons button{display:flex!important;flex-direction:row!important;width:auto!important;height:auto!important;padding:7px 9px!important;justify-content:flex-start!important;gap:7px!important}
+.fiq-lang-name-text{font-size:12px;font-weight:800;color:#0b2545}
+@media(max-width:560px){.fiq-topbar-who{max-width:140px}}
+.fiq-search-wrap{display:flex;align-items:center;border-right:1px solid #e2e8f0;padding-right:9px}
+.fiq-search-btn{border:none;background:transparent;font-size:16px;cursor:pointer;padding:4px 6px;border-radius:8px;line-height:1}
+.fiq-search-btn:hover{background:#f0f5ff}
+.fiq-search-input{width:0;opacity:0;border:none;font-size:13px;font-weight:700;color:#0b2545;transition:width .18s ease,opacity .18s ease,margin-left .18s ease;padding:0}
+.fiq-search-wrap.open .fiq-search-input{width:190px;opacity:1;margin-left:4px;padding:4px 2px}
+.fiq-search-input:focus{outline:none}
+@media(max-width:700px){.fiq-search-wrap.open .fiq-search-input{width:130px}}
+</style>
+<script id="a202-topbar-script">
+(function(){
+  var accountBadge=document.getElementById('fiqAccountBadge');
+  var oldLabel=document.querySelector('.flag-language-label');
+  var langButtonsOld=document.getElementById('flagLanguageButtons');
+  var nativeSelect=document.getElementById('appLanguage');
+  if(!accountBadge||!oldLabel||!langButtonsOld)return;
+
+  var topbar=document.createElement('div');
+  topbar.className='fiq-topbar-account';
+  topbar.id='fiqTopbarAccount';
+
+  var searchWrap=document.createElement('div');
+  searchWrap.className='fiq-search-wrap';
+  searchWrap.id='fiqSearchWrap';
+  searchWrap.innerHTML='<button type="button" class="fiq-search-btn" id="fiqSearchBtn" title="Search customers and jobs" aria-label="Search">🔍</button><input type="text" id="fiqSearchInput" class="fiq-search-input" placeholder="Search customer, project or address…" autocomplete="off">';
+
+  var who=document.createElement('div');
+  who.className='fiq-topbar-who';
+  who.innerHTML='<span class="fiq-topbar-dot"></span><span class="fiq-topbar-who-label">Signed in</span><span id="fiqTopbarWhoName"></span>';
+
+  var langWrap=document.createElement('div');
+  langWrap.className='fiq-lang-wrap';
+  langWrap.id='fiqLangWrap';
+
+  var chip=document.createElement('button');
+  chip.type='button';
+  chip.className='fiq-lang-chip';
+  chip.id='fiqLangChip';
+  chip.setAttribute('aria-haspopup','true');
+  chip.setAttribute('aria-expanded','false');
+  chip.title='Change language';
+  chip.innerHTML='<span class="fiq-lang-chip-flag" id="fiqLangChipFlag"></span><span class="fiq-lang-chip-name" id="fiqLangChipName"></span><span class="fiq-lang-chip-chevron">▾</span>';
+
+  var panel=document.createElement('div');
+  panel.className='fiq-lang-panel';
+  panel.id='fiqLangPanel';
+  panel.appendChild(langButtonsOld);
+
+  langWrap.appendChild(chip);
+  langWrap.appendChild(panel);
+
+  topbar.appendChild(searchWrap);
+  topbar.appendChild(who);
+  topbar.appendChild(langWrap);
+  topbar.appendChild(accountBadge);
+  if(nativeSelect)topbar.appendChild(nativeSelect);
+
+  oldLabel.replaceWith(topbar);
+
+  var searchBtn=document.getElementById('fiqSearchBtn'),searchInput=document.getElementById('fiqSearchInput');
+  function openSearch(){searchWrap.classList.add('open');searchInput.focus()}
+  function closeSearch(){if(!searchInput.value)searchWrap.classList.remove('open')}
+  searchBtn.addEventListener('click',function(e){e.stopPropagation();if(searchWrap.classList.contains('open'))runSearch();else openSearch()});
+  searchInput.addEventListener('keydown',function(e){if(e.key==='Enter')runSearch();if(e.key==='Escape'){searchInput.value='';searchWrap.classList.remove('open')}});
+  searchInput.addEventListener('blur',function(){setTimeout(closeSearch,150)});
+  document.addEventListener('click',function(e){if(!searchWrap.contains(e.target))closeSearch()});
+  function runSearch(){
+    var q=searchInput.value.trim();
+    if(!q)return;
+    show('customers');
+    setTimeout(function(){
+      var box=document.getElementById('customerSearchInput');
+      if(box){box.value=q;box.dispatchEvent(new Event('input',{bubbles:true}));box.scrollIntoView({behavior:'smooth',block:'start'})}
+    },30);
+  }
+
+  langButtonsOld.querySelectorAll('button[data-lang]').forEach(function(b){
+    if(b.querySelector('.fiq-lang-name-text'))return;
+    var nameSpan=document.createElement('span');
+    nameSpan.className='fiq-lang-name-text';
+    nameSpan.textContent=b.title||b.dataset.lang;
+    b.appendChild(nameSpan);
+  });
+
+  function syncChip(){
+    var active=langButtonsOld.querySelector('button[data-lang].active')||langButtonsOld.querySelector('button[data-lang]');
+    if(!active)return;
+    var flagArt=active.querySelector('.flag-art');
+    var flagHost=document.getElementById('fiqLangChipFlag');
+    var nameHost=document.getElementById('fiqLangChipName');
+    if(flagHost)flagHost.innerHTML=flagArt?flagArt.innerHTML:'';
+    if(nameHost)nameHost.textContent=active.title||active.dataset.lang;
+  }
+  function closePanel(){langWrap.classList.remove('open');chip.setAttribute('aria-expanded','false')}
+  function togglePanel(){var open=langWrap.classList.toggle('open');chip.setAttribute('aria-expanded',open?'true':'false')}
+  chip.addEventListener('click',function(e){e.stopPropagation();togglePanel()});
+  document.addEventListener('click',function(e){if(!langWrap.contains(e.target))closePanel()});
+  langButtonsOld.querySelectorAll('button[data-lang]').forEach(function(b){
+    b.addEventListener('click',function(){setTimeout(function(){syncChip();closePanel()},0)});
+  });
+  syncChip();
+
+  window.a202SyncTopbarName=function(){
+    var el=document.getElementById('fiqTopbarWhoName');
+    if(el)el.textContent=(window.fittersiqUser&&(window.fittersiqUser.companyName||window.fittersiqUser.email))||'';
+  };
+  window.a202SyncTopbarName();
 })();
 </script>
 <script id="a183-home-layout-move">

@@ -641,7 +641,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -656,7 +656,7 @@ const fiqApp = initializeApp(firebaseConfig);
 window.fiqAuth = getAuth(fiqApp);
 window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, collection, addDoc, serverTimestamp };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <div id="fiqAuthGate" class="fiq-auth-gate">
@@ -2406,8 +2406,34 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   const CHANNEL="mads_assembleone_1089";
   const ROOT=`sync_v3/${CHANNEL}`;
   window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
-  window.mobileInboxPackets=async function(){try{const all=await firebaseGet(`${ROOT}/mobileQueue`);if(!all)return [];return Object.values(all).sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}catch(e){console.error(e);return []}};
-  window.removeMobilePacket=async function(packet){try{await firebaseDelete(`${ROOT}/mobileQueue/${firebaseSafeKey(packet?.syncId||packet?.exportedAt||"")}`)}catch(e){console.error(e)}};
+  window.mobileInboxPackets=async function(){
+    let legacy=[];
+    try{const all=await firebaseGet(`${ROOT}/mobileQueue`);if(all)legacy=Object.values(all)}catch(e){console.error(e)}
+    // Studio and this phone are almost always different devices, so the legacy
+    // per-install RTDB channel above rarely has anything real in it. The reliable,
+    // cross-device, company-scoped path is Firestore -- mirrors the Mobile-to-Studio
+    // siteJobPacket fix, just in the other direction.
+    let cloud=[];
+    try{
+      const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+      if(fs&&db&&user&&user.companyId){
+        const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'),fs.where('status','==','waiting'));
+        const snap=await fs.getDocs(q);
+        snap.forEach(docSnap=>{const data=docSnap.data()||{};cloud.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
+      }
+    }catch(e){console.error('Cloud Studio packet fetch failed',e)}
+    return [...legacy,...cloud].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)));
+  };
+  window.removeMobilePacket=async function(packet){
+    if(packet&&packet._cloudId){
+      try{
+        const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+        if(fs&&db&&user&&user.companyId)await fs.updateDoc(fs.doc(db,'companies',user.companyId,'jobs',packet._cloudId),{status:'received',receivedAt:fs.serverTimestamp()});
+      }catch(e){console.error(e)}
+      return;
+    }
+    try{await firebaseDelete(`${ROOT}/mobileQueue/${firebaseSafeKey(packet?.syncId||packet?.exportedAt||"")}`)}catch(e){console.error(e)}
+  };
   window.receiveStudioDirect=async function(){
     if(receivingStudioPack)return;receivingStudioPack=true;
     try{
