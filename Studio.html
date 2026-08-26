@@ -51,9 +51,10 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .empty,.notice{border:1px dashed #9cadd1;background:#eff4ff;color:var(--muted);padding:14px;border-radius:10px}
 .folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .folder-card{background:white;border:1px solid var(--line);border-radius:13px;padding:15px;box-shadow:0 5px 14px rgba(60,38,18,.05)}
-.customer-card{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
-.customer-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.customer-card{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 2px 6px rgba(20,30,50,.05)}
+.customer-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px}
 .customer-card-head strong{font-size:19px}
+.customer-card-contact{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.5}
 .customer-job-count{background:#F3EEFE;color:#6b3fbf;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
 .customer-job-list{display:flex;flex-direction:column;gap:6px}
 .customer-job-item{display:flex;flex-direction:column;gap:6px}
@@ -896,6 +897,9 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .customers-card{order:5!important}
 #combinedProjectWorkspace .start-block{display:none!important}
 .a100-start-shell{display:grid;gap:14px}
+.a100-shell-head{display:flex;justify-content:flex-end}
+.a100-close-btn{border:none;background:transparent;color:var(--muted);font-weight:800;font-size:14px;cursor:pointer;padding:4px 6px}
+.a100-close-btn:hover,.a100-close-btn:focus{color:var(--ink)}
 .a100-bottom-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .a100-action-btn{width:100%;min-height:78px;border-radius:22px;border:2px solid var(--line);background:#fff;color:var(--ink);display:flex;align-items:center;gap:14px;padding:12px 18px;text-align:left;cursor:pointer;box-sizing:border-box}
 .a100-action-btn:hover,.a100-action-btn:focus{border-color:var(--yellow);background:#f0f5ff;outline:4px solid rgba(255,196,0,.15)}
@@ -1155,7 +1159,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <body class="fiq-locked">
 <div id="fiqAuthGate" class="fiq-auth-gate">
   <div class="fiq-auth-card">
-    <div class="fiq-auth-logo"><img alt="FittersIQ" src="" id="fiqGateLogo" style="width:100%;height:100%;display:block;object-fit:contain"/></div>
+    <div class="fiq-auth-logo"><img alt="FittersIQ" src="" id="fiqGateLogo" style="width:100%;height:auto;display:block;object-fit:contain"/></div>
 
     <div class="fiq-auth-state" id="fiqStateChecking">
       <p class="fiq-auth-lead">Checking your account&hellip;</p>
@@ -1487,6 +1491,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div id="installProgressCard"></div>
 <div class="notice" id="componentsValidation" style="display:none;margin-bottom:10px"></div>
 <div id="partsSummary"></div>
+<div id="estimatedMaterialsCard"></div>
 </section>
 <section class="screen supplier-redesign" id="screen-cutting">
 <div class="supplier-hero"><div><h2>Supplier</h2><div class="muted">Final cutting information and matching QR stickers.</div></div><div class="supplier-ready" id="supplierReadyBadge">Checking panels…</div></div>
@@ -1581,6 +1586,7 @@ function switchToProject(id,cabinetId,partId){
  state.currentProject=id;
  state.currentCabinet=cabinetId!==undefined?cabinetId:null;
  state.currentPart=partId!==undefined?partId:null;
+ state.showStartShell=true;
  if(typeof renderProject==='function')renderProject();
 }
 
@@ -1604,11 +1610,34 @@ function parseGuideHash(){
  return m?{project:decodeURIComponent(m[1]),cabinet:decodeURIComponent(m[2]),part:decodeURIComponent(m[3])}:null
 }
 function updateWorkflowProgress(name){const order=["jobs","mark","parts","cutting","qr","bom"],current=Math.max(0,order.indexOf(name));$$("[data-step-screen]").forEach((el,i)=>{el.classList.toggle("current",i===current);el.classList.toggle("complete",i<current);const badge=el.querySelector(".workflow-status");if(badge)badge.textContent=i<current?"✓":String(i+1)})}
-function show(name){if(name==="project"||name==="rooms")name="jobs";state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===`screen-${name}`));$$(".nav-btn").forEach(x=>x.classList.toggle("active",x.dataset.screen===name));updateWorkflowProgress(name);save()}
+function show(name){if(name==="project"||name==="rooms")name="jobs";state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===`screen-${name}`));$$(".nav-btn").forEach(x=>x.classList.toggle("active",x.dataset.screen===name));updateWorkflowProgress(name);
+ if(!window.__suppressHistoryPush){
+   const navState={screen:name,projectId:state.currentProject||null,cabinetId:state.currentCabinet||null};
+   const cur=history.state;
+   if(!cur||cur.screen!==navState.screen||cur.projectId!==navState.projectId||cur.cabinetId!==navState.cabinetId){
+     try{history.pushState(navState,'')}catch(e){}
+   }
+ }
+ save()}
+window.addEventListener('popstate',function(e){
+ const st=e.state;
+ if(!st)return;
+ window.__suppressHistoryPush=true;
+ try{
+   state.currentProject=st.projectId||null;
+   state.currentCabinet=st.cabinetId||null;
+   state.currentPart=null;
+   state.screen=st.screen||'jobs';
+   if(state.currentProject)state.showStartShell=true;
+   renderAll();
+ }finally{
+   window.__suppressHistoryPush=false;
+ }
+});
 function newJob(){
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('project_created');
  const p={id:uid(),name:"",customer:"",rooms:[],cabinets:[]};
- state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;
+ state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;state.showStartShell=true;
  const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
  if(n)n.value="";if(cust)cust.value="";
  save();renderAll();show("jobs");
@@ -1655,7 +1684,7 @@ function renderJobs(){
  const box=$("#jobGrid"),active=project();
  const named=state.projects.filter(p=>String(p.name||"").trim());
  box.innerHTML=named.length?named.map(p=>{const siteRoom=(p.rooms||[]).find(r=>r.siteMarkup?.image||(r.sitePhotos||[]).length||(r.beforePhotos||[]).length);const siteReceived=!!siteRoom;return `<article class="folder-card ${p.id===state.currentProject?"selected-job":""} ${siteReceived?"site-received":""}"><div class="folder-icon">${siteReceived?(siteRoom.icon||"📍"):"📁"}</div><h3>${safe(p.name)}</h3><div class="muted">${safe(p.customer||"No customer name")}<br>${(p.rooms||[]).length} room${(p.rooms||[]).length===1?"":"s"} · ${p.cabinets.length} unit${p.cabinets.length===1?"":"s"}</div>${siteReceived?'<div class="site-job-tag">✓ Site measurements received</div>':''}<div class="actions"><button class="btn primary" data-open-job="${p.id}">${p.id===state.currentProject?"Job open":"Open job"}</button>${siteReceived?`<button class="btn site-details-btn" data-site-details="${p.id}">Open details</button>`:''}<button class="btn trade-export-btn" data-export-trade="${p.id}">Export record</button><button class="btn danger" data-delete-job-card="${p.id}">Delete</button></div></article>`}).join(""):'<div class="empty">No jobs yet. Press “New job”.</div>';
- const workspace=$("#combinedProjectWorkspace");if(workspace)workspace.classList.toggle("is-empty",!active);
+ const workspace=$("#combinedProjectWorkspace");if(workspace)workspace.classList.toggle("is-empty",!(active&&state.showStartShell));
  $$("[data-open-job]").forEach(b=>b.onclick=()=>{const np=state.projects.find(x=>x.id===b.dataset.openJob);switchToProject(b.dataset.openJob,np?.cabinets[0]?.id||null);renderAll();show("jobs")});
  $$("[data-site-details]").forEach(b=>b.onclick=()=>openSiteRoomDetails(b.dataset.siteDetails));
  $$('[data-export-trade]').forEach(b=>b.onclick=()=>exportProjectRecord(b.dataset.exportTrade));
@@ -1899,7 +1928,13 @@ function renderCustomers(){
  const names=Object.keys(byCustomer).sort((a,b)=>a.localeCompare(b));
  box.innerHTML=names.length?names.map(name=>{
    const jobs=byCustomer[name];
-   return `<div class="customer-card"><div class="customer-card-head"><strong>${safe(name)}</strong><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></div><div class="customer-job-list">${jobs.map(p=>{
+   const withAddress=jobs.find(p=>String(p.address||"").trim());
+   const withPhone=jobs.find(p=>String(p.phone||"").trim());
+   const contactBits=[];
+   if(withAddress)contactBits.push(`📍 ${safe(withAddress.address)}`);
+   if(withPhone)contactBits.push(`📞 ${safe(withPhone.phone)}`);
+   const contactHtml=contactBits.length?`<div class="customer-card-contact">${contactBits.join("<br>")}</div>`:"";
+   return `<div class="customer-card"><div class="customer-card-head"><div><strong>${safe(name)}</strong>${contactHtml}</div><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></div><div class="customer-job-list">${jobs.map(p=>{
      const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
      return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${safe(p.name||"Untitled job")}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span></button>${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}</div>`;
    }).join("")}</div></div>`;
@@ -3306,6 +3341,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
     if(!p){shell.innerHTML='<div class="a100-empty-note">Create a new job or open a saved job.</div>';return}
     const room=selectedRoom(); const units=(p.cabinets||[]).filter(c=>room&&c.roomId===room.id);
     shell.innerHTML=`
+      <div class="a100-shell-head"><button class="a100-close-btn" id="a100CloseShell" title="Close">✕ Close</button></div>
       <div class="a100-bottom-actions">
         <button class="a100-action-btn" id="a100EditJob">
           <span class="a100-action-icon">📁</span>
@@ -3319,6 +3355,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
       </div>
       ${room?`<button class="a100-add-unit" id="a100AddUnit">➡ Continue to Drawing</button>`:''}
       <div class="a100-units">${units.map(c=>`<div class="a100-unit-row"><strong>${esc(c.name)}</strong><button class="btn primary" data-a100-open-unit="${c.id}">Open drawing</button></div>`).join('')}</div>`;
+    document.getElementById('a100CloseShell').onclick=()=>{state.showStartShell=false;save();renderAll()};
     document.getElementById('a100EditJob').onclick=openEdit;
     document.getElementById('a100ChooseRoom').onclick=()=>{const b=document.getElementById('studioAddRoomBtn'); if(b)b.click(); else if(window.addStudioRoom)addStudioRoom()};
     const add=document.getElementById('a100AddUnit');
@@ -4891,7 +4928,7 @@ body.guide-only .a131-back-studio{display:block}
 body.fiq-locked .app{display:none!important}
 .fiq-auth-gate{position:fixed;inset:0;z-index:99999;background:linear-gradient(160deg,#0b2545,#173657);display:flex;align-items:center;justify-content:center;padding:20px}
 .fiq-auth-card{width:min(420px,100%);background:#fff;border-radius:20px;padding:32px 28px;box-shadow:0 30px 70px rgba(0,0,0,.35)}
-.fiq-auth-logo{width:96px;height:96px;margin:0 auto 20px}
+.fiq-auth-logo{width:220px;height:auto;margin:0 auto 24px;display:block;object-fit:contain}
 .fiq-auth-state h1{font-size:22px;margin:0 0 6px;color:#0b2545;text-align:center}
 .fiq-auth-lead{color:#5B6B7C;font-size:14px;margin:0 0 18px;text-align:center}
 .fiq-auth-field{display:block;font-size:12px;font-weight:800;color:#0b2545;margin-bottom:14px}
@@ -5257,6 +5294,65 @@ body.fiq-locked .app{display:none!important}
       toggleBtn.textContent=opening?'📐 Hide Sheet Optimiser':'📐 Sheet Optimiser — see how many sheets this job needs';
     });
   }
+  window.a181Pack=pack;window.a181CfgFor=cfgFor;window.a181LoadSettings=loadSettings;
+})();
+</script>
+<style id="a201-estimated-materials-style">
+.est-mat-card{margin:12px 0;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+.est-mat-toggle{width:100%;text-align:left;background:#f4f7ff;border:none;padding:14px 16px;font-weight:900;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:var(--ink)}
+.est-mat-toggle:hover,.est-mat-toggle:focus{background:#eaf0ff}
+.est-mat-chevron{font-size:12px;color:var(--muted)}
+.est-mat-details{padding:4px 16px 14px}
+.est-mat-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.est-mat-row:last-of-type{border-bottom:none}
+.est-mat-note{margin-top:10px;font-size:12px;color:var(--muted);font-style:italic}
+</style>
+<script id="a201-estimated-materials-script">
+(function(){
+  function estimateGroups(){
+    var pack=window.a181Pack,cfgFor=window.a181CfgFor,loadSettings=window.a181LoadSettings;
+    if(!pack||!cfgFor||!loadSettings)return [];
+    var parts=(typeof supplierParts==='function')?supplierParts():[];
+    if(!parts.length)return [];
+    var settings=loadSettings();
+    var byKey={};
+    parts.forEach(function(p){
+      var mat=(typeof materialForPanel==='function'?materialForPanel(p):p.material)||'Material not set';
+      var key=mat.trim().toLowerCase()+'__'+(p.thickness||0);
+      (byKey[key]=byKey[key]||{material:mat,thickness:p.thickness,parts:[]}).parts.push(p);
+    });
+    return Object.keys(byKey).map(function(key){
+      var g=byKey[key];
+      var cfg=cfgFor(settings,g.material);
+      var pieces=[];
+      g.parts.forEach(function(p){var n=Math.max(1,Number(p.qty)||1);for(var i=0;i<n;i++)pieces.push({w:Number(p.length)||0,h:Number(p.width)||0})});
+      var res=pack(pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
+      return {material:g.material,thickness:g.thickness,sheets:res.sheets.length};
+    }).sort(function(a,b){return b.sheets-a.sheets});
+  }
+  function render(){
+    var box=document.getElementById('estimatedMaterialsCard');if(!box)return;
+    var wasExpanded=!!(box.querySelector('#estMatDetails')&&!box.querySelector('#estMatDetails').hidden);
+    var groups=estimateGroups();
+    if(!groups.length){box.innerHTML='';return}
+    var total=groups.reduce(function(s,g){return s+g.sheets},0);
+    box.innerHTML='<div class="est-mat-card">'+
+      '<button type="button" class="est-mat-toggle" id="estMatToggle">📦 Estimated materials: '+total+' sheet'+(total===1?'':'s')+'<span class="est-mat-chevron">'+(wasExpanded?'▲':'▼')+'</span></button>'+
+      '<div class="est-mat-details" id="estMatDetails"'+(wasExpanded?'':' hidden')+'>'+
+        groups.map(function(g){return '<div class="est-mat-row"><span>'+safe(g.material)+' · '+safe(g.thickness)+'mm</span><strong>'+g.sheets+' sheet'+(g.sheets===1?'':'s')+'</strong></div>'}).join('')+
+        '<div class="est-mat-note">Estimate only, based on standard sheet sizes for a quick check. The final sheet count may change once your supplier optimises the full cutting layout.</div>'+
+      '</div>'+
+    '</div>';
+    var toggle=document.getElementById('estMatToggle');
+    toggle.addEventListener('click',function(){
+      var d=document.getElementById('estMatDetails');
+      d.hidden=!d.hidden;
+      toggle.querySelector('.est-mat-chevron').textContent=d.hidden?'▼':'▲';
+    });
+  }
+  var prevRenderParts=window.renderParts;
+  window.renderParts=function(){var r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
+  try{render()}catch(e){}
 })();
 </script>
 <script id="a183-home-layout-move">
