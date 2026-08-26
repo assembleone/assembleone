@@ -5102,7 +5102,17 @@ body.fiq-locked .app{display:none!important}
 
   function loadSettings(){try{return JSON.parse(localStorage.getItem(SETTINGS_KEY))||{}}catch(e){return {}}}
   function saveSetting(key,cfg){var all=loadSettings();all[key]=cfg;try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(all))}catch(e){}}
-  function cfgFor(all,material){var key=String(material||'').trim().toLowerCase();var c=all[key];return {key:key,w:Number(c&&c.w)||DEFAULT_CFG.w,h:Number(c&&c.h)||DEFAULT_CFG.h,kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,trim:c&&c.trim!=null?Number(c.trim):DEFAULT_CFG.trim,grain:c&&c.grain!=null?!!c.grain:DEFAULT_CFG.grain}}
+  // Keyed by material+thickness (not material alone): 19mm walnut and 30mm walnut are
+  // physically different sheet products and must never share sheet size, kerf, trim or
+  // grain settings just because the material name matches.
+  function cfgFor(all,material,thickness){
+    var matKey=String(material||'').trim().toLowerCase();
+    var key=matKey+'__'+(Number(thickness)||0);
+    // Fall back to a pre-existing material-only setting (saved before thickness was part of
+    // the key) so upgrading doesn't silently reset sheet size/kerf/trim/grain to defaults.
+    var c=all[key]||all[matKey];
+    return {key:key,w:Number(c&&c.w)||DEFAULT_CFG.w,h:Number(c&&c.h)||DEFAULT_CFG.h,kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,trim:c&&c.trim!=null?Number(c.trim):DEFAULT_CFG.trim,grain:c&&c.grain!=null?!!c.grain:DEFAULT_CFG.grain}
+  }
 
   function colorFor(code){var s=String(code||''),h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PALETTE[h%PALETTE.length]}
 
@@ -5256,7 +5266,7 @@ body.fiq-locked .app{display:none!important}
     });
     lastGroups=Object.keys(byKey).map(function(key){
       var g=byKey[key];
-      var cfg=cfgFor(settings,g.material);
+      var cfg=cfgFor(settings,g.material,g.thickness);
       return groupResult(g.material,g.thickness,g.parts,cfg);
     });
     box.innerHTML=lastGroups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
@@ -5264,7 +5274,7 @@ body.fiq-locked .app{display:none!important}
       el.addEventListener('change',function(){
         var idx=Number(el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetTrim??el.dataset.sheetGrain);
         var g=lastGroups[idx];if(!g)return;
-        var cur=cfgFor(loadSettings(),g.materialLabel);
+        var cur=cfgFor(loadSettings(),g.materialLabel,g.thickness);
         if(el.dataset.sheetW!=null)cur.w=Math.max(300,Number(el.value)||DEFAULT_CFG.w);
         if(el.dataset.sheetH!=null)cur.h=Math.max(300,Number(el.value)||DEFAULT_CFG.h);
         if(el.dataset.sheetKerf!=null)cur.kerf=Math.max(0,Number(el.value)||0);
@@ -5323,7 +5333,7 @@ body.fiq-locked .app{display:none!important}
     });
     return Object.keys(byKey).map(function(key){
       var g=byKey[key];
-      var cfg=cfgFor(settings,g.material);
+      var cfg=cfgFor(settings,g.material,g.thickness);
       var pieces=[];
       g.parts.forEach(function(p){var n=Math.max(1,Number(p.qty)||1);for(var i=0;i<n;i++)pieces.push({w:Number(p.length)||0,h:Number(p.width)||0})});
       var res=pack(pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
