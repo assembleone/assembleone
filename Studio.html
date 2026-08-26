@@ -1672,9 +1672,27 @@ function renderJobs(){
 
 function siteRoomPictures(room){
  const out=[];const add=x=>{if(!x)return;const src=typeof x==='string'?x:(x.data||x.src||x.url||x.image);if(src&&!out.includes(src))out.push(src)};
- add(room?.siteMarkup?.image);(room?.sitePhotos||[]).forEach(add);(room?.beforePhotos||[]).forEach(add);(room?.designImages||[]).forEach(add);return out
+ add(room?.siteMarkup?.image);(room?.sitePhotos||[]).forEach(add);(room?.beforePhotos||[]).forEach(add);(room?.designImages||[]).forEach(add);(room?.measureCaptures||[]).forEach(add);return out
 }
-function siteRoomMeasureCount(room){return room?.siteMarkup?.marks?.filter(x=>x.type==='measure').length||room?.measurements?.length||0}
+function siteRoomMeasureCount(room){
+ const own=room?.siteMarkup?.marks?.filter(x=>x.type==='measure').length||0;
+ const captured=(room?.measureCaptures||[]).reduce((n,cap)=>n+(cap?.marks?.filter(x=>x.type==='measure').length||0),0);
+ return own+captured||room?.measurements?.length||0;
+}
+// Mobile's "Done - Room Guide" step saves the photo+measurements just drawn into a
+// measureCaptures entry and clears siteMarkup for the next one, so siteMarkup is often
+// empty by the time a Site Job reaches Studio -- the real photo+marks live in
+// measureCaptures[0] instead. This picks whichever actually has content, always
+// returning the photo and its OWN matching measurements together as a pair.
+function bestSiteReference(holder){
+ if(!holder)return {image:null,siteMarkup:null};
+ if(holder.siteMarkup?.image)return {image:holder.siteMarkup.image,siteMarkup:holder.siteMarkup};
+ const cap=(holder.measureCaptures||[])[0];
+ if(cap?.image)return {image:cap.image,siteMarkup:{image:cap.image,w:cap.w||0,h:cap.h||0,marks:cap.marks||[]}};
+ const pics=siteRoomPictures(holder);
+ if(pics[0])return {image:pics[0],siteMarkup:null};
+ return {image:null,siteMarkup:null};
+}
 function openSiteRoomDetails(projectId,roomId){
  const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return;
  const room=p.rooms.find(r=>r.id===roomId)||p.rooms.find(r=>siteRoomPictures(r).length)||p.rooms[0]||{name:'Site room',icon:'📍'};
@@ -1699,15 +1717,14 @@ function openCustomerSiteJobInDrawing(projectId){
  // the project itself (the simpler "New Site Job" flow attaches sitePhotos/siteMarkup
  // to the project, never creating a room at all) -- check both, or the picture from a
  // job captured the simple way would be silently missed here.
- const room=p.rooms.find(r=>siteRoomPictures(r).length);
- const pics=room?siteRoomPictures(room):siteRoomPictures(p);
- if(!pics.length)return alert('No site measurements are attached to this job yet.');
+ const room=p.rooms.find(r=>bestSiteReference(r).image);
+ const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(p);
+ if(!ref.image)return alert('No site measurements are attached to this job yet.');
  const roomId=room?.id||'';
  let c=p.cabinets.find(x=>x.roomId===roomId);
  if(!c){c={id:uid(),name:(room?.name||p.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
- c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||p.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];
- const markupSource=room?.siteMarkup||p.siteMarkup;
- c.siteMarkup=markupSource?JSON.parse(JSON.stringify(markupSource)):null;
+ c.drawing=ref.image;c.drawingType='image';c.drawingName=(room?.name||p.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=ref.image;
+ c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null;
  switchToProject(p.id,c.id);
  renderAll();save();show('mark');
  toast('Site measurements opened in Drawing — customer, room, photos and notes are preserved.');
@@ -2156,11 +2173,11 @@ async function fetchCloudSitePackets(){
  }catch(e){console.error('Cloud site job fetch failed',e);return []}
 }
 async function studioInboxPackets(){let out=[];try{const db=await studioSyncDb();const tx=db.transaction("studioInbox","readonly"),req=tx.objectStore("studioInbox").getAll();out=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close()}catch(e){}const cloud=await fetchCloudSitePackets();const map=new Map();[...out,...fallbackPackets(),...cloud].forEach(x=>map.set(x.syncId||x.exportedAt||Math.random(),x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
-function inboxSummary(pack){const p=pack?.project||pack||{};const room=p.rooms?.find(r=>r.draft)||p.rooms?.[0]||{};const measures=room.siteMarkup?.marks?.filter(x=>x.type==='measure').length||p.siteMeasurements?.length||0;const photos=(room.sitePhotos?.length||0)+(room.designImages?.length||0)+(p.sitePhotos?.length||0);return {syncId:pack?.syncId||pack?.exportedAt||'',customer:p.customer||'Customer not named',project:p.name||'New site job',icon:room.icon||'📍',room:room.name||'Room not named',floor:room.floor||'',measures,photos}}
+function inboxSummary(pack){const p=pack?.project||pack||{};const room=(p.rooms||[]).find(r=>bestSiteReference(r).image)||p.rooms?.find(r=>r.draft)||p.rooms?.[0]||{};const measures=siteRoomMeasureCount(room)||p.siteMeasurements?.length||0;const photos=siteRoomPictures(room).length||siteRoomPictures(p).length||0;return {syncId:pack?.syncId||pack?.exportedAt||'',customer:p.customer||'Customer not named',project:p.name||'New site job',icon:room.icon||'📍',room:room.name||'Room not named',floor:room.floor||'',measures,photos}}
 function showInboxPopup(items){return}
 async function paintSiteInbox(){const badge=document.getElementById('siteUpdateBadge'),panel=document.getElementById('directSiteInbox'),list=document.getElementById('siteJobsList');try{const items=await studioInboxPackets();if(badge){badge.textContent=items.length?`${items.length} NEW`:'';badge.style.display=items.length?'':'none'}panel?.classList.toggle('inbox-ready',!!items.length);if(!list)return;if(!items.length){list.innerHTML='<div class="site-jobs-empty">No new site jobs</div>';return}list.innerHTML=items.map(pack=>{const x=inboxSummary(pack);return `<button class="site-job-inbox-card" type="button" data-open-site-packet="${safe(x.syncId)}"><span class="site-job-room-icon">${x.icon}</span><span class="site-job-main"><strong>${safe(x.customer)}</strong><span class="site-project-name">${safe(x.project)} · ${safe(x.room)}${x.floor?' · '+safe(x.floor):''}</span><span class="site-job-meta"><span>📷 ${x.photos}</span><span>📏 ${x.measures}</span></span></span><span class="site-job-open">Open Drawing</span></button>`}).join('');list.querySelectorAll('[data-open-site-packet]').forEach(b=>b.onclick=()=>receiveSitePacket(b.dataset.openSitePacket))}catch(e){if(badge){badge.textContent='Use backup file';badge.style.display=''}if(list)list.innerHTML='<div class="site-jobs-empty">Direct sync unavailable. Use the backup file.</div>';document.querySelector('.site-file-backup')?.classList.add('visible')}}
 async function removeInboxPacket(syncId){try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK);if(String(syncId||'').startsWith('cloud:')){try{const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;const cloudId=String(syncId).slice(6);if(fs&&db2&&user&&user.companyId){await fs.updateDoc(fs.doc(db2,'companies',user.companyId,'jobs',cloudId),{status:'received',receivedAt:fs.serverTimestamp()})}}catch(e){console.error('Could not mark cloud site job received',e)}}}
-async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileProject(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const room=merged.rooms?.find(r=>siteRoomPictures(r).length)||merged.rooms?.[0];const pics=(room&&siteRoomPictures(room).length)?siteRoomPictures(room):siteRoomPictures(merged);const roomId=room?.id||'';let c=merged.cabinets?.find(x=>x.roomId===roomId);if(!c){c={id:uid(),name:(room?.name||merged.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}if(pics[0]){c.drawing=pics[0];c.drawingType='image';c.drawingName=(room?.name||merged.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=pics[0];const markupSource=room?.siteMarkup||merged.siteMarkup;c.siteMarkup=markupSource?JSON.parse(JSON.stringify(markupSource)):null}switchToProject(merged.id,c.id);renderAll();save();await paintSiteInbox();show('mark');toast('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
+async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert('This site job is no longer waiting.');const incoming=ensureSharedProject(pack.project||pack);const merged=mergeMobileProject(incoming);await removeInboxPacket(pack.syncId||pack.exportedAt);const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0];const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(merged);const roomId=room?.id||'';let c=merged.cabinets?.find(x=>x.roomId===roomId);if(!c){c={id:uid(),name:(room?.name||merged.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}if(ref.image){c.drawing=ref.image;c.drawingType='image';c.drawingName=(room?.name||merged.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=ref.image;c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null}switchToProject(merged.id,c.id);renderAll();save();await paintSiteInbox();show('mark');toast('Site job opened in Drawing. The measured photo is ready as your reference.')}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
 async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert('No new site jobs are waiting.');return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
 document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
