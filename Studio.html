@@ -5818,6 +5818,50 @@ body.fiq-locked .app{display:none!important}
   }
 })();
 </script>
+<style id="a205-home-cards-redesign-style">
+/* Matches the approved home page mockup for the two remaining home cards. Colours,
+   badge and arrow only -- text, layout order and click behaviour are untouched. */
+.new-project-card{background:linear-gradient(135deg,#eafcee 0%,#ffffff 78%)!important;border-color:#4CAF50!important;border-width:2px!important}
+.customers-card{background:linear-gradient(135deg,#e3fbfc 0%,#ffffff 78%)!important;border-color:#17b6c4!important;border-width:2px!important}
+.new-project-card .mascot-icon,.customers-card .mascot-icon{height:92px!important;width:132px!important;align-items:center!important;justify-content:center!important}
+.new-project-card .mascot-icon img,.customers-card .mascot-icon img{height:92px!important;width:auto!important;max-width:132px!important;object-fit:contain!important;border-radius:0!important}
+.a205-badge{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;color:#fff;margin-bottom:8px;flex-shrink:0}
+.new-project-card .a205-badge{background:#4CAF50;font-size:19px;font-weight:900;line-height:1}
+.customers-card .a205-badge{background:#17b6c4}
+.a205-arrow{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:#fff;border:2px solid;margin-left:auto;flex-shrink:0;font-size:21px;font-weight:900}
+.new-project-card .a205-arrow{border-color:#4CAF50;color:#4CAF50}
+.customers-card .a205-arrow{border-color:#17b6c4;color:#17b6c4}
+@media(max-width:460px){.new-project-card .mascot-icon,.customers-card .mascot-icon{width:96px!important;height:72px!important}.new-project-card .mascot-icon img,.customers-card .mascot-icon img{height:72px!important;max-width:96px!important}}
+</style>
+<script id="a205-home-cards-redesign-script">
+(function(){
+  function textSpanOf(btn){
+    return Array.from(btn.children).find(function(el){return el.tagName==='SPAN'&&!el.classList.contains('home-action-icon')});
+  }
+  function decorate(selector,opts){
+    var btn=document.querySelector(selector);
+    if(!btn)return;
+    var img=btn.querySelector('.home-action-icon img');
+    if(img)img.src=opts.icon;
+    var textSpan=textSpanOf(btn);
+    if(textSpan&&!textSpan.querySelector('.a205-badge')){
+      var badge=document.createElement('span');
+      badge.className='a205-badge';
+      badge.innerHTML=opts.badge;
+      textSpan.insertBefore(badge,textSpan.firstChild);
+    }
+    if(!btn.querySelector('.a205-arrow')){
+      var arrow=document.createElement('span');
+      arrow.className='a205-arrow';
+      arrow.setAttribute('aria-hidden','true');
+      arrow.textContent='→';
+      btn.appendChild(arrow);
+    }
+  }
+  decorate('.new-project-card',{icon:'assets/icon-new-project.png',badge:'+'});
+  decorate('.customers-card',{icon:'assets/icon-customer-library.png',badge:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'});
+})();
+</script>
 <script id="a183-home-layout-move">
 (function(){
   // Layout move only: the "New Job / Choose Project" workspace becomes a grid item of
