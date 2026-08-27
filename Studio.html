@@ -1532,9 +1532,9 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section class="screen" id="screen-parts">
 <div class="title-row"><div><h2>Panel Check</h2><div class="muted">Check every panel before making the cutting list.</div></div></div>
 <div id="installProgressCard"></div>
+<div id="estimatedMaterialsCard"></div>
 <div class="notice" id="componentsValidation" style="display:none;margin-bottom:10px"></div>
 <div id="partsSummary"></div>
-<div id="estimatedMaterialsCard"></div>
 </section>
 <section class="screen supplier-redesign" id="screen-cutting">
 <div class="supplier-hero"><div><h2>Supplier</h2><div class="muted">Final cutting information and matching QR stickers.</div></div><div class="supplier-ready" id="supplierReadyBadge">Checking panels…</div></div>
@@ -5629,8 +5629,10 @@ body.fiq-locked .app{display:none!important}
 <style id="a201-estimated-materials-style">
 .est-mat-card{margin:12px 0;border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px 16px}
 .est-mat-title{font-weight:900;font-size:16px;color:var(--ink);margin-bottom:8px}
-.est-mat-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:700}
+.est-mat-row{padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:700}
 .est-mat-row:last-of-type{border-bottom:none}
+.est-mat-row .est-mat-count{font-weight:600;color:var(--muted);font-size:12px;margin:2px 0}
+.est-mat-row strong{display:block;margin-top:2px}
 .est-mat-note{margin-top:10px;font-size:12px;color:var(--muted);font-style:italic}
 </style>
 <script id="a201-estimated-materials-script">
@@ -5662,18 +5664,26 @@ body.fiq-locked .app{display:none!important}
       var pieces=[];
       g.parts.forEach(function(p){var n=Math.max(1,Number(p.qty)||1);for(var i=0;i<n;i++)pieces.push({w:Number(p.length)||0,h:Number(p.width)||0})});
       var res=pack(pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
-      return {material:g.material,thickness:g.thickness,sheets:res.sheets.length};
+      return {material:g.material,thickness:g.thickness,panelCount:pieces.length,sheets:res.sheets.length};
     }).sort(function(a,b){return b.sheets-a.sheets});
   }
   function render(){
     var box=document.getElementById('estimatedMaterialsCard');if(!box)return;
     var groups=estimateGroups();
-    if(!groups.length){box.innerHTML='';return}
+    if(!groups.length){
+      var allParts=(typeof cabinetParts==='function'?cabinetParts():[]);
+      if(!allParts.length){box.innerHTML='';return}
+      box.innerHTML='<div class="est-mat-card">'+
+        '<div class="est-mat-title">📐 Estimated Sheets</div>'+
+        '<div class="est-mat-note">Add material, thickness and dimensions to your panels to see an estimated sheet count here.</div>'+
+      '</div>';
+      return;
+    }
     // Always shown in full (no collapse) -- the point is a quick compare of panels vs
     // sheets before sending the cutting list, not something to click open first.
     box.innerHTML='<div class="est-mat-card">'+
       '<div class="est-mat-title">📐 Estimated Sheets</div>'+
-      groups.map(function(g){return '<div class="est-mat-row"><span>'+safe(g.thickness)+'mm '+safe(g.material)+'</span><strong>Estimated sheets: '+g.sheets+'</strong></div>'}).join('')+
+      groups.map(function(g){return '<div class="est-mat-row"><div>'+safe(g.thickness)+'mm '+safe(g.material)+'</div><div class="est-mat-count">'+g.panelCount+' panel'+(g.panelCount===1?'':'s')+'</div><strong>Estimated sheets: '+g.sheets+'</strong></div>'}).join('')+
       '<div class="est-mat-note">Estimate only, based on standard sheet sizes for a quick check. The final sheet count may change once your supplier optimises the full cutting layout.</div>'+
     '</div>';
   }
