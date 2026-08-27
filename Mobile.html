@@ -1848,7 +1848,35 @@ window.retryPendingStudioSync=async function(){
   }
   if(dirty){try{localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.filter(Boolean)))}catch(e){}}
 };
-async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(permanent){download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert((e&&e.message?e.message+' ':'')+t('msg.directSyncUnavailableBackup'))}else{queuePendingStudioSync(pack)}}}
+// A job's full export only ever grows -- every site photo, measurement capture and
+// damage/install photo it has ever collected gets resent every single time, because
+// Studio's merge just overwrites its copy of these arrays rather than adding to them
+// (unlike jobLog, which merges by id). Once that accumulated total passes Firestore's
+// ~1MiB document cap, EVERY future update permanently fails and falls back to a manual
+// ZIP forever, even though the actual thing someone urgently needs -- which panel is
+// damaged, how many are fitted -- is tiny. If the full pack is too large, retry once
+// with the heavy photo/drawing data stripped out so that status data still gets
+// through directly; only fall back to the ZIP if even that slim version won't fit.
+function stripHeavyMediaForSync(project){
+  const clone=JSON.parse(JSON.stringify(project));
+  delete clone.sitePhotos;
+  (clone.rooms||[]).forEach(r=>{delete r.measureCaptures;delete r.beforePhotos;delete r.designImages;if(r.siteMarkup)r.siteMarkup.image=null});
+  (clone.cabinets||[]).forEach(c=>{if(c.drawing&&c.drawingType!=="pdf")c.drawing=null;(c.parts||[]).forEach(pt=>{if((pt.panelPhotos||[]).length)pt.panelPhotos=pt.panelPhotos.slice(-1)})});
+  (clone.jobLog||[]).forEach(entry=>{if((entry.photos||[]).length)entry.photos=[]});
+  return clone;
+}
+async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){queuePendingStudioSync(pack);return}
+  const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
+  try{
+    await sendPackDirectly(slimPack);
+    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();
+    alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
+  }catch(e2){
+    console.error(e2);
+    download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");
+    alert((e2&&e2.message?e2.message+' ':'')+t('msg.directSyncUnavailableBackup'));
+  }
+}}
 
 // mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the original,
 // pre-channel Studio-to-phone receiver) lived here. They're superseded by the
