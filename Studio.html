@@ -5401,6 +5401,7 @@ body.fiq-locked .app{display:none!important}
 .sheet-optim-head h4{margin:0;font-size:19px}
 .sheet-optim-settings{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:8px 0 12px;padding:10px;background:#f7f8fb;border-radius:10px}
 .sheet-optim-settings label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:800;color:#5c5668}
+.sheet-optim-settings label small{font-weight:600;color:#8a8595;font-size:10px}
 .sheet-optim-settings input[type=number]{width:76px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit}
 .sheet-optim-settings .sheet-optim-grain{flex-direction:row;align-items:center;gap:6px;font-weight:700}
 .sheet-optim-stats{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 12px}
@@ -5496,27 +5497,33 @@ body.fiq-locked .app{display:none!important}
 
   function fmt(n){return Math.round(n*10)/10}
 
+  // Sheets are always drawn portrait: the sheet's length (the no-rotate / grain axis in
+  // pack()) is shown running top-to-bottom, whatever numbers the length/width fields hold.
+  // Every rect is transposed (x<->y, w<->h) from packing space into this display space.
+  function toDisp(r){return {x:r.y,y:r.x,w:r.h,h:r.w}}
   function sheetSvg(sheet,cfg){
-    var W=sheet.w,H=sheet.h,scale=1;
+    var W=sheet.h,H=sheet.w;
     var codeFont=Math.max(28,Math.min(W,H)*0.045),dimFont=codeFont*0.62;
     var parts=['<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">'];
     parts.push('<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="#ffffff" stroke="#23364e" stroke-width="6"/>');
     if(cfg.trim>0){parts.push('<rect x="'+cfg.trim+'" y="'+cfg.trim+'" width="'+Math.max(0,W-2*cfg.trim)+'" height="'+Math.max(0,H-2*cfg.trim)+'" fill="none" stroke="#c7c7c7" stroke-width="2" stroke-dasharray="6 6"/>')}
     var usableOffcut=sheet.free.filter(function(r){return r.w*r.h>=90000});
     usableOffcut.forEach(function(r){
-      parts.push('<rect x="'+r.x+'" y="'+r.y+'" width="'+r.w+'" height="'+r.h+'" fill="#f2f2f2" stroke="#c7c7c7" stroke-width="3" stroke-dasharray="14 10"/>');
-      if(r.w>W*0.12&&r.h>H*0.08)parts.push('<text x="'+(r.x+r.w/2)+'" y="'+(r.y+r.h/2)+'" font-size="'+dimFont+'" fill="#8a8a8a" text-anchor="middle" dominant-baseline="middle">Offcut '+Math.round(r.w)+'×'+Math.round(r.h)+'</text>');
+      var d=toDisp(r);
+      parts.push('<rect x="'+d.x+'" y="'+d.y+'" width="'+d.w+'" height="'+d.h+'" fill="#f2f2f2" stroke="#c7c7c7" stroke-width="3" stroke-dasharray="14 10"/>');
+      if(d.w>W*0.12&&d.h>H*0.08)parts.push('<text x="'+(d.x+d.w/2)+'" y="'+(d.y+d.h/2)+'" font-size="'+dimFont+'" fill="#8a8a8a" text-anchor="middle" dominant-baseline="middle">Offcut '+Math.round(r.w)+'×'+Math.round(r.h)+'</text>');
     });
     sheet.placements.forEach(function(p){
+      var d=toDisp(p);
       var fill=colorFor(p.code);
-      parts.push('<rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" fill="'+fill+'" stroke="#1f2329" stroke-width="4"/>');
-      var cx=p.x+p.w/2,cy=p.y+p.h/2;
+      parts.push('<rect x="'+d.x+'" y="'+d.y+'" width="'+d.w+'" height="'+d.h+'" fill="'+fill+'" stroke="#1f2329" stroke-width="4"/>');
+      var cx=d.x+d.w/2,cy=d.y+d.h/2;
       parts.push('<text x="'+cx+'" y="'+(cy-dimFont*0.3)+'" font-size="'+codeFont+'" font-weight="900" fill="#1f2329" text-anchor="middle" dominant-baseline="middle">'+safe(p.code||'')+'</text>');
       parts.push('<text x="'+cx+'" y="'+(cy+dimFont*0.9)+'" font-size="'+dimFont+'" fill="#1f2329" text-anchor="middle" dominant-baseline="middle">'+Math.round(p.w)+'×'+Math.round(p.h)+'</text>');
-      if(cfg.grain&&!p.rot&&p.w>dimFont*3){
-        var ay=cy+dimFont*1.9<p.y+p.h-6?cy+dimFont*1.9:p.y+p.h-6;
-        var ax1=p.x+p.w*0.18,ax2=p.x+p.w*0.82;
-        parts.push('<line x1="'+ax1+'" y1="'+ay+'" x2="'+ax2+'" y2="'+ay+'" stroke="#1f2329" stroke-width="3" marker-start="url(#a181arrow)" marker-end="url(#a181arrow)"/>');
+      if(cfg.grain&&!p.rot&&d.h>dimFont*3){
+        var ax=cx;
+        var ay1=d.y+d.h*0.12,ay2=d.y+d.h*0.88;
+        parts.push('<line x1="'+ax+'" y1="'+ay1+'" x2="'+ax+'" y2="'+ay2+'" stroke="#1f2329" stroke-width="3" marker-start="url(#a181arrow)" marker-end="url(#a181arrow)"/>');
       }
     });
     parts.push('<defs><marker id="a181arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f2329"/></marker></defs>');
@@ -5543,10 +5550,11 @@ body.fiq-locked .app{display:none!important}
       var wp=fmt(100*(1-used/(cfg.w*cfg.h)));
       return '<div class="sheet-optim-sheet">'+sheetSvg(s,cfg)+'<div class="sheet-caption">Sheet '+(i+1)+' of '+g.sheets.length+' · '+s.placements.length+' panel'+(s.placements.length===1?'':'s')+' · '+wp+'% waste</div></div>';
     }).join('');
+    var usedM2=fmt(g.usedArea/1e6),totalM2=fmt(g.sheets.length*cfg.w*cfg.h/1e6),wasteM2=fmt(Math.max(0,totalM2-usedM2));
     return '<div class="sheet-optim-group" data-sheet-group="'+idx+'">'+
       '<div class="sheet-optim-head"><h4>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</h4></div>'+
       '<div class="sheet-optim-settings">'+
-        '<label>Sheet length (mm)<input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
+        '<label>Sheet length (mm)<br><small>grain direction, shown vertically</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
         '<label>Sheet width (mm)<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label>'+
         '<label>Saw kerf (mm)<input type="number" min="0" max="15" step="0.5" data-sheet-kerf="'+idx+'" value="'+cfg.kerf+'"></label>'+
         '<label>Trim allowance (mm)<input type="number" min="0" max="50" step="1" data-sheet-trim="'+idx+'" value="'+cfg.trim+'"></label>'+
@@ -5554,7 +5562,8 @@ body.fiq-locked .app{display:none!important}
       '</div>'+
       '<div class="sheet-optim-stats">'+
         '<span class="sheet-optim-stat">Sheets required: '+g.sheets.length+'</span>'+
-        '<span class="sheet-optim-stat'+(g.wastePct>25?' warn':'')+'">Waste: '+g.wastePct+'%</span>'+
+        '<span class="sheet-optim-stat">Used area: '+usedM2+' m²</span>'+
+        '<span class="sheet-optim-stat'+(g.wastePct>25?' warn':'')+'">Waste: '+wasteM2+' m² ('+g.wastePct+'%)</span>'+
         '<span class="sheet-optim-stat">Sheet size: '+cfg.w+' × '+cfg.h+'mm</span>'+
       '</div>'+warn+
       '<div class="sheet-optim-sheets">'+sheetsHtml+'</div>'+
@@ -5572,10 +5581,7 @@ body.fiq-locked .app{display:none!important}
 
   var lastGroups=[];
 
-  function render(){
-    var box=document.getElementById('sheetOptimiserBody');if(!box)return;
-    var parts=(typeof supplierParts==='function')?supplierParts():[];
-    if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">Add complete panels first — the sheet optimiser calculates once panels are ready for the supplier.</div>';lastGroups=[];window.a181SheetOptimPrintHtml=function(){return ''};return}
+  function computeGroups(parts){
     var settings=loadSettings();
     var byKey={};
     parts.forEach(function(p){
@@ -5583,16 +5589,26 @@ body.fiq-locked .app{display:none!important}
       var key=mat.trim().toLowerCase()+'__'+(p.thickness||0);
       (byKey[key]=byKey[key]||{material:mat,thickness:p.thickness,parts:[]}).parts.push(p);
     });
-    lastGroups=Object.keys(byKey).map(function(key){
+    return Object.keys(byKey).map(function(key){
       var g=byKey[key];
       var cfg=cfgFor(settings,g.material,g.thickness);
       return groupResult(g.material,g.thickness,g.parts,cfg);
     });
-    box.innerHTML=lastGroups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
+  }
+
+  // Shared renderer: draws the adjustable-sheet-size, visually-nested groups into any
+  // container, and re-renders itself in place when a sheet setting is changed. Used by both
+  // the Supplier screen's Sheet Optimiser and Panel Check's Estimated Sheets, so the two
+  // never drift into two different implementations of the same feature.
+  function renderInto(box,parts,emptyMsg){
+    if(!box)return [];
+    if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">'+(emptyMsg||'Add complete panels first — the sheet optimiser calculates once panels are ready.')+'</div>';return []}
+    var groups=computeGroups(parts);
+    box.innerHTML=groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
     box.querySelectorAll('[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
       el.addEventListener('change',function(){
         var idx=Number(el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetTrim??el.dataset.sheetGrain);
-        var g=lastGroups[idx];if(!g)return;
+        var g=groups[idx];if(!g)return;
         var cur=cfgFor(loadSettings(),g.materialLabel,g.thickness);
         if(el.dataset.sheetW!=null)cur.w=Math.max(300,Number(el.value)||DEFAULT_CFG.w);
         if(el.dataset.sheetH!=null)cur.h=Math.max(300,Number(el.value)||DEFAULT_CFG.h);
@@ -5600,9 +5616,17 @@ body.fiq-locked .app{display:none!important}
         if(el.dataset.sheetTrim!=null)cur.trim=Math.max(0,Number(el.value)||0);
         if(el.dataset.sheetGrain!=null)cur.grain=!!el.checked;
         saveSetting(cur.key,cur);
-        render();
+        renderInto(box,parts,emptyMsg);
       });
     });
+    return groups;
+  }
+
+  function render(){
+    var box=document.getElementById('sheetOptimiserBody');if(!box)return;
+    var parts=(typeof supplierParts==='function')?supplierParts():[];
+    lastGroups=renderInto(box,parts,'Add complete panels first — the sheet optimiser calculates once panels are ready for the supplier.');
+    if(!parts.length){window.a181SheetOptimPrintHtml=function(){return ''};return}
     var pr=(typeof project==='function')?project():null,unit=(typeof cabinet==='function')?cabinet():null;
     window.a181SheetOptimPrintHtml=function(){
       return '<section style="break-before:page;page-break-before:always"><h1>Sheet Optimisation Summary</h1><p>'+safe(pr?.name||'Project')+' · '+safe(unit?.name||'Unit')+'</p>'+lastGroups.map(function(g,i){return renderGroupPrintHtml(g,i)}).join('')+'</section>';
@@ -5623,16 +5647,12 @@ body.fiq-locked .app{display:none!important}
       toggleBtn.textContent=opening?'📐 Hide Sheet Optimiser':'📐 Sheet Optimiser — see how many sheets this job needs';
     });
   }
-  window.a181Pack=pack;window.a181CfgFor=cfgFor;window.a181LoadSettings=loadSettings;
+  window.a181Pack=pack;window.a181CfgFor=cfgFor;window.a181LoadSettings=loadSettings;window.a181RenderInto=renderInto;
 })();
 </script>
 <style id="a201-estimated-materials-style">
 .est-mat-card{margin:12px 0;border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px 16px}
 .est-mat-title{font-weight:900;font-size:16px;color:var(--ink);margin-bottom:8px}
-.est-mat-row{padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:700}
-.est-mat-row:last-of-type{border-bottom:none}
-.est-mat-row .est-mat-count{font-weight:600;color:var(--muted);font-size:12px;margin:2px 0}
-.est-mat-row strong{display:block;margin-top:2px}
 .est-mat-note{margin-top:10px;font-size:12px;color:var(--muted);font-style:italic}
 </style>
 <script id="a201-estimated-materials-script">
@@ -5646,46 +5666,19 @@ body.fiq-locked .app{display:none!important}
     if(typeof window.panelMissingItems==='function')return window.panelMissingItems(p).length===0;
     return Boolean(String(p&&p.name||'').trim()&&Number(p&&p.length)>0&&Number(p&&p.width)>0&&Number(p&&p.thickness)>0&&Number(p&&p.qty)>0&&String((typeof materialForPanel==='function'?materialForPanel(p):p&&p.material)||'').trim());
   }
-  function estimateGroups(){
-    var pack=window.a181Pack,cfgFor=window.a181CfgFor,loadSettings=window.a181LoadSettings;
-    if(!pack||!cfgFor||!loadSettings)return [];
-    var parts=(typeof cabinetParts==='function'?cabinetParts():[]).filter(panelHasCompleteInfo);
-    if(!parts.length)return [];
-    var settings=loadSettings();
-    var byKey={};
-    parts.forEach(function(p){
-      var mat=(typeof materialForPanel==='function'?materialForPanel(p):p.material)||'Material not set';
-      var key=mat.trim().toLowerCase()+'__'+(p.thickness||0);
-      (byKey[key]=byKey[key]||{material:mat,thickness:p.thickness,parts:[]}).parts.push(p);
-    });
-    return Object.keys(byKey).map(function(key){
-      var g=byKey[key];
-      var cfg=cfgFor(settings,g.material,g.thickness);
-      var pieces=[];
-      g.parts.forEach(function(p){var n=Math.max(1,Number(p.qty)||1);for(var i=0;i<n;i++)pieces.push({w:Number(p.length)||0,h:Number(p.width)||0})});
-      var res=pack(pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
-      return {material:g.material,thickness:g.thickness,panelCount:pieces.length,sheets:res.sheets.length};
-    }).sort(function(a,b){return b.sheets-a.sheets});
-  }
   function render(){
     var box=document.getElementById('estimatedMaterialsCard');if(!box)return;
-    var groups=estimateGroups();
-    if(!groups.length){
-      var allParts=(typeof cabinetParts==='function'?cabinetParts():[]);
-      if(!allParts.length){box.innerHTML='';return}
-      box.innerHTML='<div class="est-mat-card">'+
-        '<div class="est-mat-title">📐 Estimated Sheets</div>'+
-        '<div class="est-mat-note">Add material, thickness and dimensions to your panels to see an estimated sheet count here.</div>'+
-      '</div>';
-      return;
-    }
-    // Always shown in full (no collapse) -- the point is a quick compare of panels vs
-    // sheets before sending the cutting list, not something to click open first.
+    var allParts=(typeof cabinetParts==='function'?cabinetParts():[]);
+    if(!allParts.length){box.innerHTML='';return}
+    if(typeof window.a181RenderInto!=='function'){box.innerHTML='';return}
+    // Always shown in full (no collapse) -- the point is to see the actual sheet layout
+    // before sending the cutting list, not something to click open first.
     box.innerHTML='<div class="est-mat-card">'+
       '<div class="est-mat-title">📐 Estimated Sheets</div>'+
-      groups.map(function(g){return '<div class="est-mat-row"><div>'+safe(g.thickness)+'mm '+safe(g.material)+'</div><div class="est-mat-count">'+g.panelCount+' panel'+(g.panelCount===1?'':'s')+'</div><strong>Estimated sheets: '+g.sheets+'</strong></div>'}).join('')+
-      '<div class="est-mat-note">Estimate only, based on standard sheet sizes for a quick check. The final sheet count may change once your supplier optimises the full cutting layout.</div>'+
+      '<div id="estimatedMaterialsBody"></div>'+
+      '<div class="est-mat-note">Estimate only. Adjust the sheet size below to match what you actually have in stock — the final layout may change once your supplier optimises the full cutting job.</div>'+
     '</div>';
+    window.a181RenderInto(document.getElementById('estimatedMaterialsBody'),allParts.filter(panelHasCompleteInfo),'Add material, thickness and dimensions to your panels to see an estimated sheet layout here.');
   }
   var prevRenderParts=window.renderParts;
   window.renderParts=function(){var r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
