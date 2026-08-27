@@ -1813,24 +1813,42 @@ const PENDING_STUDIO_SYNC_KEY="assembleone_pending_studio_sync_v1";
 function queuePendingStudioSync(pack){
   try{
     let arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]");
-    arr=arr.filter(x=>!(x.project&&pack.project&&x.project.id===pack.project.id));
-    arr.push(pack);
+    arr=arr.filter(x=>!(x.pack?.project&&pack.project&&x.pack.project.id===pack.project.id));
+    arr.push({pack:pack,queuedAt:Date.now(),gaveUp:false});
     localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.slice(-10)));
   }catch(e){}
 }
 function clearPendingStudioSync(projectId){
   try{
     let arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]");
-    localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.filter(x=>!(x.project&&x.project.id===projectId))));
+    localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.filter(x=>!(x.pack?.project&&x.pack.project.id===projectId))));
   }catch(e){}
 }
+// A transient failure only falls back to a manual ZIP download once it has genuinely
+// had time to recover on its own and still hasn't -- a normal hiccup (a few seconds of
+// bad signal, auth still settling) should just resolve quietly in the background on the
+// very next poll, not immediately hand the fitter a file to deal with.
+const SYNC_GIVE_UP_MS=45000;
 window.retryPendingStudioSync=async function(){
   let arr;try{arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]")}catch(e){arr=[]}
-  for(const pack of arr){
-    try{await sendPackDirectly(pack);clearPendingStudioSync(pack.project&&pack.project.id)}catch(e){/* still not ready -- stays queued for the next poll */}
+  if(!arr.length)return;
+  let dirty=false;
+  for(let i=0;i<arr.length;i++){
+    const entry=arr[i];
+    try{
+      await sendPackDirectly(entry.pack);
+      arr[i]=null;dirty=true;
+    }catch(e){
+      if(!entry.gaveUp&&Date.now()-entry.queuedAt>SYNC_GIVE_UP_MS){
+        entry.gaveUp=true;dirty=true;
+        try{download(makeZip([{name:"updates.json",data:JSON.stringify(entry.pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(entry.pack.project?.name||"FittersIQ_Job").replace(/[^\w-]+/g,"_")+"_Site_Updates.zip")}catch(e2){}
+        alert(t('msg.directSyncUnavailableBackup'));
+      }
+    }
   }
+  if(dirty){try{localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.filter(Boolean)))}catch(e){}}
 };
-async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent)queuePendingStudioSync(pack);download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert((e&&e.message?e.message+' ':'')+t('msg.directSyncUnavailableBackup'))}}
+async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(permanent){download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert((e&&e.message?e.message+' ':'')+t('msg.directSyncUnavailableBackup'))}else{queuePendingStudioSync(pack)}}}
 
 // mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the original,
 // pre-channel Studio-to-phone receiver) lived here. They're superseded by the
