@@ -5536,10 +5536,19 @@ body.fiq-locked .app{display:none!important}
 </style>
 <script id="a201-estimated-materials-script">
 (function(){
+  // Sheet Check only needs the panel information itself (name, dimensions, material) to
+  // calculate a sheet count -- it must not also require the separate "double-click to
+  // approve this panel" supplier sign-off step, or the whole section goes blank (looks
+  // removed) for every job whose panels haven't been individually reviewed yet, which is
+  // most jobs at the point someone actually wants a quick sheet estimate.
+  function panelHasCompleteInfo(p){
+    if(typeof window.panelMissingItems==='function')return window.panelMissingItems(p).length===0;
+    return Boolean(String(p&&p.name||'').trim()&&Number(p&&p.length)>0&&Number(p&&p.width)>0&&Number(p&&p.thickness)>0&&Number(p&&p.qty)>0&&String((typeof materialForPanel==='function'?materialForPanel(p):p&&p.material)||'').trim());
+  }
   function estimateGroups(){
     var pack=window.a181Pack,cfgFor=window.a181CfgFor,loadSettings=window.a181LoadSettings;
     if(!pack||!cfgFor||!loadSettings)return [];
-    var parts=(typeof supplierParts==='function')?supplierParts():[];
+    var parts=(typeof cabinetParts==='function'?cabinetParts():[]).filter(panelHasCompleteInfo);
     if(!parts.length)return [];
     var settings=loadSettings();
     var byKey={};
@@ -5564,7 +5573,7 @@ body.fiq-locked .app{display:none!important}
     if(!groups.length){box.innerHTML='';return}
     var total=groups.reduce(function(s,g){return s+g.sheets},0);
     box.innerHTML='<div class="est-mat-card">'+
-      '<button type="button" class="est-mat-toggle" id="estMatToggle">📦 Estimated materials: '+total+' sheet'+(total===1?'':'s')+'<span class="est-mat-chevron">'+(wasExpanded?'▲':'▼')+'</span></button>'+
+      '<button type="button" class="est-mat-toggle" id="estMatToggle">📐 Sheet Check: '+total+' sheet'+(total===1?'':'s')+' required<span class="est-mat-chevron">'+(wasExpanded?'▲':'▼')+'</span></button>'+
       '<div class="est-mat-details" id="estMatDetails"'+(wasExpanded?'':' hidden')+'>'+
         groups.map(function(g){return '<div class="est-mat-row"><span>'+safe(g.material)+' · '+safe(g.thickness)+'mm</span><strong>'+g.sheets+' sheet'+(g.sheets===1?'':'s')+'</strong></div>'}).join('')+
         '<div class="est-mat-note">Estimate only, based on standard sheet sizes for a quick check. The final sheet count may change once your supplier optimises the full cutting layout.</div>'+
