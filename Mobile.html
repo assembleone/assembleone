@@ -1623,7 +1623,21 @@ function renderRooms(){
  const switcherHtml=p.rooms.length>=1?`<div class="room-switcher">${p.rooms.map(x=>`<button type="button" class="room-switch-btn ${x.id===r?.id?'active':''}" data-room-id="${x.id}">${x.icon||'🏠'} ${safe(x.name)}</button>`).join('')}<button type="button" class="room-switch-btn room-switch-add ${r?'':'active'}" id="addRoomSwitchBtn">＋ ${t('room.addRoomLabel')}</button></div>`:'';
  list.innerHTML=switcherHtml+roomCardHtml(p,r);
  $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;p.startNewRoom=false;save();renderRooms()});
- if($('#addRoomSwitchBtn'))$('#addRoomSwitchBtn').onclick=()=>{state.currentRoom=null;p.startNewRoom=true;save();renderRooms()};
+ // The "add a room" card is staged directly on the project (p.siteMarkup etc) until it's
+ // named and sent, and only gets cleared once that happens (see #sendNewSiteToStudio
+ // below). Starting "Add Room" again without ever finishing that step left the old
+ // measurements/photos/notes sitting on the project, so the next room you tried to add
+ // silently opened already showing someone else's old marks and photo count instead of
+ // a blank room -- clear the staging area every time "Add Room" is tapped, not just when
+ // a room is actually completed.
+ if($('#addRoomSwitchBtn'))$('#addRoomSwitchBtn').onclick=()=>{
+   state.currentRoom=null;p.startNewRoom=true;
+   p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
+   p.siteMarkup={image:null,w:0,h:0,marks:[]};
+   p.measureCaptures=[];
+   p.notePhotos=[];
+   save();renderRooms();
+ };
  wireRoomCard(p,r);
 }
 function renderRoomDetail(r){
