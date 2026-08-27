@@ -5654,6 +5654,7 @@ body.fiq-locked .app{display:none!important}
 .est-mat-card{margin:12px 0;border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px 16px}
 .est-mat-title{font-weight:900;font-size:16px;color:var(--ink);margin-bottom:8px}
 .est-mat-note{margin-top:10px;font-size:12px;color:var(--muted);font-style:italic}
+.est-mat-missing-warn{margin-bottom:12px;font-size:13px}
 </style>
 <script id="a201-estimated-materials-script">
 (function(){
@@ -5671,14 +5672,22 @@ body.fiq-locked .app{display:none!important}
     var allParts=(typeof cabinetParts==='function'?cabinetParts():[]);
     if(!allParts.length){box.innerHTML='';return}
     if(typeof window.a181RenderInto!=='function'){box.innerHTML='';return}
+    var complete=allParts.filter(panelHasCompleteInfo),incomplete=allParts.filter(function(p){return !panelHasCompleteInfo(p)});
+    // A panel missing just one field (often material, filled in later than the rest)
+    // used to silently vanish from this estimate with no sign it was ever excluded --
+    // looking exactly like the sheet only "took" one panel out of everything on the
+    // drawing. Naming the excluded panels here is the fix, not a smarter guess at
+    // their missing values.
+    var warn=incomplete.length?'<div class="notice est-mat-missing-warn">⚠️ '+incomplete.length+' panel'+(incomplete.length===1?'':'s')+' not included yet — '+incomplete.map(function(p){return safe(p.code||p.name||'panel')}).join(', ')+' '+(incomplete.length===1?'is':'are')+' missing material, thickness, length or width. Complete '+(incomplete.length===1?'it':'them')+' above to add '+(incomplete.length===1?'it':'them')+' to this estimate.</div>':'';
     // Always shown in full (no collapse) -- the point is to see the actual sheet layout
     // before sending the cutting list, not something to click open first.
     box.innerHTML='<div class="est-mat-card">'+
       '<div class="est-mat-title">📐 Estimated Sheets</div>'+
+      warn+
       '<div id="estimatedMaterialsBody"></div>'+
       '<div class="est-mat-note">Estimate only. Adjust the sheet size below to match what you actually have in stock — the final layout may change once your supplier optimises the full cutting job.</div>'+
     '</div>';
-    window.a181RenderInto(document.getElementById('estimatedMaterialsBody'),allParts.filter(panelHasCompleteInfo),'Add material, thickness and dimensions to your panels to see an estimated sheet layout here.');
+    window.a181RenderInto(document.getElementById('estimatedMaterialsBody'),complete,'Add material, thickness and dimensions to your panels to see an estimated sheet layout here.');
   }
   var prevRenderParts=window.renderParts;
   window.renderParts=function(){var r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
