@@ -52,6 +52,7 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .folder-card{background:white;border:1px solid var(--line);border-radius:13px;padding:15px;box-shadow:0 5px 14px rgba(60,38,18,.05)}
 .customer-card{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 2px 6px rgba(20,30,50,.05)}
+#customersList .customer-card:nth-child(even){background:#eef8ec}
 .customer-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px}
 .customer-card-head strong{font-size:19px}
 .customer-card-contact{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.5}
@@ -75,6 +76,20 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--line);border-radius:12px;font-weight:600}
 .customer-search-input:focus{outline:none;border-color:#0051ff;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
 .customer-site-to-drawing{width:100%;text-align:center}
+.customer-job-row-actions{display:flex;gap:8px;flex-wrap:wrap}
+.customer-job-row-actions>*{flex:1;min-width:160px}
+.customer-job-notes-btn{background:#f0f5ff;border-color:#8fb0f0;color:#1452d8;font-weight:800}
+.job-notes-dialog-sheet{max-height:85vh;overflow-y:auto}
+.job-notes-list{display:grid;gap:10px;max-height:280px;overflow-y:auto;margin-bottom:12px}
+.job-notes-entry{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.job-notes-entry-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:900;color:#1452d8}
+.job-notes-entry-when{color:var(--muted);font-weight:700}
+.job-notes-entry-text{margin-top:5px;font-weight:600;white-space:pre-wrap}
+.job-notes-entry-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.job-notes-entry-photos img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.job-notes-empty{color:var(--muted);font-weight:700;text-align:center;padding:10px}
+.job-notes-photo-preview{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.job-notes-photo-preview img{width:56px;height:56px;object-fit:cover;border-radius:10px;border:2px solid #1452d8}
 .folder-card h3{font:700 23px 'Inter',sans-serif;margin:0 0 5px}.folder-icon{font-size:30px;margin-bottom:7px}
 .folder-card .actions{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}.folder-card .actions .danger{margin-left:auto}
 .cabinet-card{background:white;border:1px solid var(--line);border-radius:11px;padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -1142,6 +1157,19 @@ document.addEventListener('DOMContentLoaded', function(){
   margin:0 auto!important;
 }
 </style>
+<style id="a206-light-sidebar-style">
+/* Colour only -- icons, positions, sizing and behaviour are unchanged. */
+.app>.sidebar{background:linear-gradient(180deg,#f2f3f5 0%,#e6e8ec 100%)!important}
+.app>.sidebar small{color:#5b6472!important}
+.app>.sidebar .nav-btn{color:#38414f!important}
+.app>.sidebar .nav-btn:nth-of-type(5),
+.app>.sidebar .nav-btn:nth-of-type(6){background:rgba(15,25,40,.06)!important}
+.app>.sidebar .nav-btn:hover,.app>.sidebar .nav-btn.active,
+.app>.sidebar .nav-btn:nth-of-type(5):hover,
+.app>.sidebar .nav-btn:nth-of-type(6):hover,
+.app>.sidebar .nav-btn:nth-of-type(5).active,
+.app>.sidebar .nav-btn:nth-of-type(6).active{background:#6BBF3A!important;color:#fff!important}
+</style>
 </head>
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
@@ -1617,6 +1645,22 @@ function migrateCustomers(){
  state.customers=state.customers||[];
  state.projects.forEach(p=>{if(!p.customerId||!state.customers.find(c=>c.id===p.customerId))ensureCustomerForProject(p)});
 }
+// Job Notes / Communication: one chronological log per project (messages, missing/damaged
+// part reports, general notes, photos). Both Mobile and Studio can append entries, so
+// merging two synced copies of the same job must union by entry id rather than overwrite.
+function mergeJobLog(base,incomingLog){
+ if(!Array.isArray(incomingLog)||!incomingLog.length)return;
+ base.jobLog=base.jobLog||[];
+ incomingLog.forEach(entry=>{if(entry&&entry.id&&!base.jobLog.some(x=>x.id===entry.id))base.jobLog.push(entry)});
+ base.jobLog.sort((a,b)=>(a.at||0)-(b.at||0));
+}
+function addJobLogEntry(p,text,photos){
+ if(!p)return null;
+ p.jobLog=p.jobLog||[];
+ const entry={id:uid(),author:(window.fittersiqUser&&window.fittersiqUser.email)||"Studio",at:Date.now(),text:String(text||"").trim(),photos:photos||[]};
+ p.jobLog.push(entry);
+ return entry;
+}
 function updateCustomerDetails(customerId,fields){
  const c=state.customers.find(x=>x.id===customerId);if(!c)return;
  if(fields.name!==undefined)c.name=String(fields.name||"").trim()||c.name;
@@ -1835,7 +1879,12 @@ function renderSiteMeasurementOverlay(canvas,c){
 }
 function renderRooms(){
  const c=cabinet(),stage=$("#drawingStage"),canvas=$("#drawingCanvas"),img=$("#drawingImage"),pdf=$("#drawingPdf"),empty=$("#drawingEmpty");
- if(c){c.viewState=c.viewState||{};if(c.viewState.zoom!=null)state.drawingZoom=c.viewState.zoom}
+ // Zoom lives on state.drawingZoom (one shared value, not per-cabinet) purely as a cache
+ // of "the cabinet on screen right now". Without the else branch, opening a cabinet that
+ // has never been zoomed keeps whatever zoom the *previous* cabinet left behind, and the
+ // line below immediately writes that stale number onto this cabinet's own viewState --
+ // i.e. a brand new job's brand new drawing silently inherits the last job's zoom level.
+ if(c){c.viewState=c.viewState||{};state.drawingZoom=c.viewState.zoom!=null?c.viewState.zoom:1}
  const zoom=Math.max(.25,Math.min(4,Number(state.drawingZoom||1)));state.drawingZoom=zoom;if(c)c.viewState.zoom=zoom;$("#zoomValue").textContent=Math.round(zoom*100)+"%";
  function sizeCanvas(){const pad=28,availableW=Math.max(260,stage.clientWidth-pad),availableH=Math.max(320,stage.clientHeight-pad);if(c?.drawingType==="pdf"){canvas.style.width=Math.round(availableW*zoom)+"px";canvas.style.height=Math.round(availableH*zoom)+"px";return}const nw=img.naturalWidth||availableW,nh=img.naturalHeight||availableH,fit=Math.min(availableW/nw,availableH/nh,1);canvas.style.width=Math.max(180,Math.round(nw*fit*zoom))+"px";canvas.style.height=Math.max(180,Math.round(nh*fit*zoom))+"px"}
  sizeCanvas();
@@ -2028,6 +2077,48 @@ function openEditCustomerDialog(customerId){
    close();renderAll();save();
  };
 }
+function jobLogEntryHtml(en){
+ const when=new Date(en.at||Date.now()).toLocaleString();
+ const photos=(en.photos||[]).map(src=>`<img src="${safe(src)}" alt="Note photo">`).join('');
+ return `<div class="job-notes-entry"><div class="job-notes-entry-head"><span>${safe(en.author||'Studio')}</span><span class="job-notes-entry-when">${safe(when)}</span></div>${en.text?`<div class="job-notes-entry-text">${safe(en.text)}</div>`:''}${photos?`<div class="job-notes-entry-photos">${photos}</div>`:''}</div>`;
+}
+function openJobNotesDialog(projectId){
+ const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+ const o=document.createElement('div');o.className='a100-edit-dialog';
+ function renderList(){
+   const entries=(p.jobLog||[]).slice().sort((a,b)=>(a.at||0)-(b.at||0));
+   return entries.length?entries.map(jobLogEntryHtml).join(''):'<div class="job-notes-empty">No notes yet for this job.</div>';
+ }
+ o.innerHTML=`<div class="a100-edit-sheet job-notes-dialog-sheet"><h2>💬 Job Notes — ${safe(p.name||'Untitled job')}</h2>
+   <div class="job-notes-list" id="studioJobNotesList">${renderList()}</div>
+   <label>Add a note<textarea id="studioJobNoteText" placeholder="Note for the fitter or office..."></textarea></label>
+   <label class="btn" for="studioJobNotePhoto">📷 Add photo(s)<input id="studioJobNotePhoto" type="file" accept="image/*" multiple hidden></label>
+   <div class="job-notes-photo-preview" id="studioJobNotePreview"></div>
+   <div class="a100-edit-actions"><button class="btn" id="studioJobNotesClose">Close</button><button class="btn primary" id="studioJobNoteSave">Save note</button></div>
+ </div>`;
+ document.body.appendChild(o);
+ const close=()=>{o.remove();renderCustomers()};
+ o.querySelector('#studioJobNotesClose').onclick=close;
+ o.onclick=e=>{if(e.target===o)close()};
+ let pendingPhotos=[];
+ o.querySelector('#studioJobNotePhoto').onchange=async(e)=>{
+   const files=Array.from(e.target.files||[]);
+   if(!files.length)return;
+   for(const f of files){try{const data=await readFileAsDataUrl(f);if(data)pendingPhotos.push(data)}catch(err){}}
+   o.querySelector('#studioJobNotePreview').innerHTML=pendingPhotos.map(src=>`<img src="${safe(src)}">`).join('');
+   e.target.value='';
+ };
+ o.querySelector('#studioJobNoteSave').onclick=()=>{
+   const text=o.querySelector('#studioJobNoteText').value.trim();
+   if(!text&&!pendingPhotos.length)return;
+   addJobLogEntry(p,text,pendingPhotos.slice());
+   pendingPhotos=[];
+   save();
+   o.querySelector('#studioJobNotesList').innerHTML=renderList();
+   o.querySelector('#studioJobNoteText').value='';
+   o.querySelector('#studioJobNotePreview').innerHTML='';
+ };
+}
 function renderCustomers(){
  const box=$("#customersList");if(!box)return;
  migrateCustomers();
@@ -2051,12 +2142,14 @@ function renderCustomers(){
      const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
      const status=jobStatusInfo(p);
      const rooms=(p.rooms||[]).map(r=>r.name).filter(Boolean).join(", ");
-     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong>${rooms?`<span class="muted"> · ${safe(rooms)}</span>`:""}</span><span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button>${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}</div>`;
+     const logCount=(p.jobLog||[]).length;
+     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong>${rooms?`<span class="muted"> · ${safe(rooms)}</span>`:""}</span><span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${(p.cabinets||[]).length} room${(p.cabinets||[]).length===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button></div></div>`;
    }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
  box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
  box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=()=>openCustomerSiteJobInDrawing(b.dataset.siteToDrawing));
  box.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
+ box.querySelectorAll('[data-job-notes]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openJobNotesDialog(b.dataset.jobNotes)});
  const search=$("#customerSearchInput");
  if(search&&!search.dataset.wired){
    search.dataset.wired="1";
@@ -2343,6 +2436,7 @@ async function sendPackToPhoneDirectly(pack){
 async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
+mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
 incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
@@ -3913,7 +4007,7 @@ body.guide-only .a131-back-studio{display:block}
     try{
       const p=typeof project==='function'?project():null,partNow=typeof part==='function'?part():null,c=typeof cabinet==='function'?cabinet():null;
       const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
-      if(p){if(n&&n.value.trim())p.name=n.value.trim();if(cust)p.customer=cust.value.trim();p.updatedAt=Date.now()}
+      if(p){if(n&&n.value.trim())p.name=n.value.trim();if(cust&&cust.value.trim())p.customer=cust.value.trim();p.updatedAt=Date.now()}
       if(partNow){
         const map={fThickness:'thickness',fLength:'length',fWidth:'width',fQty:'qty',fMaterial:'material',fNotes:'notes'};
         Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width'].includes(k))v=v===''?'':(typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v));else if(k==='qty')v=v===''?'':Number(v);if(v!==''||k==='notes'||k==='material')partNow[k]=v});
@@ -5800,9 +5894,13 @@ body.fiq-locked .app{display:none!important}
     let room=(p.rooms||[]).find(r=>r.id===state.currentRoom)||p.rooms[0];
     state.currentRoom=room.id;
     const c=(typeof window.a100EnsureCabinetForRoom==='function')?window.a100EnsureCabinetForRoom(p,room):(p.cabinets||[])[0];
-    if(!c){save();renderAll();show('jobs');return}
+    if(!c){renderAll();save();show('jobs');return}
     state.currentCabinet=c.id;state.currentPart=null;
-    save();renderAll();show('mark');
+    // renderAll() must run before save(): renderRooms() is what resets the shared
+    // state.drawingZoom to this cabinet's own zoom (or 1 if it's never been zoomed).
+    // Calling save() first would let commitVisible() write whatever zoom the *previous*
+    // cabinet left behind onto this brand new one before that reset ever happens.
+    renderAll();save();show('mark');
   };
   // createStudioRoom() (fired by picking a room in the "Choose room" dialog) doesn't
   // navigate anywhere on its own -- it just records the room. When that dialog was opened

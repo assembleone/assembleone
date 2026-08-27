@@ -840,9 +840,19 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <div class="scan-actions scan55-actions" style="margin:14px 0">
    <button class="scan-action design" id="openDesignGuideScan"><b class="scan55-icon">🖼️</b><span data-i18n="detail.designGuide">Design Guide</span><small id="designGuideScanBadge">Open drawings</small></button>
    <button class="scan-action damage" id="openDamage"><b class="scan55-icon">⚠</b><span data-i18n="scan.reportDamage">Report Damage</span><small data-i18n="scan.panelDamaged">Panel is damaged</small></button>
+   <button class="scan-action notes" id="openJobNotes"><b class="scan55-icon">📝</b><span>Job Notes</span><small id="jobNotesBadge">Messages &amp; updates</small></button>
   </div>
   <div id="designGuidePanel" class="room-section hidden"></div>
   <div id="damagePanel" class="damage-sheet hidden"><strong>⚠ <span data-i18n="damage.title">Damaged panel</span></strong><input id="damagePanelCode" inputmode="text" data-i18n-placeholder="damage.panelPlaceholder" placeholder="Panel number, for example P-001"><textarea id="damageNote" data-i18n-placeholder="damage.whatDamaged" placeholder="What is damaged?"></textarea><label class="btn damage-photo-btn" for="damagePhotoInput"><span data-i18n="damage.addPhoto">📷 Add a photo</span><input id="damagePhotoInput" type="file" accept="image/*" capture="environment" hidden></label><div id="damagePhotoPreview" class="hidden"><img id="damagePhotoImg" alt="Damage photo"></div><button class="btn danger" id="saveDamage" data-i18n="damage.save">Save damaged panel</button><button class="btn damage-whatsapp-btn hidden" id="shareDamageWhatsapp" type="button" data-i18n="damage.shareWhatsapp">💬 Send to supplier on WhatsApp</button></div>
+  <div id="jobNotesPanel" class="damage-sheet job-notes-sheet hidden">
+   <strong>📝 Job Notes</strong>
+   <div class="muted" style="margin:4px 0 10px">Messages, missing/damaged parts, updates and photos -- everything stays with this job.</div>
+   <div id="jobNotesList" class="job-notes-list"></div>
+   <textarea id="jobNoteText" placeholder="Add a note -- e.g. a missing part, an update for the office, anything worth recording"></textarea>
+   <label class="btn damage-photo-btn" for="jobNotePhotoInput"><span>📷 Add photo(s)</span><input id="jobNotePhotoInput" type="file" accept="image/*" capture="environment" hidden multiple></label>
+   <div id="jobNotePhotoPreview" class="job-notes-photo-preview"></div>
+   <button class="btn primary" id="saveJobNote">Save note</button>
+  </div>
   <div class="card"><h2 data-i18n="install.installationHeading">Installation</h2><div id="installWardrobes" class="wardrobe-tabs"></div><div id="installList"></div></div>
  </div>
 </section>
@@ -1712,7 +1722,14 @@ function renderInstall(){
   box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}${safe(markLabel)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">${t('install.installed')}</button><button class="btn panel-status" data-status="missing">${t('install.missing')}</button><button class="btn danger panel-status" data-status="damaged">${t('install.damagedBtn')}</button></div><div><strong>${t('install.status')}</strong> ${safe(statusLabel(mark.status))}</div></div>`;
   $("#backToPanels").onclick=()=>{state.currentPart=null;state.selectedCopy=-1;save();renderInstall()};
   $("#backToRoom").onclick=()=>{state.currentRoom=c.roomId||null;state.currentPart=null;state.selectedCopy=-1;save();show("drawings")};
-  $$(".panel-status").forEach(b=>b.onclick=()=>{currentMark(pt).status=b.dataset.status;save();renderInstall()});
+  $$(".panel-status").forEach(b=>b.onclick=()=>{
+   const st=b.dataset.status;
+   currentMark(pt).status=st;
+   if(st==="missing")addJobLogEntry(p,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
+   save();
+   if((st==="missing"||st==="damaged")&&typeof exportJob==='function'&&p)exportJob(p.id);
+   renderInstall();
+  });
   $$(".panel-highlight[data-copy]").forEach(el=>el.onclick=()=>{state.selectedCopy=Number(el.dataset.copy);save();renderInstall()});
   return;
  }
@@ -1741,6 +1758,13 @@ function mergeStudioProject(incoming){
   incoming.rooms=mergedRooms;
   incoming.address=old.address||incoming.address||"";incoming.phone=old.phone||incoming.phone||"";incoming.notes=old.notes||incoming.notes||"";
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
+  // Job Notes: both sides can add entries between syncs, so union by id (Studio's
+  // incoming copy plus anything the fitter logged locally that hasn't reached Studio yet)
+  // instead of letting whichever side synced last silently win.
+  const mergedLog=Array.isArray(incoming.jobLog)?incoming.jobLog.slice():[];
+  (old.jobLog||[]).forEach(entry=>{if(entry&&entry.id&&!mergedLog.some(x=>x.id===entry.id))mergedLog.push(entry)});
+  mergedLog.sort((a,b)=>(a.at||0)-(b.at||0));
+  incoming.jobLog=mergedLog;
  }
  incoming.rooms=incoming.rooms||[];
  (incoming.cabinets||[]).forEach(ic=>{
@@ -1888,6 +1912,49 @@ $("#scanPhoto").onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!("
 const scanChangeJob=$("#scanChangeJob");if(scanChangeJob)scanChangeJob.onclick=()=>show("projects");
 const scanViewAll=$("#scanViewAll");if(scanViewAll)scanViewAll.onclick=()=>show("install");
 $("#openDamage").onclick=()=>{$("#damagePanel").classList.toggle("hidden");if(!$("#damagePanel").classList.contains("hidden"))$("#damagePanelCode").focus()};
+let jobNotePendingPhotos=[];
+function renderJobNotesList(){
+ const list=$("#jobNotesList");if(!list)return;
+ const p=project();
+ const entries=(p?.jobLog||[]).slice().sort((a,b)=>(a.at||0)-(b.at||0));
+ if(!entries.length){list.innerHTML='<div class="job-notes-empty">No notes yet for this job.</div>';return}
+ list.innerHTML=entries.map(en=>{
+  const when=new Date(en.at||Date.now()).toLocaleString();
+  const photos=(en.photos||[]).map(src=>`<img src="${src}" alt="Note photo">`).join('');
+  return `<div class="job-notes-entry"><div class="job-notes-entry-head"><span>${safe(en.author||'Fitter')}</span><span class="job-notes-entry-when">${safe(when)}</span></div>${en.text?`<div class="job-notes-entry-text">${safe(en.text)}</div>`:''}${photos?`<div class="job-notes-entry-photos">${photos}</div>`:''}</div>`;
+ }).join('');
+ list.scrollTop=list.scrollHeight;
+}
+function renderJobNotePhotoPreview(){
+ const box=$("#jobNotePhotoPreview");if(!box)return;
+ box.innerHTML=jobNotePendingPhotos.map(src=>`<img src="${src}" alt="Pending photo">`).join('');
+}
+$("#openJobNotes").onclick=()=>{
+ $("#jobNotesPanel").classList.toggle("hidden");
+ if(!$("#jobNotesPanel").classList.contains("hidden")){renderJobNotesList();$("#jobNoteText").focus()}
+};
+$("#jobNotePhotoInput").onchange=e=>{
+ const files=Array.from(e.target.files||[]);
+ if(!files.length)return;
+ let remaining=files.length;
+ files.forEach(file=>{
+  compressImage(file,data=>{jobNotePendingPhotos.push(data);remaining--;if(remaining===0)renderJobNotePhotoPreview()},()=>{remaining--});
+ });
+ e.target.value="";
+};
+$("#saveJobNote").onclick=()=>{
+ const p=project();
+ if(!p){alert(t('msg.jobFallback')||'Open a job first.');return}
+ const text=$("#jobNoteText").value.trim();
+ if(!text&&!jobNotePendingPhotos.length){$("#jobNoteText").focus();return}
+ addJobLogEntry(p,text,jobNotePendingPhotos.slice());
+ jobNotePendingPhotos=[];
+ $("#jobNoteText").value="";
+ renderJobNotePhotoPreview();
+ save();
+ if(typeof exportJob==='function')exportJob(p.id);
+ renderJobNotesList();
+};
 function activeDesignRoom(){const r=currentRoom();if(r)return r;const c=cabinet();return c?.roomId?(project()?.rooms||[]).find(x=>x.id===c.roomId)||null:null}
 function renderDesignGuidePanel(){
  const panel=$("#designGuidePanel");if(!panel)return;
@@ -1898,6 +1965,13 @@ function renderDesignGuidePanel(){
  panel.innerHTML=images.length?`<div class="room-photo-grid">${images.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||'View'}</div></div>`).join('')}</div>`:'<div class="room-empty">No design views sent yet.</div>';
 }
 $("#openDesignGuideScan").onclick=()=>{$("#designGuidePanel").classList.toggle("hidden");if(!$("#designGuidePanel").classList.contains("hidden"))renderDesignGuidePanel()};
+function addJobLogEntry(p,text,photos){
+ if(!p)return null;
+ p.jobLog=p.jobLog||[];
+ const entry={id:uid(),author:(window.fittersiqUser&&window.fittersiqUser.email)||"Fitter",at:Date.now(),text:String(text||"").trim(),photos:photos||[]};
+ p.jobLog.push(entry);
+ return entry;
+}
 let damagePhotoData=null,lastDamageShare=null;
 $("#damagePhotoInput").onchange=e=>{const file=e.target.files&&e.target.files[0];if(!file)return;compressImage(file,data=>{damagePhotoData=data;$("#damagePhotoImg").src=data;$("#damagePhotoPreview").classList.remove("hidden")},()=>alert(t('msg.photoLoadFailed')))};
 $("#saveDamage").onclick=()=>{
@@ -1909,7 +1983,9 @@ $("#saveDamage").onclick=()=>{
  found.pt.status="damaged";
  found.pt.damageNote=$("#damageNote").value.trim();
  if(damagePhotoData){found.pt.panelPhotos=found.pt.panelPhotos||[];found.pt.panelPhotos.push({id:uid(),data:damagePhotoData})}
+ addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[]);
  save();
+ if(typeof exportJob==='function')exportJob(found.pr.id);
  lastDamageShare={code:found.pt.code,name:found.pt.name||"",note:found.pt.damageNote,job:found.pr.name||t('msg.jobFallback'),photo:damagePhotoData};
  $("#damagePanelCode").value=$("#damageNote").value="";
  $("#damagePhotoPreview").classList.add("hidden");$("#damagePhotoImg").src="";damagePhotoData=null;
@@ -2234,6 +2310,20 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
  paint();setInterval(paint,2500)
 })();
 </script>
+<style id="a207-job-notes-style">
+.scan-action.notes{border-color:#a8c6f5;background:#f5f9ff}
+.job-notes-sheet{border-color:#2f6fed;background:#f5f9ff}
+.job-notes-list{display:grid;gap:10px;max-height:340px;overflow-y:auto}
+.job-notes-entry{background:#fff;border:1px solid #d7e2f7;border-radius:14px;padding:10px 12px}
+.job-notes-entry-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:900;color:#2f6fed}
+.job-notes-entry-when{color:#6d6a7e;font-weight:700}
+.job-notes-entry-text{margin-top:5px;font-weight:700;color:var(--ink);white-space:pre-wrap}
+.job-notes-entry-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.job-notes-entry-photos img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid #d7e2f7}
+.job-notes-empty{color:#6d6a7e;font-weight:700;text-align:center;padding:10px}
+.job-notes-photo-preview{display:flex;flex-wrap:wrap;gap:6px}
+.job-notes-photo-preview img{width:56px;height:56px;object-fit:cover;border-radius:10px;border:2px solid #2f6fed}
+</style>
 <style id="a202-sent-badge-style">
 .a202-sent-badge{position:absolute;right:12%;top:8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#2f6fed;color:#fff;border:3px solid #174e98;display:none;align-items:center;justify-content:center;font:900 10px Arial;line-height:1;box-shadow:0 2px 7px #0004;z-index:20}
 .a202-sent-badge.show{display:flex}
