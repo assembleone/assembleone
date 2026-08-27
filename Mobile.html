@@ -1757,7 +1757,7 @@ function mergeStudioProject(incoming){
   oldRooms.forEach(or=>{if(!mergedRooms.some(mr=>mr.id===or.id))mergedRooms.push(or)});
   incoming.rooms=mergedRooms;
   incoming.address=old.address||incoming.address||"";incoming.phone=old.phone||incoming.phone||"";incoming.notes=old.notes||incoming.notes||"";
-  incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
+  incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos","damageNote","damagedQty"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
   // Job Notes: both sides can add entries between syncs, so union by id (Studio's
   // incoming copy plus anything the fitter logged locally that hasn't reached Studio yet)
   // instead of letting whichever side synced last silently win.

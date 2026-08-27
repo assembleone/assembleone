@@ -2447,7 +2447,7 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos","damageNote","damagedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
@@ -2508,7 +2508,7 @@ document.getElementById('siteOpenProject')?.addEventListener('click',()=>{const 
 document.getElementById('siteInboxLater')?.addEventListener('click',()=>document.getElementById('siteInboxModal')?.classList.remove('open'));
 try{const syncChannel=new BroadcastChannel("assembleone-sync");syncChannel.onmessage=()=>{paintSiteInbox();autoImportSitePackets()}}catch(e){}
 window.addEventListener('storage',e=>{if(e.key===DIRECT_SYNC_FALLBACK){paintSiteInbox();autoImportSitePackets()}});
-setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox();if(typeof autoImportSitePackets==='function')autoImportSitePackets()},120000);
+setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox();if(typeof autoImportSitePackets==='function')autoImportSitePackets()},30000);
 setInterval(paintSiteInbox,1800);setTimeout(paintSiteInbox,200);
 
 async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);switchToProject(incoming.id,incoming.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
@@ -6086,6 +6086,25 @@ body.fiq-locked .app{display:none!important}
   // untouched -- only its parent changes.
   var actions=document.querySelector('.studio-home-actions'),workspace=document.getElementById('combinedProjectWorkspace');
   if(actions&&workspace)actions.appendChild(workspace);
+})();
+</script>
+<script id="a209-panel-check-live-sync">
+(function(){
+  // Panel Check previously only picked up new site updates (damage/missing reports sent
+  // from Mobile) via a 2-minute background poll or once at sign-in, so a fitter's damage
+  // report could sit unseen for up to 2 minutes even with Studio already open on Panel
+  // Check. Opening Panel Check now also checks immediately, throttled so rapid re-opens
+  // don't hammer Firestore with repeat queries.
+  var lastCheck=0;
+  var prevShow=window.show;
+  window.show=function(name){
+    var r=prevShow.apply(this,arguments);
+    if(name==='parts'&&typeof autoImportSitePackets==='function'){
+      var now=Date.now();
+      if(now-lastCheck>10000){lastCheck=now;autoImportSitePackets()}
+    }
+    return r;
+  };
 })();
 </script>
 <script>window.FIQ_HELP_APP="studio";</script>
