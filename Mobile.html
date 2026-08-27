@@ -1803,7 +1803,34 @@ async function firebasePut(path,value){const r=await fetch(`${ASSEMBLEONE_FIREBA
 async function firebaseGet(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{cache:"no-store"});if(!r.ok)throw new Error(`Firebase read failed: ${r.status}`);return r.json()}
 async function firebaseDelete(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"DELETE"});if(!r.ok)throw new Error(`Firebase delete failed: ${r.status}`)}
 async function sendPackDirectly(pack){const packet={...pack,syncId:firebaseSafeKey(uid()),syncStatus:"waiting"};await firebasePut(`studioInbox/${packet.syncId}`,packet);try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-update"})}catch(e){}return true}
-async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert((e&&e.message?e.message+' ':'')+t('msg.directSyncUnavailableBackup'))}}
+// A failed send (auth still settling, a dead patch of signal on site, a brief network
+// drop) previously only left a one-off ZIP file on the phone that nobody goes looking
+// for -- the update itself was never tried again, so it just silently never reached
+// Studio. Anything that isn't the permanent "too large" case now queues here and is
+// retried automatically by the same poll loop that already checks for incoming Studio
+// packets, so a transient failure recovers on its own instead of needing a manual export.
+const PENDING_STUDIO_SYNC_KEY="assembleone_pending_studio_sync_v1";
+function queuePendingStudioSync(pack){
+  try{
+    let arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]");
+    arr=arr.filter(x=>!(x.project&&pack.project&&x.project.id===pack.project.id));
+    arr.push(pack);
+    localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.slice(-10)));
+  }catch(e){}
+}
+function clearPendingStudioSync(projectId){
+  try{
+    let arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]");
+    localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.filter(x=>!(x.project&&x.project.id===projectId))));
+  }catch(e){}
+}
+window.retryPendingStudioSync=async function(){
+  let arr;try{arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]")}catch(e){arr=[]}
+  for(const pack of arr){
+    try{await sendPackDirectly(pack);clearPendingStudioSync(pack.project&&pack.project.id)}catch(e){/* still not ready -- stays queued for the next poll */}
+  }
+};
+async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent)queuePendingStudioSync(pack);download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");alert((e&&e.message?e.message+' ':'')+t('msg.directSyncUnavailableBackup'))}}
 
 // mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the original,
 // pre-channel Studio-to-phone receiver) lived here. They're superseded by the
@@ -1812,7 +1839,7 @@ async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)ret
 // of being left as a second, easy-to-mistakenly-edit copy of the same job.
 let receivingStudioPack=false;
 try{const directChannel=new BroadcastChannel("assembleone-sync");directChannel.addEventListener("message",e=>{if(e.data?.type==="studio-published"||e.data?.type==="mobile-update")window.receiveStudioDirect()})}catch(e){}
-function pollStudioSync(){if(typeof window.receiveStudioDirect==="function")window.receiveStudioDirect()}
+function pollStudioSync(){if(typeof window.receiveStudioDirect==="function")window.receiveStudioDirect();if(typeof window.retryPendingStudioSync==="function")window.retryPendingStudioSync()}
 window.addEventListener("focus",pollStudioSync);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pollStudioSync()});setInterval(pollStudioSync,2500);setTimeout(pollStudioSync,400);
 
 function allProjectParts(p=project()){return p?(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({pt,c}))):[]}
@@ -2455,9 +2482,28 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   // reads anyway. It now writes to the same company-scoped Firestore "jobs"
   // collection Studio's Customer Library and auth gate already use, so a phone and a
   // different computer signed in to the same company both see it.
+  // window.fittersiqUser is only set once Firebase's onAuthStateChanged callback resolves,
+  // which is asynchronous and can lag a second or more behind the page becoming
+  // interactive (slow site signal, session restoring from cache, phone waking from
+  // sleep). Sending immediately after opening the app -- exactly when a fitter snaps a
+  // damage photo and hits send right away -- could hit this window and fail with "not
+  // connected yet", which looked like the update never went through until the page was
+  // refreshed and tried again with auth already settled. Give it a few seconds to settle
+  // before actually giving up.
+  function waitForFittersiqUser(timeoutMs){
+    return new Promise(function(resolve){
+      if(window.fittersiqUser){resolve(window.fittersiqUser);return}
+      const start=Date.now();
+      const iv=setInterval(function(){
+        if(window.fittersiqUser){clearInterval(iv);resolve(window.fittersiqUser)}
+        else if(Date.now()-start>timeoutMs){clearInterval(iv);resolve(window.fittersiqUser||null)}
+      },250);
+    });
+  }
   window.sendPackDirectly=async function(pack){
-    const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+    const fs=window.fiqAuthFns,db=window.fiqFirestore;
     if(!fs||!db)throw new Error("Not connected to FittersIQ yet. Please try again in a moment.");
+    const user=window.fittersiqUser||await waitForFittersiqUser(8000);
     if(!user||!user.companyId)throw new Error("This account is not linked to a company yet, so it cannot be shared with Studio.");
     const envelope={
       kind:"siteJobPacket",
