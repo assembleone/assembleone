@@ -1888,7 +1888,7 @@ function renderRooms(){
  const zoom=Math.max(.25,Math.min(4,Number(state.drawingZoom||1)));state.drawingZoom=zoom;if(c)c.viewState.zoom=zoom;$("#zoomValue").textContent=Math.round(zoom*100)+"%";
  function sizeCanvas(){const pad=28,availableW=Math.max(260,stage.clientWidth-pad),availableH=Math.max(320,stage.clientHeight-pad);if(c?.drawingType==="pdf"){canvas.style.width=Math.round(availableW*zoom)+"px";canvas.style.height=Math.round(availableH*zoom)+"px";return}const nw=img.naturalWidth||availableW,nh=img.naturalHeight||availableH,fit=Math.min(availableW/nw,availableH/nh,1);canvas.style.width=Math.max(180,Math.round(nw*fit*zoom))+"px";canvas.style.height=Math.max(180,Math.round(nh*fit*zoom))+"px"}
  sizeCanvas();
- canvas.querySelectorAll(".pin").forEach(x=>x.remove());img.style.display=pdf.style.display="none";empty.style.display="block";$("#drawingName").textContent=c?.drawingName||c?.name||"No drawing";
+ canvas.querySelectorAll(".pin").forEach(x=>x.remove());canvas.querySelectorAll(".site-measure-overlay").forEach(x=>x.remove());img.style.display=pdf.style.display="none";empty.style.display="block";$("#drawingName").textContent=c?.drawingName||c?.name||"No drawing";
  if(!c?.drawing)return;empty.style.display="none";
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
