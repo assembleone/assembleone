@@ -1756,12 +1756,27 @@ window.addEventListener('popstate',function(e){
    window.__suppressHistoryPush=false;
  }
 });
+// Tapping "New Project" more than once before the first was ever named or given a
+// customer used to create another completely blank job -- and its own separate "No
+// customer name" customer record -- every time, so Customer Library slowly filled up
+// with several empty, uncustomered cards. One blank, ready-to-fill project is enough at
+// a time -- reuse it until it's actually started on, and only then does "New Project"
+// create the next one.
+function blankUnstartedProject(){return state.projects.find(p=>!String(p.name||"").trim()&&!String(p.customer||"").trim()&&!(p.rooms||[]).length&&!(p.cabinets||[]).length)}
 function newJob(){
+ const existing=blankUnstartedProject();
+ const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
+ if(existing){
+   state.currentProject=existing.id;state.currentCabinet=null;state.currentPart=null;state.showStartShell=true;
+   if(n)n.value="";if(cust)cust.value="";
+   save();renderAll();show("jobs");
+   setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn)editBtn.click()},90);
+   return;
+ }
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('project_created');
  const p={id:uid(),name:"",customer:"",rooms:[],cabinets:[],updatedAt:Date.now()};
  ensureCustomerForProject(p);
  state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;state.showStartShell=true;
- const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
  if(n)n.value="";if(cust)cust.value="";
  save();renderAll();show("jobs");
  setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn)editBtn.click()},90);
@@ -2139,6 +2154,17 @@ function openJobNotesDialog(projectId){
 }
 function renderCustomers(){
  const box=$("#customersList");if(!box)return;
+ // Clean up any blank, never-started projects already sitting from before newJob()
+ // started reusing one -- each has no name, no customer, no rooms/cabinets, so there is
+ // nothing to lose by collapsing them to the single most recent (or currently open) one.
+ // Their own auto-created "No customer name" record is empty once its project is gone,
+ // so the existing jobs.length filter below naturally stops showing it.
+ const blankProjects=state.projects.filter(p=>!String(p.name||"").trim()&&!String(p.customer||"").trim()&&!(p.rooms||[]).length&&!(p.cabinets||[]).length);
+ if(blankProjects.length>1){
+   const keep=blankProjects.some(p=>p.id===state.currentProject)?state.currentProject:blankProjects[0].id;
+   state.projects=state.projects.filter(p=>p.id===keep||!blankProjects.some(b=>b.id===p.id));
+   save();
+ }
  migrateCustomers();
  const groups=state.customers.map(c=>({customer:c,jobs:customerProjects(c.id)})).filter(g=>g.jobs.length);
  groups.sort((a,b)=>{
