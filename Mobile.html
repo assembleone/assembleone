@@ -2023,7 +2023,13 @@ function stripHeavyMediaForSync(project){
   (clone.jobLog||[]).forEach(entry=>{if((entry.photos||[]).length)entry.photos=[]});
   return clone;
 }
-async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){queuePendingStudioSync(pack);return}
+async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+  // A dropped signal on site used to fail this completely silently -- the update was
+  // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
+  // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
+  queuePendingStudioSync(pack);
+  alert("No signal right now -- your update is saved on this phone and will send to Studio automatically once you're back online.");
+  return}
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
     await sendPackDirectly(slimPack);
