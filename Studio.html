@@ -5216,6 +5216,7 @@ body.guide-only .a131-back-studio{display:block}
     const t=installTotals(p);
     const flagged=t.rows.filter(({pt})=>pt.status==='missing'||pt.status==='damaged');
     box.innerHTML=`<div class="install-progress-head"><strong>Installation Progress</strong><span>${t.installed} of ${t.total} panels fitted · ${t.pct}%</span></div>
+      <div class="install-progress-fitter"><span>Fitter:</span>${typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):''}</div>
       <div class="install-progress-bar"><i style="width:${t.pct}%"></i></div>
       <div class="install-progress-stats">
         <div class="install-stat installed"><b>${t.installed}</b><span>Installed</span></div>
@@ -5227,6 +5228,7 @@ body.guide-only .a131-back-studio{display:block}
         :(t.installed>=t.total&&t.total>0?'<div class="install-all-done">✓ Every panel is installed</div>':'')}`;
     const orderBtn=document.getElementById('orderMissingPanelsBtn');
     if(orderBtn)orderBtn.onclick=()=>exportMissingPanelsCsv(flagged,p);
+    if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(box,()=>p);
   };
   const oldRenderParts2=window.renderParts;
   window.renderParts=function(){const r=oldRenderParts2?oldRenderParts2.apply(this,arguments):undefined;window.renderInstallProgress();return r};
@@ -6163,7 +6165,7 @@ body.fiq-locked .app{display:none!important}
       return '<div class="job-overview-row" data-open-job-card="'+safe(p.id)+'">'+
         '<div class="jor-thumb">'+thumb+'</div>'+
         '<div class="jor-main"><div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room">'+safe(jobRoomLabel(p)||p.name||'')+'</div></div>'+
-        '<div class="jor-fitter"><input class="jor-fitter-input" data-fitter-for="'+safe(p.id)+'" value="'+safe(p.assignedFitter||'')+'" placeholder="Assign fitter"></div>'+
+        '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):'')+'</div>'+
         '<div class="jor-stat"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+(pc.total?pc.checked+' / '+pc.total:'—')+' '+pcIcon+'</div></div>'+
         '<div class="jor-stat"><div class="jor-stat-label">Fitted</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
         warn+
@@ -6171,18 +6173,12 @@ body.fiq-locked .app{display:none!important}
       '</div>';
     }).join(''):'<div class="empty">No jobs yet.</div>';
     grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
-      if(e.target.closest('[data-fitter-for]'))return;
+      if(e.target.closest('.fitter-row'))return;
       switchToProject(row.dataset.openJobCard);
       save();
       if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
     });
-    grid.querySelectorAll('[data-fitter-for]').forEach(input=>{
-      input.addEventListener('click',e=>e.stopPropagation());
-      input.addEventListener('change',()=>{
-        const p=state.projects.find(x=>x.id===input.dataset.fitterFor);
-        if(p){p.assignedFitter=input.value.trim();save()}
-      });
-    });
+    if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(grid,id=>state.projects.find(x=>x.id===id));
 
     if(state.screen==='customers'&&window.__homeDashboardFilter)filterCustomerLibraryByProject();
   }
@@ -6313,6 +6309,75 @@ body.fiq-locked .app{display:none!important}
   };
   document.getElementById('attentionModalClose')?.addEventListener('click',window.closeAttentionModal);
   document.getElementById('attentionModal')?.addEventListener('click',e=>{if(e.target.id==='attentionModal')window.closeAttentionModal()});
+})();
+</script>
+<style id="a211-fitter-whatsapp-style">
+.fitter-row{display:flex;align-items:center;gap:6px}
+.fitter-select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:12px;font-weight:700;color:var(--ink);background:#f7f8fb}
+.fitter-select:focus{background:#fff;border-color:#8B5CF6}
+.fitter-whatsapp-btn{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid #25d366;background:#25d366;color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.fitter-whatsapp-btn:disabled{opacity:.4;cursor:not-allowed}
+.install-progress-fitter{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:13px}
+.install-progress-fitter .fitter-row{max-width:220px}
+</style>
+<script id="a211-fitter-whatsapp-script">
+(function(){
+  // A lightweight name+WhatsApp-number directory the boss maintains -- not a fitter
+  // login/account system (that's its own separate, security-sensitive piece). This only
+  // needs enough to open a WhatsApp chat; it never sends anything itself.
+  function ensureFitters(){state.fitters=state.fitters||[];return state.fitters}
+  function fitterByName(name){if(!name)return null;const n=name.trim().toLowerCase();return ensureFitters().find(f=>f.name.trim().toLowerCase()===n)||null}
+  function digitsOnly(s){return String(s||'').replace(/[^0-9]/g,'')}
+  function promptNewFitter(){
+    const name=prompt('Fitter name:');
+    if(!name||!name.trim())return null;
+    const phone=prompt('Their WhatsApp/mobile number (with country code, e.g. +44 7700 900123):');
+    const fitter={id:uid(),name:name.trim(),phone:(phone||'').trim()};
+    ensureFitters().push(fitter);
+    save();
+    return fitter;
+  }
+  function fitterRowHtml(p,idx){
+    const fitters=ensureFitters();
+    const current=p.assignedFitter||'';
+    const options=['<option value="">— Assign fitter —</option>']
+      .concat(fitters.map(f=>'<option value="'+safe(f.name)+'" '+(f.name===current?'selected':'')+'>'+safe(f.name)+'</option>'))
+      .concat(['<option value="__add__">+ Add new fitter</option>']);
+    const hasPhone=!!(fitterByName(current)&&fitterByName(current).phone);
+    return '<div class="fitter-row" data-fitter-row="'+idx+'">'+
+      '<select class="fitter-select" data-fitter-select="'+safe(p.id)+'">'+options.join('')+'</select>'+
+      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(p.id)+'" title="Message on WhatsApp" '+(hasPhone?'':'disabled')+'>💬</button>'+
+    '</div>';
+  }
+  function wireFitterRow(container,getProject){
+    container.querySelectorAll('[data-fitter-select]').forEach(sel=>{
+      sel.onclick=e=>e.stopPropagation();
+      sel.onchange=e=>{
+        e.stopPropagation();
+        const p=getProject(sel.dataset.fitterSelect);if(!p)return;
+        if(sel.value==='__add__'){
+          const fitter=promptNewFitter();
+          p.assignedFitter=fitter?fitter.name:'';
+        }else{
+          p.assignedFitter=sel.value;
+        }
+        save();
+        if(typeof renderAll==='function')renderAll();
+      };
+    });
+    container.querySelectorAll('[data-fitter-whatsapp]').forEach(btn=>{
+      btn.onclick=e=>{
+        e.stopPropagation();
+        const p=getProject(btn.dataset.fitterWhatsapp);if(!p)return;
+        const fitter=fitterByName(p.assignedFitter);
+        const phone=digitsOnly(fitter&&fitter.phone);
+        if(!phone){alert('Add a WhatsApp number for '+(p.assignedFitter||'this fitter')+' first (choose them from the fitter list to add one).');return}
+        window.open('https://wa.me/'+phone,'_blank');
+      };
+    });
+  }
+  window.a211FitterRowHtml=fitterRowHtml;
+  window.a211WireFitterRow=wireFitterRow;
 })();
 </script>
 <script>window.FIQ_HELP_APP="studio";</script>

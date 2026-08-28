@@ -2567,32 +2567,14 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
 .job-notes-photo-preview{display:flex;flex-wrap:wrap;gap:6px}
 .job-notes-photo-preview img{width:56px;height:56px;object-fit:cover;border-radius:10px;border:2px solid #2f6fed}
 </style>
-<style id="a202-sent-badge-style">
-.a202-sent-badge{position:absolute;right:12%;top:8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#2f6fed;color:#fff;border:3px solid #174e98;display:none;align-items:center;justify-content:center;font:900 10px Arial;line-height:1;box-shadow:0 2px 7px #0004;z-index:20}
-.a202-sent-badge.show{display:flex}
-</style>
-<script id="a202-sent-badge">
-(()=>{
- function nav(){return document.querySelector('.nav[data-screen="drawings"]')}
- function ensure(){const n=nav();if(!n)return null;let d=n.querySelector('.a202-sent-badge');if(!d){d=document.createElement('i');d.className='a202-sent-badge';n.appendChild(d)}return d}
- let pendingCount=0;
- function paint(){
-  const d=ensure();if(!d)return;
-  d.textContent=pendingCount>99?'99+':String(pendingCount);
-  d.title=t('msg.waitingForStudioOpen')+pendingCount;
-  d.classList.toggle('show',pendingCount>0);
- }
- async function refreshPending(){
-  try{
-   const res=await fetch('https://assembleone-fabac-default-rtdb.firebaseio.com/sync_v2/mads_assembleone_1088/studioQueue.json',{cache:'no-store'});
-   const data=await res.json();
-   pendingCount=data?Object.keys(data).length:0;
-  }catch(e){}
-  paint();
- }
- refreshPending();setInterval(refreshPending,4000);
-})();
-</script>
+<!-- a202-sent-badge removed: it polled a hardcoded, non-company-scoped Realtime Database
+     path (sync_v2/mads_assembleone_1088/studioQueue) that nothing in the app has written
+     to since sending moved to the company-scoped Firestore sync earlier this session.
+     The badge was permanently showing a frozen, stale count from that old channel with
+     no way for it to ever change or clear -- reported as "the tape measure icon shows a
+     5 that won't go away, must be an old job" (correctly guessed: it *was* stale data
+     from an old, dead sync path, just not a job). Removed rather than rebuilt against
+     the new sync, per the current bug-fix-only priority. -->
 
 
 <style id="a176-measure-entry-fix">
