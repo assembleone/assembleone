@@ -6456,13 +6456,43 @@ body.fiq-locked .app{display:none!important}
     save();
     return fitter;
   }
+  // Fitters are looked up by name (assignedFitter is a plain string, not an id), so renaming
+  // one has to update every job currently pointing at the old name or the assignment would
+  // silently go stale and lose its WhatsApp number.
+  function promptEditFitter(fitter){
+    if(!fitter)return;
+    const name=prompt('Fitter name:',fitter.name);
+    if(name===null)return;
+    if(!name.trim()){alert('Name cannot be empty — use Remove instead to delete a fitter.');return}
+    const phone=prompt('Their WhatsApp/mobile number (with country code, e.g. +44 7700 900123):',fitter.phone||'');
+    if(phone===null)return;
+    const oldNameLower=fitter.name.trim().toLowerCase();
+    fitter.name=name.trim();
+    fitter.phone=(phone||'').trim();
+    if(oldNameLower!==fitter.name.trim().toLowerCase()){
+      state.projects.forEach(p=>{if((p.assignedFitter||'').trim().toLowerCase()===oldNameLower)p.assignedFitter=fitter.name});
+    }
+    save();
+    if(typeof renderAll==='function')renderAll();
+  }
+  function deleteFitterConfirm(fitter){
+    if(!fitter)return;
+    if(!confirm('Remove '+fitter.name+' from the fitter list? Jobs currently assigned to them will show as unassigned.'))return;
+    const nameLower=fitter.name.trim().toLowerCase();
+    state.fitters=ensureFitters().filter(f=>f.id!==fitter.id);
+    state.projects.forEach(p=>{if((p.assignedFitter||'').trim().toLowerCase()===nameLower)p.assignedFitter=''});
+    save();
+    if(typeof renderAll==='function')renderAll();
+  }
   function fitterRowHtml(p,idx){
     const fitters=ensureFitters();
     const current=p.assignedFitter||'';
+    const currentFitter=fitterByName(current);
     const options=['<option value="">— Assign fitter —</option>']
       .concat(fitters.map(f=>'<option value="'+safe(f.name)+'" '+(f.name===current?'selected':'')+'>'+safe(f.name)+'</option>'))
-      .concat(['<option value="__add__">+ Add new fitter</option>']);
-    const hasPhone=!!(fitterByName(current)&&fitterByName(current).phone);
+      .concat(['<option value="__add__">+ Add new fitter</option>'])
+      .concat(currentFitter?['<option value="__edit__">✏️ Edit '+safe(currentFitter.name)+'’s details</option>','<option value="__delete__">🗑 Remove '+safe(currentFitter.name)+'</option>']:[]);
+    const hasPhone=!!(currentFitter&&currentFitter.phone);
     return '<div class="fitter-row" data-fitter-row="'+idx+'">'+
       '<select class="fitter-select" data-fitter-select="'+safe(p.id)+'">'+options.join('')+'</select>'+
       '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(p.id)+'" title="Message on WhatsApp" '+(hasPhone?'':'disabled')+'>💬</button>'+
@@ -6477,11 +6507,17 @@ body.fiq-locked .app{display:none!important}
         if(sel.value==='__add__'){
           const fitter=promptNewFitter();
           p.assignedFitter=fitter?fitter.name:'';
+          save();
+          if(typeof renderAll==='function')renderAll();
+        }else if(sel.value==='__edit__'){
+          promptEditFitter(fitterByName(p.assignedFitter));
+        }else if(sel.value==='__delete__'){
+          deleteFitterConfirm(fitterByName(p.assignedFitter));
         }else{
           p.assignedFitter=sel.value;
+          save();
+          if(typeof renderAll==='function')renderAll();
         }
-        save();
-        if(typeof renderAll==='function')renderAll();
       };
     });
     container.querySelectorAll('[data-fitter-whatsapp]').forEach(btn=>{
