@@ -2404,7 +2404,13 @@ function renderJobBom(){
 }
 function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();renderCustomers();updateUnitAddWording();show(state.screen||"jobs")}
 
-function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;const raw=$("#"+id).value;const isMeasure=["length","width","thickness"].includes(key);p[key]=isMeasure?(raw===""?"":(typeof aoUnitToMm==='function'?aoUnitToMm(+raw):+raw)):(key==="qty"?(raw===""?"":+raw):raw);if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key]}save();renderPartList();renderCutting();renderPhone()}}
+function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;const raw=$("#"+id).value;const isMeasure=["length","width","thickness"].includes(key);
+  // A typo or stray paste in Quantity (an extra digit, e.g. 2275 instead of 22) used to go
+  // straight through with no limit -- every downstream count (Estimated Sheets, Fitted,
+  // Panel Check) would then try to work with thousands of a single panel. One real panel
+  // is never going to legitimately need more than a few hundred identical pieces.
+  if(key==="qty"&&raw!==""&&+raw>500){alert("That quantity ("+raw+") looks like a mistake for a single panel -- capped at 500. Split genuinely larger batches into more than one panel row.");$("#"+id).value=500}
+  p[key]=isMeasure?(raw===""?"":(typeof aoUnitToMm==='function'?aoUnitToMm(+raw):+raw)):(key==="qty"?(raw===""?"":Math.min(500,+raw)):raw);if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key]}save();renderPartList();renderCutting();renderPhone()}}
 Object.entries({fThickness:"Insert thickness",fLength:"Insert length",fWidth:"Insert width",fQty:"Insert quantity"}).forEach(([id,ph])=>{const el=$("#"+id);if(el)el.placeholder=ph});
 ["fLength:length","fWidth:width","fThickness:thickness","fQty:qty","fNotes:notes"].forEach(x=>{const[a,b]=x.split(":");bindField(a,b)});
 function setPartName(name){state.lastChosenPartName=name;const p=part();if(p)p.name=name;save();renderAll()}
@@ -5561,6 +5567,21 @@ body.fiq-locked .app{display:none!important}
     return parts.join('');
   }
 
+  // Shared by both the on-screen and print unplaced-panel warnings so they can't drift
+  // into two different ways of describing the same thing (see the render() comment below
+  // for why this groups rather than lists every piece separately).
+  function unplacedSummaryText(unplaced){
+    var byCode={};
+    unplaced.forEach(function(p){
+      var key=p.code||'?';
+      if(!byCode[key])byCode[key]={code:key,w:p.w,h:p.h,count:0};
+      byCode[key].count++;
+    });
+    return Object.keys(byCode).map(function(key){
+      var u=byCode[key];
+      return safe(u.code)+' ('+Math.round(u.w)+'×'+Math.round(u.h)+'mm'+(u.count>1?' × '+u.count:'')+')';
+    }).join(', ');
+  }
   function groupResult(materialLabel,thickness,partsList,cfg){
     var pieces=[];
     partsList.forEach(function(p){var n=Math.max(1,Number(p.qty)||1);for(var i=0;i<n;i++)pieces.push({w:Number(p.length)||0,h:Number(p.width)||0,code:p.code,name:p.name||''})});
@@ -5574,7 +5595,13 @@ body.fiq-locked .app{display:none!important}
 
   function renderGroupHtml(g,idx){
     var cfg=g.cfg;
-    var warn=g.unplaced.length?'<div class="sheet-optim-warn-list">⚠️ '+g.unplaced.length+' panel'+(g.unplaced.length===1?'':'s')+' larger than the sheet size and could not be placed ('+g.unplaced.map(function(p){return safe(p.code)}).join(', ')+'). Increase the sheet size for this material or split the panel.</div>':'';
+    // Listing every unplaced piece separately (P-003, P-003, P-003 x1500...) turns one
+    // oversized panel with a large quantity into an unreadable, page-length wall of text --
+    // and made a mistyped quantity (2275 instead of, say, 22) look like hundreds of
+    // different problems instead of one. unplacedSummaryText groups by code and shows the
+    // actual size once, so the real cause (an oversized panel, or a typo'd quantity) is
+    // obvious at a glance.
+    var warn=g.unplaced.length?'<div class="sheet-optim-warn-list">⚠️ '+g.unplaced.length+' panel'+(g.unplaced.length===1?'':'s')+' larger than the sheet size and could not be placed: '+unplacedSummaryText(g.unplaced)+'. Check the panel\'s size and quantity are correct, or increase the sheet size for this material.</div>':'';
     var sheetsHtml=g.sheets.map(function(s,i){
       var used=0;s.placements.forEach(function(p){used+=p.w*p.h});
       var wp=fmt(100*(1-used/(cfg.w*cfg.h)));
@@ -5606,7 +5633,7 @@ body.fiq-locked .app{display:none!important}
       var wp=fmt(100*(1-used/(g.cfg.w*g.cfg.h)));
       return '<div style="page-break-inside:avoid;margin-bottom:14px"><div style="width:320px">'+sheetSvg(s,g.cfg)+'</div><div class="small">Sheet '+(idx+1)+' of '+g.sheets.length+' — '+s.placements.length+' panel'+(s.placements.length===1?'':'s')+' — '+wp+'% waste</div></div>';
     }).join('');
-    return '<div class="card"><div class="name">'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm — sheet size '+g.cfg.w+' × '+g.cfg.h+'mm</div><div class="measure">Sheets required: '+g.sheets.length+' · Overall waste: '+g.wastePct+'%</div>'+(g.unplaced.length?'<div class="small">⚠️ Could not place: '+g.unplaced.map(function(p){return safe(p.code)}).join(', ')+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px">'+sheetsHtml+'</div></div>';
+    return '<div class="card"><div class="name">'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm — sheet size '+g.cfg.w+' × '+g.cfg.h+'mm</div><div class="measure">Sheets required: '+g.sheets.length+' · Overall waste: '+g.wastePct+'%</div>'+(g.unplaced.length?'<div class="small">⚠️ Could not place: '+unplacedSummaryText(g.unplaced)+'</div>':'')+'<div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px">'+sheetsHtml+'</div></div>';
   }
 
   var lastGroups=[];
