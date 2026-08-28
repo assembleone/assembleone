@@ -5257,10 +5257,10 @@ body.guide-only .a131-back-studio{display:block}
 .install-stat.missing b{color:#c96a00}
 .install-stat.damaged b{color:#bf1f29}
 .install-all-done{margin-top:6px;padding:12px;border-radius:12px;background:#ebf7e4;color:#307508;font-weight:800;text-align:center}
-.install-outstanding{margin-top:14px;padding-top:14px;border-top:1px solid #e2e7f5}
-.install-outstanding-head{font-weight:900;color:#171c46;margin-bottom:8px}
-.install-outstanding-row{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:10px}
-.install-outstanding-row:hover{background:#f6f8fc}
+.install-outstanding{margin-top:14px;padding:14px;border-radius:14px;background:#fff1f1;border:2px solid #f4b3b3}
+.install-outstanding-head{font-weight:900;color:#bf1f29;margin-bottom:10px;font-size:16px;display:flex;align-items:center;gap:8px}
+.install-outstanding-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;background:#fff;border:1px solid #f4b3b3;margin-bottom:8px}
+.install-outstanding-row:hover{background:#fff7f7}
 .install-outstanding-icon{font-size:18px;flex:none}
 .install-outstanding-main{flex:1;min-width:0}
 .install-outstanding-name{font-weight:900;color:#171c46}
@@ -5269,6 +5269,9 @@ body.guide-only .a131-back-studio{display:block}
 .install-outstanding-status{font-size:12px;font-weight:900;padding:5px 10px;border-radius:999px;white-space:nowrap}
 .install-outstanding-status.status-missing{background:#fdf0e0;color:#c96a00}
 .install-outstanding-status.status-damaged{background:#fbe7e7;color:#bf1f29}
+.install-outstanding-sorted-btn{flex:none;font-size:12px;padding:5px 10px}
+.install-outstanding-row-sorted{background:#e8f7e2!important;border-color:#a9e0a0!important;transition:background .3s,border-color .3s}
+.install-outstanding-row-sorted .install-outstanding-sorted-btn{background:#307508;color:#fff;border-color:#307508}
 .install-progress-card #orderMissingPanelsBtn{width:100%;margin-top:12px;min-height:48px;background:#0051ff;border-color:#0049e8;color:#fff}
 @media(max-width:600px){.install-progress-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
@@ -5305,7 +5308,10 @@ body.guide-only .a131-back-studio{display:block}
     const p=(typeof project==='function')?project():null;
     if(!p||!(p.cabinets||[]).length){box.innerHTML='';return}
     const t=installTotals(p);
-    const flagged=t.rows.filter(({pt})=>pt.status==='missing'||pt.status==='damaged');
+    // attentionSorted is the same "dealt with" flag the Needs Attention widget uses -- once
+    // the boss sorts a problem from either place, it should stop showing as outstanding in
+    // both, not just the one it was sorted from.
+    const flagged=t.rows.filter(({pt})=>(pt.status==='missing'||pt.status==='damaged')&&!pt.attentionSorted);
     box.innerHTML=`<div class="install-progress-head"><strong>Installation Progress</strong><span>${t.installed} of ${t.total} panels fitted · ${t.pct}%</span></div>
       <div class="install-progress-fitter"><span>Fitter:</span>${typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):''}</div>
       <div class="install-progress-bar"><i style="width:${t.pct}%"></i></div>
@@ -5315,10 +5321,20 @@ body.guide-only .a131-back-studio{display:block}
         <div class="install-stat damaged"><b>${t.damaged}</b><span>Damaged</span></div>
         <div class="install-stat"><b>${t.total}</b><span>Total panels</span></div>
       </div>
-      ${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">Reported missing or damaged on site</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row"><span class="install-outstanding-icon">${pt.status==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${pt.status}">${statusWord(pt.status)}</span></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
+      ${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">⚠️ Reported missing or damaged on site (${flagged.length})</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row" data-outstanding-row="${safe(pt.id)}"><span class="install-outstanding-icon">${pt.status==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${pt.status}">${statusWord(pt.status)}</span><button type="button" class="btn install-outstanding-sorted-btn" data-outstanding-sorted="${safe(pt.id)}">✓ Sorted</button></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
         :(t.installed>=t.total&&t.total>0?'<div class="install-all-done">✓ Every panel is installed</div>':'')}`;
     const orderBtn=document.getElementById('orderMissingPanelsBtn');
     if(orderBtn)orderBtn.onclick=()=>exportMissingPanelsCsv(flagged,p);
+    box.querySelectorAll('[data-outstanding-sorted]').forEach(btn=>{
+      btn.onclick=()=>{
+        const pt=flagged.map(x=>x.pt).find(x=>x.id===btn.dataset.outstandingSorted);
+        if(!pt)return;
+        const row=box.querySelector('[data-outstanding-row="'+btn.dataset.outstandingSorted+'"]');
+        if(row)row.classList.add('install-outstanding-row-sorted');
+        pt.attentionSorted=true;pt.attentionSortedAt=Date.now();save();
+        setTimeout(()=>window.renderInstallProgress(),450);
+      };
+    });
     if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(box,()=>p);
   };
   const oldRenderParts2=window.renderParts;
