@@ -5236,7 +5236,16 @@ body.guide-only .a131-back-studio{display:block}
     const r=oldRenderParts?oldRenderParts.apply(this,arguments):undefined;
     const c=(typeof cabinet==='function')?cabinet():null;
     const box=document.getElementById('partsSummary');
-    if(box&&c)box.innerHTML=checklistHtml(c)+hardwareChecklistHtml(c)+box.innerHTML;
+    // Reassigning box.innerHTML to "new content + box.innerHTML" re-parses everything,
+    // including the panel cards oldRenderParts just rendered above -- that silently threw
+    // away their "Edit" button click listeners on every render (the panel looked the same
+    // but nothing responded to a tap, so there was no way off it). Removing only the
+    // checklist block we added last time and re-inserting a fresh one leaves the panel
+    // cards' own DOM nodes, and their listeners, untouched.
+    if(box&&c){
+      box.querySelectorAll('[data-checklist-block]').forEach(el=>el.remove());
+      box.insertAdjacentHTML('afterbegin','<div data-checklist-block="1">'+checklistHtml(c)+hardwareChecklistHtml(c)+'</div>');
+    }
     return r;
   };
   try{renderParts=window.renderParts}catch(e){}
