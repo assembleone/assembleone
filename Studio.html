@@ -1016,6 +1016,7 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .attention-item-reason{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;padding:3px 9px;border-radius:999px;margin-bottom:8px}
 .attention-item-reason.reason-damaged{background:#fbe7e7;color:#bf1f29}
 .attention-item-reason.reason-missing{background:#fdf0e0;color:#c96a00}
+.attention-item-fitter{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#5c5342;margin-left:8px}
 .attention-item-note{font-size:13px;color:#5c5342;margin:6px 0}
 .attention-item-photo{max-width:180px;border-radius:10px;display:block;margin-bottom:8px}
 .attention-item-actions{display:flex;gap:8px;margin-top:8px}
@@ -5982,24 +5983,36 @@ body.fiq-locked .app{display:none!important}
 .home-section-viewall{background:none;border:none;color:#0051ff;font-weight:800;cursor:pointer;padding:4px}
 .job-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 @media(max-width:760px){.job-stat-grid{grid-template-columns:1fr 1fr}}
-.job-stat-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;cursor:pointer;text-align:left;box-shadow:0 2px 6px rgba(20,30,50,.05)}
+.job-stat-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;cursor:pointer;text-align:left;box-shadow:0 2px 6px rgba(20,30,50,.05)}
 .job-stat-card:hover{border-color:#95b7b3;transform:translateY(-1px)}
-.job-stat-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px}
+.job-stat-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
 .job-stat-icon.stat-active{background:#2563EB}
 .job-stat-icon.stat-sent{background:#16a34a}
 .job-stat-icon.stat-attention{background:#f0ad4e}
 .job-stat-icon.stat-completed{background:#8B5CF6}
-.job-stat-num{font-size:30px;font-weight:900;color:var(--ink)}
-.job-stat-label{font-weight:800;color:var(--ink)}
-.job-stat-view{color:#0051ff;font-weight:800;font-size:13px}
-.job-overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
-.job-overview-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:10px;box-shadow:0 2px 6px rgba(20,30,50,.05)}
-.job-overview-card:hover{border-color:#8B5CF6;transform:translateY(-1px)}
-.job-overview-name{font-weight:900;font-size:16px;color:var(--ink)}
-.job-overview-preview{height:100px;border-radius:10px;background:#f4f7ff;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.job-overview-preview img{width:100%;height:100%;object-fit:contain}
-.job-overview-noimg{font-size:30px;opacity:.4}
-.job-overview-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.job-stat-num{font-size:22px;font-weight:900;color:var(--ink);line-height:1.1}
+.job-stat-label{font-weight:800;color:var(--ink);font-size:13px}
+.job-stat-view{color:#0051ff;font-weight:800;font-size:11px}
+.job-overview-grid{display:flex;flex-direction:column;gap:8px;max-height:560px;overflow-y:auto;padding-right:4px}
+.job-overview-row{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:14px;box-shadow:0 2px 6px rgba(20,30,50,.05)}
+.job-overview-row:hover{border-color:#8B5CF6}
+.jor-thumb{width:44px;height:44px;border-radius:10px;background:#f4f7ff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none}
+.jor-thumb img{width:100%;height:100%;object-fit:cover}
+.jor-thumb span{font-size:20px;opacity:.4}
+.jor-main{min-width:0;flex:1 1 160px}
+.jor-name{font-weight:900;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jor-room{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jor-fitter{flex:0 0 130px;min-width:0}
+.jor-fitter-input{width:100%;border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:700;color:var(--ink);background:#f7f8fb}
+.jor-fitter-input:focus{background:#fff;border-color:#8B5CF6}
+.jor-stat{flex:0 0 100px;text-align:center}
+.jor-stat-label{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+.jor-stat-value{font-size:13px;font-weight:900;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:4px}
+.jor-bar{height:5px;border-radius:99px;background:#e6e9f0;margin-top:3px;overflow:hidden}
+.jor-bar i{display:block;height:100%;background:#16a34a}
+.jor-warn{flex:none;font-size:18px;width:20px;text-align:center}
+.jor-chevron{flex:none;color:var(--muted);font-size:18px}
+@media(max-width:900px){.jor-fitter,.jor-stat{display:none}}
 .job-overview-updated{color:var(--muted);font-size:12px;font-weight:700}
 .dashboard-filter-banner{display:flex;align-items:center;justify-content:space-between;background:#eef3ff;border:1px solid #bcd2ff;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-weight:700}
 .dashboard-filter-banner button{background:#fff;border:1px solid #bcd2ff;border-radius:8px;padding:5px 10px;font-weight:800;cursor:pointer}
@@ -6018,6 +6031,37 @@ body.fiq-locked .app{display:none!important}
     return namedProjects().filter(p=>ids.has(p.id));
   }
   function completedThisMonthList(){return namedProjects().filter(p=>isCompletedProject(p)&&isThisMonth(p.updatedAt))}
+  // Panel Check counts unique panel rows (one review covers a whole "qty 8 shelves" row),
+  // Fitted Progress counts physical pieces -- matching how Panel Check and Installation
+  // Progress already count things elsewhere, so this summary agrees with the job's own
+  // detail screens instead of inventing a third way to count the same panels.
+  function jobPanelCheckTotals(p){
+    let total=0,checked=0;
+    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      total+=1;
+      if(typeof window.panelIsReviewed==='function'&&window.panelIsReviewed(part))checked+=1;
+    }));
+    return {checked,total};
+  }
+  function jobFittedTotals(p){
+    let total=0,installed=0;
+    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      const q=Math.max(1,Number(part.qty)||1);
+      total+=q;
+      if(part.status==='installed')installed+=q;
+    }));
+    return {installed,total};
+  }
+  function jobRoomLabel(p){
+    const room=(p.rooms||[])[0];
+    if(room&&room.name)return room.name;
+    const cab=(p.cabinets||[])[0];
+    return (cab&&cab.name)||'';
+  }
+  function jobNeedsAttention(p){
+    const items=(typeof window.a203NeedsAttentionItems==='function')?window.a203NeedsAttentionItems():[];
+    return items.some(x=>x.projectId===p.id);
+  }
 
   window.__homeDashboardFilter=null;
   function applyDashboardFilter(predicate,label){
@@ -6089,17 +6133,40 @@ body.fiq-locked .app{display:none!important}
     setNum('statCompletedNum',completedThisMonthList().length);
 
     const grid=document.getElementById('jobOverviewGrid');
-    const recentJobs=namedProjects().slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,6);
+    // No slice/limit here -- the whole point of making this scroll is that a company
+    // with many active jobs can see all of them without the homepage growing forever.
+    const recentJobs=namedProjects().slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     grid.innerHTML=recentJobs.length?recentJobs.map(p=>{
-      const status=jobStatusInfoSafe(p);
       const drawingCab=(p.cabinets||[]).find(c=>c.drawing&&c.drawingType!=='pdf');
-      const preview=drawingCab?('<img src="'+drawingCab.drawing+'" alt="Drawing preview">'):'<span class="job-overview-noimg">📐</span>';
-      return '<button type="button" class="job-overview-card" data-open-job-card="'+safe(p.id)+'"><div class="job-overview-name">'+safe(p.name||'Untitled job')+'</div><div class="job-overview-preview">'+preview+'</div><div class="job-overview-footer"><span class="customer-job-status '+status.cls+'">'+status.label+'</span><span class="job-overview-updated">'+(p.updatedAt?'Updated '+timeAgo(p.updatedAt):'')+'</span></div></button>';
+      const thumb=drawingCab?('<img src="'+drawingCab.drawing+'" alt="Drawing preview">'):'<span>📐</span>';
+      const pc=jobPanelCheckTotals(p);
+      const pcIcon=pc.total>0&&pc.checked>=pc.total?'✅':(pc.total>0?'⚠️':'');
+      const fit=jobFittedTotals(p);
+      const showFitted=fit.installed>0;
+      const fitPct=fit.total>0?Math.round(fit.installed/fit.total*100):0;
+      const warn=jobNeedsAttention(p)?'<span class="jor-warn" title="Needs attention">⚠️</span>':'<span class="jor-warn"></span>';
+      return '<div class="job-overview-row" data-open-job-card="'+safe(p.id)+'">'+
+        '<div class="jor-thumb">'+thumb+'</div>'+
+        '<div class="jor-main"><div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room">'+safe(jobRoomLabel(p)||p.name||'')+'</div></div>'+
+        '<div class="jor-fitter"><input class="jor-fitter-input" data-fitter-for="'+safe(p.id)+'" value="'+safe(p.assignedFitter||'')+'" placeholder="Assign fitter"></div>'+
+        '<div class="jor-stat"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+(pc.total?pc.checked+' / '+pc.total:'—')+' '+pcIcon+'</div></div>'+
+        '<div class="jor-stat"><div class="jor-stat-label">Fitted</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
+        warn+
+        '<span class="jor-chevron">›</span>'+
+      '</div>';
     }).join(''):'<div class="empty">No jobs yet.</div>';
-    grid.querySelectorAll('[data-open-job-card]').forEach(b=>b.onclick=()=>{
-      switchToProject(b.dataset.openJobCard);
+    grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
+      if(e.target.closest('[data-fitter-for]'))return;
+      switchToProject(row.dataset.openJobCard);
       save();
       if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
+    });
+    grid.querySelectorAll('[data-fitter-for]').forEach(input=>{
+      input.addEventListener('click',e=>e.stopPropagation());
+      input.addEventListener('change',()=>{
+        const p=state.projects.find(x=>x.id===input.dataset.fitterFor);
+        if(p){p.assignedFitter=input.value.trim();save()}
+      });
     });
 
     if(state.screen==='customers'&&window.__homeDashboardFilter)filterCustomerLibraryByProject();
@@ -6147,6 +6214,15 @@ body.fiq-locked .app{display:none!important}
   // hides an item from this list (part.attentionSorted) -- it never touches the panel's
   // own status/damageNote/photos, so the original record stays intact in that job's own
   // Panel Check history, matching "do not delete the record, keep it in job history."
+  // No real per-fitter accounts/assignment exist yet (that's its own separate pass), so
+  // "who reported this" is read from whichever jobLog entry mentions this exact panel
+  // code -- the Missing/Damaged action on Mobile always logs one -- falling back to the
+  // job's own free-text "assigned fitter" field so the row is never blank.
+  function reporterFor(p,code){
+    const log=(p.jobLog||[]).filter(e=>e&&e.text&&code&&e.text.indexOf(code)!==-1).sort((a,b)=>(b.at||0)-(a.at||0))[0];
+    if(log&&log.author)return log.author;
+    return p.assignedFitter||'';
+  }
   function attentionItemsDetailed(){
     const items=[];
     (state.projects||[]).forEach(p=>{
@@ -6162,6 +6238,7 @@ body.fiq-locked .app{display:none!important}
               reason:part.status,
               note:part.status==='damaged'?(part.damageNote||''):'',
               photo:(part.panelPhotos||[])[0]?.data||null,
+              reportedBy:reporterFor(p,part.code),
               at:part.updatedAt||p.updatedAt||0
             });
           }
@@ -6180,6 +6257,7 @@ body.fiq-locked .app{display:none!important}
       '<div class="attention-item-path">'+safe(it.customer)+' › '+safe(it.jobName)+'</div>'+
       '<div class="attention-item-panel">'+safe(it.code)+' '+safe(it.name)+'</div>'+
       '<span class="attention-item-reason reason-'+it.reason+'">'+(it.reason==='damaged'?'⚠ Damaged':'❔ Missing')+'</span>'+
+      (it.reportedBy?'<span class="attention-item-fitter">👤 '+safe(it.reportedBy)+'</span>':'')+
       (it.note?'<div class="attention-item-note">"'+safe(it.note)+'"</div>':'')+
       (it.photo?'<img class="attention-item-photo" src="'+it.photo+'">':'')+
       '<div class="attention-item-actions">'+

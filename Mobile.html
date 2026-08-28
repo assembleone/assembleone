@@ -1691,8 +1691,14 @@ function renderRoomDetail(r){
   <button class="installer-guide-card" id="openDesignGuide"><span class="installer-guide-icon">🖼️</span><strong>${t('detail.designGuide')}</strong><small>${designCount?designCount+' '+(designCount===1?t('detail.view'):t('detail.views')):t('detail.openDrawings')}</small></button>
   <button class="installer-guide-card" id="openRoomNotes"><span class="installer-guide-icon">📝</span><strong>${t('detail.roomNotes')}</strong><small>${noteReady?t('detail.notesReady'):t('detail.noNotes')}</small></button>
   <button class="installer-guide-card" id="openCuttingList"><span class="installer-guide-icon">📋</span><strong>${t('detail.cuttingList')}</strong><small>${roomParts.length} ${roomParts.length===1?t('detail.panel'):t('detail.panels')}</small></button>
-  <button class="installer-guide-card" id="openQrPanels"><span class="installer-guide-icon">▦</span><strong>${t('detail.qrPanels')}</strong><small>${t('detail.scanOrFind')}</small></button>
-  <button class="installer-guide-card" id="openPanelCheck"><span class="installer-guide-icon">✅</span><strong>${t('detail.checkPanels')}</strong><small>${checkedCount}/${roomParts.length} ${t('detail.checkedShort')}</small></button>
+  <button class="installer-guide-card" id="openPanels"><span class="installer-guide-icon">▦</span><strong>Panels</strong><small>${checkedCount}/${roomParts.length} ${t('detail.checkedShort')}</small></button>
+ </div>
+ <div id="panelsMenu" class="measure-picture-menu hidden" role="dialog" aria-modal="true" aria-label="Panels">
+  <div class="measure-picture-card">
+   <div class="measure-picture-head"><strong>Panels</strong><button type="button" id="closePanelsMenu" aria-label="Close">×</button></div>
+   <button type="button" id="panelsMenuCheck"><span>✅</span><b>${t('detail.checkPanels')}</b></button>
+   <button type="button" id="panelsMenuFit"><span>▦</span><b>Fit Panels</b></button>
+  </div>
  </div>
  <section class="room-section installer-design-section" id="designGuideSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designCount}</span></div><div class="room-photo-grid">${designCount?r.designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join(''):`<div class="room-empty">${t('detail.noDesignViews')}</div>`}</div></section>
  <section class="room-section installer-notes-section" id="roomNotesSection"><h3 style="margin-top:0">📝 ${t('detail.roomNotes')}</h3><div class="installer-note-box">${noteReady?safe(r.notes):t('detail.noNotes')}</div></section>
@@ -1703,8 +1709,14 @@ function renderRoomDetail(r){
  $('#openDesignGuide').onclick=()=>$('#designGuideSection').scrollIntoView({behavior:'smooth',block:'start'});
  $('#openRoomNotes').onclick=()=>$('#roomNotesSection').scrollIntoView({behavior:'smooth',block:'start'});
  $('#openCuttingList').onclick=()=>{const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('bom')};
- $('#openQrPanels').onclick=()=>{const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('scan')};
- $('#openPanelCheck').onclick=()=>$('#panelCheckSection').scrollIntoView({behavior:'smooth',block:'start'});
+ // Panel Check and Fit Panels used to be two separate cards -- one main "Panels" entry
+ // point now asks which one, instead of the fitter needing to already know which of two
+ // similarly-named buttons does what.
+ $('#openPanels').onclick=()=>$('#panelsMenu').classList.remove('hidden');
+ $('#closePanelsMenu').onclick=()=>$('#panelsMenu').classList.add('hidden');
+ $('#panelsMenu').addEventListener('click',e=>{if(e.target.id==='panelsMenu')$('#panelsMenu').classList.add('hidden')});
+ $('#panelsMenuCheck').onclick=()=>{$('#panelsMenu').classList.add('hidden');$('#panelCheckSection').scrollIntoView({behavior:'smooth',block:'start'})};
+ $('#panelsMenuFit').onclick=()=>{$('#panelsMenu').classList.add('hidden');const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('scan')};
  $('#sendRoomUpdate').onclick=()=>exportJob(p.id);
 }
 
@@ -2523,7 +2535,7 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
 #openDesignGuide{border-color:#c9a9ff!important}
 #openRoomNotes{border-color:#ffc57a!important}
 #openCuttingList{border-color:#9dbdff!important}
-#openQrPanels{border-color:#9bddae!important}
+#openPanels{border-color:#9bddae!important}
 .installer-guide-card:hover{box-shadow:0 6px 18px rgba(39,42,84,.10)}
 .measure-row,.photo-row{border:2px solid #9dbdff!important;border-radius:14px!important}
 #installList .measure-row{border-color:#ffc57a!important}
