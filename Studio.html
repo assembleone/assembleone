@@ -2070,7 +2070,10 @@ function jobStatusInfo(p){
  const hasDrawing=(p.cabinets||[]).some(c=>c.drawing||c.hasStoredDrawing);
  const allInstalled=parts.length>0&&parts.every(x=>x.status==="installed");
  const someInstalled=parts.some(x=>x.status==="installed");
- if(allInstalled)return{label:"✅ Installed",cls:"status-done"};
+ // A fitter who knows where 80 of 100 panels go can press Finish Job without scanning
+ // every single one -- "every panel installed" alone would never count that as complete.
+ const allRoomsFinished=(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished);
+ if(allInstalled||allRoomsFinished)return{label:"✅ Installed",cls:"status-done"};
  if(someInstalled)return{label:"🔧 Installing",cls:"status-progress"};
  if(parts.length)return{label:"📐 Cutting list ready",cls:"status-progress"};
  if(hasDrawing)return{label:"✏️ Drawing in progress",cls:"status-progress"};
@@ -5323,7 +5326,7 @@ body.guide-only .a131-back-studio{display:block}
     // both, not just the one it was sorted from.
     const flagged=t.rows.filter(({pt})=>(pt.status==='missing'||pt.status==='damaged')&&!pt.attentionSorted);
     box.innerHTML=`<div class="install-progress-head"><strong>Installation Progress</strong><span>${t.installed} of ${t.total} panels fitted · ${t.pct}%</span></div>
-      <div class="install-progress-fitter"><span>Fitter:</span>${typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):''}</div>
+      <div class="install-progress-fitter"><span>Lead Fitter:</span>${typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):''}${typeof window.a211OtherFittersHtml==='function'?window.a211OtherFittersHtml(p):''}</div>
       <div class="install-progress-bar"><i style="width:${t.pct}%"></i></div>
       <div class="install-progress-stats">
         <div class="install-stat installed"><b>${t.installed}</b><span>Installed</span></div>
@@ -6500,8 +6503,15 @@ body.fiq-locked .app{display:none!important}
 .fitter-select:focus{background:#fff;border-color:#8B5CF6}
 .fitter-whatsapp-btn{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid #25d366;background:#25d366;color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .fitter-whatsapp-btn:disabled{opacity:.4;cursor:not-allowed}
-.install-progress-fitter{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:13px}
+.install-progress-fitter{display:flex;align-items:flex-start;gap:8px;margin:8px 0 2px;font-size:13px;flex-wrap:wrap}
 .install-progress-fitter .fitter-row{max-width:220px}
+.fitter-team-others{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fitter-chip{display:flex;align-items:center;gap:4px;background:#f7f8fb;border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 10px;font-size:12px;font-weight:700;color:var(--ink)}
+.fitter-chip-whatsapp,.fitter-chip-remove{flex:none;width:20px;height:20px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;font-size:11px}
+.fitter-chip-whatsapp{background:#25d366;color:#fff}
+.fitter-chip-whatsapp:disabled{opacity:.4;cursor:not-allowed}
+.fitter-chip-remove{background:#f0eee8;color:#6d667b}
+.fitter-add-other{border:1px solid var(--line);border-radius:8px;padding:4px 6px;font-size:12px;font-weight:700;color:var(--ink);background:#f7f8fb}
 </style>
 <script id="a211-fitter-whatsapp-script">
 (function(){
@@ -6562,6 +6572,31 @@ body.fiq-locked .app{display:none!important}
       '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(p.id)+'" title="Message on WhatsApp" '+(hasPhone?'':'disabled')+'>💬</button>'+
     '</div>';
   }
+  // A job can have more than one fitter on it (people working together) -- one of them is
+  // the Lead Fitter (the existing assignedFitter field, unchanged so every place that
+  // already reads it -- WhatsApp, Job Overview, Install Progress -- keeps working). This
+  // adds the rest of the team as otherFitters, only shown where there's room to manage
+  // them (inside the job), not on the tight Job Overview row.
+  function otherFittersHtml(p){
+    const fitters=ensureFitters();
+    const lead=(p.assignedFitter||'').trim().toLowerCase();
+    const others=(p.otherFitters||[]).filter(Boolean);
+    const available=fitters.filter(f=>f.name.trim().toLowerCase()!==lead&&!others.some(n=>n.trim().toLowerCase()===f.name.trim().toLowerCase()));
+    const chips=others.map((name,i)=>{
+      const f=fitterByName(name);
+      const hasPhone=!!(f&&f.phone);
+      return '<div class="fitter-chip"><span>'+safe(name)+'</span>'+
+        '<button type="button" class="fitter-chip-whatsapp" data-other-whatsapp="'+i+'" data-team-project="'+safe(p.id)+'" title="Message on WhatsApp" '+(hasPhone?'':'disabled')+'>💬</button>'+
+        '<button type="button" class="fitter-chip-remove" data-other-remove="'+i+'" data-team-project="'+safe(p.id)+'" title="Remove from this job">✕</button>'+
+      '</div>';
+    }).join('');
+    const addOptions=['<option value="">+ Add another fitter</option>']
+      .concat(available.map(f=>'<option value="'+safe(f.name)+'">'+safe(f.name)+'</option>'))
+      .concat(['<option value="__add__">+ New fitter…</option>']);
+    return '<div class="fitter-team-others">'+chips+
+      '<select class="fitter-add-other" data-add-other="'+safe(p.id)+'">'+addOptions.join('')+'</select>'+
+    '</div>';
+  }
   function wireFitterRow(container,getProject){
     container.querySelectorAll('[data-fitter-select]').forEach(sel=>{
       sel.onclick=e=>e.stopPropagation();
@@ -6594,8 +6629,44 @@ body.fiq-locked .app{display:none!important}
         window.open('https://wa.me/'+phone,'_blank');
       };
     });
+    container.querySelectorAll('[data-add-other]').forEach(sel=>{
+      sel.onclick=e=>e.stopPropagation();
+      sel.onchange=e=>{
+        e.stopPropagation();
+        const p=getProject(sel.dataset.addOther);if(!p)return;
+        let name=sel.value;
+        if(name==='__add__'){const fitter=promptNewFitter();name=fitter?fitter.name:''}
+        if(!name){return}
+        p.otherFitters=p.otherFitters||[];
+        if(!p.otherFitters.some(n=>n.trim().toLowerCase()===name.trim().toLowerCase()))p.otherFitters.push(name);
+        save();
+        if(typeof renderAll==='function')renderAll();
+      };
+    });
+    container.querySelectorAll('[data-other-remove]').forEach(btn=>{
+      btn.onclick=e=>{
+        e.stopPropagation();
+        const p=getProject(btn.dataset.teamProject);if(!p)return;
+        const i=Number(btn.dataset.otherRemove);
+        (p.otherFitters=p.otherFitters||[]).splice(i,1);
+        save();
+        if(typeof renderAll==='function')renderAll();
+      };
+    });
+    container.querySelectorAll('[data-other-whatsapp]').forEach(btn=>{
+      btn.onclick=e=>{
+        e.stopPropagation();
+        const p=getProject(btn.dataset.teamProject);if(!p)return;
+        const name=(p.otherFitters||[])[Number(btn.dataset.otherWhatsapp)];
+        const fitter=fitterByName(name);
+        const phone=digitsOnly(fitter&&fitter.phone);
+        if(!phone){alert('Add a WhatsApp number for '+(name||'this fitter')+' first.');return}
+        window.open('https://wa.me/'+phone,'_blank');
+      };
+    });
   }
   window.a211FitterRowHtml=fitterRowHtml;
+  window.a211OtherFittersHtml=otherFittersHtml;
   window.a211WireFitterRow=wireFitterRow;
 })();
 </script>
