@@ -141,6 +141,8 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .panel-check-row.status-installed .panel-check-badge{background:#e6f7ec;color:#16a34a}
 .panel-check-row.status-missing .panel-check-badge{background:#fff4e0;color:#b5760a}
 .panel-check-row.status-damaged .panel-check-badge{background:#fff0f0;color:#d92f38}
+.panel-check-finish-btn{margin-top:12px;width:100%}
+.panel-check-complete-banner{margin-top:12px;padding:14px;border-radius:14px;background:#e6f7ec;color:#16a34a;font-weight:900;font-size:16px;text-align:center;border:2px solid #9be0af}
 
 /* Version 10.53 mobile navigation */
 nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
@@ -1744,7 +1746,7 @@ function renderRoomDetail(r){
  </div>
  <section class="room-section installer-design-section" id="designGuideSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designCount}</span></div><div class="room-photo-grid">${designCount?r.designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join(''):`<div class="room-empty">${t('detail.noDesignViews')}</div>`}</div></section>
  <section class="room-section installer-notes-section" id="roomNotesSection"><h3 style="margin-top:0">📝 ${t('detail.roomNotes')}</h3><div class="installer-note-box">${noteReady?safe(r.notes):t('detail.noNotes')}</div></section>
- <section class="room-section installer-check-section" id="panelCheckSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">✅ ${t('detail.checkPanels')}</h3><span class="room-count">${checkedCount}/${roomUnitTotal} ${t('detail.checkPanelsAccounted')}</span></div><div class="panel-check-list">${roomParts.length?roomParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=pt.status||'ready';return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}</div></div><span class="panel-check-badge">${safe(statusLabel(pt.status))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div></section>
+ <section class="room-section installer-check-section" id="panelCheckSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">✅ ${t('detail.checkPanels')}</h3><span class="room-count">${checkedCount}/${roomUnitTotal} ${t('detail.checkPanelsAccounted')}</span></div><div class="panel-check-list">${roomParts.length?roomParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=pt.status||'ready';return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}</div></div><span class="panel-check-badge">${safe(statusLabel(pt.status))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div>${r.panelCheckFinished?'<div class="panel-check-complete-banner">✓ PANEL CHECK COMPLETE</div>':(roomParts.length?'<button type="button" class="btn primary panel-check-finish-btn" id="finishPanelCheckBtn">✓ Finish Panel Check</button>':'')}</section>
  <button class="btn primary installer-send-update" id="sendRoomUpdate">${t('detail.sendSiteUpdate')}</button>`;
  $('#backRooms').onclick=()=>{state.currentRoom=null;save();show('projects')};
  $('#deleteRoom').onclick=()=>{if(confirm(t('msg.confirmDeleteNamed',[r.name]))){p.rooms=p.rooms.filter(x=>x.id!==r.id);state.currentRoom=null;save();show('projects')}};
@@ -1760,6 +1762,15 @@ function renderRoomDetail(r){
  $('#panelsMenuCheck').onclick=()=>{$('#panelsMenu').classList.add('hidden');$('#panelCheckSection').scrollIntoView({behavior:'smooth',block:'start'})};
  $('#panelsMenuFit').onclick=()=>{$('#panelsMenu').classList.add('hidden');const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('scan')};
  $('#sendRoomUpdate').onclick=()=>exportJob(p.id);
+ // Marks the delivery check as done for this room -- it does not lock any panel's status,
+ // so an unchecked panel found later can still be corrected. It just tells Studio the
+ // physical check is over, so anything still unchecked can confidently be read as missing
+ // from that check rather than "not reached yet."
+ $('#finishPanelCheckBtn')?.addEventListener('click',()=>{
+  if(!confirm('Finish Panel Check for '+(r.name||'this room')+'? You can still correct any panel afterwards.'))return;
+  r.panelCheckFinished=true;r.panelCheckFinishedAt=new Date().toISOString();
+  save();renderRoomDetail(r);
+ });
 }
 
 function addRoomPhoto(file,kind){const r=currentRoom();if(!r||!file)return;compressImage(file,data=>{const item={id:uid(),data,name:file.name||''};if(kind==='before')r.beforePhotos.push(item);else r.designImages.push(item);save();renderRoomDetail(r)},()=>alert(t('msg.photoLoadFailed')))}
@@ -1835,7 +1846,12 @@ function mergeStudioProject(incoming){
     designImages:(ir.designImages&&ir.designImages.length)?ir.designImages:or.designImages,
     notes:or.notes||ir.notes,location:or.location||ir.location,
     siteMarkup:or.siteMarkup||ir.siteMarkup,
-    measureCaptures:(or.measureCaptures&&or.measureCaptures.length)?or.measureCaptures:ir.measureCaptures};
+    measureCaptures:(or.measureCaptures&&or.measureCaptures.length)?or.measureCaptures:ir.measureCaptures,
+    // A resend from Studio that predates this room's Finish Panel Check has no idea it
+    // happened, so its copy of the room simply lacks the flag -- without this, spreading
+    // the incoming room over the old one would silently un-finish it.
+    panelCheckFinished:or.panelCheckFinished||ir.panelCheckFinished||false,
+    panelCheckFinishedAt:or.panelCheckFinishedAt||ir.panelCheckFinishedAt||null};
   });
   oldRooms.forEach(or=>{if(!mergedRooms.some(mr=>mr.id===or.id))mergedRooms.push(or)});
   incoming.rooms=mergedRooms;

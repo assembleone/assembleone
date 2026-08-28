@@ -1550,6 +1550,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </section>
 <section class="screen" id="screen-parts">
 <div class="title-row"><div><h2>Panel Check</h2><div class="muted">Check every panel before making the cutting list.</div></div></div>
+<div id="panelCheckStatusBanner"></div>
 <div id="installProgressCard"></div>
 <div id="estimatedMaterialsCard"></div>
 <div class="notice" id="componentsValidation" style="display:none;margin-bottom:10px"></div>
@@ -6205,6 +6206,22 @@ body.fiq-locked .app{display:none!important}
     }));
     return {checked,total};
   }
+  // Panel Check is finished per room on Mobile (see Mobile.html's finishPanelCheckBtn) --
+  // a job with no rooms recorded can't be "finished" by definition, and a mixed job (one
+  // room finished, another still open) isn't done until every room is.
+  function jobPanelCheckFinished(p){
+    const rooms=(p.rooms||[]).filter(Boolean);
+    return rooms.length>0&&rooms.every(r=>!!r.panelCheckFinished);
+  }
+  function jobPanelCheckMissingCodes(p){
+    const codes=[];
+    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      const q=Math.max(1,Number(part.qty)||1);
+      const scanned=Math.min(q,Math.max(0,Number(part.scannedQty)||0));
+      if(scanned<q)codes.push(part.code||'?');
+    }));
+    return codes;
+  }
   function jobFittedTotals(p){
     let total=0,installed=0;
     (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
@@ -6252,6 +6269,9 @@ body.fiq-locked .app{display:none!important}
     });
   }
   window.a208FilterCustomerLibrary=filterCustomerLibraryByProject;
+  window.jobPanelCheckTotals=jobPanelCheckTotals;
+  window.jobPanelCheckFinished=jobPanelCheckFinished;
+  window.jobPanelCheckMissingCodes=jobPanelCheckMissingCodes;
 
   function renderHomeDashboard(){
     const actions=document.querySelector('.studio-home-actions');
@@ -6302,16 +6322,22 @@ body.fiq-locked .app{display:none!important}
       const drawingCab=(p.cabinets||[]).find(c=>c.drawing&&c.drawingType!=='pdf');
       const thumb=drawingCab?('<img src="'+drawingCab.drawing+'" alt="Drawing preview">'):'<span>📐</span>';
       const pc=jobPanelCheckTotals(p);
+      const pcFinished=jobPanelCheckFinished(p);
+      const pcMissing=pcFinished?jobPanelCheckMissingCodes(p):[];
       const pcIcon=pc.total>0&&pc.checked>=pc.total?'✅':(pc.total>0?'⚠️':'');
+      // Once Panel Check is finished, "checked / total" stops being the useful number --
+      // what matters is whether the delivery check is done, and whether anything never
+      // turned up. Missing codes go in the full Panel Check screen, not this tight column.
+      const pcValue=pcFinished?(pcMissing.length?'⚠ Missing ('+pcMissing.length+')':'✓ Complete'):((pc.total?pc.checked+' / '+pc.total:'—')+' '+pcIcon);
       const fit=jobFittedTotals(p);
       const showFitted=fit.installed>0;
       const fitPct=fit.total>0?Math.round(fit.installed/fit.total*100):0;
-      const warn=jobNeedsAttention(p)?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="Needs attention — tap to open Panel Check">⚠️</span>':'<span class="jor-warn"></span>';
+      const warn=(jobNeedsAttention(p)||(pcFinished&&pcMissing.length))?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="Needs attention — tap to open Panel Check">⚠️</span>':'<span class="jor-warn"></span>';
       return '<div class="job-overview-row" data-open-job-card="'+safe(p.id)+'">'+
         '<div class="jor-thumb">'+thumb+'</div>'+
         '<div class="jor-main"><div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room">'+safe(jobRoomLabel(p)||p.name||'')+'</div></div>'+
         '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):'')+'</div>'+
-        '<div class="jor-stat" data-open-panel-check="'+safe(p.id)+'" title="Open Panel Check"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+(pc.total?pc.checked+' / '+pc.total:'—')+' '+pcIcon+'</div></div>'+
+        '<div class="jor-stat" data-open-panel-check="'+safe(p.id)+'" title="Open Panel Check"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+pcValue+'</div></div>'+
         '<div class="jor-stat"><div class="jor-stat-label">Fitted</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
         warn+
         '<span class="jor-chevron">›</span>'+
@@ -6571,6 +6597,32 @@ body.fiq-locked .app{display:none!important}
   }
   window.a211FitterRowHtml=fitterRowHtml;
   window.a211WireFitterRow=wireFitterRow;
+})();
+</script>
+<style id="a212-panel-check-status-style">
+.panel-check-status-banner{margin-bottom:14px;padding:14px 16px;border-radius:14px;font-weight:900;font-size:15px}
+.panel-check-status-banner.complete{background:#e6f7ec;color:#16a34a;border:2px solid #9be0af}
+.panel-check-status-banner.missing{background:#fff1f1;color:#bf1f29;border:2px solid #f4b3b3}
+</style>
+<script id="a212-panel-check-status-script">
+(function(){
+  // Mirrors Mobile's per-room Finish Panel Check into a clear, unmissable line on the
+  // Panel Check screen itself -- the Job Overview column is too narrow for the missing
+  // panel codes the boss actually needs to act on.
+  function render(){
+    const box=document.getElementById('panelCheckStatusBanner');if(!box)return;
+    const p=(typeof project==='function')?project():null;
+    if(!p||typeof window.jobPanelCheckFinished!=='function'){box.innerHTML='';return}
+    if(!window.jobPanelCheckFinished(p)){box.innerHTML='';return}
+    const missing=window.jobPanelCheckMissingCodes(p);
+    box.innerHTML=missing.length
+      ?'<div class="panel-check-status-banner missing">Panel Check: Complete — Missing '+missing.map(safe).join(', ')+'</div>'
+      :'<div class="panel-check-status-banner complete">Panel Check: Complete — '+window.jobPanelCheckTotals(p).total+'/'+window.jobPanelCheckTotals(p).total+' ✓</div>';
+  }
+  const prevRenderParts=window.renderParts;
+  window.renderParts=function(){const r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
+  try{renderParts=window.renderParts}catch(e){}
+  try{render()}catch(e){}
 })();
 </script>
 <script>window.FIQ_HELP_APP="studio";</script>
