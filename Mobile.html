@@ -654,7 +654,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -669,7 +669,7 @@ const fiqApp = initializeApp(firebaseConfig);
 window.fiqAuth = getAuth(fiqApp);
 window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <div id="fiqAuthGate" class="fiq-auth-gate">
@@ -711,6 +711,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <h1>Account suspended</h1>
       <p class="fiq-auth-lead">This account no longer has access. Contact your company owner or FittersIQ support.</p>
       <button class="fiq-auth-link" id="fiqSuspendedSignOutBtn" type="button">Sign out</button>
+    </div>
+
+    <div class="fiq-auth-state" id="fiqStateDeviceWaiting" hidden>
+      <h1>New device</h1>
+      <p class="fiq-auth-lead">Your company requires new phones to be approved before they can see company jobs. Ask your company owner to approve this device in Studio -- it'll continue automatically once they do.</p>
+      <button class="fiq-auth-link" id="fiqDeviceWaitingSignOutBtn" type="button">Sign out</button>
     </div>
   </div>
 </div>
@@ -3296,7 +3302,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   function initFiqAuthGate(){
   function $(id){return document.getElementById(id)}
   function showState(id){
-    ['fiqStateChecking','fiqStateSignIn','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended'].forEach(function(s){
+    ['fiqStateChecking','fiqStateSignIn','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended','fiqStateDeviceWaiting'].forEach(function(s){
       var el=$(s); if(el) el.hidden = (s!==id);
     });
   }
@@ -3323,8 +3329,40 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     if(badge){badge.style.display='flex'; $('fiqAccountEmail').textContent=user.email;}
   }
 
+  var DEVICE_ID_KEY = 'assembleone_device_id';
+  function getDeviceId(){
+    try{
+      var id = localStorage.getItem(DEVICE_ID_KEY);
+      if(!id){
+        id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2);
+        localStorage.setItem(DEVICE_ID_KEY, id);
+      }
+      return id;
+    }catch(e){ return 'dev_unstored' }
+  }
+  var deviceWaitPoll = null;
+  // Only checked when the company has actually turned this on (companies/{id}.deviceApprovalEnabled)
+  // -- for every company that hasn't, this is a no-op and nothing changes for anyone. A brand
+  // new device always registers itself as unapproved (the security rule enforces that, this
+  // isn't just a client courtesy); only the boss can flip it to approved, from Studio.
+  async function checkDeviceApproval(user, companyId){
+    var companySnap = await authFns.getDoc(authFns.doc(db,'companies',companyId));
+    if(!companySnap.exists() || companySnap.data().deviceApprovalEnabled !== true) return true;
+    var deviceId = getDeviceId();
+    var deviceRef = authFns.doc(db,'companies',companyId,'members',user.uid,'devices',deviceId);
+    var deviceSnap = await authFns.getDoc(deviceRef);
+    if(!deviceSnap.exists()){
+      try{
+        await authFns.setDoc(deviceRef, {deviceId:deviceId, label:(navigator.userAgent||'').slice(0,120), approved:false, createdAt:new Date().toISOString(), lastSeenAt:new Date().toISOString()});
+      }catch(e){}
+      return false;
+    }
+    if(deviceSnap.data().approved !== true) return false;
+    try{ await authFns.updateDoc(deviceRef, {lastSeenAt:new Date().toISOString()}); }catch(e){}
+    return true;
+  }
   async function evaluate(user){
-    if(!user){ lockToSignIn(); return; }
+    if(!user){ if(deviceWaitPoll){ clearInterval(deviceWaitPoll); deviceWaitPoll = null; } lockToSignIn(); return; }
     if(!user.emailVerified){
       $('fiqVerifyLead').textContent = "We've sent a verification link to " + user.email + ".";
       showState('fiqStateVerify');
@@ -3347,7 +3385,20 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
         showState('fiqStateSuspended');
         return;
       }
+      try{
+        var approved = await checkDeviceApproval(user, claims.companyId);
+        if(!approved){
+          showState('fiqStateDeviceWaiting');
+          if(!deviceWaitPoll) deviceWaitPoll = setInterval(function(){ evaluate(user).catch(function(){}); }, 10000);
+          return;
+        }
+      }catch(e){
+        // A transient read failure here shouldn't lock out an otherwise-legitimate,
+        // already-approved device -- fail open rather than turn a network hiccup into an
+        // outage nobody can explain.
+      }
     }
+    if(deviceWaitPoll){ clearInterval(deviceWaitPoll); deviceWaitPoll = null; }
     unlockApp(user, claims);
   }
 
@@ -3410,7 +3461,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     var t=setInterval(function(){ s--; if(s<=0){clearInterval(t); btn.disabled=false; btn.textContent='Resend verification email'; resendCooling=false;} else btn.textContent='Resend verification email ('+s+'s)'; },1000);
   });
 
-  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn'].forEach(function(id){
+  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn','fiqDeviceWaitingSignOutBtn'].forEach(function(id){
     var el=$(id); if(el) el.addEventListener('click', function(){ authFns.signOut(auth); });
   });
   } // end initFiqAuthGate

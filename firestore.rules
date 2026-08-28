@@ -68,6 +68,23 @@ service cloud.firestore {
         allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
         allow write: if isFittersIQAdmin();
       }
+
+      // Registered-device approval (opt-in per company via companies/{id}.deviceApprovalEnabled,
+      // checked client-side -- these rules apply regardless of that flag, they just have
+      // nothing to enforce until a device doc actually exists). A device always starts
+      // unapproved and can only self-register that way; only the doc's own uid may create
+      // it, so nobody can pre-approve themselves. Only a company owner (or FittersIQ admin)
+      // may flip approved, and only that field plus lastSeenAt -- never anything else.
+      match /members/{uid}/devices/{deviceId} {
+        allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+        allow create: if signedIn() && request.auth.uid == uid
+                      && isCompanyMember(companyId)
+                      && request.resource.data.approved == false;
+        allow update: if isFittersIQAdmin()
+                      || (isCompanyOwner(companyId)
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved','lastSeenAt']));
+        allow delete: if isFittersIQAdmin() || isCompanyOwner(companyId);
+      }
     }
 
     match /supportSessions/{sessionId} {

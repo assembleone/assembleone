@@ -6754,6 +6754,10 @@ body.fiq-locked .app{display:none!important}
 .fitter-account-status.active{background:#e6f7ec;color:#16a34a}
 .fitter-account-status.suspended{background:#fbe7e7;color:#bf1f29}
 .fitter-account-status.pending{background:#fdf0e0;color:#c96a00}
+.fitter-device-toggle{display:block;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px;padding:8px 12px;background:#f7f8fb;border-radius:10px}
+.fitter-device-toggle input{margin-right:8px}
+.fitter-device-row{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 24px;border-bottom:1px solid #f2f1ee}
+.fitter-device-row>small:first-child{flex:1;min-width:0;color:#6d667b}
 </style>
 <div class="attention-modal" id="fitterAccountsModal" aria-hidden="true">
  <div class="attention-dialog" role="dialog" aria-modal="true" aria-labelledby="fitterAccountsModalTitle">
@@ -6795,19 +6799,38 @@ body.fiq-locked .app{display:none!important}
       return out;
     }catch(e){return []}
   }
+  async function loadDevices(uid){
+    const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+    if(!fs||!db||!user||!user.companyId)return [];
+    try{
+      const snap=await fs.getDocs(fs.collection(db,'companies',user.companyId,'members',uid,'devices'));
+      const out=[];snap.forEach(d=>out.push({id:d.id,...d.data()}));
+      return out;
+    }catch(e){return []}
+  }
   async function render(){
     const box=document.getElementById('fitterAccountsBody');if(!box)return;
-    const user=window.fittersiqUser;
+    const user=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;
     if(!user||!user.companyId){box.innerHTML='<div class="empty">Not connected to a company.</div>';return}
     box.innerHTML='<div class="empty">Loading…</div>';
     const [company,members,invitations]=await Promise.all([loadCompany(),loadMembers(),loadInvitations()]);
     const isOwner=user.role==='company_owner';
     const activeFitters=members.filter(m=>m.role==='fitter'&&m.status==='active');
     const maxUsers=company&&company.maxUsers;
+    const deviceApprovalOn=!!(company&&company.deviceApprovalEnabled);
     const seatsLine=maxUsers?('<div class="fitter-accounts-seats">'+activeFitters.length+' of '+maxUsers+' Mobile seat'+(maxUsers===1?'':'s')+' used</div>'):'';
+    const deviceToggle=isOwner?('<label class="fitter-device-toggle"><input type="checkbox" id="fitterDeviceApprovalToggle" '+(deviceApprovalOn?'checked':'')+'> Require new phones to be approved before they can see company jobs</label>'):'';
     const pendingInvites=invitations.filter(i=>i.status==='pending');
+    const fitterMembers=members.filter(m=>m.role==='fitter');
+    const devicesByMember=deviceApprovalOn?Object.fromEntries(await Promise.all(fitterMembers.map(async m=>[m.uid,await loadDevices(m.uid)]))):{};
+    function deviceRowsFor(m){
+      if(!deviceApprovalOn)return'';
+      const devices=devicesByMember[m.uid]||[];
+      if(!devices.length)return'<div class="fitter-device-row"><small>No devices yet.</small></div>';
+      return devices.map(d=>'<div class="fitter-device-row"><small>'+safe(d.label||d.id)+'</small><span class="fitter-account-status '+(d.approved?'active':'pending')+'">'+(d.approved?'Approved':'Waiting')+'</span>'+(isOwner?('<button type="button" class="btn '+(d.approved?'danger':'primary')+'" data-toggle-device="'+safe(m.uid)+'|'+safe(d.id)+'" data-device-approved="'+(d.approved?'1':'0')+'">'+(d.approved?'Revoke':'Approve')+'</button>'):'')+'</div>').join('');
+    }
     box.innerHTML=
-      seatsLine+
+      seatsLine+deviceToggle+
       (isOwner?'<div class="fitter-invite-row"><input type="email" id="fitterInviteEmail" placeholder="fitter@example.com"><button type="button" class="btn primary" id="fitterInviteBtn">+ Invite fitter</button></div>':'')+
       (pendingInvites.length?'<div class="fitter-accounts-section-head">Pending invitations</div>'+pendingInvites.map(i=>'<div class="fitter-account-row"><span>'+safe(i.email)+'</span><span class="fitter-account-status pending">Pending</span></div>').join(''):'')+
       '<div class="fitter-accounts-section-head">Team</div>'+
@@ -6816,9 +6839,34 @@ body.fiq-locked .app{display:none!important}
         const label=m.role==='company_owner'?'Owner':'Fitter';
         const statusCls=m.status==='active'?'active':'suspended';
         const toggleBtn=(isOwner&&!isSelf&&m.role!=='company_owner')?('<button type="button" class="btn '+(m.status==='active'?'danger':'')+'" data-toggle-member="'+safe(m.uid)+'" data-current-status="'+safe(m.status)+'">'+(m.status==='active'?'Suspend':'Reactivate')+'</button>'):'';
-        return '<div class="fitter-account-row"><span>'+safe(m.email||m.uid)+' <small>('+label+')</small></span><span class="fitter-account-status '+statusCls+'">'+safe(m.status)+'</span>'+toggleBtn+'</div>';
+        return '<div class="fitter-account-row"><span>'+safe(m.email||m.uid)+' <small>('+label+')</small></span><span class="fitter-account-status '+statusCls+'">'+safe(m.status)+'</span>'+toggleBtn+'</div>'+(m.role==='fitter'?deviceRowsFor(m):'');
       }).join(''):'<div class="empty">No team members yet.</div>');
 
+    const deviceToggleEl=document.getElementById('fitterDeviceApprovalToggle');
+    if(deviceToggleEl)deviceToggleEl.onchange=async()=>{
+      deviceToggleEl.disabled=true;
+      try{
+        await fs.updateDoc(fs.doc(db,'companies',user.companyId),{deviceApprovalEnabled:deviceToggleEl.checked});
+        render();
+      }catch(e){
+        alert(e&&e.message||'Could not update this setting.');
+        deviceToggleEl.disabled=false;deviceToggleEl.checked=!deviceToggleEl.checked;
+      }
+    };
+    box.querySelectorAll('[data-toggle-device]').forEach(btn=>{
+      btn.onclick=async()=>{
+        const [memberUid,deviceId]=btn.dataset.toggleDevice.split('|');
+        const nextApproved=btn.dataset.deviceApproved!=='1';
+        btn.disabled=true;
+        try{
+          await fs.updateDoc(fs.doc(db,'companies',user.companyId,'members',memberUid,'devices',deviceId),{approved:nextApproved,lastSeenAt:new Date().toISOString()});
+          render();
+        }catch(e){
+          alert(e&&e.message||'Could not update this device.');
+          btn.disabled=false;
+        }
+      };
+    });
     const inviteBtn=document.getElementById('fitterInviteBtn');
     if(inviteBtn)inviteBtn.onclick=async()=>{
       const input=document.getElementById('fitterInviteEmail');
