@@ -5458,7 +5458,8 @@ body.fiq-locked .app{display:none!important}
 .sheet-optim-toggle-btn.open{background:#0051ff;color:#fff;border-color:#0046dc}
 .sheet-optim-card .muted{margin-bottom:4px}
 .sheet-optim-empty{padding:10px 2px;color:#716c7e;font-weight:600}
-.sheet-optim-group{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px;background:#fff}
+.sheet-optim-group{border:1px solid var(--line);border-left-width:6px;border-radius:14px;padding:14px;margin-top:12px;background:#fff}
+.sheet-optim-swatch{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:8px;vertical-align:middle;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 .sheet-optim-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px 14px;align-items:baseline;margin-bottom:6px}
 .sheet-optim-head h4{margin:0;font-size:19px}
 .sheet-optim-settings{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:8px 0 12px;padding:10px;background:#f7f8fb;border-radius:10px}
@@ -5497,6 +5498,11 @@ body.fiq-locked .app{display:none!important}
   }
 
   function colorFor(code){var s=String(code||''),h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PALETTE[h%PALETTE.length]}
+  // By position in this render (not a hash of the name) -- a hash can put two different
+  // materials on the same colour by coincidence, which defeats the point when the goal is
+  // telling them apart at a glance. Assigning by order guarantees every group in the same
+  // job gets a different colour from the others, up to the size of the palette.
+  function colorForGroup(idx){return PALETTE[idx%PALETTE.length]}
 
   // Guillotine bin packing: best-area-fit placement, shorter-leftover-axis split, optional 90deg rotation.
   // trim is a factory edge allowance trimmed off all four sides of the raw sheet before nesting starts.
@@ -5634,8 +5640,9 @@ body.fiq-locked .app{display:none!important}
       return '<div class="sheet-optim-sheet">'+sheetSvg(s,cfg)+'<div class="sheet-caption">Sheet '+(i+1)+' of '+g.sheets.length+' · '+s.placements.length+' panel'+(s.placements.length===1?'':'s')+' · '+wp+'% waste</div></div>';
     }).join('');
     var usedM2=fmt(g.usedArea/1e6),totalM2=fmt(g.sheets.length*cfg.w*cfg.h/1e6),wasteM2=fmt(Math.max(0,totalM2-usedM2));
-    return '<div class="sheet-optim-group" data-sheet-group="'+idx+'">'+
-      '<div class="sheet-optim-head"><h4>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</h4></div>'+
+    var groupColor=colorForGroup(idx);
+    return '<div class="sheet-optim-group" data-sheet-group="'+idx+'" style="border-left-color:'+groupColor+'">'+
+      '<div class="sheet-optim-head"><h4><span class="sheet-optim-swatch" style="background:'+groupColor+'"></span>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</h4></div>'+
       '<div class="sheet-optim-settings">'+
         '<label>Sheet length (mm)<br><small>grain direction, shown vertically</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
         '<label>Sheet width (mm)<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label>'+
