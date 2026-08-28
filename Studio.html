@@ -2495,7 +2495,14 @@ async function sendPackToPhoneDirectly(pack){
  if(!stored&&!cloudSent)throw new Error(cloudError||"Direct phone storage unavailable");
  return {...packet,cloudSent,cloudError};
 }
-async function exportProjectToMobile(){const p=ensureSharedProject(project());if(!p)return alert("Open a job first.");p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer;save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
+async function exportProjectToMobile(target){const p=ensureSharedProject(target||project());if(!p)return alert("Open a job first.");
+  // The project-name/customer inputs only ever reflect whichever job is open in the editor
+  // right now -- reading them for a DIFFERENT job (e.g. one being auto-sent the moment a
+  // fitter is assigned to it from Job Overview, without opening it) would silently
+  // overwrite that job's real name/customer with whatever unrelated text happens to be
+  // sitting in those fields.
+  if(p===project()){p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer}
+  save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 mergeJobLog(base,incoming.jobLog);
@@ -6603,6 +6610,10 @@ body.fiq-locked .app{display:none!important}
       sel.onchange=e=>{
         e.stopPropagation();
         const p=getProject(sel.dataset.fitterSelect);if(!p)return;
+        // Computed before anything changes assignedFitter below -- this is "does this job
+        // have nobody on it yet, and has it never reached Mobile" at the moment the boss
+        // acts, regardless of which of the two ways (pick existing / add new) they used.
+        const wasUnassignedAndUnsent=!p.assignedFitter&&!p.lastMobileSync;
         if(sel.value==='__add__'){
           const fitter=promptNewFitter();
           p.assignedFitter=fitter?fitter.name:'';
@@ -6617,6 +6628,11 @@ body.fiq-locked .app{display:none!important}
           save();
           if(typeof renderAll==='function')renderAll();
         }
+        // Assigning the first fitter to a job that's never been sent is the moment the
+        // boss actually means "this is ready for them" -- reuse the exact same send this
+        // job would get from pressing Send to Mobile by hand, instead of adding a second,
+        // separate sync path that could drift from the one already proven to work.
+        if(wasUnassignedAndUnsent&&p.assignedFitter&&typeof exportProjectToMobile==='function')exportProjectToMobile(p);
       };
     });
     container.querySelectorAll('[data-fitter-whatsapp]').forEach(btn=>{
