@@ -2502,6 +2502,10 @@ async function exportProjectToMobile(target){const p=ensureSharedProject(target|
   // overwrite that job's real name/customer with whatever unrelated text happens to be
   // sitting in those fields.
   if(p===project()){p.name=$("#projectName").value||p.name;p.customer=$("#customerName").value||p.customer}
+  // Which fitters (by their Mobile login email, if they have one) can actually open this
+  // job on the phone -- computed fresh on every send so a reassignment takes effect the
+  // next time this job goes out, not just once at first assignment.
+  p.assignedEmails=(typeof window.a211AssignedEmailsFor==='function')?window.a211AssignedEmailsFor(p):[];
   save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
@@ -6527,12 +6531,27 @@ body.fiq-locked .app{display:none!important}
   // needs enough to open a WhatsApp chat; it never sends anything itself.
   function ensureFitters(){state.fitters=state.fitters||[];return state.fitters}
   function fitterByName(name){if(!name)return null;const n=name.trim().toLowerCase();return ensureFitters().find(f=>f.name.trim().toLowerCase()===n)||null}
+  // The emails behind whoever is assigned to a job, for Mobile to check "is this job mine"
+  // against its own signed-in email -- only fitters who actually have a Mobile login (an
+  // email set on their roster entry) can be checked this way, so a fitter with no email yet
+  // is simply left out rather than silently blocking the whole job for everyone.
+  function assignedEmailsFor(p){
+    const names=[p&&p.assignedFitter,...((p&&p.otherFitters)||[])].filter(Boolean);
+    const emails=names.map(n=>{const f=fitterByName(n);return f&&f.email?f.email.trim().toLowerCase():null}).filter(Boolean);
+    return [...new Set(emails)];
+  }
+  window.a211AssignedEmailsFor=assignedEmailsFor;
   function digitsOnly(s){return String(s||'').replace(/[^0-9]/g,'')}
   function promptNewFitter(){
     const name=prompt('Fitter name:');
     if(!name||!name.trim())return null;
     const phone=prompt('Their WhatsApp/mobile number (with country code, e.g. +44 7700 900123):');
-    const fitter={id:uid(),name:name.trim(),phone:(phone||'').trim()};
+    // Optional, and separate from the WhatsApp number: only set this once the fitter has
+    // their own Mobile login (see Manage Fitters), so a job assigned to them can say whose
+    // phone it's for. Leave it blank for a fitter who doesn't have a Mobile account yet --
+    // the job just won't be restricted to anyone until it's filled in.
+    const email=prompt("Their Mobile login email (optional -- leave blank if they don't have a FittersIQ Mobile account yet):");
+    const fitter={id:uid(),name:name.trim(),phone:(phone||'').trim(),email:(email||'').trim().toLowerCase()};
     ensureFitters().push(fitter);
     save();
     return fitter;
@@ -6547,9 +6566,12 @@ body.fiq-locked .app{display:none!important}
     if(!name.trim()){alert('Name cannot be empty — use Remove instead to delete a fitter.');return}
     const phone=prompt('Their WhatsApp/mobile number (with country code, e.g. +44 7700 900123):',fitter.phone||'');
     if(phone===null)return;
+    const email=prompt("Their Mobile login email (optional -- leave blank if they don't have a FittersIQ Mobile account yet):",fitter.email||'');
+    if(email===null)return;
     const oldNameLower=fitter.name.trim().toLowerCase();
     fitter.name=name.trim();
     fitter.phone=(phone||'').trim();
+    fitter.email=(email||'').trim().toLowerCase();
     if(oldNameLower!==fitter.name.trim().toLowerCase()){
       state.projects.forEach(p=>{if((p.assignedFitter||'').trim().toLowerCase()===oldNameLower)p.assignedFitter=fitter.name});
     }
