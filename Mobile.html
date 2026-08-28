@@ -145,6 +145,13 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .panel-check-complete-banner{margin-top:12px;padding:14px;border-radius:14px;background:#e6f7ec;color:#16a34a;font-weight:900;font-size:16px;text-align:center;border:2px solid #9be0af}
 .finish-job-btn{margin-top:14px;width:100%}
 .job-finished-banner{margin-top:14px;padding:16px;border-radius:14px;background:#e6f7ec;color:#16a34a;font-weight:900;font-size:17px;text-align:center;border:2px solid #9be0af}
+.find-by-size{margin-top:10px;padding-top:10px;border-top:1px solid #ececf1}
+.find-by-size-label{display:block;font-size:12px;color:#747184;font-weight:700;margin-bottom:6px}
+.find-by-size-row{display:flex;align-items:center;gap:6px}
+.find-by-size-row input{width:0;flex:1;min-width:0}
+.size-match-head{margin-top:10px;font-size:13px;font-weight:700;color:#171c46}
+.size-match-row{display:block;width:100%;text-align:left;margin-top:8px;padding:10px 12px;border:2px solid #ececf1;border-radius:12px;background:#fff}
+.size-match-row small{color:#747184}
 
 /* Version 10.53 mobile navigation */
 nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
@@ -830,6 +837,16 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <div class="row" style="margin:8px 0"><label class="btn"><span data-i18n="scan.scanFromPhoto">Scan from photo</span><input id="scanPhoto" type="file" accept="image/*" capture="environment" hidden></label></div>
    <textarea id="qrText" data-i18n-placeholder="scan.pasteQrText" placeholder="Paste QR text"></textarea><button class="btn" id="openQrText" data-i18n="scan.openQrText">Open QR text</button>
    <input id="manualPanelCode" inputmode="text" autocomplete="off" data-i18n-placeholder="scan.findPanelPlaceholder" placeholder="Find panel number, for example P-001"><button class="btn primary" id="findPanelByCode" data-i18n="scan.findPanel">Find panel</button>
+   <div class="find-by-size">
+    <label class="find-by-size-label">No sticker? Measure the panel instead:</label>
+    <div class="find-by-size-row">
+     <input id="manualPanelLength" type="number" inputmode="decimal" placeholder="Length mm">
+     <span>×</span>
+     <input id="manualPanelWidth" type="number" inputmode="decimal" placeholder="Width mm">
+     <button class="btn primary" id="findPanelBySize">Find by size</button>
+    </div>
+    <div id="sizeMatchResults"></div>
+   </div>
   </details>
   <div id="manualJobContext" class="hidden"></div><div id="scanResult" class="scan-result"></div>
  </div>
@@ -2552,6 +2569,50 @@ load();
    }
    if(box)box.textContent=t('msg.valueNotFoundInsideActive',[value,active.name,currentRef]);return false
  }
+ // A missing/damaged QR sticker still leaves a real, measurable panel -- FittersIQ must
+ // not guess which one it is. One match opens it exactly like a scan; several (e.g. seven
+ // identical 600x500 shelves) list every candidate with its own code, name and unit so a
+ // human makes the final call, same as picking one out on the drawing would.
+ window.findPanelsBySize=function(lenRaw,widRaw){
+   const active=project();
+   const box=document.querySelector('#scanResult');
+   const resultsBox=document.querySelector('#sizeMatchResults');
+   if(resultsBox)resultsBox.innerHTML='';
+   if(!active){if(box)box.textContent=t('msg.openCorrectJobTypeNumber');return false}
+   const len=Number(lenRaw),wid=Number(widRaw);
+   if(!(len>0)||!(wid>0)){if(box)box.textContent='Enter both measurements to search.';return false}
+   const tol=2;
+   const near=(a,b)=>Math.abs(Number(a)-Number(b))<=tol;
+   const candidates=[];
+   (active.cabinets||[]).forEach(cab=>{
+     (cab.parts||[]).forEach(pt=>{
+       const l=Number(pt.length),w=Number(pt.width);
+       if((near(l,len)&&near(w,wid))||(near(l,wid)&&near(w,len)))candidates.push({cab,pt});
+     });
+   });
+   if(!candidates.length){if(box)box.textContent='No panel in this job matches '+len+' × '+wid+' mm.';return false}
+   if(candidates.length===1){
+     const {cab,pt}=candidates[0];
+     state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;save();show('install');
+     return true;
+   }
+   if(box)box.textContent='';
+   if(resultsBox){
+     resultsBox.innerHTML='<div class="size-match-head">'+candidates.length+' panels match '+len+' × '+wid+' mm — choose the right one:</div>'+
+       candidates.map(({cab,pt},i)=>'<button type="button" class="size-match-row" data-size-match="'+i+'"><strong>'+safe(pt.code)+'</strong> · '+safe(pt.name||'Unnamed panel')+'<br><small>'+safe(cab.name||'')+(pt.thickness?' · '+safe(pt.thickness)+'mm':'')+(pt.material?' · '+safe(pt.material):'')+'</small></button>').join('');
+     resultsBox.querySelectorAll('[data-size-match]').forEach(btn=>{
+       btn.onclick=()=>{
+         const {cab,pt}=candidates[Number(btn.dataset.sizeMatch)];
+         state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;save();show('install');
+       };
+     });
+   }
+   return true;
+ };
+ (function(){
+   const btn=document.querySelector('#findPanelBySize');
+   if(btn)btn.onclick=()=>findPanelsBySize(document.querySelector('#manualPanelLength').value,document.querySelector('#manualPanelWidth').value);
+ })();
  function refreshManualContext(){
    const el=document.querySelector('#manualJobContext'),pr=project();if(!el)return;
    el.innerHTML=pr?`${t('scan.currentJob')}: <strong>${safe(pr.name)}</strong> · ${mobileJobRef(pr)}<br>${t('scan.typeOnlyPanelHint')} <strong>P-001</strong>.`:t('scan.openCorrectJobFirst');
