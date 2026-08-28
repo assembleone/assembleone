@@ -4679,8 +4679,15 @@ body.guide-only .a131-back-studio{display:block}
     const p=getProject(); if(!p)return;
     const n=document.getElementById('projectName'), c=document.getElementById('customerName');
     let changed=false;
-    if(n&&p.name!==n.value){p.name=n.value;changed=true}
-    if(c&&p.customer!==c.value){p.customer=c.value;changed=true}
+    // These two inputs only get repopulated when a project is actually opened -- calling
+    // show() right after changing state.currentProject, with no render in between, leaves
+    // them showing whatever the PREVIOUS project's fields were (often blank, e.g. right
+    // after Job Overview cleared them for no project being open). This runs on every single
+    // screen change, so trusting an empty input here would silently blank out a real,
+    // already-saved name/customer the moment that ordering happens. A deliberate clear
+    // still works via Save Job, which writes unconditionally.
+    if(n&&n.value&&p.name!==n.value){p.name=n.value;changed=true}
+    if(c&&c.value&&p.customer!==c.value){p.customer=c.value;changed=true}
     if(changed){try{save()}catch(e){}}
   }
   function paint(screen){

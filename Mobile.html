@@ -1963,7 +1963,13 @@ function mergeStudioProject(incoming){
   });
   oldRooms.forEach(or=>{if(!mergedRooms.some(mr=>mr.id===or.id))mergedRooms.push(or)});
   incoming.rooms=mergedRooms;
-  incoming.address=old.address||incoming.address||"";incoming.phone=old.phone||incoming.phone||"";incoming.notes=old.notes||incoming.notes||"";
+  // Studio's incoming value wins whenever Studio actually has one -- Studio is the
+  // permanent record for a job's admin details, so a boss's later address/phone/notes
+  // correction must be able to reach a phone that already has an older copy. Falling back
+  // to this phone's own value only when Studio's is blank still protects the one case this
+  // was originally guarding: a fitter's own site-measure address/notes, entered before the
+  // job ever reached Studio at all.
+  incoming.address=incoming.address||old.address||"";incoming.phone=incoming.phone||old.phone||"";incoming.notes=incoming.notes||old.notes||"";
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;
     ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(op[k]!==undefined)ip[k]=Math.max(Number(ip[k])||0,Number(op[k])||0)});
     ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});
