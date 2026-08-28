@@ -128,7 +128,7 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .panel-highlight.status-damaged{border-color:#d92f38}
 .panel-highlight.active{width:76px;height:76px;border-width:8px;box-shadow:0 0 0 4px rgba(255,255,255,.85),0 0 0 8px rgba(23,78,152,.25);z-index:2}
 .panel-highlight-num{background:#174E98;color:#fff;font-weight:900;font-size:14px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 2px #fff}
-.panel-highlight.active .panel-highlight-num{font-size:16px;width:28px;height:28px}.panel-big-code{font-size:34px;font-weight:900}.panel-size{font-size:22px;font-weight:900}.panel-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.panel-actions .btn{min-height:54px}.direct-open-help{background:#fff7d6;border:1px solid #e6c54a;border-radius:12px;padding:11px;margin-bottom:10px}.panel-back-row{display:flex;gap:8px;flex-wrap:wrap}
+.panel-highlight.active .panel-highlight-num{font-size:16px;width:28px;height:28px}.panel-big-code{font-size:34px;font-weight:900}.panel-size{font-size:22px;font-weight:900}.panel-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.panel-actions .btn{min-height:54px}.direct-open-help{background:#fff7d6;border:1px solid #e6c54a;border-radius:12px;padding:11px;margin-bottom:10px}.panel-back-row{display:flex;gap:8px;flex-wrap:wrap}
 
 .installer-room-intro{display:flex;align-items:center;gap:16px;padding:18px;margin-bottom:14px;background:#f7f4ed;border:2px solid #e3ded4;border-radius:22px}.installer-room-icon{font-size:56px}.installer-room-title{font-size:30px;font-weight:900;color:#27224f}.installer-room-sub{font-size:17px;color:#6c687e;margin-top:3px}.installer-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 18px}.installer-guide-card{min-height:104px;border:3px solid #d8d6e0;border-radius:18px;background:#fff;padding:10px 8px;color:#27224f;font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}.installer-guide-card:active{transform:scale(.985)}.installer-guide-icon{font-size:28px;line-height:1}.installer-guide-card strong{font-size:16px}.installer-guide-card small{font-size:12px;color:#68647b}.installer-note-box{font-size:21px;line-height:1.45;background:#fff;border:2px solid #ddd9e4;border-radius:18px;padding:18px;color:#312b55;white-space:pre-wrap}.installer-send-update{width:100%;min-height:76px;font-size:24px;margin:14px 0 24px}.installer-design-section,.installer-notes-section{scroll-margin-top:12px}@media(max-width:520px){.installer-guide-grid{grid-template-columns:1fr 1fr}.installer-guide-card{min-height:92px}.installer-guide-card strong{font-size:14px}}
 .panel-check-list{display:flex;flex-direction:column;gap:8px}
@@ -851,6 +851,13 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <button type="button" id="problemPanelDamaged"><span>⚠</span><b>Damaged</b></button>
    </div>
   </div>
+  <div id="markPanelMenu" class="measure-picture-menu hidden" role="dialog" aria-modal="true" aria-label="Mark panel">
+   <div class="measure-picture-card">
+    <div class="measure-picture-head"><strong>Mark Panel</strong><button type="button" id="closeMarkPanelMenu" aria-label="Close">×</button></div>
+    <button type="button" id="markPanelCheckChoice"><span>✅</span><b>Panel Check</b></button>
+    <button type="button" id="markPanelInstallChoice"><span>🔧</span><b>Install</b></button>
+   </div>
+  </div>
   <div id="jobNotesPanel" class="damage-sheet job-notes-sheet hidden">
    <strong>📝 Job Notes</strong>
    <div class="muted" style="margin:4px 0 10px">Messages, missing/damaged parts, updates and photos -- everything stays with this job.</div>
@@ -1332,7 +1339,16 @@ function show(name){
 $$(".nav").forEach(b=>b.onclick=()=>show(b.dataset.screen));
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
-function newJob(){if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('site_job_created');const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("measure")}
+// Tapping "New Job" more than once (before the first one has been given a customer)
+// used to create another completely blank job every time, so the Projects list slowly
+// filled up with several empty "New Site Job / No customer" cards to sort through. One
+// blank, ready-to-fill job is enough at a time -- reuse it until it's actually started
+// on, and only then does tapping "New Job" create the next one.
+function blankUnstartedJob(){return state.projects.find(p=>p.name==="New Site Job"&&!p.customer&&!(p.rooms||[]).length&&!(p.cabinets||[]).length)}
+function newJob(){
+ const existing=blankUnstartedJob();
+ if(existing){state.currentProject=existing.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("measure");return}
+ if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('site_job_created');const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("measure")}
 if($("#newJob"))$("#newJob").onclick=newJob;
 $('#langCurrentBtn').onclick=openLangPicker;
 function renderHeader(){
@@ -1362,6 +1378,11 @@ function projectRoomDisplay(p){
 }
 function renderProjects(){
  const box=$("#jobList");
+ // Clean up any blank "New Site Job" duplicates already sitting from before newJob()
+ // started reusing one -- each has zero customer/room/cabinet data, so there is nothing
+ // to lose by collapsing them down to the single most recent one.
+ const blanks=state.projects.filter(p=>p.name==="New Site Job"&&!p.customer&&!(p.rooms||[]).length&&!(p.cabinets||[]).length);
+ if(blanks.length>1){const keep=blanks.some(b=>b.id===state.currentProject)?state.currentProject:blanks[0].id;state.projects=state.projects.filter(p=>p.id===keep||!blanks.some(b=>b.id===p.id));save()}
  const FLOOR_KEYS={'Basement':'intake.floorBasement','Ground':'intake.floorGround','1st floor':'intake.floor1st','2nd floor':'intake.floor2nd','3rd floor':'intake.floor3rd'};
  const floorLabel=f=>{const k=FLOOR_KEYS[f];return k?t(k):f};
  const hasCuttingList=p=>(p.cabinets||[]).some(c=>(c.parts||[]).length>0);
@@ -1779,30 +1800,13 @@ function renderInstall(){
   const totalUnits=Math.max(1,Number(pt.qty)||1,panelPositions.length);
   const installedCount=multi?panelPositions.filter(m=>m.status==='installed').length:Math.min(totalUnits,Number(pt.installedQty)||0);
   const fittedLine=totalUnits>1?`<div><strong>Fitted</strong> ${installedCount} / ${totalUnits}</div>`:`<div><strong>${t('install.status')}</strong> ${safe(statusLabel(mark.status))}</div>`;
-  const installBtnLabel=totalUnits>1&&!multi?(installedCount>=totalUnits?'✓ All Fitted':'+1 Fitted'):t('install.installed');
-  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}${safe(markLabel)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">${safe(installBtnLabel)}</button><button class="btn danger" id="reportProblemPanelBtn" data-panel-code="${safe(pt.code)}">⚠ Problem Panel</button></div>${fittedLine}</div>`;
+  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}${safe(markLabel)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary" id="markPanelBtn">✓ Mark Panel</button><button class="btn danger" id="reportProblemPanelBtn" data-panel-code="${safe(pt.code)}">⚠ Problem Panel</button></div>${fittedLine}</div>`;
   $("#backToPanels").onclick=()=>{state.currentPart=null;state.selectedCopy=-1;save();renderInstall()};
   $("#backToRoom").onclick=()=>{state.currentRoom=c.roomId||null;state.currentPart=null;state.selectedCopy=-1;save();show("drawings")};
-  $$(".panel-status").forEach(b=>b.onclick=()=>{
-   const st=b.dataset.status;
-   if(st==='installed'&&totalUnits>1&&!multi){
-     // A fast double-tap on a touchscreen fires two click events on what looks like the
-     // same press -- without this it would silently count as two pieces fitted instead
-     // of one. A deliberate second piece a moment later still increments normally.
-     const now=Date.now();
-     if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return;
-     state.lastFittedIncrement={partId:pt.id,at:now};
-     // Bare quantity, no individually placed markers to attribute this to -- each press
-     // is one more physical piece completed, capped so repeat presses past the total
-     // can never push the count above what's real.
-     pt.installedQty=Math.min(totalUnits,(Number(pt.installedQty)||0)+1);
-     if(pt.installedQty>=totalUnits)pt.status='installed';
-   }else{
-     currentMark(pt).status=st;
-   }
-   save();
-   renderInstall();
-  });
+  // One "Mark Panel" entry point instead of a direct Fitted button -- the fitter picks
+  // Panel Check or Install afterwards, the same deliberate-choice pattern as Problem
+  // Panel (Missing/Damaged) below, so scanning a panel never assumes either on its own.
+  if($("#markPanelBtn"))$("#markPanelBtn").onclick=()=>openMarkPanelMenu(pt.code);
   // One "Problem Panel" entry point instead of separate Missing/Damaged buttons -- the
   // fitter picks the reason after tapping it, matching how they'd naturally think about
   // it on site ("something's wrong with this panel") rather than pre-deciding a category
@@ -1972,11 +1976,11 @@ function scanTotals(p=project()){
  rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;scanned+=Math.min(q,Math.max(0,Number(pt.scannedQty)||0));damaged+=Math.min(q,Math.max(0,Number(pt.damagedQty)||0))});
  return {total,scanned,remaining:Math.max(0,total-scanned),damaged,pct:total?Math.round(scanned/total*100):0,rows};
 }
-// Scanning a QR code means "I found this panel and checked it in" (Panel Check) -- it
-// must never also silently mark the panel Fitted. Those are two different, deliberate
-// actions (scan to find/check vs. press Mark Fitted after actually installing it); a
-// panel that's merely been scanned and viewed is not yet fitted.
-function markCurrentPanelScanned(){const pt=part();if(!pt)return;const q=Math.max(1,Number(pt.qty)||1);pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);pt.lastScannedAt=new Date().toISOString();save();renderScanDashboard()}
+// Scanning only finds and highlights the panel now -- it must never silently decide
+// Panel Check or Fitted on the fitter's behalf. Both are deliberate choices made
+// afterwards via the Mark Panel menu, the same way Missing/Damaged already work.
+// lastScannedAt is just "this was opened/viewed", used for the recent-activity list.
+function markCurrentPanelScanned(){const pt=part();if(!pt)return;pt.lastScannedAt=new Date().toISOString();save();renderScanDashboard()}
 function renderScanDashboard(){
  const total=scanTotals();
  const pr=project();const cj=$("#scanCurrentJob");if(cj)cj.textContent=pr?`${pr.name||t('msg.projectFallback')}${pr.code?' · '+pr.code:''}`:t('scan.noProjectOpen');
@@ -2096,6 +2100,46 @@ $("#problemPanelDamaged").onclick=()=>{
  $("#damagePanel").classList.remove("hidden");
  $("#damagePanelCode").value=problemPanelCode||"";
  $("#damageNote").focus();
+};
+let markPanelCode=null;
+function openMarkPanelMenu(code){markPanelCode=code;$("#markPanelMenu").classList.remove("hidden")}
+function closeMarkPanelMenu(){$("#markPanelMenu").classList.add("hidden")}
+$("#closeMarkPanelMenu").onclick=closeMarkPanelMenu;
+$("#markPanelMenu").addEventListener("click",e=>{if(e.target.id==="markPanelMenu")closeMarkPanelMenu()});
+$("#markPanelCheckChoice").onclick=()=>{
+ const found=locatePanelByCode(markPanelCode);
+ closeMarkPanelMenu();
+ if(!found)return;
+ const{pr,cab,pt}=found;
+ state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+ const q=Math.max(1,Number(pt.qty)||1);
+ pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
+ pt.lastScannedAt=new Date().toISOString();
+ save();
+ renderInstall();
+};
+$("#markPanelInstallChoice").onclick=()=>{
+ const found=locatePanelByCode(markPanelCode);
+ closeMarkPanelMenu();
+ if(!found)return;
+ const{pr,cab,pt}=found;
+ state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+ const totalUnits=Math.max(1,Number(pt.qty)||1,1+(pt.copies||[]).length);
+ const multi=(pt.copies||[]).length>0;
+ if(totalUnits>1&&!multi){
+  // A fast double-tap on a touchscreen fires two click events on what looks like the
+  // same press -- without this it would silently count as two pieces fitted instead of
+  // one. A deliberate second piece a moment later still increments normally.
+  const now=Date.now();
+  if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return;
+  state.lastFittedIncrement={partId:pt.id,at:now};
+  pt.installedQty=Math.min(totalUnits,(Number(pt.installedQty)||0)+1);
+  if(pt.installedQty>=totalUnits)pt.status="installed";
+ }else{
+  currentMark(pt).status="installed";
+ }
+ save();
+ renderInstall();
 };
 let jobNotePendingPhotos=[];
 function renderJobNotesList(){

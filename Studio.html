@@ -1012,7 +1012,8 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .attention-empty{padding:30px;text-align:center;color:#8c8674;font-weight:700}
 .attention-item{border:1px solid #f0d9a0;background:#fffaf0;border-radius:14px;padding:14px 16px;margin-bottom:12px}
 .attention-item-path{font-size:13px;color:#8a6d1f;font-weight:700;margin-bottom:4px}
-.attention-item-panel{font-size:17px;font-weight:900;color:#3a2c05;margin-bottom:6px}
+.attention-item-panel{font-size:17px;font-weight:900;color:#3a2c05;margin-bottom:2px}
+.attention-item-dims{font-size:13px;font-weight:700;color:#5c5342;margin-bottom:6px}
 .attention-item-reason{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;padding:3px 9px;border-radius:999px;margin-bottom:8px}
 .attention-item-reason.reason-damaged{background:#fbe7e7;color:#bf1f29}
 .attention-item-reason.reason-missing{background:#fdf0e0;color:#c96a00}
@@ -1543,7 +1544,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </div>
 <div class="drawing-status-row">
 <div class="selected-part" id="selectedPartBanner">No panel selected</div>
-<div class="status-bar compact-status drawing-status" id="statusBar"></div>
 </div>
 </div>
 </div>
@@ -2042,7 +2042,6 @@ function renderForm(){
  if(p){p.copies=p.copies||[];p.edgeLong=Number(p.edgeLong||0);p.edgeShort=Number(p.edgeShort||0)}
  updateEdgePreview();
  $("#markerCount").textContent=p?(1+(p.copies?.length||0)):"0";
- $("#statusBar").innerHTML=statuses.map(([id,label])=>`<button class="status-btn ${p?.status===id?"active":""}" data-status="${id}">${label}</button>`).join("");
  $$("[data-status]").forEach(b=>b.onclick=()=>{if(p){p.status=b.dataset.status;save();renderAll()}})
 }
 function renderPartList(){
@@ -5171,9 +5170,11 @@ body.guide-only .a131-back-studio{display:block}
 .install-outstanding-head{font-weight:900;color:#171c46;margin-bottom:8px}
 .install-outstanding-row{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:10px}
 .install-outstanding-row:hover{background:#f6f8fc}
-.install-outstanding-code{font-weight:900;color:#23364e;min-width:52px}
-.install-outstanding-name{flex:1;min-width:0;font-weight:700;color:#171c46}
-.install-outstanding-name small{display:block;font-weight:600;color:#6d667b;font-size:12px}
+.install-outstanding-icon{font-size:18px;flex:none}
+.install-outstanding-main{flex:1;min-width:0}
+.install-outstanding-name{font-weight:900;color:#171c46}
+.install-outstanding-dims{font-weight:700;color:#23364e;font-size:13px;margin-top:2px}
+.install-outstanding-main small{display:block;font-weight:600;color:#6d667b;font-size:12px;margin-top:2px}
 .install-outstanding-status{font-size:12px;font-weight:900;padding:5px 10px;border-radius:999px;white-space:nowrap}
 .install-outstanding-status.status-missing{background:#fdf0e0;color:#c96a00}
 .install-outstanding-status.status-damaged{background:#fbe7e7;color:#bf1f29}
@@ -5222,7 +5223,7 @@ body.guide-only .a131-back-studio{display:block}
         <div class="install-stat damaged"><b>${t.damaged}</b><span>Damaged</span></div>
         <div class="install-stat"><b>${t.total}</b><span>Total panels</span></div>
       </div>
-      ${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">Reported missing or damaged on site</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row"><span class="install-outstanding-code">${safe(pt.code||'')}</span><span class="install-outstanding-name">${safe(pt.name||'Unnamed panel')}<small>${safe(c.name||'')}</small></span><span class="install-outstanding-status status-${pt.status}">${statusWord(pt.status)}</span></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
+      ${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">Reported missing or damaged on site</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row"><span class="install-outstanding-icon">${pt.status==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${pt.status}">${statusWord(pt.status)}</span></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
         :(t.installed>=t.total&&t.total>0?'<div class="install-all-done">✓ Every panel is installed</div>':'')}`;
     const orderBtn=document.getElementById('orderMissingPanelsBtn');
     if(orderBtn)orderBtn.onclick=()=>exportMissingPanelsCsv(flagged,p);
@@ -6249,6 +6250,7 @@ body.fiq-locked .app{display:none!important}
               customer:p.customer||p.name||'Customer',
               jobName:(room&&room.name)||c.name||p.name||'Job',
               code:part.code||'',name:part.name||'',
+              length:part.length||'',width:part.width||'',thickness:part.thickness||'',
               reason:part.status,
               note:part.status==='damaged'?(part.damageNote||''):'',
               photo:(part.panelPhotos||[])[0]?.data||null,
@@ -6270,6 +6272,7 @@ body.fiq-locked .app{display:none!important}
     box.innerHTML=items.map((it,i)=>'<div class="attention-item">'+
       '<div class="attention-item-path">'+safe(it.customer)+' › '+safe(it.jobName)+'</div>'+
       '<div class="attention-item-panel">'+safe(it.code)+' '+safe(it.name)+'</div>'+
+      '<div class="attention-item-dims">'+safe(it.length||'—')+' × '+safe(it.width||'—')+' × '+safe(it.thickness||'—')+' mm</div>'+
       '<span class="attention-item-reason reason-'+it.reason+'">'+(it.reason==='damaged'?'⚠ Damaged':'❔ Missing')+'</span>'+
       (it.reportedBy?'<span class="attention-item-fitter">👤 '+safe(it.reportedBy)+'</span>':'')+
       (it.note?'<div class="attention-item-note">"'+safe(it.note)+'"</div>':'')+
