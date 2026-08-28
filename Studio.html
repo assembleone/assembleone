@@ -2507,12 +2507,40 @@ async function exportProjectToMobile(target){const p=ensureSharedProject(target|
   // next time this job goes out, not just once at first assignment.
   p.assignedEmails=(typeof window.a211AssignedEmailsFor==='function')?window.a211AssignedEmailsFor(p):[];
   save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
+// Two fitters on two phones each hold an independent local copy of the same job -- when
+// BOTH eventually sync, whichever packet lands second used to simply overwrite every field
+// with its own (possibly stale, since it never learned about the other fitter's update)
+// values, silently erasing whatever the first sync had just recorded. qty counters only
+// ever go up from a real action (there's no "un-scan" button), so the higher of the two
+// values is always the true, more-progressed one, whoever reported it.
+//
+// Status is trickier: a phone always sends its WHOLE local project, including panels it
+// never touched, carrying whatever value it happens to still have for them -- so "the
+// incoming status differs" does not mean "this device wants to change it," it might just
+// mean this device's copy predates someone else's update. statusUpdatedAt is stamped on
+// the phone only at the moment a status is actually, deliberately set. A status with no
+// timestamp for this panel is never a real update -- it's carried-forward and must not
+// overwrite anything. Between two real, timestamped updates, the later one wins, which
+// naturally lets a genuine correction (Damaged -> Fitted once it's actually fixed) through
+// while a stale sync that raced a real update and lost stays rejected.
+function mergePanelStatus(bp,ip){
+  if(ip.status===undefined||ip.status===bp.status)return;
+  if(!ip.statusUpdatedAt)return;
+  if(bp.statusUpdatedAt&&ip.statusUpdatedAt<=bp.statusUpdatedAt)return;
+  bp.status=ip.status;
+  bp.statusUpdatedAt=ip.statusUpdatedAt;
+}
+function mergePanelFields(bp,ip){
+  ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=Math.max(Number(bp[k])||0,Number(ip[k])||0)});
+  ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]});
+  mergePanelStatus(bp,ip);
+}
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos","damageNote","damagedQty","installedQty","scannedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}mergePanelFields(bp,ip)})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";

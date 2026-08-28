@@ -1916,6 +1916,27 @@ function renderInstall(){
  box.innerHTML=c?.parts.length?c.parts.map(p=>`<div class="measure-row"><div class="measure-main">${safe(p.code)} · ${safe(p.name)||t('install.unnamedPanel')}</div><div class="muted">${safe(p.length||"—")} × ${safe(p.width||"—")} × ${safe(p.thickness||"—")} mm · ${safe(statusLabel(p.status))}</div><button class="btn primary open-panel" data-id="${p.id}" style="margin-top:7px">${t('install.openPanel')}</button></div>`).join(""):`<div class="muted">${t('install.noPanels')}</div>`;
  $$(".open-panel").forEach(b=>b.onclick=()=>{state.currentPart=b.dataset.id;state.selectedCopy=-1;save();renderInstall()});
 }
+// Mirrors Studio's own mergeMobileProject exactly, just with the roles reversed: here
+// Studio's incoming resend is the base and this phone's own local copy is the "update"
+// being considered. qty counters only ever go up (no un-scan button exists), so the higher
+// of the two is always the true, more-progressed value -- blindly preferring the local
+// copy (the old behaviour) let a phone that simply hadn't synced back yet silently drag an
+// already-correct Studio count back down.
+//
+// Status: a phone always carries its whole local project, including panels it never
+// touched, with whatever value it still happens to have -- so "the local copy differs"
+// doesn't mean this phone wants to change it, it might just be stale. statusUpdatedAt is
+// only stamped at the moment a status is genuinely, deliberately set; a status with no
+// timestamp for this panel is never a real update and must not overwrite anything. Between
+// two real, timestamped updates the later one wins, which lets a genuine correction through
+// while a stale value that lost a race against a newer update stays rejected.
+function mergePanelStatus(basePt,updatePt){
+  if(updatePt.status===undefined||updatePt.status===basePt.status)return;
+  if(!updatePt.statusUpdatedAt)return;
+  if(basePt.statusUpdatedAt&&updatePt.statusUpdatedAt<=basePt.statusUpdatedAt)return;
+  basePt.status=updatePt.status;
+  basePt.statusUpdatedAt=updatePt.statusUpdatedAt;
+}
 function mergeStudioProject(incoming){
  if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
  const old=state.projects.find(x=>x.id===incoming.id);ensureExtras(incoming);
@@ -1943,7 +1964,11 @@ function mergeStudioProject(incoming){
   oldRooms.forEach(or=>{if(!mergedRooms.some(mr=>mr.id===or.id))mergedRooms.push(or)});
   incoming.rooms=mergedRooms;
   incoming.address=old.address||incoming.address||"";incoming.phone=old.phone||incoming.phone||"";incoming.notes=old.notes||incoming.notes||"";
-  incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos","damageNote","damagedQty","installedQty","scannedQty"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
+  incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;
+    ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(op[k]!==undefined)ip[k]=Math.max(Number(ip[k])||0,Number(op[k])||0)});
+    ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});
+    mergePanelStatus(ip,op);
+  })});
   // Job Notes: both sides can add entries between syncs, so union by id (Studio's
   // incoming copy plus anything the fitter logged locally that hasn't reached Studio yet)
   // instead of letting whichever side synced last silently win.
@@ -2201,7 +2226,7 @@ $("#problemPanelMissing").onclick=()=>{
  if(!found)return;
  const{pr,cab,pt}=found;
  state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
- currentMark(pt).status="missing";
+ const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();
  addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
  save();
  if(typeof exportJob==="function")exportJob(pr.id);
@@ -2246,9 +2271,9 @@ $("#markPanelInstallChoice").onclick=()=>{
   if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return;
   state.lastFittedIncrement={partId:pt.id,at:now};
   pt.installedQty=Math.min(totalUnits,(Number(pt.installedQty)||0)+1);
-  if(pt.installedQty>=totalUnits)pt.status="installed";
+  if(pt.installedQty>=totalUnits){pt.status="installed";pt.statusUpdatedAt=Date.now()}
  }else{
-  currentMark(pt).status="installed";
+  const installedMark=currentMark(pt);installedMark.status="installed";installedMark.statusUpdatedAt=Date.now();
  }
  save();
  renderInstall();
@@ -2322,6 +2347,7 @@ $("#saveDamage").onclick=()=>{
  const q=Math.max(1,Number(found.pt.qty)||1);
  found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
  found.pt.status="damaged";
+ found.pt.statusUpdatedAt=Date.now();
  found.pt.damageNote=$("#damageNote").value.trim();
  if(damagePhotoData){found.pt.panelPhotos=found.pt.panelPhotos||[];found.pt.panelPhotos.push({id:uid(),data:damagePhotoData})}
  addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[]);
