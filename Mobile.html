@@ -1587,6 +1587,7 @@ function wireRoomCard(p,r){
   p.notePhotos=[];
   state.currentRoom=null;
   p.startNewRoom=true;
+  p.newRoomDraftStarted=true;
   save();exportJob(p.id);renderRooms();
  };
  if(r){
@@ -1627,6 +1628,21 @@ function renderRooms(){
  if(detail)detail.classList.add('hidden');
  list.classList.remove('hidden');
  if(!r&&p.rooms.length&&!p.startNewRoom){r=p.rooms[0];state.currentRoom=r.id}
+ // Safety net for jobs that already had stale marks/photos staged on the project before
+ // the "Add Room" button below started clearing them itself -- reopening a job stuck in
+ // that state (from an earlier app version, or a session that never finished this step)
+ // used to keep showing those old measurements/photos forever, since nothing re-checked
+ // it after the fact. This clears it once per staging round (guarded by
+ // newRoomDraftStarted so it doesn't wipe marks you're actively adding right now) the
+ // next time this screen renders, not just the next time "Add Room" happens to be tapped.
+ if(!r&&p.rooms.length&&!p.newRoomDraftStarted){
+   p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
+   p.siteMarkup={image:null,w:0,h:0,marks:[]};
+   p.measureCaptures=[];
+   p.notePhotos=[];
+   p.newRoomDraftStarted=true;
+   save();
+ }
  const switcherHtml=p.rooms.length>=1?`<div class="room-switcher">${p.rooms.map(x=>`<button type="button" class="room-switch-btn ${x.id===r?.id?'active':''}" data-room-id="${x.id}">${x.icon||'🏠'} ${safe(x.name)}</button>`).join('')}<button type="button" class="room-switch-btn room-switch-add ${r?'':'active'}" id="addRoomSwitchBtn">＋ ${t('room.addRoomLabel')}</button></div>`:'';
  list.innerHTML=switcherHtml+roomCardHtml(p,r);
  $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;p.startNewRoom=false;save();renderRooms()});
@@ -1643,6 +1659,7 @@ function renderRooms(){
    p.siteMarkup={image:null,w:0,h:0,marks:[]};
    p.measureCaptures=[];
    p.notePhotos=[];
+   p.newRoomDraftStarted=true;
    save();renderRooms();
  };
  wireRoomCard(p,r);
