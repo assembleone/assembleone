@@ -6157,6 +6157,7 @@ body.fiq-locked .app{display:none!important}
 .jor-bar{height:5px;border-radius:99px;background:#e6e9f0;margin-top:3px;overflow:hidden}
 .jor-bar i{display:block;height:100%;background:#16a34a}
 .jor-warn{flex:none;font-size:18px;width:20px;text-align:center}
+.jor-stat[data-open-panel-check]:hover,.jor-warn[data-open-panel-check]:hover{background:#eef2ff;border-radius:8px}
 .jor-chevron{flex:none;color:var(--muted);font-size:18px}
 @media(max-width:900px){.jor-fitter,.jor-stat{display:none}}
 .job-overview-updated{color:var(--muted);font-size:12px;font-weight:700}
@@ -6296,22 +6297,34 @@ body.fiq-locked .app{display:none!important}
       const fit=jobFittedTotals(p);
       const showFitted=fit.installed>0;
       const fitPct=fit.total>0?Math.round(fit.installed/fit.total*100):0;
-      const warn=jobNeedsAttention(p)?'<span class="jor-warn" title="Needs attention">⚠️</span>':'<span class="jor-warn"></span>';
+      const warn=jobNeedsAttention(p)?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="Needs attention — tap to open Panel Check">⚠️</span>':'<span class="jor-warn"></span>';
       return '<div class="job-overview-row" data-open-job-card="'+safe(p.id)+'">'+
         '<div class="jor-thumb">'+thumb+'</div>'+
         '<div class="jor-main"><div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room">'+safe(jobRoomLabel(p)||p.name||'')+'</div></div>'+
         '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):'')+'</div>'+
-        '<div class="jor-stat"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+(pc.total?pc.checked+' / '+pc.total:'—')+' '+pcIcon+'</div></div>'+
+        '<div class="jor-stat" data-open-panel-check="'+safe(p.id)+'" title="Open Panel Check"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+(pc.total?pc.checked+' / '+pc.total:'—')+' '+pcIcon+'</div></div>'+
         '<div class="jor-stat"><div class="jor-stat-label">Fitted</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
         warn+
         '<span class="jor-chevron">›</span>'+
       '</div>';
     }).join(''):'<div class="empty">No jobs yet.</div>';
     grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
-      if(e.target.closest('.fitter-row'))return;
+      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]'))return;
       switchToProject(row.dataset.openJobCard);
       save();
       if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
+    });
+    // The Panel Check stat and the "needs attention" warning icon are the actionable parts
+    // of a row -- someone tapping them wants to go fix the problem, not land on the drawing
+    // (which is what the rest of the row opens, and has no way to sort a panel from).
+    grid.querySelectorAll('[data-open-panel-check]').forEach(el=>{
+      el.onclick=(e)=>{
+        e.stopPropagation();
+        switchToProject(el.dataset.openPanelCheck);
+        save();
+        renderAll();
+        show('parts');
+      };
     });
     if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(grid,id=>state.projects.find(x=>x.id===id));
 
