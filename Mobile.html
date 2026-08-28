@@ -844,6 +844,13 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   </div>
   <div id="designGuidePanel" class="room-section hidden"></div>
   <div id="damagePanel" class="damage-sheet hidden"><strong>⚠ <span data-i18n="damage.title">Damaged panel</span></strong><input id="damagePanelCode" inputmode="text" data-i18n-placeholder="damage.panelPlaceholder" placeholder="Panel number, for example P-001"><textarea id="damageNote" data-i18n-placeholder="damage.whatDamaged" placeholder="What is damaged?"></textarea><label class="btn damage-photo-btn" for="damagePhotoInput"><span data-i18n="damage.addPhoto">📷 Add a photo</span><input id="damagePhotoInput" type="file" accept="image/*" capture="environment" hidden></label><div id="damagePhotoPreview" class="hidden"><img id="damagePhotoImg" alt="Damage photo"></div><button class="btn danger" id="saveDamage" data-i18n="damage.save">Save damaged panel</button><button class="btn damage-whatsapp-btn hidden" id="shareDamageWhatsapp" type="button" data-i18n="damage.shareWhatsapp">💬 Send to supplier on WhatsApp</button></div>
+  <div id="problemPanelMenu" class="measure-picture-menu hidden" role="dialog" aria-modal="true" aria-label="Problem panel">
+   <div class="measure-picture-card">
+    <div class="measure-picture-head"><strong>Problem Panel</strong><button type="button" id="closeProblemPanelMenu" aria-label="Close">×</button></div>
+    <button type="button" id="problemPanelMissing"><span>❔</span><b>Missing</b></button>
+    <button type="button" id="problemPanelDamaged"><span>⚠</span><b>Damaged</b></button>
+   </div>
+  </div>
   <div id="jobNotesPanel" class="damage-sheet job-notes-sheet hidden">
    <strong>📝 Job Notes</strong>
    <div class="muted" style="margin:4px 0 10px">Messages, missing/damaged parts, updates and photos -- everything stays with this job.</div>
@@ -1733,17 +1740,20 @@ function renderInstall(){
   const drawing=c.drawing&&c.drawingType!=="pdf"?`<div class="panel-drawing"><img src="${c.drawing}" alt="${t('msg.highlightedDrawingAlt',[pt.code])}">${panelHighlights}</div>`:`<div class="panel-drawing"><div class="muted">${t('install.noDrawing')}</div></div>`;
   const edgeInfo=`${Number(pt.edgeLong||0)} ${Number(pt.edgeLong||0)===1?t('install.longEdge'):t('install.longEdges')} · ${Number(pt.edgeShort||0)} ${Number(pt.edgeShort||0)===1?t('install.shortEdge'):t('install.shortEdges')}`;
   const markLabel=multi?` · ${t('install.marker')} ${Number(state.selectedCopy)>=0?Number(state.selectedCopy)+2:1}/${panelPositions.length}`:'';
-  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}${safe(markLabel)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">${t('install.installed')}</button><button class="btn panel-status" data-status="missing">${t('install.missing')}</button><button class="btn danger panel-status" data-status="damaged">${t('install.damagedBtn')}</button></div><div><strong>${t('install.status')}</strong> ${safe(statusLabel(mark.status))}</div></div>`;
+  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}${safe(markLabel)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">${t('install.installed')}</button><button class="btn danger" id="reportProblemPanelBtn" data-panel-code="${safe(pt.code)}">⚠ Problem Panel</button></div><div><strong>${t('install.status')}</strong> ${safe(statusLabel(mark.status))}</div></div>`;
   $("#backToPanels").onclick=()=>{state.currentPart=null;state.selectedCopy=-1;save();renderInstall()};
   $("#backToRoom").onclick=()=>{state.currentRoom=c.roomId||null;state.currentPart=null;state.selectedCopy=-1;save();show("drawings")};
   $$(".panel-status").forEach(b=>b.onclick=()=>{
    const st=b.dataset.status;
    currentMark(pt).status=st;
-   if(st==="missing")addJobLogEntry(p,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
    save();
-   if((st==="missing"||st==="damaged")&&typeof exportJob==='function'&&p)exportJob(p.id);
    renderInstall();
   });
+  // One "Problem Panel" entry point instead of separate Missing/Damaged buttons -- the
+  // fitter picks the reason after tapping it, matching how they'd naturally think about
+  // it on site ("something's wrong with this panel") rather than pre-deciding a category
+  // before they've even opened the choice.
+  if($("#reportProblemPanelBtn"))$("#reportProblemPanelBtn").onclick=()=>openProblemPanelMenu(pt.code);
   $$(".panel-highlight[data-copy]").forEach(el=>el.onclick=()=>{state.selectedCopy=Number(el.dataset.copy);save();renderInstall()});
   return;
  }
@@ -1999,6 +2009,29 @@ $("#scanPhoto").onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!("
 const scanChangeJob=$("#scanChangeJob");if(scanChangeJob)scanChangeJob.onclick=()=>show("projects");
 const scanViewAll=$("#scanViewAll");if(scanViewAll)scanViewAll.onclick=()=>show("install");
 $("#openDamage").onclick=()=>{$("#damagePanel").classList.toggle("hidden");if(!$("#damagePanel").classList.contains("hidden"))$("#damagePanelCode").focus()};
+let problemPanelCode=null;
+function openProblemPanelMenu(code){problemPanelCode=code;$("#problemPanelMenu").classList.remove("hidden")}
+function closeProblemPanelMenu(){$("#problemPanelMenu").classList.add("hidden")}
+$("#closeProblemPanelMenu").onclick=closeProblemPanelMenu;
+$("#problemPanelMenu").addEventListener("click",e=>{if(e.target.id==="problemPanelMenu")closeProblemPanelMenu()});
+$("#problemPanelMissing").onclick=()=>{
+ const found=locatePanelByCode(problemPanelCode);
+ closeProblemPanelMenu();
+ if(!found)return;
+ const{pr,cab,pt}=found;
+ state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+ currentMark(pt).status="missing";
+ addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
+ save();
+ if(typeof exportJob==="function")exportJob(pr.id);
+ renderInstall();
+};
+$("#problemPanelDamaged").onclick=()=>{
+ closeProblemPanelMenu();
+ $("#damagePanel").classList.remove("hidden");
+ $("#damagePanelCode").value=problemPanelCode||"";
+ $("#damageNote").focus();
+};
 let jobNotePendingPhotos=[];
 function renderJobNotesList(){
  const list=$("#jobNotesList");if(!list)return;

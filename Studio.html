@@ -1002,6 +1002,24 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 
 <style id="siteRoomDetailsStyles">
 .site-room-modal{position:fixed;inset:0;background:rgba(24,20,45,.72);z-index:10050;display:none;align-items:center;justify-content:center;padding:18px}.site-room-modal.open{display:flex}.site-room-dialog{width:min(1180px,96vw);max-height:92vh;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 28px 80px rgba(20,17,42,.35);display:flex;flex-direction:column}.site-room-head{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:2px solid #eaf2f1}.site-room-head .room-badge{font-size:42px}.site-room-head h2{margin:0;font-size:30px}.site-room-head p{margin:4px 0 0;color:#6d687d;font-weight:700}.site-room-close{margin-left:auto;width:50px;height:50px;border-radius:15px;border:2px solid #d9e8e6;background:#fff;font-size:30px;cursor:pointer}.site-room-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.9fr);min-height:560px;overflow:auto}.site-reference-pane{padding:18px;border-right:2px solid #eaf2f1;background:#f8f9fc}.site-reference-frame{background:#e9ecf1;border-radius:20px;min-height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}.site-reference-frame img{max-width:100%;max-height:62vh;object-fit:contain}.site-reference-empty{font-size:24px;color:#777286;text-align:center;padding:30px}.site-thumb-row{display:flex;gap:10px;overflow:auto;padding-top:12px}.site-thumb{width:86px;height:68px;border:3px solid transparent;border-radius:12px;object-fit:cover;cursor:pointer;background:#eee}.site-thumb.active{border-color:#004cf1}.site-design-pane{padding:22px;display:flex;flex-direction:column;gap:15px}.site-facts{display:grid;grid-template-columns:1fr 1fr;gap:12px}.site-fact{border:2px solid #e1ebea;border-radius:18px;padding:14px;background:#fff}.site-fact b{display:block;font-size:25px;color:#283c54}.site-fact span{color:#6c677d;font-weight:750}.site-notes-box{border:2px solid #e1ebea;border-radius:18px;padding:15px;min-height:90px}.site-notes-box h3{margin:0 0 8px;font-size:19px}.site-detail-actions{display:grid;gap:12px;margin-top:auto}.site-detail-actions .btn{min-height:60px;font-size:19px;border-radius:16px}.site-detail-actions .primary{background:#0051ff;color:#23374f;border-color:#0046dd}.site-drawing-placeholder{border:3px dashed #cfcbd9;border-radius:22px;min-height:190px;display:flex;align-items:center;justify-content:center;text-align:center;color:#716c80;font-weight:800;font-size:20px;padding:25px}.site-job-tag{display:inline-flex;align-items:center;gap:8px;background:#eff8ea;color:#377812;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;margin-top:7px}.folder-card.site-received{border-color:#5ca631;background:#f7fbf4}.folder-card .site-details-btn{border-color:#456dc4;background:#f3f7ff}
+.attention-modal{position:fixed;inset:0;background:rgba(24,20,45,.6);z-index:10050;display:none;align-items:center;justify-content:center;padding:18px}
+.attention-modal.open{display:flex}
+.attention-dialog{width:min(720px,96vw);max-height:88vh;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 24px 70px rgba(20,17,42,.32);display:flex;flex-direction:column}
+.attention-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:2px solid #f0eee8}
+.attention-head h2{margin:0;font-size:22px;flex:1}
+.attention-close{width:44px;height:44px;border-radius:12px;border:2px solid #e2ded4;background:#fff;font-size:24px;cursor:pointer}
+.attention-list{overflow:auto;padding:16px}
+.attention-empty{padding:30px;text-align:center;color:#8c8674;font-weight:700}
+.attention-item{border:1px solid #f0d9a0;background:#fffaf0;border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.attention-item-path{font-size:13px;color:#8a6d1f;font-weight:700;margin-bottom:4px}
+.attention-item-panel{font-size:17px;font-weight:900;color:#3a2c05;margin-bottom:6px}
+.attention-item-reason{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;padding:3px 9px;border-radius:999px;margin-bottom:8px}
+.attention-item-reason.reason-damaged{background:#fbe7e7;color:#bf1f29}
+.attention-item-reason.reason-missing{background:#fdf0e0;color:#c96a00}
+.attention-item-note{font-size:13px;color:#5c5342;margin:6px 0}
+.attention-item-photo{max-width:180px;border-radius:10px;display:block;margin-bottom:8px}
+.attention-item-actions{display:flex;gap:8px;margin-top:8px}
+.attention-item-actions .btn{min-height:38px;padding:0 14px;font-size:13px}
 @media(max-width:760px){.site-room-modal{padding:7px}.site-room-dialog{width:100%;max-height:96vh;border-radius:20px}.site-room-body{grid-template-columns:1fr}.site-reference-pane{border-right:0;border-bottom:2px solid #eaf2f1}.site-reference-frame{min-height:260px}.site-facts{grid-template-columns:1fr 1fr}.site-room-head h2{font-size:23px}}
 </style>
 
@@ -5838,7 +5856,7 @@ body.fiq-locked .app{display:none!important}
    (state.projects||[]).forEach(p=>{
      (p.cabinets||[]).forEach(c=>{
        (c.parts||[]).forEach(part=>{
-         if(part.status==='missing'||part.status==='damaged')items.push({projectId:p.id,cabinetId:c.id,partId:part.id,reason:part.status});
+         if((part.status==='missing'||part.status==='damaged')&&!part.attentionSorted)items.push({projectId:p.id,cabinetId:c.id,partId:part.id,reason:part.status});
        });
      });
    });
@@ -6047,10 +6065,14 @@ body.fiq-locked .app{display:none!important}
       actions.parentNode.insertBefore(dash,actions.nextSibling);
       dash.querySelectorAll('[data-stat]').forEach(btn=>{
         btn.onclick=()=>{
+          // Needs Attention names the exact panel and job, not just which customers have
+          // a problem somewhere -- clicking it opens that detail directly instead of
+          // dropping into a filtered Customer Library the office would have to search
+          // through again to find the one panel that's actually damaged.
+          if(btn.dataset.stat==='attention'&&typeof window.openAttentionModal==='function'){window.openAttentionModal();return}
           const map={
             active:[activeJobsList,'Active Jobs'],
             sent:[sentToFitterList,'Sent to Fitter'],
-            attention:[needsAttentionList,'Needs Attention'],
             completed:[completedThisMonthList,'Completed this month']
           };
           const pair=map[btn.dataset.stat];if(!pair)return;
@@ -6116,7 +6138,95 @@ body.fiq-locked .app{display:none!important}
   };
 })();
 </script>
+<script id="a210-attention-area-script">
+(function(){
+  // The old "Needs Attention" click just filtered Customer Library down to affected
+  // customers -- the office still had to go find which job, which panel, and re-open
+  // Panel Check to see the damage note or photo. This shows the exact panel, reason,
+  // note and photo directly, with a one-tap way to jump straight to it. "Sorted" only
+  // hides an item from this list (part.attentionSorted) -- it never touches the panel's
+  // own status/damageNote/photos, so the original record stays intact in that job's own
+  // Panel Check history, matching "do not delete the record, keep it in job history."
+  function attentionItemsDetailed(){
+    const items=[];
+    (state.projects||[]).forEach(p=>{
+      (p.cabinets||[]).forEach(c=>{
+        (c.parts||[]).forEach(part=>{
+          if((part.status==='missing'||part.status==='damaged')&&!part.attentionSorted){
+            const room=(p.rooms||[]).find(r=>r.id===c.roomId);
+            items.push({
+              projectId:p.id,cabinetId:c.id,partId:part.id,
+              customer:p.customer||p.name||'Customer',
+              jobName:(room&&room.name)||c.name||p.name||'Job',
+              code:part.code||'',name:part.name||'',
+              reason:part.status,
+              note:part.status==='damaged'?(part.damageNote||''):'',
+              photo:(part.panelPhotos||[])[0]?.data||null,
+              at:part.updatedAt||p.updatedAt||0
+            });
+          }
+        });
+      });
+    });
+    return items.sort((a,b)=>b.at-a.at);
+  }
+  window.a210AttentionItems=attentionItemsDetailed;
+
+  function renderAttentionList(){
+    const box=document.getElementById('attentionList');if(!box)return;
+    const items=attentionItemsDetailed();
+    if(!items.length){box.innerHTML='<div class="attention-empty">Nothing needs attention right now.</div>';return}
+    box.innerHTML=items.map((it,i)=>'<div class="attention-item">'+
+      '<div class="attention-item-path">'+safe(it.customer)+' › '+safe(it.jobName)+'</div>'+
+      '<div class="attention-item-panel">'+safe(it.code)+' '+safe(it.name)+'</div>'+
+      '<span class="attention-item-reason reason-'+it.reason+'">'+(it.reason==='damaged'?'⚠ Damaged':'❔ Missing')+'</span>'+
+      (it.note?'<div class="attention-item-note">"'+safe(it.note)+'"</div>':'')+
+      (it.photo?'<img class="attention-item-photo" src="'+it.photo+'">':'')+
+      '<div class="attention-item-actions">'+
+        '<button type="button" class="btn primary" data-go="'+i+'">Go to panel</button>'+
+        '<button type="button" class="btn" data-sorted="'+i+'">✓ Sorted</button>'+
+      '</div>'+
+    '</div>').join('');
+    box.querySelectorAll('[data-go]').forEach(btn=>{
+      btn.onclick=()=>{
+        const it=items[+btn.dataset.go];
+        window.closeAttentionModal();
+        switchToProject(it.projectId,it.cabinetId,it.partId);
+        renderAll();save();show('parts');
+      };
+    });
+    box.querySelectorAll('[data-sorted]').forEach(btn=>{
+      btn.onclick=()=>{
+        const it=items[+btn.dataset.sorted];
+        const p=state.projects.find(x=>x.id===it.projectId);
+        const c=p&&p.cabinets.find(x=>x.id===it.cabinetId);
+        const part=c&&c.parts.find(x=>x.id===it.partId);
+        if(part){part.attentionSorted=true;part.attentionSortedAt=Date.now();save()}
+        renderAttentionList();
+        if(typeof renderHomeDashboard==='function')renderHomeDashboard();
+      };
+    });
+  }
+  window.openAttentionModal=function(){
+    renderAttentionList();
+    const m=document.getElementById('attentionModal');
+    if(m){m.classList.add('open');m.setAttribute('aria-hidden','false')}
+  };
+  window.closeAttentionModal=function(){
+    const m=document.getElementById('attentionModal');
+    if(m){m.classList.remove('open');m.setAttribute('aria-hidden','true')}
+  };
+  document.getElementById('attentionModalClose')?.addEventListener('click',window.closeAttentionModal);
+  document.getElementById('attentionModal')?.addEventListener('click',e=>{if(e.target.id==='attentionModal')window.closeAttentionModal()});
+})();
+</script>
 <script>window.FIQ_HELP_APP="studio";</script>
+<div class="attention-modal" id="attentionModal" aria-hidden="true">
+ <div class="attention-dialog" role="dialog" aria-modal="true" aria-labelledby="attentionModalTitle">
+  <div class="attention-head"><h2 id="attentionModalTitle">⚠️ Needs Attention</h2><button class="attention-close" id="attentionModalClose" type="button" aria-label="Close">×</button></div>
+  <div class="attention-list" id="attentionList"></div>
+ </div>
+</div>
 <script src="fittersiq-help.js"></script>
 </body>
 </html>
