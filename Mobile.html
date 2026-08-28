@@ -1671,7 +1671,10 @@ function renderRoomDetail(r){
  const roomParts=roomCabinets.flatMap(c=>c.parts||[]);
  const designCount=(r.designImages||[]).length;
  const noteReady=String(r.notes||'').trim().length>0;
- const checkedCount=roomParts.filter(pt=>(Number(pt.scannedQty)||0)>0).length;
+ // Qty-aware, matching scanTotals()'s pattern elsewhere -- a row with qty > 1 counts how
+ // many of its pieces have actually been checked, not just "has at least one been seen".
+ const roomUnitTotal=roomParts.reduce((n,pt)=>n+Math.max(1,Number(pt.qty)||1),0);
+ const checkedCount=roomParts.reduce((n,pt)=>n+Math.min(Math.max(1,Number(pt.qty)||1),Math.max(0,Number(pt.scannedQty)||0)),0);
  if(r.source==='mobile-measure'&&r.draft){
   const measurementCount=(r.siteMarkup?.marks||[]).filter(x=>x.type==='measure').length;
   const preview=r.siteMarkup?.image||roomCover(r);
@@ -1708,7 +1711,7 @@ function renderRoomDetail(r){
   <button class="installer-guide-card" id="openDesignGuide"><span class="installer-guide-icon">🖼️</span><strong>${t('detail.designGuide')}</strong><small>${designCount?designCount+' '+(designCount===1?t('detail.view'):t('detail.views')):t('detail.openDrawings')}</small></button>
   <button class="installer-guide-card" id="openRoomNotes"><span class="installer-guide-icon">📝</span><strong>${t('detail.roomNotes')}</strong><small>${noteReady?t('detail.notesReady'):t('detail.noNotes')}</small></button>
   <button class="installer-guide-card" id="openCuttingList"><span class="installer-guide-icon">📋</span><strong>${t('detail.cuttingList')}</strong><small>${roomParts.length} ${roomParts.length===1?t('detail.panel'):t('detail.panels')}</small></button>
-  <button class="installer-guide-card" id="openPanels"><span class="installer-guide-icon">▦</span><strong>Panels</strong><small>${checkedCount}/${roomParts.length} ${t('detail.checkedShort')}</small></button>
+  <button class="installer-guide-card" id="openPanels"><span class="installer-guide-icon">▦</span><strong>Panels</strong><small>${checkedCount}/${roomUnitTotal} ${t('detail.checkedShort')}</small></button>
  </div>
  <div id="panelsMenu" class="measure-picture-menu hidden" role="dialog" aria-modal="true" aria-label="Panels">
   <div class="measure-picture-card">
@@ -1719,7 +1722,7 @@ function renderRoomDetail(r){
  </div>
  <section class="room-section installer-design-section" id="designGuideSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designCount}</span></div><div class="room-photo-grid">${designCount?r.designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join(''):`<div class="room-empty">${t('detail.noDesignViews')}</div>`}</div></section>
  <section class="room-section installer-notes-section" id="roomNotesSection"><h3 style="margin-top:0">📝 ${t('detail.roomNotes')}</h3><div class="installer-note-box">${noteReady?safe(r.notes):t('detail.noNotes')}</div></section>
- <section class="room-section installer-check-section" id="panelCheckSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">✅ ${t('detail.checkPanels')}</h3><span class="room-count">${checkedCount}/${roomParts.length} ${t('detail.checkPanelsAccounted')}</span></div><div class="panel-check-list">${roomParts.length?roomParts.map(pt=>{const scanned=(Number(pt.scannedQty)||0)>0;const st=pt.status||'ready';return `<div class="panel-check-row status-${st} ${scanned?'is-scanned':''}"><span class="panel-check-mark">${scanned?'✓':'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${scanned?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}</div></div><span class="panel-check-badge">${safe(statusLabel(pt.status))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div></section>
+ <section class="room-section installer-check-section" id="panelCheckSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">✅ ${t('detail.checkPanels')}</h3><span class="room-count">${checkedCount}/${roomUnitTotal} ${t('detail.checkPanelsAccounted')}</span></div><div class="panel-check-list">${roomParts.length?roomParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=pt.status||'ready';return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}</div></div><span class="panel-check-badge">${safe(statusLabel(pt.status))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div></section>
  <button class="btn primary installer-send-update" id="sendRoomUpdate">${t('detail.sendSiteUpdate')}</button>`;
  $('#backRooms').onclick=()=>{state.currentRoom=null;save();show('projects')};
  $('#deleteRoom').onclick=()=>{if(confirm(t('msg.confirmDeleteNamed',[r.name]))){p.rooms=p.rooms.filter(x=>x.id!==r.id);state.currentRoom=null;save();show('projects')}};
@@ -1769,12 +1772,34 @@ function renderInstall(){
   const drawing=c.drawing&&c.drawingType!=="pdf"?`<div class="panel-drawing"><img src="${c.drawing}" alt="${t('msg.highlightedDrawingAlt',[pt.code])}">${panelHighlights}</div>`:`<div class="panel-drawing"><div class="muted">${t('install.noDrawing')}</div></div>`;
   const edgeInfo=`${Number(pt.edgeLong||0)} ${Number(pt.edgeLong||0)===1?t('install.longEdge'):t('install.longEdges')} · ${Number(pt.edgeShort||0)} ${Number(pt.edgeShort||0)===1?t('install.shortEdge'):t('install.shortEdges')}`;
   const markLabel=multi?` · ${t('install.marker')} ${Number(state.selectedCopy)>=0?Number(state.selectedCopy)+2:1}/${panelPositions.length}`:'';
-  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}${safe(markLabel)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">${t('install.installed')}</button><button class="btn danger" id="reportProblemPanelBtn" data-panel-code="${safe(pt.code)}">⚠ Problem Panel</button></div><div><strong>${t('install.status')}</strong> ${safe(statusLabel(mark.status))}</div></div>`;
+  // A panel row with qty > 1 and no individually-placed markers is one shared identity
+  // for several identical physical pieces -- there's nowhere to record "which of the 9"
+  // was just fitted, only how many have been so far. installedQty is that running count,
+  // capped at the total, exactly mirroring how scannedQty already tracks Panel Check.
+  const totalUnits=Math.max(1,Number(pt.qty)||1,panelPositions.length);
+  const installedCount=multi?panelPositions.filter(m=>m.status==='installed').length:Math.min(totalUnits,Number(pt.installedQty)||0);
+  const fittedLine=totalUnits>1?`<div><strong>Fitted</strong> ${installedCount} / ${totalUnits}</div>`:`<div><strong>${t('install.status')}</strong> ${safe(statusLabel(mark.status))}</div>`;
+  const installBtnLabel=totalUnits>1&&!multi?(installedCount>=totalUnits?'✓ All Fitted':'+1 Fitted'):t('install.installed');
+  box.innerHTML=`<div class="panel-detail"><div class="panel-back-row"><button class="btn" id="backToRoom">${t('install.backRoom')}</button><button class="btn" id="backToPanels">${t('install.backPanels')}</button></div><div class="panel-route">${safe(p?.name)||t('detail.currentProject')} › ${safe(room?.name)||t('install.roomNotAssigned')} › ${safe(c.name)}</div>${drawing}<div class="panel-big-code">${safe(pt.code)}${safe(markLabel)}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2><div class="panel-size">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><div><strong>${t('install.quantity')}</strong> ${safe(pt.qty||1)}</div><div><strong>${t('install.material')}</strong> ${safe(pt.material)||t('install.materialNotSet')}</div><div><strong>${t('install.edging')}</strong> ${safe(edgeInfo)}</div>${pt.notes?`<div><strong>${t('install.notes')}</strong> ${safe(pt.notes)}</div>`:''}<div class="panel-actions"><button class="btn primary panel-status" data-status="installed">${safe(installBtnLabel)}</button><button class="btn danger" id="reportProblemPanelBtn" data-panel-code="${safe(pt.code)}">⚠ Problem Panel</button></div>${fittedLine}</div>`;
   $("#backToPanels").onclick=()=>{state.currentPart=null;state.selectedCopy=-1;save();renderInstall()};
   $("#backToRoom").onclick=()=>{state.currentRoom=c.roomId||null;state.currentPart=null;state.selectedCopy=-1;save();show("drawings")};
   $$(".panel-status").forEach(b=>b.onclick=()=>{
    const st=b.dataset.status;
-   currentMark(pt).status=st;
+   if(st==='installed'&&totalUnits>1&&!multi){
+     // A fast double-tap on a touchscreen fires two click events on what looks like the
+     // same press -- without this it would silently count as two pieces fitted instead
+     // of one. A deliberate second piece a moment later still increments normally.
+     const now=Date.now();
+     if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return;
+     state.lastFittedIncrement={partId:pt.id,at:now};
+     // Bare quantity, no individually placed markers to attribute this to -- each press
+     // is one more physical piece completed, capped so repeat presses past the total
+     // can never push the count above what's real.
+     pt.installedQty=Math.min(totalUnits,(Number(pt.installedQty)||0)+1);
+     if(pt.installedQty>=totalUnits)pt.status='installed';
+   }else{
+     currentMark(pt).status=st;
+   }
    save();
    renderInstall();
   });
@@ -1810,7 +1835,7 @@ function mergeStudioProject(incoming){
   oldRooms.forEach(or=>{if(!mergedRooms.some(mr=>mr.id===or.id))mergedRooms.push(or)});
   incoming.rooms=mergedRooms;
   incoming.address=old.address||incoming.address||"";incoming.phone=old.phone||incoming.phone||"";incoming.notes=old.notes||incoming.notes||"";
-  incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos","damageNote","damagedQty"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
+  incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;["status","installNote","locationNote","panelPhotos","damageNote","damagedQty","installedQty","scannedQty"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]})})});
   // Job Notes: both sides can add entries between syncs, so union by id (Studio's
   // incoming copy plus anything the fitter logged locally that hasn't reached Studio yet)
   // instead of letting whichever side synced last silently win.
@@ -1947,15 +1972,26 @@ function scanTotals(p=project()){
  rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;scanned+=Math.min(q,Math.max(0,Number(pt.scannedQty)||0));damaged+=Math.min(q,Math.max(0,Number(pt.damagedQty)||0))});
  return {total,scanned,remaining:Math.max(0,total-scanned),damaged,pct:total?Math.round(scanned/total*100):0,rows};
 }
-function markCurrentPanelScanned(){const pt=part();if(!pt)return;const q=Math.max(1,Number(pt.qty)||1);pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);pt.lastScannedAt=new Date().toISOString();const mark=currentMark(pt);if(mark)mark.status='installed';save();renderScanDashboard()}
+// Scanning a QR code means "I found this panel and checked it in" (Panel Check) -- it
+// must never also silently mark the panel Fitted. Those are two different, deliberate
+// actions (scan to find/check vs. press Mark Fitted after actually installing it); a
+// panel that's merely been scanned and viewed is not yet fitted.
+function markCurrentPanelScanned(){const pt=part();if(!pt)return;const q=Math.max(1,Number(pt.qty)||1);pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);pt.lastScannedAt=new Date().toISOString();save();renderScanDashboard()}
 function renderScanDashboard(){
  const total=scanTotals();
  const pr=project();const cj=$("#scanCurrentJob");if(cj)cj.textContent=pr?`${pr.name||t('msg.projectFallback')}${pr.code?' · '+pr.code:''}`:t('scan.noProjectOpen');
  const recent=$("#recentScans");if(recent){const items=total.rows.filter(({pt})=>pt.lastScannedAt||Number(pt.damagedQty)>0).sort((a,b)=>new Date(b.pt.lastScannedAt||0)-new Date(a.pt.lastScannedAt||0)).slice(0,6);recent.innerHTML=items.length?items.map(({pt,c})=>{const dmg=Number(pt.damagedQty)>0;const when=pt.lastScannedAt?new Date(pt.lastScannedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';return `<div class="scan55-recent-row ${dmg?'damaged':''}"><div class="state">${dmg?'!':'✓'}</div><div><strong>${safe(pt.code||t('msg.panelFallback'))}</strong><small>${safe(pt.name||c.name||t('msg.panelFallback'))}</small></div><time>${when}</time></div>`}).join(''):`<div class="scan55-empty">${t('scan.noPanelsScanned')}</div>`}
 }
+// Mirrors scanTotals()'s already-correct pattern: a panel row with qty > 1 (identical
+// pieces sharing one code) tracks HOW MANY of its pieces are fitted as its own number,
+// not a single status flag for the whole row -- fitting one of nine must read as 1/9,
+// not flip all nine to Fitted at once.
 function installTotals(p=project()){
  const rows=allProjectParts(p);let total=0,installed=0,damaged=0;
- rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;if(pt.status==='installed')installed+=q;else if(pt.status==='damaged')damaged+=q});
+ // qty=1 (the common case) only ever sets status, never installedQty -- status='installed'
+ // there means the one piece is done, same as it always has. A qty>1 row only reaches
+ // status='installed' once every piece is (installedQty is the real progress until then).
+ rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;installed+=pt.status==='installed'?q:Math.min(q,Math.max(0,Number(pt.installedQty)||0));damaged+=Math.min(q,Math.max(0,Number(pt.damagedQty)||0))});
  return {total,installed,missing:Math.max(0,total-installed-damaged),damaged,pct:total?Math.round(installed/total*100):0,rows};
 }
 function renderInstallDashboard(){

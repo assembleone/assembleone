@@ -2466,7 +2466,7 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos","damageNote","damagedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}["status","installNote","locationNote","panelPhotos","damageNote","damagedQty","installedQty","scannedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]})})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
@@ -5183,10 +5183,18 @@ body.guide-only .a131-back-studio{display:block}
 <script id="a178-install-progress-script">
 (function(){
   function projectParts(p){return ((p&&p.cabinets)||[]).flatMap(c=>((c.parts)||[]).map(pt=>({pt,c})))}
+  // A panel row with qty > 1 (identical pieces sharing one code) tracks how many of its
+  // pieces are actually fitted/damaged as its own number (installedQty/damagedQty,
+  // synced from Mobile) rather than one status flag for the whole row -- fitting one of
+  // nine must read as 1/9, not flip all nine to Installed at once.
   function installTotals(p){
     const rows=projectParts(p);
     let total=0,installed=0,damaged=0;
-    rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;if(pt.status==='installed')installed+=q;else if(pt.status==='damaged')damaged+=q});
+    // qty=1 (the common case) only ever sets status, never installedQty -- status=
+    // 'installed' there means the one piece is done, same as it always has. A qty>1 row
+    // only reaches status='installed' once every piece is (installedQty is the real
+    // progress until then).
+    rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;installed+=pt.status==='installed'?q:Math.min(q,Math.max(0,Number(pt.installedQty)||0));damaged+=Math.min(q,Math.max(0,Number(pt.damagedQty)||0))});
     return {total,installed,damaged,missing:Math.max(0,total-installed-damaged),pct:total?Math.round(installed/total*100):0,rows};
   }
   function statusWord(s){return s==='missing'?'Missing':s==='damaged'?'Damaged':s==='installed'?'Installed':'Ready'}
@@ -6035,11 +6043,17 @@ body.fiq-locked .app{display:none!important}
   // Fitted Progress counts physical pieces -- matching how Panel Check and Installation
   // Progress already count things elsewhere, so this summary agrees with the job's own
   // detail screens instead of inventing a third way to count the same panels.
+  // Panel Check here means "has this physical piece been checked in on site" -- Mobile's
+  // scannedQty counter, synced across -- not Studio's own separate "reviewed for
+  // supplier" flag, which is a different, office-only concept. Both this and Fitted are
+  // qty-aware per row (installedQty/scannedQty), matching Mobile's own counting, so one
+  // panel out of nine reads as 1/9 here too instead of flipping the whole row.
   function jobPanelCheckTotals(p){
     let total=0,checked=0;
     (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
-      total+=1;
-      if(typeof window.panelIsReviewed==='function'&&window.panelIsReviewed(part))checked+=1;
+      const q=Math.max(1,Number(part.qty)||1);
+      total+=q;
+      checked+=Math.min(q,Math.max(0,Number(part.scannedQty)||0));
     }));
     return {checked,total};
   }
@@ -6048,7 +6062,7 @@ body.fiq-locked .app{display:none!important}
     (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
       const q=Math.max(1,Number(part.qty)||1);
       total+=q;
-      if(part.status==='installed')installed+=q;
+      installed+=part.status==='installed'?q:Math.min(q,Math.max(0,Number(part.installedQty)||0));
     }));
     return {installed,total};
   }
