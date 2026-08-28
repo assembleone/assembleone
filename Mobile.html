@@ -752,6 +752,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <button type="button" id="modeCircle"><b>⬭</b><span data-i18n="measure.modeCircle">Circle</span></button>
     <button type="button" id="modeMove"><b>✋</b><span data-i18n="measure.modeMove">Move</span></button>
     <button type="button" id="markupUndo"><b>↶</b><span data-i18n="measure.undo">Undo</span></button>
+    <button type="button" id="markupClearAll"><b>🗑</b><span>Clear all</span></button>
     <button type="button" id="markupFit"><b>▣</b><span data-i18n="measure.fitPicture">Fit picture</span></button>
     <button type="button" data-other-kind="Floor up"><b>↑</b><span data-i18n="measure.kindFloorUp">Floor up</span></button>
     <button type="button" data-other-kind="Ceiling down"><b>↓</b><span data-i18n="measure.kindCeilingDown">Ceiling down</span></button>
@@ -2431,6 +2432,19 @@ load();
   show('drawings');
  };
  $('#markupUndo').onclick=()=>{const m=ensure();if(m?.marks.length){m.marks.pop();save();render()}};$('#markupFit').onclick=fit;
+ // A direct, always-available way to wipe every measurement/mark on whatever is
+ // currently open here -- regardless of how old marks got here (a stale staging round,
+ // a room saved before that fix existed, anything), the fitter can always see exactly
+ // what's on screen and clear it themselves in one tap instead of waiting on a fix for
+ // a specific cause.
+ $('#markupClearAll').onclick=()=>{
+  const m=ensure();
+  if(!m||!m.marks.length)return;
+  if(!confirm('Clear all '+m.marks.length+' measurement(s) from this picture? This cannot be undone.'))return;
+  m.marks=[];
+  save();
+  render();
+ };
  if($('#markupZoomIn'))$('#markupZoomIn').onclick=()=>{zoom=Math.min(5,zoom*1.2);applyTransform()};
  if($('#markupZoomOut'))$('#markupZoomOut').onclick=()=>{zoom=Math.max(.15,zoom/1.2);applyTransform()};
  stage.addEventListener('wheel',e=>{e.preventDefault();const old=zoom,n=e.deltaY<0?Math.min(5,zoom*1.12):Math.max(.15,zoom/1.12),r=stage.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;panX=cx-(cx-panX)*(n/old);panY=cy-(cy-panY)*(n/old);zoom=n;applyTransform()},{passive:false});
