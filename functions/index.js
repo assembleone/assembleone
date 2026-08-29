@@ -422,41 +422,57 @@ exports.redeemPairingCode = onCall(async (request) => {
     throw new HttpsError("not-found", "This fitter's company record could not be found.");
   }
 
+  // Everything past this point is wrapped: the code is already spent (the
+  // transaction above already marked it used, deliberately, so a half
+  // finished attempt can't be replayed with the same code), so any failure
+  // here needs a real message rather than leaving the fitter stuck on a
+  // burned code with no idea why. uid is deterministic from fitterId alone,
+  // so re-running any of this for a retry (a fresh code, same fitter) is
+  // always safe -- it finds the same identity rather than creating another.
   const uid = `fitter_${fitterId}`;
   try {
-    await auth.getUser(uid);
-  } catch (e) {
     try {
-      // No real email exists for this identity, so it's marked verified up
-      // front -- otherwise Mobile's normal "verify your email" gate would
-      // block a fitter who has no email to verify.
-      await auth.createUser({ uid, emailVerified: true });
-    } catch (e2) {
-      if (e2.code !== "auth/uid-already-exists") throw e2;
+      await auth.getUser(uid);
+    } catch (e) {
+      try {
+        // No real email exists for this identity, so it's marked verified up
+        // front -- otherwise Mobile's normal "verify your email" gate would
+        // block a fitter who has no email to verify.
+        await auth.createUser({ uid, emailVerified: true });
+      } catch (e2) {
+        if (e2.code !== "auth/uid-already-exists") throw e2;
+      }
     }
-  }
 
-  const membersRef = companyRef.collection("members");
-  const maxUsers = Number(companySnap.data().maxUsers) || 0;
-  const alreadyActiveHere = (await membersRef.doc(uid).get()).data();
-  const isAlreadyActiveFitter = alreadyActiveHere && alreadyActiveHere.role === "fitter" && alreadyActiveHere.status === "active";
-  if (!isAlreadyActiveFitter && maxUsers) {
-    const activeFitters = await membersRef.where("role", "==", "fitter").where("status", "==", "active").get();
-    if (activeFitters.size >= maxUsers) {
-      throw new HttpsError("resource-exhausted", "All Mobile seats are in use. Ask the company owner to free up a seat first.");
+    const membersRef = companyRef.collection("members");
+    const maxUsers = Number(companySnap.data().maxUsers) || 0;
+    const alreadyActiveHere = (await membersRef.doc(uid).get()).data();
+    const isAlreadyActiveFitter = alreadyActiveHere && alreadyActiveHere.role === "fitter" && alreadyActiveHere.status === "active";
+    if (!isAlreadyActiveFitter && maxUsers) {
+      const activeFitters = await membersRef.where("role", "==", "fitter").where("status", "==", "active").get();
+      if (activeFitters.size >= maxUsers) {
+        throw new HttpsError("resource-exhausted", "All Mobile seats are in use. Ask the company owner to free up a seat first.");
+      }
     }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    await membersRef.doc(uid).set({ role: "fitter", status: "active", fitterId, joinedAt: now }, { merge: true });
+    await companyRef.collection("fitters").doc(fitterId).set({ linkedUid: uid, mobileStatus: "active", linkedAt: now }, { merge: true });
+
+    await auth.setCustomUserClaims(uid, { companyId, role: "fitter", fitterId });
+    const token = await auth.createCustomToken(uid, { companyId, role: "fitter", fitterId });
+
+    await writeAuditLog({ type: "fitter_device_paired", companyId, fitterId, uid });
+
+    return { token, companyId, fitterId };
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    console.error("redeemPairingCode: could not finish connecting the device", { companyId, fitterId, uid }, e);
+    throw new HttpsError(
+      "internal",
+      "Could not connect this phone right now. Please try again in a moment, or ask your company owner for a new code."
+    );
   }
-
-  const now = admin.firestore.FieldValue.serverTimestamp();
-  await membersRef.doc(uid).set({ role: "fitter", status: "active", fitterId, joinedAt: now }, { merge: true });
-  await companyRef.collection("fitters").doc(fitterId).set({ linkedUid: uid, mobileStatus: "active", linkedAt: now }, { merge: true });
-
-  await auth.setCustomUserClaims(uid, { companyId, role: "fitter", fitterId });
-  const token = await auth.createCustomToken(uid, { companyId, role: "fitter", fitterId });
-
-  await writeAuditLog({ type: "fitter_device_paired", companyId, fitterId, uid });
-
-  return { token, companyId, fitterId };
 });
 
 /**
