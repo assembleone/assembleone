@@ -2734,10 +2734,26 @@ load();
   if(!p||!m?.image)return alert(t('msg.addRoomPictureFirst'));
   const count=(m.marks||[]).filter(x=>x.type==='measure').length;
   if(!count&&!confirm(t('msg.confirmNoMeasurementsSaveAnyway')))return;
-  const r=(p.rooms||[]).find(x=>x.id===state.currentRoom);
-  const holder=r||p;
-  holder.measureCaptures=holder.measureCaptures||[];
-  holder.measureCaptures.unshift({id:uid(),image:m.image,w:m.w,h:m.h,marks:JSON.parse(JSON.stringify(m.marks||[])),createdAt:Date.now()});
+  let r=(p.rooms||[]).find(x=>x.id===state.currentRoom);
+  if(!r){
+   // Until now the very first photo of a not-yet-named room sat on shared
+   // draft fields (p.siteRoomName/siteRoomIcon/p.measureCaptures) until
+   // "Send to Studio" was tapped. If a fitter took two or three photos back
+   // to back -- each time picking a different room icon -- without tapping
+   // Send between them, every photo and every icon pick landed on that same
+   // shared draft: only the LAST icon choice survived, and all the photos
+   // ended up bundled into one room. Creating the real room object here, on
+   // the very first photo, means every later action (icon pick, name, more
+   // photos of this same room) is scoped to this one distinct room object
+   // and can never bleed into a different room.
+   r={id:uid(),type:'',name:p.siteRoomName||'',icon:p.siteRoomIcon||'',iconManual:!!p.siteRoomIconManual,location:p.siteRoomLocation||'',notes:p.siteRoomNotes||'',beforePhotos:[],designImages:[],measureCaptures:[],notePhotos:p.notePhotos?JSON.parse(JSON.stringify(p.notePhotos)):[],siteMarkup:{image:null,w:0,h:0,marks:[]}};
+   p.rooms=p.rooms||[];p.rooms.unshift(r);
+   state.currentRoom=r.id;
+   p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
+   p.notePhotos=[];
+  }
+  r.measureCaptures=r.measureCaptures||[];
+  r.measureCaptures.unshift({id:uid(),image:m.image,w:m.w,h:m.h,marks:JSON.parse(JSON.stringify(m.marks||[])),createdAt:Date.now()});
   m.image=null;m.marks=[];m.w=0;m.h=0;
   zoom=1;panX=0;panY=0;
   save();
