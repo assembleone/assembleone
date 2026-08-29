@@ -245,6 +245,11 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .nav-qr i{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#211d48 0 3px,transparent 4px),radial-gradient(circle at 62% 59%,#211d48 0 3px,transparent 4px),radial-gradient(circle at 42% 63%,#211d48 0 2px,transparent 3px),radial-gradient(circle at 58% 40%,#211d48 0 2px,transparent 3px)}
 .nav-folder{filter:drop-shadow(0 2px 0 rgba(0,0,0,.12))!important}.nav-room{font-size:35px!important}.nav-measure{font-size:34px!important;transform:rotate(-8deg)}.nav-install{font-size:34px!important}
 @media(max-width:430px){.modern-bottom-nav{padding-left:4px;padding-right:4px}.modern-bottom-nav .nav{font-size:11px}.modern-bottom-nav .nav-icon{font-size:28px}.modern-bottom-nav .scan-main:before{width:76px;height:76px}.modern-bottom-nav .scan-main .nav-icon{width:61px;height:61px}.modern-bottom-nav .scan-main{height:105px}.modern-bottom-nav .scan-main span{font-size:12px}}
+/* The shared AI-helper chat bubble (fittersiq-help.js, also used by Studio)
+   defaults to bottom:90px, which sits underneath this app's own bottom
+   navigation bar -- raised here, Mobile-only, well clear of it (including
+   the safe-area inset the nav itself already pads for on notched phones). */
+.fiq-help-fab{bottom:calc(128px + env(safe-area-inset-bottom, 0px))!important}
 </style>
 
 <style id="a157-compact-scan-layout">
@@ -298,7 +303,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 <style id="a161-measure-tool-layout">
 /* Version 10.64: collect all measurements before sending the completed room photo to Room Guide. */
 #measure .markup-app{height:calc(100dvh - 92px);gap:5px;padding:4px 5px 0}
-#measure .measure61-topbar{display:grid;grid-template-columns:minmax(120px,1fr) minmax(130px,1fr) minmax(105px,.72fr);gap:7px;overflow:visible;padding:6px;background:#fff;border:1px solid #dedce7;border-radius:16px}
+#measure .measure61-topbar{display:grid;grid-template-columns:minmax(90px,.8fr) minmax(150px,1.6fr) minmax(80px,.65fr);gap:7px;overflow:visible;padding:6px;background:#fff;border:1px solid #dedce7;border-radius:16px}
 #measure .measure61-topbar .mini-btn{min-height:50px;border-radius:14px;padding:5px 8px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:950;white-space:nowrap}
 #measure .measure61-picture{background:#eef8ff!important;border:2px solid #78bde9!important;color:#173966!important}
 #measure .measure61-room{background:var(--fi-green,#6BBF3A)!important;border:2px solid var(--fi-green-dark,#4E9D28)!important;color:#fff!important;min-height:60px}
@@ -329,7 +334,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 #measure .markup-hint{display:none}
 @media(max-width:620px){
  #measure .markup-app{height:calc(100dvh - 82px);padding:3px 3px 0}
- #measure .measure61-topbar{grid-template-columns:1fr 1fr .72fr;gap:4px;padding:4px}
+ #measure .measure61-topbar{grid-template-columns:.8fr 1.6fr .65fr;gap:4px;padding:4px}
  #measure .measure61-topbar .mini-btn{min-height:44px;padding:4px 3px;font-size:11px;gap:4px;border-radius:13px}
  #measure .measure61-top-icon{font-size:19px}
  #measure .three-main-measures{gap:4px}
@@ -364,7 +369,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
  #measure .measure-sheet-title{font-size:17px}
  #measure .measure-sheet input{font-size:18px;min-height:45px}
  #measure .editor-actions .mini-btn{font-size:13px;min-height:47px}
- #measure .measure61-topbar{grid-template-columns:1fr .9fr .62fr}
+ #measure .measure61-topbar{grid-template-columns:.75fr 1.5fr .55fr}
  #measure .measure61-topbar .measure61-room span{font-size:10px}
 }
 </style>
@@ -2843,7 +2848,7 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
 @media(max-width:620px){
  body:has(#measure.active) header{height:42px;min-height:42px}
  body:has(#measure.active) main{height:calc(100dvh - 42px);padding:14px 4px 74px}
- #measure.active .measure-simple-topbar{grid-template-columns:1fr 1fr 1fr;gap:3px}
+ #measure.active .measure-simple-topbar{grid-template-columns:.8fr 1.6fr .65fr;gap:3px}
  #measure.active .measure-simple-topbar .mini-btn{padding:5px 4px;font-size:10px;min-height:38px}
  #measure.active .three-main-measures{gap:3px}
  #measure.active .three-main-measures .measure-kind{height:50px;border-radius:11px;padding:2px}
