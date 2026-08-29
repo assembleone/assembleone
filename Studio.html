@@ -1199,7 +1199,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -1216,7 +1216,7 @@ window.db = getDatabase(app);
 window.fiqAuth = getAuth(app);
 window.fiqFunctions = getFunctions(app);
 window.fiqFirestore = getFirestore(app);
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <body class="fiq-locked">
@@ -1276,7 +1276,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <main class="main">
 <header class="header">
 <div class="header-brand"><span class="header-logo"><div class="brand"><img src="assets/fittersiq-header-logo.png?v=1" alt="FittersIQ" style="width:100%;height:100%;display:block;object-fit:contain"/></div></span></div>
-<div class="header-right"><div class="fiq-account-badge" id="fiqAccountBadge" style="display:none"><span id="fiqAccountEmail"></span><button id="fiqSignOutBtn" type="button" aria-label="Sign out" title="Sign out">⏻</button></div><div class="studio-tools" style="display:none"><button class="btn tools-toggle" id="toolsToggleBtn" type="button" title="Tools">⚙</button><div class="tools-menu" id="toolsMenu"><button class="btn" id="refreshBomBtn" type="button">↻ Refresh project</button><button class="btn" id="manageFittersBtn" type="button">👥 Manage Fitters</button></div></div><div class="header-right-stack"><div class="flag-language-label"><span>Language</span><div class="flag-language-buttons" id="flagLanguageButtons" aria-label="Choose language"><button type="button" data-lang="en" title="English" aria-label="English"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#21468B"/><path d="M0 0L60 36M60 0L0 36" stroke="#fff" stroke-width="8"/><path d="M0 0L60 36M60 0L0 36" stroke="#C8102E" stroke-width="4"/><path d="M30 0v36M0 18h60" stroke="#fff" stroke-width="12"/><path d="M30 0v36M0 18h60" stroke="#C8102E" stroke-width="7"/></svg></span></button><button type="button" data-lang="es" title="Español" aria-label="Español"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#AA151B"/><rect y="9" width="60" height="18" fill="#F1BF00"/></svg></span></button><button type="button" data-lang="da" title="Dansk" aria-label="Dansk"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#C60C30"/><rect x="18" width="5" height="36" fill="#fff"/><rect y="15" width="60" height="5" fill="#fff"/></svg></span></button><button type="button" data-lang="de" title="Deutsch" aria-label="Deutsch"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="12" fill="#000"/><rect y="12" width="60" height="12" fill="#DD0000"/><rect y="24" width="60" height="12" fill="#FFCE00"/></svg></span></button><button type="button" data-lang="fr" title="Français" aria-label="Français"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#0055A4"/><rect x="20" width="20" height="36" fill="#fff"/><rect x="40" width="20" height="36" fill="#EF4135"/></svg></span></button><button type="button" data-lang="ro" title="Română" aria-label="Română"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#002B7F"/><rect x="20" width="20" height="36" fill="#FCD116"/><rect x="40" width="20" height="36" fill="#CE1126"/></svg></span></button><button type="button" data-lang="it" title="Italiano" aria-label="Italiano"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#009246"/><rect x="20" width="20" height="36" fill="#fff"/><rect x="40" width="20" height="36" fill="#CE2B37"/></svg></span></button><button type="button" data-lang="pt" title="Português" aria-label="Português"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="24" height="36" fill="#046A38"/><rect x="24" width="36" height="36" fill="#DA291C"/><circle cx="24" cy="18" r="6" fill="#FFCD00"/></svg></span></button><button type="button" data-lang="nl" title="Nederlands" aria-label="Nederlands"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="12" fill="#AE1C28"/><rect y="12" width="60" height="12" fill="#fff"/><rect y="24" width="60" height="12" fill="#21468B"/></svg></span></button><button type="button" data-lang="pl" title="Polski" aria-label="Polski"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="18" fill="#fff"/><rect y="18" width="60" height="18" fill="#DC143C"/></svg></span></button></div><select id="appLanguage" class="flag-language-select flag-language-native" aria-label="Choose language"><option value="en">English</option><option value="es">Español</option><option value="da">Dansk</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="ro">Română</option><option value="it">Italiano</option><option value="pt">Português</option><option value="nl">Nederlands</option><option value="pl">Polski</option></select></div><span class="header-version">v10.86</span></div></div><div class="context" id="headerContext"></div><span class="version">Version 10.87</span>
+<div class="header-right"><div class="fiq-account-badge" id="fiqAccountBadge" style="display:none"><span id="fiqAccountEmail"></span><button id="fiqSignOutBtn" type="button" aria-label="Sign out" title="Sign out">⏻</button></div><button class="btn" id="fiqFittersBtn" type="button" style="display:none">👥 Fitters</button><div class="studio-tools" style="display:none"><button class="btn tools-toggle" id="toolsToggleBtn" type="button" title="Tools">⚙</button><div class="tools-menu" id="toolsMenu"><button class="btn" id="refreshBomBtn" type="button">↻ Refresh project</button><button class="btn" id="manageFittersBtn" type="button">👥 Manage Fitters</button></div></div><div class="header-right-stack"><div class="flag-language-label"><span>Language</span><div class="flag-language-buttons" id="flagLanguageButtons" aria-label="Choose language"><button type="button" data-lang="en" title="English" aria-label="English"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#21468B"/><path d="M0 0L60 36M60 0L0 36" stroke="#fff" stroke-width="8"/><path d="M0 0L60 36M60 0L0 36" stroke="#C8102E" stroke-width="4"/><path d="M30 0v36M0 18h60" stroke="#fff" stroke-width="12"/><path d="M30 0v36M0 18h60" stroke="#C8102E" stroke-width="7"/></svg></span></button><button type="button" data-lang="es" title="Español" aria-label="Español"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#AA151B"/><rect y="9" width="60" height="18" fill="#F1BF00"/></svg></span></button><button type="button" data-lang="da" title="Dansk" aria-label="Dansk"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="36" fill="#C60C30"/><rect x="18" width="5" height="36" fill="#fff"/><rect y="15" width="60" height="5" fill="#fff"/></svg></span></button><button type="button" data-lang="de" title="Deutsch" aria-label="Deutsch"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="12" fill="#000"/><rect y="12" width="60" height="12" fill="#DD0000"/><rect y="24" width="60" height="12" fill="#FFCE00"/></svg></span></button><button type="button" data-lang="fr" title="Français" aria-label="Français"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#0055A4"/><rect x="20" width="20" height="36" fill="#fff"/><rect x="40" width="20" height="36" fill="#EF4135"/></svg></span></button><button type="button" data-lang="ro" title="Română" aria-label="Română"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#002B7F"/><rect x="20" width="20" height="36" fill="#FCD116"/><rect x="40" width="20" height="36" fill="#CE1126"/></svg></span></button><button type="button" data-lang="it" title="Italiano" aria-label="Italiano"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="20" height="36" fill="#009246"/><rect x="20" width="20" height="36" fill="#fff"/><rect x="40" width="20" height="36" fill="#CE2B37"/></svg></span></button><button type="button" data-lang="pt" title="Português" aria-label="Português"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="24" height="36" fill="#046A38"/><rect x="24" width="36" height="36" fill="#DA291C"/><circle cx="24" cy="18" r="6" fill="#FFCD00"/></svg></span></button><button type="button" data-lang="nl" title="Nederlands" aria-label="Nederlands"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="12" fill="#AE1C28"/><rect y="12" width="60" height="12" fill="#fff"/><rect y="24" width="60" height="12" fill="#21468B"/></svg></span></button><button type="button" data-lang="pl" title="Polski" aria-label="Polski"><span class="flag-art"><svg viewBox="0 0 60 36" aria-hidden="true"><rect width="60" height="18" fill="#fff"/><rect y="18" width="60" height="18" fill="#DC143C"/></svg></span></button></div><select id="appLanguage" class="flag-language-select flag-language-native" aria-label="Choose language"><option value="en">English</option><option value="es">Español</option><option value="da">Dansk</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="ro">Română</option><option value="it">Italiano</option><option value="pt">Português</option><option value="nl">Nederlands</option><option value="pl">Polski</option></select></div><span class="header-version">v10.86</span></div></div><div class="context" id="headerContext"></div><span class="version">Version 10.87</span>
 </header>
 <section class="screen active" id="screen-jobs">
 <div class="title-row"><div><h2 id="startTitle">Start Project</h2><div class="muted" id="startHelp">Type in the job and choose what you are building. Rooms stay inside the project and are sent to the phone automatically.</div></div></div>
@@ -6677,10 +6677,15 @@ body.fiq-locked .app{display:none!important}
         const hasPanels=(p.cabinets||[]).some(c=>(c.parts||[]).length>0);
         const wasUnassignedAndUnsent=!p.assignedFitter&&!p.lastMobileSync&&hasPanels;
         if(sel.value==='__add__'){
-          const fitter=promptNewFitter();
-          p.assignedFitter=fitter?fitter.name:'';
-          save();
-          if(typeof renderAll==='function')renderAll();
+          // Adding a fitter to the roster and assigning them to whichever job
+          // happens to be open are two different decisions -- opening the
+          // Fitters screen lets the boss add someone without it looking like
+          // this job now belongs to them. Reset the dropdown back to whatever
+          // it already showed so nothing changes here until they deliberately
+          // pick a name.
+          sel.value=p.assignedFitter||'';
+          if(typeof window.openFittersModal==='function')window.openFittersModal();
+          return;
         }else if(sel.value==='__edit__'){
           promptEditFitter(fitterByName(p.assignedFitter));
         }else if(sel.value==='__delete__'){
@@ -6805,6 +6810,190 @@ body.fiq-locked .app{display:none!important}
   <div id="fitterAccountsBody" class="fitter-accounts-body"></div>
  </div>
 </div>
+<style id="a214-fitter-pairing-style">
+.fitters-pairing-list{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.fitters-pairing-row{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fitters-pairing-row .fp-name{font-weight:900;font-size:16px;flex:1;min-width:120px}
+.fitters-pairing-row .fp-phone{color:#6d667b;font-size:13px}
+.fp-status{font-weight:800;font-size:12px;padding:4px 10px;border-radius:999px}
+.fp-status.not-connected{background:#f4f0fa;color:#6d667b}
+.fp-status.active{background:#e6f7ec;color:#16a34a}
+.fp-connect-btn{border:2px solid #4ca618;background:#f4fcef;color:#2c6b0a;font-weight:800;border-radius:10px;padding:8px 14px;cursor:pointer}
+.fitters-add-form{border:2px dashed var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
+.fitters-add-form label{font-weight:800;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.fitters-add-form input{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
+.fitters-add-form .btn{justify-self:start}
+.fitter-pairing-panel{text-align:center;padding:10px}
+.fitter-pairing-code{font-size:44px;font-weight:900;letter-spacing:8px;margin:14px 0;color:var(--ink)}
+.fitter-pairing-qr{display:flex;justify-content:center;margin:14px 0}
+.fitter-pairing-expiry{color:#6d667b;font-size:13px;margin-bottom:10px}
+</style>
+<div class="attention-modal" id="fittersModal" aria-hidden="true">
+ <div class="attention-dialog" role="dialog" aria-modal="true" aria-labelledby="fittersModalTitle">
+  <div class="attention-head"><h2 id="fittersModalTitle">👥 Fitters</h2><button class="attention-close" id="fittersModalClose" type="button" aria-label="Close">×</button></div>
+  <div id="fittersModalBody"></div>
+ </div>
+</div>
+<div class="attention-modal" id="fitterPairingModal" aria-hidden="true">
+ <div class="attention-dialog" role="dialog" aria-modal="true" aria-labelledby="fitterPairingModalTitle">
+  <div class="attention-head"><h2 id="fitterPairingModalTitle">Connect Mobile</h2><button class="attention-close" id="fitterPairingModalClose" type="button" aria-label="Close">×</button></div>
+  <div id="fitterPairingBody" class="fitter-pairing-panel"></div>
+ </div>
+</div>
+<script id="a214-fitter-identity-pairing-script">
+(function(){
+  // Every fitter's existing `id` (already a random uid(), never a name/email/
+  // phone/device id) IS the permanent fitterId the rest of this feature keys
+  // on -- every fitter record, old or new, already has one, so there is
+  // nothing to migrate. This only mirrors that record to Firestore (it has
+  // only ever lived in this browser's localStorage until now) so a phone on
+  // a different device can find it when redeeming a pairing code.
+  function ensureFitters(){state.fitters=state.fitters||[];return state.fitters}
+  function fs(){return window.fiqAuthFns}
+  function fdb(){return window.fiqFirestore}
+  function companyId(){return window.fittersiqUser&&window.fittersiqUser.companyId}
+  function isOwner(){return window.fittersiqUser&&window.fittersiqUser.role==='company_owner'}
+  function digitsOnly(s){return String(s||'').replace(/[^0-9]/g,'')}
+
+  async function syncFitterToCloud(fitter){
+    const cid=companyId();if(!cid||!fitter||!fitter.id)return;
+    try{
+      await fs().setDoc(fs().doc(fdb(),'companies',cid,'fitters',fitter.id),{
+        fitterId:fitter.id,name:fitter.name||'',phone:fitter.phone||'',email:fitter.email||'',
+        updatedAt:fs().serverTimestamp()
+      },{merge:true});
+    }catch(e){console.error('Fitter cloud sync failed',e)}
+  }
+  window.a214SyncFitterToCloud=syncFitterToCloud;
+
+  let cloudStatusById={};
+  async function refreshCloudStatus(){
+    const cid=companyId();if(!cid)return;
+    try{
+      const snap=await fs().getDocs(fs().collection(fdb(),'companies',cid,'fitters'));
+      const next={};
+      snap.forEach(d=>{next[d.id]=d.data()});
+      cloudStatusById=next;
+    }catch(e){console.error('Fitter status fetch failed',e)}
+  }
+
+  function closeFittersModal(){const m=document.getElementById('fittersModal');if(m){m.classList.remove('open');m.setAttribute('aria-hidden','true')}}
+  function closePairingModal(){const m=document.getElementById('fitterPairingModal');if(m){m.classList.remove('open');m.setAttribute('aria-hidden','true')}if(pairingCountdown){clearInterval(pairingCountdown);pairingCountdown=null}}
+  window.closeFittersModal=closeFittersModal;
+  window.closeFitterPairingModal=closePairingModal;
+
+  function renderFittersModal(){
+    const body=document.getElementById('fittersModalBody');if(!body)return;
+    const fitters=ensureFitters();
+    const rows=fitters.map(f=>{
+      const cloud=cloudStatusById[f.id]||{};
+      const active=cloud.mobileStatus==='active';
+      return '<div class="fitters-pairing-row">'+
+        '<div class="fp-name">'+safe(f.name)+'</div>'+
+        '<div class="fp-phone">'+safe(f.phone||'No phone number')+'</div>'+
+        '<div class="fp-status '+(active?'active':'not-connected')+'">Mobile access: '+(active?'Active':'Not connected')+'</div>'+
+        (active?'':'<button type="button" class="fp-connect-btn" data-connect-fitter="'+safe(f.id)+'">Connect Mobile</button>')+
+      '</div>';
+    }).join('')||'<p class="muted">No fitters yet — add one below.</p>';
+    body.innerHTML=rows+
+      '<div class="fitters-add-form" id="fittersAddForm">'+
+        '<label>Name<input id="newFitterName" type="text" placeholder="e.g. Jo Smith"></label>'+
+        '<label>Mobile number (for WhatsApp)<input id="newFitterPhone" type="tel" placeholder="+44 7700 900123"></label>'+
+        '<label>Email (optional)<input id="newFitterEmail" type="email" placeholder="Only if they already have one"></label>'+
+        '<button type="button" class="btn primary" id="saveNewFitterBtn">Save fitter</button>'+
+      '</div>';
+    body.querySelectorAll('[data-connect-fitter]').forEach(btn=>{
+      btn.onclick=()=>openPairingFor(btn.dataset.connectFitter);
+    });
+    document.getElementById('saveNewFitterBtn').onclick=async()=>{
+      const name=(document.getElementById('newFitterName').value||'').trim();
+      if(!name){alert('Enter a name for the fitter.');return}
+      const phone=(document.getElementById('newFitterPhone').value||'').trim();
+      const email=(document.getElementById('newFitterEmail').value||'').trim().toLowerCase();
+      // Deliberately does not touch any job's assignedFitter -- adding a fitter
+      // to the roster and assigning them to the job you happen to have open
+      // are two different decisions, and should never happen as a side effect
+      // of each other.
+      const fitter={id:uid(),name,phone,email};
+      ensureFitters().push(fitter);
+      save();
+      await syncFitterToCloud(fitter);
+      if(typeof renderAll==='function')renderAll();
+      renderFittersModal();
+    };
+  }
+
+  let pairingCountdown=null;
+  function openFittersModal(){
+    const m=document.getElementById('fittersModal');if(!m)return;
+    renderFittersModal();
+    m.classList.add('open');m.setAttribute('aria-hidden','false');
+    refreshCloudStatus().then(renderFittersModal);
+    // Any fitter created before this feature existed has never been mirrored
+    // to Firestore -- repair that quietly the first time the boss opens this,
+    // so an existing record (e.g. Jo) is ready to pair without recreating it.
+    ensureFitters().forEach(f=>{if(!cloudStatusById[f.id])syncFitterToCloud(f)});
+  }
+  window.openFittersModal=openFittersModal;
+
+  async function openPairingFor(fitterId){
+    const fitter=ensureFitters().find(f=>f.id===fitterId);if(!fitter)return;
+    closeFittersModal();
+    const m=document.getElementById('fitterPairingModal'),body=document.getElementById('fitterPairingBody');
+    if(!m||!body)return;
+    body.innerHTML='<p class="fiq-auth-lead">Creating a code…</p>';
+    m.classList.add('open');m.setAttribute('aria-hidden','false');
+    try{
+      await syncFitterToCloud(fitter);
+      const createCode=fs().httpsCallable(window.fiqFunctions,'createFitterPairingCode');
+      const result=await createCode({fitterId});
+      const code=result.data.code,expiresAt=new Date(result.data.expiresAt);
+      const base=(typeof mobileAppBase==='function'&&mobileAppBase())||'https://fittersiq.com/Mobile.html';
+      const joinUrl=base+(base.includes('?')?'&':'?')+'join='+code;
+      body.innerHTML=
+        '<p class="fiq-auth-lead">Open FittersIQ Mobile on '+safe(fitter.name)+"'s phone and enter this code, or scan the QR code.</p>"+
+        '<div class="fitter-pairing-code">'+code+'</div>'+
+        '<div class="fitter-pairing-qr" id="fitterPairingQr"></div>'+
+        '<div class="fitter-pairing-expiry" id="fitterPairingExpiry"></div>'+
+        (digitsOnly(fitter.phone)?'<button type="button" class="btn primary" id="fitterPairingWhatsappBtn">💬 Send code on WhatsApp</button>':'')+
+        '<button type="button" class="btn" id="fitterPairingNewCodeBtn" style="margin-top:8px">Generate new code</button>';
+      if(typeof makeQr==='function')makeQr(document.getElementById('fitterPairingQr'),joinUrl,180);
+      const expiryEl=document.getElementById('fitterPairingExpiry');
+      if(pairingCountdown)clearInterval(pairingCountdown);
+      const tick=()=>{
+        const secs=Math.max(0,Math.round((expiresAt-Date.now())/1000));
+        const m2=String(Math.floor(secs/60)),s2=String(secs%60).padStart(2,'0');
+        expiryEl.textContent=secs>0?('Expires in '+m2+':'+s2):'This code has expired — generate a new one.';
+        if(secs<=0&&pairingCountdown){clearInterval(pairingCountdown);pairingCountdown=null}
+      };
+      tick();pairingCountdown=setInterval(tick,1000);
+      const wa=document.getElementById('fitterPairingWhatsappBtn');
+      if(wa)wa.onclick=()=>{
+        const text="Hi "+fitter.name+", open FittersIQ Mobile and tap \"Join your company\", then enter this code: "+code+" (or open this link on the phone: "+joinUrl+")";
+        window.open('https://wa.me/'+digitsOnly(fitter.phone)+'?text='+encodeURIComponent(text),'_blank');
+      };
+      document.getElementById('fitterPairingNewCodeBtn').onclick=()=>openPairingFor(fitterId);
+    }catch(e){
+      body.innerHTML='<p class="fiq-auth-msg show error">'+safe((e&&e.message)||'Could not create a pairing code. Please try again.')+'</p><button type="button" class="btn" id="fitterPairingRetryBtn">Try again</button>';
+      const retry=document.getElementById('fitterPairingRetryBtn');if(retry)retry.onclick=()=>openPairingFor(fitterId);
+    }
+  }
+
+  document.getElementById('fittersModalClose')?.addEventListener('click',closeFittersModal);
+  document.getElementById('fittersModal')?.addEventListener('click',e=>{if(e.target.id==='fittersModal')closeFittersModal()});
+  document.getElementById('fitterPairingModalClose')?.addEventListener('click',closePairingModal);
+  document.getElementById('fitterPairingModal')?.addEventListener('click',e=>{if(e.target.id==='fitterPairingModal')closePairingModal()});
+  document.getElementById('fiqFittersBtn')?.addEventListener('click',openFittersModal);
+
+  // The button only makes sense for the company owner (Studio controls fitter
+  // access) -- checked on an interval like the other post-signin UI in this
+  // file, since sign-in completes asynchronously after this script runs.
+  setInterval(()=>{
+    const btn=document.getElementById('fiqFittersBtn');
+    if(btn)btn.style.display=isOwner()?'':'none';
+  },1000);
+})();
+</script>
 <script id="a213-fitter-accounts-script">
 (function(){
   // Real per-fitter Firebase accounts (invite/suspend/reactivate) already exist as

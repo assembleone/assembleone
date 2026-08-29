@@ -85,6 +85,25 @@ service cloud.firestore {
                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved','lastSeenAt']));
         allow delete: if isFittersIQAdmin() || isCompanyOwner(companyId);
       }
+
+      // The permanent fitter identity record (name/phone/email + the fitterId
+      // used everywhere else). Only the owner manages it, from Studio. No
+      // client can delete one -- a fitter is deactivated (mobileStatus),
+      // never removed, so their history is never orphaned.
+      match /fitters/{fitterId} {
+        allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+        allow create, update: if isFittersIQAdmin() || isCompanyOwner(companyId);
+        allow delete: if false;
+      }
+    }
+
+    // Short-lived, single-use phone-pairing codes (see createFitterPairingCode/
+    // redeemPairingCode in functions). Redeeming one happens before the fitter
+    // has any Firebase session, so no client rule could authorise it anyway --
+    // both creating and redeeming a code only ever happen through those trusted
+    // Cloud Functions (Admin SDK), never directly from Studio or Mobile.
+    match /pairingCodes/{code} {
+      allow read, write: if false;
     }
 
     match /supportSessions/{sessionId} {

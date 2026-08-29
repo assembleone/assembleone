@@ -305,6 +305,160 @@ exports.setMemberStatus = onCall(async (request) => {
   return { ok: true };
 });
 
+const PAIRING_CODE_TTL_MINUTES = 30;
+
+function generatePairingCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+/**
+ * Owner action: issue a short-lived, single-use pairing code for connecting
+ * an existing fitter record (companies/{id}/fitters/{fitterId}, created by
+ * Studio) to a phone. The code is only ever an invitation -- redeemPairingCode
+ * below is what actually links a device, and it never becomes the fitter's
+ * permanent identity.
+ */
+exports.createFitterPairingCode = onCall(async (request) => {
+  const authCtx = requireAuth(request);
+  requireVerifiedEmail(authCtx);
+
+  const companyId = authCtx.token.companyId;
+  if (!companyId || authCtx.token.role !== "company_owner") {
+    throw new HttpsError("permission-denied", "Only a company owner can connect a fitter's phone.");
+  }
+  const memberSnap = await db.collection("companies").doc(companyId).collection("members").doc(authCtx.uid).get();
+  if (!memberSnap.exists || memberSnap.data().role !== "company_owner" || memberSnap.data().status !== "active") {
+    throw new HttpsError("permission-denied", "Only an active company owner can connect a fitter's phone.");
+  }
+
+  const fitterId = String(request.data?.fitterId || "").trim();
+  if (!fitterId) throw new HttpsError("invalid-argument", "fitterId is required.");
+
+  const companyRef = db.collection("companies").doc(companyId);
+  const fitterSnap = await companyRef.collection("fitters").doc(fitterId).get();
+  if (!fitterSnap.exists) {
+    throw new HttpsError("not-found", "This fitter record was not found for your company.");
+  }
+
+  const batch = db.batch();
+
+  // An earlier unused code for this same fitter is superseded rather than left
+  // redeemable, so only the code currently on screen in Studio can ever work.
+  const existing = await db
+    .collection("pairingCodes")
+    .where("companyId", "==", companyId)
+    .where("fitterId", "==", fitterId)
+    .where("used", "==", false)
+    .get();
+  existing.forEach((d) => batch.update(d.ref, { used: true, supersededAt: admin.firestore.FieldValue.serverTimestamp() }));
+
+  let code = null;
+  let codeRef = null;
+  for (let attempt = 0; attempt < 5 && !code; attempt++) {
+    const candidate = generatePairingCode();
+    const ref = db.collection("pairingCodes").doc(candidate);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      code = candidate;
+      codeRef = ref;
+    }
+  }
+  if (!code) throw new HttpsError("internal", "Could not generate a pairing code, please try again.");
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + PAIRING_CODE_TTL_MINUTES * 60 * 1000);
+  batch.set(codeRef, {
+    companyId,
+    fitterId,
+    createdAt: now,
+    expiresAt,
+    used: false,
+    createdBy: authCtx.uid,
+  });
+  await batch.commit();
+
+  await writeAuditLog({ type: "fitter_pairing_code_created", companyId, fitterId, uid: authCtx.uid });
+
+  return { code, expiresAt: expiresAt.toDate().toISOString() };
+});
+
+/**
+ * Called from FittersIQ Mobile's "Join your company" screen, before the
+ * fitter has any Firebase session at all -- the pairing code itself is the
+ * only proof of authorisation, which is exactly why it is short-lived and
+ * single-use (enforced atomically below so it can't be redeemed twice).
+ *
+ * The signed-in identity this produces is deterministic from companyId+
+ * fitterId (uid "fitter_<fitterId>"), never from the code, the phone, or any
+ * name/email/number -- redeeming a second code for the same fitter (e.g. a
+ * second device) signs back into the SAME identity rather than creating a
+ * new one, which is also why it doesn't consume a second Mobile seat.
+ */
+exports.redeemPairingCode = onCall(async (request) => {
+  const code = String(request.data?.code || "").trim();
+  if (!/^\d{6}$/.test(code)) {
+    throw new HttpsError("invalid-argument", "Enter the 6-digit code shown in Studio.");
+  }
+
+  const codeRef = db.collection("pairingCodes").doc(code);
+  const { companyId, fitterId } = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(codeRef);
+    if (!snap.exists) throw new HttpsError("not-found", "That code was not recognised. Ask for a new one.");
+    const data = snap.data();
+    if (data.used) throw new HttpsError("failed-precondition", "That code has already been used. Ask for a new one.");
+    if (data.expiresAt && data.expiresAt.toMillis() < Date.now()) {
+      throw new HttpsError("failed-precondition", "That code has expired. Ask for a new one.");
+    }
+    tx.update(codeRef, { used: true, usedAt: admin.firestore.FieldValue.serverTimestamp() });
+    return { companyId: data.companyId, fitterId: data.fitterId };
+  });
+
+  const companyRef = db.collection("companies").doc(companyId);
+  const [companySnap, fitterSnap] = await Promise.all([
+    companyRef.get(),
+    companyRef.collection("fitters").doc(fitterId).get(),
+  ]);
+  if (!companySnap.exists || !fitterSnap.exists) {
+    throw new HttpsError("not-found", "This fitter's company record could not be found.");
+  }
+
+  const uid = `fitter_${fitterId}`;
+  try {
+    await auth.getUser(uid);
+  } catch (e) {
+    try {
+      // No real email exists for this identity, so it's marked verified up
+      // front -- otherwise Mobile's normal "verify your email" gate would
+      // block a fitter who has no email to verify.
+      await auth.createUser({ uid, emailVerified: true });
+    } catch (e2) {
+      if (e2.code !== "auth/uid-already-exists") throw e2;
+    }
+  }
+
+  const membersRef = companyRef.collection("members");
+  const maxUsers = Number(companySnap.data().maxUsers) || 0;
+  const alreadyActiveHere = (await membersRef.doc(uid).get()).data();
+  const isAlreadyActiveFitter = alreadyActiveHere && alreadyActiveHere.role === "fitter" && alreadyActiveHere.status === "active";
+  if (!isAlreadyActiveFitter && maxUsers) {
+    const activeFitters = await membersRef.where("role", "==", "fitter").where("status", "==", "active").get();
+    if (activeFitters.size >= maxUsers) {
+      throw new HttpsError("resource-exhausted", "All Mobile seats are in use. Ask the company owner to free up a seat first.");
+    }
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  await membersRef.doc(uid).set({ role: "fitter", status: "active", fitterId, joinedAt: now }, { merge: true });
+  await companyRef.collection("fitters").doc(fitterId).set({ linkedUid: uid, mobileStatus: "active", linkedAt: now }, { merge: true });
+
+  await auth.setCustomUserClaims(uid, { companyId, role: "fitter", fitterId });
+  const token = await auth.createCustomToken(uid, { companyId, role: "fitter", fitterId });
+
+  await writeAuditLog({ type: "fitter_device_paired", companyId, fitterId, uid });
+
+  return { token, companyId, fitterId };
+});
+
 /**
  * FittersIQ admin only: open a time-limited, audited support session
  * against a customer's company.

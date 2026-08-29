@@ -650,7 +650,7 @@ input:focus,textarea:focus,select:focus{outline:3px solid rgba(107,191,58,.20)!i
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut,
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
@@ -669,7 +669,7 @@ const fiqApp = initializeApp(firebaseConfig);
 window.fiqAuth = getAuth(fiqApp);
 window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <div id="fiqAuthGate" class="fiq-auth-gate">
@@ -690,6 +690,18 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         <button class="fiq-auth-submit" id="fiqSignInBtn" type="submit">Sign In</button>
       </form>
       <button class="fiq-auth-link" id="fiqForgotBtn" type="button">Forgot password?</button>
+      <button class="fiq-auth-link" id="fiqJoinLinkBtn" type="button">New fitter? Join your company</button>
+    </div>
+
+    <div class="fiq-auth-state" id="fiqStateJoin" hidden>
+      <h1>Join your company</h1>
+      <p class="fiq-auth-lead">Enter the code your company owner gave you, or scan their QR code to fill it in automatically.</p>
+      <div class="fiq-auth-msg" id="fiqJoinMsg"></div>
+      <form id="fiqJoinForm">
+        <label class="fiq-auth-field">6-digit code<input id="fiqJoinCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required></label>
+        <button class="fiq-auth-submit" id="fiqJoinBtn" type="submit">Join</button>
+      </form>
+      <button class="fiq-auth-link" id="fiqJoinBackBtn" type="button">Back to sign in</button>
     </div>
 
     <div class="fiq-auth-state" id="fiqStateVerify" hidden>
@@ -3337,7 +3349,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   function initFiqAuthGate(){
   function $(id){return document.getElementById(id)}
   function showState(id){
-    ['fiqStateChecking','fiqStateSignIn','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended','fiqStateDeviceWaiting'].forEach(function(s){
+    ['fiqStateChecking','fiqStateSignIn','fiqStateJoin','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended','fiqStateDeviceWaiting'].forEach(function(s){
       var el=$(s); if(el) el.hidden = (s!==id);
     });
   }
@@ -3349,10 +3361,25 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
 
   var authFns = window.fiqAuthFns, auth = window.fiqAuth, db = window.fiqFirestore;
 
+  var joinPrefillTried = false;
   function lockToSignIn(){
     document.body.classList.add('fiq-locked');
     $('fiqAuthGate').style.display='flex';
     var badge=$('fiqAccountBadge'); if(badge) badge.style.display='none';
+    // A "Connect Mobile" QR code from Studio links here with ?join=123456 --
+    // only honoured once per load so navigating back to sign-in afterwards
+    // (e.g. the code turned out to be wrong) doesn't keep bouncing back.
+    if(!joinPrefillTried){
+      joinPrefillTried = true;
+      try{
+        var joinCode = new URLSearchParams(location.search).get('join');
+        if(joinCode && /^\d{6}$/.test(joinCode)){
+          $('fiqJoinCode').value = joinCode;
+          showState('fiqStateJoin');
+          return;
+        }
+      }catch(e){}
+    }
     showState('fiqStateSignIn');
   }
 
@@ -3455,6 +3482,27 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       } else {
         showMsg(msg,'Something went wrong signing in. Please try again.','error');
       }
+    }
+  });
+
+  $('fiqJoinLinkBtn').addEventListener('click', function(){ showState('fiqStateJoin'); });
+  $('fiqJoinBackBtn').addEventListener('click', function(){ showState('fiqStateSignIn'); });
+
+  $('fiqJoinForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var code=$('fiqJoinCode').value.replace(/\D/g,'');
+    var btn=$('fiqJoinBtn'), msg=$('fiqJoinMsg');
+    if(code.length!==6){ showMsg(msg,'Enter the 6-digit code exactly as shown.','error'); return; }
+    btn.disabled=true; btn.textContent='Joining…';
+    try{
+      var redeem = authFns.httpsCallable(window.fiqFunctions,'redeemPairingCode');
+      var result = await redeem({code:code});
+      await authFns.signInWithCustomToken(auth, result.data.token);
+      // onAuthStateChanged picks this up and runs the normal evaluate()/
+      // unlockApp() flow from here -- nothing else to do on success.
+    }catch(err){
+      btn.disabled=false; btn.textContent='Join';
+      showMsg(msg, (err && err.message) ? err.message : 'That code did not work. Ask for a new one.', 'error');
     }
   });
 
