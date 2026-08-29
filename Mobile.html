@@ -297,6 +297,13 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .room-saved-tick{width:56px;height:56px;line-height:56px;margin:0 auto 12px;border-radius:50%;background:#e6f7ec;color:#16a34a;font-size:30px;font-weight:900}
 .room-saved-title{font-size:20px;font-weight:900;color:var(--ink,#0B2545)}
 .room-saved-sub{color:var(--muted,#5B6B7C);font-size:14px;margin:4px 0 18px}
+.ready-send-panel{max-width:720px;margin:0 auto 14px;background:#fff;border:1px solid var(--line,#E2E7EB);border-radius:16px;padding:14px}
+.ready-send-grid{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.ready-send-tile{flex:none;width:104px;display:flex;flex-direction:column;align-items:stretch;gap:6px;border:none;background:none;padding:0;text-align:left}
+.ready-send-chip{display:inline-block;background:#eef2ff;color:#174E98;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:104px}
+.ready-send-tile img{width:104px;height:104px;object-fit:cover;border-radius:12px;border:2px solid var(--line,#E2E7EB)}
+.ready-send-noimg{width:104px;height:104px;border-radius:12px;background:#f4f4f7}
+.ready-send-btn{width:100%;margin-top:12px;min-height:54px;font-size:17px;font-weight:900}
 .room-saved-choice .btn{display:block;width:100%;margin-top:10px;min-height:52px;font-size:16px;border-radius:14px}
 @media(max-width:560px){#measure .markup-topbar{padding:4px}#measure .mini-btn{padding:6px 7px;font-size:11px}#measure .measure-kind{height:50px}}
 </style>
@@ -1767,6 +1774,47 @@ function wireRoomCard(p,r){
   save();renderRooms();
  });
 }
+// A quick visual check of every room that has a photo, before anything leaves
+// the phone -- each room is its own distinct object now (see #saveMeasureToRoom),
+// so this can safely show them all together with one send action instead of
+// making the fitter open each room's own card just to find its Send button.
+function readySendSummaryHtml(p){
+ const rooms=(p.rooms||[]).filter(x=>(x.measureCaptures||[]).length);
+ if(!rooms.length)return '';
+ const totalPhotos=rooms.reduce((n,x)=>n+(x.measureCaptures||[]).length,0);
+ const label=totalPhotos===rooms.length?`Send ${rooms.length} Room${rooms.length===1?'':'s'}`:`Send ${totalPhotos} Photo${totalPhotos===1?'':'s'}`;
+ const tiles=rooms.map(x=>{
+  const photo=roomCover(x);
+  return `<button type="button" class="ready-send-tile" data-ready-room-id="${x.id}"><span class="ready-send-chip">${x.icon||'📍'} ${safe(x.name||'Unnamed')}</span>${photo?`<img src="${photo}">`:'<div class="ready-send-noimg"></div>'}</button>`;
+ }).join('');
+ return `<div class="ready-send-panel"><div class="ready-send-grid">${tiles}</div><button type="button" class="btn primary ready-send-btn" id="sendAllRoomsBtn">↥ ${label}</button></div>`;
+}
+function wireReadySendPanel(p){
+ $$('.ready-send-tile').forEach(b=>b.onclick=()=>{
+  const rr=(p.rooms||[]).find(x=>x.id===b.dataset.readyRoomId);
+  if(!rr)return;
+  // Tapping a room's own chip/photo jumps straight to its icon picker --
+  // one tap to fix just that room, instead of opening its whole card.
+  state.currentRoom=rr.id;p.startNewRoom=false;p.showRoomSavedChoice=false;save();
+  openSiteRoomIconPicker(rr,true);
+ });
+ if($('#sendAllRoomsBtn'))$('#sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
+}
+function sendAllRoomsToStudio(p){
+ const rooms=(p.rooms||[]).filter(x=>(x.measureCaptures||[]).length);
+ if(!rooms.length)return;
+ let sentTotal=0;
+ rooms.forEach(x=>{
+  const totalCaptures=(x.measureCaptures||[]).length;
+  sentTotal+=Math.max(0,totalCaptures-(x.sentCaptureCount||0));
+  x.sentCaptureCount=totalCaptures;
+ });
+ p.sentPhotoCount=(p.sentPhotoCount||0)+sentTotal;
+ save();
+ exportJob(p.id,true);
+ renderRooms();
+ alert(`${rooms.length} room${rooms.length===1?'':'s'} sent to Studio.`);
+}
 function renderRooms(){
  let p=project();
  if(!p){p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;save()}
@@ -1814,7 +1862,7 @@ function renderRooms(){
  // instead of silently reopening a blank room card -- see
  // #sendNewSiteToStudio, which sets this flag.
  if(p.showRoomSavedChoice){
-  list.innerHTML=switcherHtml+`<div class="room-saved-choice">
+  list.innerHTML=switcherHtml+readySendSummaryHtml(p)+`<div class="room-saved-choice">
    <div class="room-saved-tick">✓</div>
    <div class="room-saved-title">${safe(p.justSavedRoomName||'Room')} saved</div>
    <div class="room-saved-sub">What would you like to do next?</div>
@@ -1826,10 +1874,12 @@ function renderRooms(){
   if($('#finishJobSwitchBtn'))$('#finishJobSwitchBtn').onclick=()=>finishJob(p);
   if($('#addAnotherRoomBtn'))$('#addAnotherRoomBtn').onclick=()=>{p.showRoomSavedChoice=false;startBlankRoom(p);show('measure')};
   if($('#finishJobChoiceBtn'))$('#finishJobChoiceBtn').onclick=()=>finishJob(p);
+  wireReadySendPanel(p);
   return;
  }
- list.innerHTML=switcherHtml+roomCardHtml(p,r);
+ list.innerHTML=switcherHtml+readySendSummaryHtml(p)+roomCardHtml(p,r);
  $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;p.startNewRoom=false;save();renderRooms()});
+ wireReadySendPanel(p);
  // The "add a room" card is staged directly on the project (p.siteMarkup etc) until it's
  // named and sent, and only gets cleared once that happens (see #sendNewSiteToStudio
  // below). Starting "Add Room" again without ever finishing that step left the old
