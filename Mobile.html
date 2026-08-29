@@ -3443,13 +3443,19 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   }
   async function evaluate(user){
     if(!user){ if(deviceWaitPoll){ clearInterval(deviceWaitPoll); deviceWaitPoll = null; } lockToSignIn(); return; }
-    if(!user.emailVerified){
+    var tokenResult = await user.getIdTokenResult();
+    var claims = tokenResult.claims || {};
+    // A fitter who joined through the six-digit company pairing code has
+    // already authenticated -- redeeming that code IS their sign-in, and
+    // their account is deliberately created with no email at all (see
+    // redeemPairingCode), so there is nothing to verify and no link that
+    // could ever arrive. Only a genuine email/password account (no
+    // fitterId claim) goes through the verification gate below.
+    if(!claims.fitterId && !user.emailVerified){
       $('fiqVerifyLead').textContent = "We've sent a verification link to " + user.email + ".";
       showState('fiqStateVerify');
       return;
     }
-    var tokenResult = await user.getIdTokenResult();
-    var claims = tokenResult.claims || {};
     if(!claims.companyId && !claims.fittersiq_admin){
       showState('fiqStateNoCompany');
       return;
