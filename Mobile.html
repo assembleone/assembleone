@@ -1490,7 +1490,10 @@ function roomIconFromName(name,type){
 }
 function projectRoomDisplay(p){
  const room=(p.rooms||[])[0];
- if(room){room.icon=room.icon||roomIconFromName(room.name,room.type);return {icon:room.icon,name:room.name||room.type||t('proj.roomFallback')}}
+ // Purely for display on the Jobs list -- must not write a fallback icon back
+ // onto the room itself, or a room the fitter hasn't named yet would silently
+ // look "already chosen" the next time anything re-renders.
+ if(room){const icon=room.icon||roomIconFromName(room.name,room.type);return {icon,name:room.name||room.type||t('proj.roomFallback')}}
  const cab=(p.cabinets||[])[0];
  const name=cab?.roomName||cab?.room||cab?.name||t('proj.projectFallback');
  return {icon:roomIconFromName(name,name),name};
@@ -1881,7 +1884,11 @@ function renderMeasureCurrentRoomLabel(){
  if(!box)return;
  const p=project();
  const r=p&&(p.rooms||[]).find(x=>x.id===state.currentRoom);
- if(r&&(r.icon||r.name)){box.innerHTML=`<span class="measure-current-room-chip">${r.icon||'📍'} ${safe(r.name||'Unnamed room')}</span>`}
+ // Keyed on r.name, not r.icon -- a separate, unrelated part of Mobile
+ // (ensureExtras, run on every render) backfills every room's icon with a
+ // generic fallback the moment it's blank, but never touches the name, so
+ // name is the only reliable "has the fitter actually chosen this yet" signal.
+ if(r&&r.name){box.innerHTML=`<span class="measure-current-room-chip">${r.icon||'📍'} ${safe(r.name)}</span>`}
  else{box.innerHTML=`<span class="measure-current-room-chip measure-current-room-placeholder">🏠 Choose Room</span>`}
  box.onclick=chooseRoomForCurrentPhoto;
 }
