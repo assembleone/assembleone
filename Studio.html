@@ -2605,8 +2605,8 @@ setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox();if(typeo
 setInterval(paintSiteInbox,1800);setTimeout(paintSiteInbox,200);
 
 async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);switchToProject(incoming.id,incoming.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
-$("#exportMobileBtn").onclick=exportProjectToMobile;
-if($("#sendCuttingToPhoneBtn"))$("#sendCuttingToPhoneBtn").onclick=exportProjectToMobile;if($("#bomExportBtn"))$("#bomExportBtn").onclick=exportProjectToMobile;if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
+$("#exportMobileBtn").onclick=()=>exportProjectToMobile();
+if($("#sendCuttingToPhoneBtn"))$("#sendCuttingToPhoneBtn").onclick=()=>exportProjectToMobile();if($("#bomExportBtn"))$("#bomExportBtn").onclick=()=>exportProjectToMobile();if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
 $("#importMobileInput").onchange=e=>{const f=e.target.files[0];const badge=document.getElementById('siteUpdateBadge');if(f&&badge)badge.textContent='Importing…';importMobileUpdates(f);setTimeout(()=>{if(badge)badge.textContent='Site updates imported ✓'},300);e.target.value=""};
 $("#openProjectInput").onchange=e=>{openProjectPackage(e.target.files[0]);e.target.value=""};
 $("#deleteJobBtn").onclick=()=>{const p=project();if(p&&confirm(`Delete the complete job "${p.name}"?\n\nThis removes all wardrobes, drawings, panels, cutting lists and QR labels in this job.`)){state.projects=state.projects.filter(x=>x.id!==p.id);state.currentProject=null;state.currentCabinet=null;state.currentPart=null;save();renderAll();show("jobs")}};
