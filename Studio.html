@@ -72,6 +72,10 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-job-status.status-new{background:#e7f0ff;color:#1452d8}
 .customer-job-status.status-progress{background:#fff3d6;color:#8a5b00}
 .customer-job-status.status-done{background:#e6f6e1;color:#347d18}
+.customer-job-title-line{flex:1 1 auto;order:1}
+.customer-job-rooms{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;order:2}
+.customer-job-meta{order:3}
+.room-chip{display:inline-flex;align-items:center;gap:3px;background:#EEF2FF;color:var(--ink);border:1px solid #DCE3FA;border-radius:999px;padding:3px 9px 3px 7px;font-size:12px;font-weight:700}
 .customer-search-wrap{margin-bottom:14px}
 .customer-search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--line);border-radius:12px;font-weight:600}
 .customer-search-input:focus{outline:none;border-color:#0051ff;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
@@ -2197,10 +2201,10 @@ function renderCustomers(){
    return `<div class="customer-card" data-search="${safe(searchText)}"><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">🆕 New from Site</span>`:""}${contactHtml}${lastUpdated?`<div class="customer-card-updated">Last updated ${timeAgo(lastUpdated)}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="Edit customer details">✏️ Edit</button><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></span></div><div class="customer-job-list">${jobs.map(p=>{
      const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
      const status=jobStatusInfo(p);
-     const rooms=(p.rooms||[]).map(r=>r.name).filter(Boolean).join(", ");
+     const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
      const logCount=(p.jobLog||[]).length;
      const roomCount=(p.rooms||[]).length;
-     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span>${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong>${rooms?`<span class="muted"> · ${safe(rooms)}</span>`:""}</span><span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${roomCount} room${roomCount===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button></div></div>`;
+     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${roomCount} room${roomCount===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button></div></div>`;
    }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
  box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
@@ -2546,9 +2550,19 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
-base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}Object.assign(br,JSON.parse(JSON.stringify(ir)))});
+// Mobile can send several updates for the same job out of order (a dropped-signal
+// retry replaying an old cached packet after a newer one already landed, or two
+// sync triggers racing) -- each packet carries the whole room list as it stood on
+// the phone at that moment, so blindly overwriting matched rooms let a late/stale
+// packet stomp a room's name/notes back to an older value. Only let a packet
+// overwrite rooms it's actually newer than; a brand-new room id is always added
+// since that can't clobber anything.
+const packetAt=Date.parse(incoming._packetExportedAt||"");
+const isStalePacket=!isNaN(packetAt)&&base._lastRoomsSyncAt&&packetAt<base._lastRoomsSyncAt;
+base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}if(isStalePacket)return;Object.assign(br,JSON.parse(JSON.stringify(ir)))});
+if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
 incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}mergePanelFields(bp,ip)})});return base}
-async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
+async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
 function studioSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open(DIRECT_SYNC_DB,1);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
@@ -2571,6 +2585,7 @@ async function paintSiteInbox(){const badge=document.getElementById('siteUpdateB
 async function removeInboxPacket(syncId){try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK);if(String(syncId||'').startsWith('cloud:')){try{const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;const cloudId=String(syncId).slice(6);if(fs&&db2&&user&&user.companyId){await fs.updateDoc(fs.doc(db2,'companies',user.companyId,'jobs',cloudId),{status:'received',receivedAt:fs.serverTimestamp()})}}catch(e){console.error('Could not mark cloud site job received',e)}}}
 async function applyOneSitePacket(pack){
  const incoming=ensureSharedProject(pack.project||pack);
+ if(pack.exportedAt)incoming._packetExportedAt=pack.exportedAt;
  const merged=mergeMobileProject(incoming);
  await removeInboxPacket(pack.syncId||pack.exportedAt);
  const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0];
