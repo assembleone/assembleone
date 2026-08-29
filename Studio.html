@@ -6966,7 +6966,10 @@ body.fiq-locked .app{display:none!important}
       const createCode=fs().httpsCallable(window.fiqFunctions,'createFitterPairingCode');
       const result=await createCode({fitterId});
       const code=result.data.code,expiresAt=new Date(result.data.expiresAt);
-      const base=(typeof mobileAppBase==='function'&&mobileAppBase())||'https://fittersiq.com/Mobile.html';
+      // fittersiq.com serves the separate marketing site, not this app -- the
+      // real deployed Studio/Mobile app is GitHub Pages' own project-site URL
+      // for this repo. Confirmed live at this exact path before using it here.
+      const base=(typeof mobileAppBase==='function'&&mobileAppBase())||'https://assembleone.github.io/assembleone/Mobile.html';
       const joinUrl=base+(base.includes('?')?'&':'?')+'join='+code;
       body.innerHTML=
         '<p class="fiq-auth-lead">Open FittersIQ Mobile on '+safe(fitter.name)+"'s phone and enter this code, or scan the QR code.</p>"+
