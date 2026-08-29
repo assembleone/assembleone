@@ -310,9 +310,9 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .ready-send-caption{text-align:center;color:var(--muted,#5B6B7C);font-size:13px;font-weight:800;margin-top:12px}
 .measure-rooms-strip{padding:4px 12px 14px}
 .measure-rooms-strip:empty{padding:0}
-.measure-current-room-label{padding:0 4px 8px;text-align:center}
-.measure-current-room-label.hidden{display:none}
+.measure-current-room-label{display:block;width:100%;padding:0 4px 8px;text-align:center;background:none;border:none}
 .measure-current-room-chip{display:inline-flex;align-items:center;gap:6px;background:#fffbea;border:1px solid #FFC600;border-radius:999px;padding:6px 14px;font-size:15px;font-weight:900;color:var(--ink,#0B2545)}
+.measure-current-room-chip.measure-current-room-placeholder{background:#f8faff;border-color:#b9c3e0;color:#174E98}
 .room-saved-choice .btn{display:block;width:100%;margin-top:10px;min-height:52px;font-size:16px;border-radius:14px}
 @media(max-width:560px){#measure .markup-topbar{padding:4px}#measure .mini-btn{padding:6px 7px;font-size:11px}#measure .measure-kind{height:50px}}
 </style>
@@ -800,7 +800,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b><small>Save this room</small></span></button>
    <button class="mini-btn measure61-tools" id="openMeasureTools" type="button"><span class="measure61-top-icon">🛠️</span><span data-i18n="measure.tools">Tools</span></button>
   </div>
-  <div id="measureCurrentRoomLabel" class="measure-current-room-label hidden"></div>
+  <button type="button" id="measureCurrentRoomLabel" class="measure-current-room-label"></button>
   <div class="quick-measure-types three-main-measures" id="quickMeasureTypes" aria-label="Measurement type">
    <button type="button" data-kind="Wall to wall" class="measure-kind active"><b>↔</b><span data-i18n="measure.kindWallToWall">Wall to wall</span></button>
    <button type="button" data-kind="Floor to ceiling" class="measure-kind"><b>↕</b><span data-i18n="measure.kindFloorToCeiling">Floor to ceiling</span></button>
@@ -1614,7 +1614,7 @@ function openSiteRoomIconPicker(holder,isRoom){
   // of the sheet just vanishing.
   overlay.querySelectorAll('[data-icon]').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
-  setTimeout(()=>{overlay.remove();renderRooms();if(typeof renderMeasureRoomsStrip==='function')renderMeasureRoomsStrip();if(typeof renderMeasureCurrentRoomLabel==='function')renderMeasureCurrentRoomLabel()},220);
+  setTimeout(()=>{overlay.remove();if(typeof renderMeasureRoomsStrip==='function')renderMeasureRoomsStrip();if(typeof renderMeasureCurrentRoomLabel==='function')renderMeasureCurrentRoomLabel()},220);
  });
 }
 let siteLocationMapInstance=null,siteLocationMarker=null;
@@ -1835,16 +1835,55 @@ function renderMeasureRoomsStrip(){
  box.innerHTML=readySendSummaryHtml(p);
  wireReadySendPanel(p);
 }
-// A small "what am I editing right now" badge above the canvas -- blank for a
-// brand new room, or the room's own icon+name when reviewing/editing a
-// finished one via its tile.
+// A room becomes a real, permanent object the moment either its icon is
+// chosen (chooseRoomForCurrentPhoto, below) or its first photo is saved
+// (#saveMeasureToRoom) -- whichever happens first. Every later action on it
+// is scoped to this exact object, via state.currentRoom, and can never touch
+// a different room.
+function ensureCurrentRoomExists(p){
+ let r=(p.rooms||[]).find(x=>x.id===state.currentRoom);
+ if(!r){
+  // A photo can already be sitting in the shared draft (p.siteMarkup) if it
+  // was taken BEFORE this room existed -- state.currentRoom was still null
+  // at that point, so the canvas was reading/writing the draft, not a room.
+  // Carry that photo and its marks over now, or switching state.currentRoom
+  // to this new room would silently orphan it (the canvas would look "stuck"
+  // on the old photo while Done can no longer find it to save).
+  const draftMarkup=p.siteMarkup&&p.siteMarkup.image?JSON.parse(JSON.stringify(p.siteMarkup)):{image:null,w:0,h:0,marks:[]};
+  r={id:uid(),type:'',name:p.siteRoomName||'',icon:p.siteRoomIcon||'',iconManual:!!p.siteRoomIconManual,location:p.siteRoomLocation||'',notes:p.siteRoomNotes||'',beforePhotos:[],designImages:[],measureCaptures:[],notePhotos:p.notePhotos?JSON.parse(JSON.stringify(p.notePhotos)):[],siteMarkup:draftMarkup};
+  p.rooms=p.rooms||[];p.rooms.unshift(r);
+  state.currentRoom=r.id;
+  p.startNewRoom=true;
+  p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
+  p.notePhotos=[];
+  p.siteMarkup={image:null,w:0,h:0,marks:[]};
+ }
+ return r;
+}
+// The button above the canvas: a deliberate, always-visible action, not a
+// surprise popup after Done. Tap it before or after taking the photo -- it
+// creates the room if it doesn't exist yet (harmless if it already does) and
+// opens the same icon grid used everywhere else in Mobile.
+function chooseRoomForCurrentPhoto(){
+ const p=project();if(!p)return;
+ const r=ensureCurrentRoomExists(p);
+ save();
+ renderMeasureCurrentRoomLabel();
+ renderMeasureRoomsStrip();
+ openSiteRoomIconPicker(r,true);
+}
+// The badge above the canvas doubles as the "choose room" prompt when
+// nothing's been picked yet, and shows the current room's own icon+name once
+// it has -- tapping it either way opens the same picker, scoped to whichever
+// room is currently active (or about to be created).
 function renderMeasureCurrentRoomLabel(){
  const box=document.getElementById('measureCurrentRoomLabel');
  if(!box)return;
  const p=project();
  const r=p&&(p.rooms||[]).find(x=>x.id===state.currentRoom);
- if(r){box.innerHTML=`<span class="measure-current-room-chip">${r.icon||'📍'} ${safe(r.name||'Unnamed room')}</span>`;box.classList.remove('hidden')}
- else{box.innerHTML='';box.classList.add('hidden')}
+ if(r&&(r.icon||r.name)){box.innerHTML=`<span class="measure-current-room-chip">${r.icon||'📍'} ${safe(r.name||'Unnamed room')}</span>`}
+ else{box.innerHTML=`<span class="measure-current-room-chip measure-current-room-placeholder">🏠 Choose Room</span>`}
+ box.onclick=chooseRoomForCurrentPhoto;
 }
 function sendAllRoomsToStudio(p){
  const rooms=(p.rooms||[]).filter(x=>(x.measureCaptures||[]).length);
@@ -1858,7 +1897,6 @@ function sendAllRoomsToStudio(p){
  p.sentPhotoCount=(p.sentPhotoCount||0)+sentTotal;
  save();
  exportJob(p.id,true);
- renderRooms();
  renderMeasureRoomsStrip();
  alert(`${rooms.length} room${rooms.length===1?'':'s'} sent to Studio.`);
 }
@@ -2829,18 +2867,11 @@ load();
   if(!p||!m?.image)return alert(t('msg.addRoomPictureFirst'));
   const count=(m.marks||[]).filter(x=>x.type==='measure').length;
   if(!count&&!confirm(t('msg.confirmNoMeasurementsSaveAnyway')))return;
-  let r=(p.rooms||[]).find(x=>x.id===state.currentRoom);
-  const isNewRoom=!r;
-  if(isNewRoom){
-   // Every completed room is its own distinct, permanent object from the moment
-   // its first photo is saved -- every later action (icon pick, name, more
-   // photos of this same room) is scoped to this one object and can never
-   // bleed into a different room.
-   r={id:uid(),type:'',name:p.siteRoomName||'',icon:p.siteRoomIcon||'',iconManual:!!p.siteRoomIconManual,location:p.siteRoomLocation||'',notes:p.siteRoomNotes||'',beforePhotos:[],designImages:[],measureCaptures:[],notePhotos:p.notePhotos?JSON.parse(JSON.stringify(p.notePhotos)):[],siteMarkup:{image:null,w:0,h:0,marks:[]}};
-   p.rooms=p.rooms||[];p.rooms.unshift(r);
-   p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
-   p.notePhotos=[];
-  }
+  // ensureCurrentRoomExists is a no-op if the fitter already tapped the
+  // "Choose Room" badge above the canvas before or after taking this photo --
+  // otherwise it creates the room right here, so Done always has a real,
+  // distinct room to freeze this photo into.
+  const r=ensureCurrentRoomExists(p);
   r.measureCaptures=r.measureCaptures||[];
   const newCapture={id:uid(),image:m.image,w:m.w,h:m.h,marks:JSON.parse(JSON.stringify(m.marks||[])),createdAt:Date.now()};
   // Tapping a finished room's own tile to review/edit it (see loadRoomForEdit)
@@ -2866,13 +2897,8 @@ load();
   save();
   loadMarkup();
   const st=$('#measurePhotoStatus');if(st)st.textContent='';
-  renderRooms();
   renderMeasureRoomsStrip();
   renderMeasureCurrentRoomLabel();
-  // A brand new room needs its icon and name right away -- the same icon grid
-  // used everywhere else in Mobile, setting both in one tap. An already-named
-  // room being re-measured doesn't need to be re-prompted.
-  if(isNewRoom)openSiteRoomIconPicker(r,true);
  };
  $('#markupUndo').onclick=()=>{const m=ensure();if(m?.marks.length){m.marks.pop();save();render()}};$('#markupFit').onclick=fit;
  // A direct, always-available way to wipe every measurement/mark on whatever is
