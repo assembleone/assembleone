@@ -304,6 +304,15 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .ready-send-tile img{width:104px;height:104px;object-fit:cover;border-radius:12px;border:2px solid var(--line,#E2E7EB)}
 .ready-send-noimg{width:104px;height:104px;border-radius:12px;background:#f4f4f7}
 .ready-send-btn{width:100%;margin-top:12px;min-height:54px;font-size:17px;font-weight:900}
+.ready-send-tile.active img{border-color:#FFC600;border-width:3px}
+.ready-send-addroom{flex:none;width:104px;height:104px;margin-top:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px dashed #b9c3e0;border-radius:12px;background:#f8faff;color:#174E98;font-weight:900;font-size:13px}
+.ready-send-addroom-icon{font-size:26px;line-height:1}
+.ready-send-caption{text-align:center;color:var(--muted,#5B6B7C);font-size:13px;font-weight:800;margin-top:12px}
+.measure-rooms-strip{padding:4px 12px 14px}
+.measure-rooms-strip:empty{padding:0}
+.measure-current-room-label{padding:0 4px 8px;text-align:center}
+.measure-current-room-label.hidden{display:none}
+.measure-current-room-chip{display:inline-flex;align-items:center;gap:6px;background:#fffbea;border:1px solid #FFC600;border-radius:999px;padding:6px 14px;font-size:15px;font-weight:900;color:var(--ink,#0B2545)}
 .room-saved-choice .btn{display:block;width:100%;margin-top:10px;min-height:52px;font-size:16px;border-radius:14px}
 @media(max-width:560px){#measure .markup-topbar{padding:4px}#measure .mini-btn{padding:6px 7px;font-size:11px}#measure .measure-kind{height:50px}}
 </style>
@@ -788,9 +797,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <input id="markupCameraPhoto" class="js-file-input" type="file" accept="image/*" capture="environment">
    <input id="markupGalleryPhoto" class="js-file-input" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.gif">
    <span id="measurePhotoStatus" class="measure-photo-status" aria-live="polite"></span>
-   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE → ROOM GUIDE</b><small>Save &amp; continue</small></span><span class="measure61-top-icon measure-room-save-arrow" aria-hidden="true">→</span></button>
+   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b><small>Save this room</small></span></button>
    <button class="mini-btn measure61-tools" id="openMeasureTools" type="button"><span class="measure61-top-icon">🛠️</span><span data-i18n="measure.tools">Tools</span></button>
   </div>
+  <div id="measureCurrentRoomLabel" class="measure-current-room-label hidden"></div>
   <div class="quick-measure-types three-main-measures" id="quickMeasureTypes" aria-label="Measurement type">
    <button type="button" data-kind="Wall to wall" class="measure-kind active"><b>↔</b><span data-i18n="measure.kindWallToWall">Wall to wall</span></button>
    <button type="button" data-kind="Floor to ceiling" class="measure-kind"><b>↕</b><span data-i18n="measure.kindFloorToCeiling">Floor to ceiling</span></button>
@@ -833,6 +843,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   </div>
   <div class="markup-hint" id="markupHint" data-i18n="measure.dragHint">Drag arrow → enter size → save</div>
  </div>
+ <div id="measureRoomsStrip" class="measure-rooms-strip"></div>
  <div id="measureEditor" class="measure-editor hidden" role="dialog" aria-modal="true">
   <div class="measure-sheet">
    <div class="measure-sheet-title"><span id="editorKind">Wall to wall</span><button id="closeEditor" type="button">×</button></div>
@@ -1584,19 +1595,18 @@ function openSiteRoomIconPicker(holder,isRoom){
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
  overlay.querySelectorAll('[data-icon]').forEach(b=>b.onclick=e=>{
   e.preventDefault();e.stopPropagation();
-  const icon=b.dataset.icon;
-  if(isRoom){holder.icon=icon;holder.iconManual=true}else{holder.siteRoomIcon=icon;holder.siteRoomIconManual=true}
+  const icon=b.dataset.icon,name=b.dataset.name;
   // Picking an icon here IS how a fitter names the room -- it always fills
   // the name (not just the first time), matching what they just tapped, so
   // there's never a moment where the icon says one thing and the name says
   // another. They can still edit the text afterwards for something more
-  // specific.
-  const nameInput=document.getElementById('siteRoomName');
-  if(nameInput){
-   nameInput.value=b.dataset.name;
-   if(isRoom)holder.name=b.dataset.name;else holder.siteRoomName=b.dataset.name;
-   const title=document.getElementById('siteRoomTitle');if(title)title.textContent=b.dataset.name;
-  }
+  // specific. Both writes are unconditional (not gated on any on-screen field
+  // existing) because this can be called when the room's own detail screen
+  // isn't the one currently visible -- gating the name write on a DOM field
+  // being present silently dropped the name in that case.
+  if(isRoom){holder.icon=icon;holder.iconManual=true;holder.name=name}else{holder.siteRoomIcon=icon;holder.siteRoomIconManual=true;holder.siteRoomName=name}
+  const nameInput=document.getElementById('siteRoomName');if(nameInput)nameInput.value=name;
+  const title=document.getElementById('siteRoomTitle');if(title)title.textContent=name;
   const liveBtn=document.getElementById('siteRoomIconBtn');if(liveBtn)liveBtn.textContent=icon;
   save();
   // A brief visible "selected" flash on the tapped icon before the sheet
@@ -1604,7 +1614,7 @@ function openSiteRoomIconPicker(holder,isRoom){
   // of the sheet just vanishing.
   overlay.querySelectorAll('[data-icon]').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
-  setTimeout(()=>{overlay.remove();renderRooms()},220);
+  setTimeout(()=>{overlay.remove();renderRooms();if(typeof renderMeasureRoomsStrip==='function')renderMeasureRoomsStrip();if(typeof renderMeasureCurrentRoomLabel==='function')renderMeasureCurrentRoomLabel()},220);
  });
 }
 let siteLocationMapInstance=null,siteLocationMarker=null;
@@ -1666,7 +1676,7 @@ function roomCardHtml(p,r){
  const notePhotoStamp=iso=>{if(!iso)return'';const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString([],{day:'2-digit',month:'short'})+' · '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
  const notePhotosSection=`<div style="margin-top:10px"><div class="room-photo-grid" style="margin-bottom:8px">${notePhotos.map(np=>`<div class="room-photo-tile" style="position:relative"><img src="${np.data}"><div class="design-caption">${notePhotoStamp(np.takenAt)}</div><button type="button" class="note-photo-delete-btn" data-note-photo-id="${np.id}" title="${t('detail.delete')}" style="position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:900;font-size:15px;line-height:1">✕</button></div>`).join('')}</div><button type="button" class="btn" id="addNotePhotoBtn">📷 ${t('intake.addNotePhoto')}</button><input id="notePhotoInput" type="file" accept="image/*" multiple hidden></div>`;
  const extraSections='';
- return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="${t('msg.tapToChangeIcon')}" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.floor')}<div class="floor-btn-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${floorPresets.map(f=>`<button type="button" class="btn floor-preset-btn ${roomFloor===f?'active':''}" data-floor="${f}" style="padding:8px 12px;font-size:13px">${floorLabel(f)}</button>`).join('')}</div><input id="siteRoomFloor" style="margin-top:6px" placeholder="${t('intake.floorPlaceholder')}" value="${safe(roomFloor)}"></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea>${notePhotosSection}</label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.readyToSendSuffix')}</div>${sentCount?`<div class="muted" style="margin-top:4px">${sentCount} ${sentCount===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.sentToStudioSuffix')}</div>`:''}<div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">↥ ${t('intake.sendToStudio')}</button>${r?`<button class="btn danger" id="deleteRoomBtn" type="button">🗑 ${t('detail.delete')}</button>`:''}</div>${extraSections}</div>`;
+ return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="${t('msg.tapToChangeIcon')}" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.floor')}<div class="floor-btn-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${floorPresets.map(f=>`<button type="button" class="btn floor-preset-btn ${roomFloor===f?'active':''}" data-floor="${f}" style="padding:8px 12px;font-size:13px">${floorLabel(f)}</button>`).join('')}</div><input id="siteRoomFloor" style="margin-top:6px" placeholder="${t('intake.floorPlaceholder')}" value="${safe(roomFloor)}"></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea>${notePhotosSection}</label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.readyToSendSuffix')}</div>${sentCount?`<div class="muted" style="margin-top:4px">${sentCount} ${sentCount===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.sentToStudioSuffix')}</div>`:''}<div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">✓ Save & Back to Rooms</button>${r?`<button class="btn danger" id="deleteRoomBtn" type="button">🗑 ${t('detail.delete')}</button>`:''}</div>${extraSections}</div>`;
 }
 function wireRoomCard(p,r){
  const notePhotoHolder=r||p;
@@ -1726,38 +1736,34 @@ function wireRoomCard(p,r){
  initSiteLocationMap(p);
  if($('#backToMeasure'))$('#backToMeasure').onclick=()=>show('measure');
  if(r&&$('#deleteRoomBtn'))$('#deleteRoomBtn').onclick=()=>{if(confirm(`${t('detail.delete')} ${r.name||''}?`)){if(typeof deleteAllPhotosForRoom==='function')deleteAllPhotosForRoom(r);p.rooms=(p.rooms||[]).filter(x=>x.id!==r.id);state.currentRoom=null;p.startNewRoom=false;save();renderRooms()}};
+ // This card is now only reached by tapping a finished room's own tile to review
+ // or edit it (see loadRoomForEdit) -- there is no per-room send here on purpose.
+ // Sending only ever happens once, for the whole visit, from the Send to Studio
+ // button on the measure screen's room strip.
  if($('#sendNewSiteToStudio'))$('#sendNewSiteToStudio').onclick=()=>{
   const name=$('#siteRoomName').value.trim(),customer=$('#siteCustomerName').value.trim(),address=$('#siteAddress').value.trim(),notes=$('#siteRoomNotes').value.trim(),floor=$('#siteRoomFloor')?.value.trim()||'';
   if(!name)return alert(t('msg.addRoomNameFirst'));
   p.customer=customer;p.address=address;
-  let room=r,sentCaptureCount;
+  let room=r;
   if(!room){
    room={id:uid(),type:'',name,icon:$('#siteRoomIconBtn')?.textContent||roomIconFromName(name,''),location:floor,beforePhotos:[],designImages:[],notes,siteMarkup:p.siteMarkup?JSON.parse(JSON.stringify(p.siteMarkup)):{image:null,w:0,h:0,marks:[]},measureCaptures:p.measureCaptures?JSON.parse(JSON.stringify(p.measureCaptures)):[],notePhotos:p.notePhotos?JSON.parse(JSON.stringify(p.notePhotos)):[]};
    p.rooms=p.rooms||[];p.rooms.unshift(room);
-   sentCaptureCount=(room.measureCaptures||[]).length;
-   room.sentCaptureCount=sentCaptureCount;
   }else{
    room.name=name;room.icon=$('#siteRoomIconBtn')?.textContent||room.icon;room.notes=notes;room.location=floor;
-   const totalCaptures=(room.measureCaptures||[]).length;
-   sentCaptureCount=Math.max(0,totalCaptures-(room.sentCaptureCount||0));
-   room.sentCaptureCount=totalCaptures;
   }
   p.name=p.name==='New Site Job'?name:p.name;
-  p.sentPhotoCount=(p.sentPhotoCount||0)+sentCaptureCount;
   p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
   p.siteMarkup={image:null,w:0,h:0,marks:[]};
   p.measureCaptures=[];
   p.notePhotos=[];
   state.currentRoom=null;
+  state.editingRoomCaptureId=null;
   p.startNewRoom=true;
   p.newRoomDraftStarted=true;
-  // Rather than silently reopening a fresh blank room card (the old
-  // behaviour, which looked identical whether a room had just been saved
-  // or you'd never started one), land on an explicit choice so it's
-  // obvious the room was saved and what happens next.
-  p.showRoomSavedChoice=true;
-  p.justSavedRoomName=room.name;
-  save();exportJob(p.id);renderRooms();
+  save();
+  show('measure');
+  renderMeasureRoomsStrip();
+  renderMeasureCurrentRoomLabel();
  };
  if(r){
   const roomCabinets=(p.cabinets||[]).filter(c=>c.roomId===r.id);
@@ -1774,31 +1780,71 @@ function wireRoomCard(p,r){
   save();renderRooms();
  });
 }
-// A quick visual check of every room that has a photo, before anything leaves
-// the phone -- each room is its own distinct object now (see #saveMeasureToRoom),
-// so this can safely show them all together with one send action instead of
-// making the fitter open each room's own card just to find its Send button.
+// The photos themselves ARE the room navigation: every finished room shows up
+// here as its own tile (icon + name + a tick, over its own photo), and tapping
+// one loads THAT room back into the measure canvas for editing -- never any
+// other room. A dedicated "+ Room" tile starts a fresh one. There is exactly
+// one send action for the whole strip: Send to Studio always means the whole
+// site visit, every finished room together -- never a single room by itself.
 function readySendSummaryHtml(p){
  const rooms=(p.rooms||[]).filter(x=>(x.measureCaptures||[]).length);
- if(!rooms.length)return '';
- const totalPhotos=rooms.reduce((n,x)=>n+(x.measureCaptures||[]).length,0);
- const label=totalPhotos===rooms.length?`Send ${rooms.length} Room${rooms.length===1?'':'s'}`:`Send ${totalPhotos} Photo${totalPhotos===1?'':'s'}`;
  const tiles=rooms.map(x=>{
   const photo=roomCover(x);
-  return `<button type="button" class="ready-send-tile" data-ready-room-id="${x.id}"><span class="ready-send-chip">${x.icon||'📍'} ${safe(x.name||'Unnamed')}</span>${photo?`<img src="${photo}">`:'<div class="ready-send-noimg"></div>'}</button>`;
+  const active=x.id===state.currentRoom?' active':'';
+  return `<button type="button" class="ready-send-tile${active}" data-ready-room-id="${x.id}"><span class="ready-send-chip">${x.icon||'📍'} ${safe(x.name||'Unnamed')} ✓</span>${photo?`<img src="${photo}">`:'<div class="ready-send-noimg"></div>'}</button>`;
  }).join('');
- return `<div class="ready-send-panel"><div class="ready-send-grid">${tiles}</div><button type="button" class="btn primary ready-send-btn" id="sendAllRoomsBtn">↥ ${label}</button></div>`;
+ const addTile=`<button type="button" class="ready-send-addroom" id="addRoomTile"><span class="ready-send-addroom-icon">＋</span><span>Add Room</span></button>`;
+ const sendSection=rooms.length?`<div class="ready-send-caption">${rooms.length} room${rooms.length===1?'':'s'} ready</div><button type="button" class="btn primary ready-send-btn" id="sendAllRoomsBtn">SEND TO STUDIO →</button>`:'';
+ return `<div class="ready-send-panel"><div class="ready-send-grid">${tiles}${addTile}</div>${sendSection}</div>`;
 }
 function wireReadySendPanel(p){
- $$('.ready-send-tile').forEach(b=>b.onclick=()=>{
-  const rr=(p.rooms||[]).find(x=>x.id===b.dataset.readyRoomId);
-  if(!rr)return;
-  // Tapping a room's own chip/photo jumps straight to its icon picker --
-  // one tap to fix just that room, instead of opening its whole card.
-  state.currentRoom=rr.id;p.startNewRoom=false;p.showRoomSavedChoice=false;save();
-  openSiteRoomIconPicker(rr,true);
- });
+ $$('.ready-send-tile').forEach(b=>b.onclick=()=>loadRoomForEdit(p,b.dataset.readyRoomId));
+ if($('#addRoomTile'))$('#addRoomTile').onclick=()=>{
+  startBlankRoom(p);
+  state.editingRoomCaptureId=null;
+  show('measure');
+  renderMeasureRoomsStrip();
+  renderMeasureCurrentRoomLabel();
+ };
  if($('#sendAllRoomsBtn'))$('#sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
+}
+// Tapping a finished room's own tile edits ONLY that room: its saved photo and
+// marks are copied back into the live markup buffer (siteMarkup) so the canvas
+// can show them again, and #saveMeasureToRoom (below) knows -- via
+// state.editingRoomCaptureId -- to replace that exact capture on Done rather
+// than adding a new one, so this can never create a second, duplicate photo
+// or bleed into a different room.
+function loadRoomForEdit(p,roomId){
+ const r=(p.rooms||[]).find(x=>x.id===roomId);
+ if(!r)return;
+ const cap=(r.measureCaptures||[])[0];
+ state.currentRoom=r.id;
+ state.editingRoomCaptureId=cap?cap.id:null;
+ r.siteMarkup=cap?{image:cap.image,w:cap.w||0,h:cap.h||0,marks:JSON.parse(JSON.stringify(cap.marks||[]))}:{image:null,w:0,h:0,marks:[]};
+ save();
+ show('measure');
+ renderMeasureRoomsStrip();
+ renderMeasureCurrentRoomLabel();
+}
+// The strip lives on the measure screen now (see #measureRoomsStrip in the
+// markup) -- this just re-renders it into that container.
+function renderMeasureRoomsStrip(){
+ const p=project(),box=document.getElementById('measureRoomsStrip');
+ if(!box)return;
+ if(!p){box.innerHTML='';return}
+ box.innerHTML=readySendSummaryHtml(p);
+ wireReadySendPanel(p);
+}
+// A small "what am I editing right now" badge above the canvas -- blank for a
+// brand new room, or the room's own icon+name when reviewing/editing a
+// finished one via its tile.
+function renderMeasureCurrentRoomLabel(){
+ const box=document.getElementById('measureCurrentRoomLabel');
+ if(!box)return;
+ const p=project();
+ const r=p&&(p.rooms||[]).find(x=>x.id===state.currentRoom);
+ if(r){box.innerHTML=`<span class="measure-current-room-chip">${r.icon||'📍'} ${safe(r.name||'Unnamed room')}</span>`;box.classList.remove('hidden')}
+ else{box.innerHTML='';box.classList.add('hidden')}
 }
 function sendAllRoomsToStudio(p){
  const rooms=(p.rooms||[]).filter(x=>(x.measureCaptures||[]).length);
@@ -1813,6 +1859,7 @@ function sendAllRoomsToStudio(p){
  save();
  exportJob(p.id,true);
  renderRooms();
+ renderMeasureRoomsStrip();
  alert(`${rooms.length} room${rooms.length===1?'':'s'} sent to Studio.`);
 }
 function renderRooms(){
@@ -1862,7 +1909,7 @@ function renderRooms(){
  // instead of silently reopening a blank room card -- see
  // #sendNewSiteToStudio, which sets this flag.
  if(p.showRoomSavedChoice){
-  list.innerHTML=switcherHtml+readySendSummaryHtml(p)+`<div class="room-saved-choice">
+  list.innerHTML=switcherHtml+`<div class="room-saved-choice">
    <div class="room-saved-tick">✓</div>
    <div class="room-saved-title">${safe(p.justSavedRoomName||'Room')} saved</div>
    <div class="room-saved-sub">What would you like to do next?</div>
@@ -1874,12 +1921,10 @@ function renderRooms(){
   if($('#finishJobSwitchBtn'))$('#finishJobSwitchBtn').onclick=()=>finishJob(p);
   if($('#addAnotherRoomBtn'))$('#addAnotherRoomBtn').onclick=()=>{p.showRoomSavedChoice=false;startBlankRoom(p);show('measure')};
   if($('#finishJobChoiceBtn'))$('#finishJobChoiceBtn').onclick=()=>finishJob(p);
-  wireReadySendPanel(p);
   return;
  }
- list.innerHTML=switcherHtml+readySendSummaryHtml(p)+roomCardHtml(p,r);
+ list.innerHTML=switcherHtml+roomCardHtml(p,r);
  $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;p.startNewRoom=false;save();renderRooms()});
- wireReadySendPanel(p);
  // The "add a room" card is staged directly on the project (p.siteMarkup etc) until it's
  // named and sent, and only gets cleared once that happens (see #sendNewSiteToStudio
  // below). Starting "Add Room" again without ever finishing that step left the old
@@ -1896,7 +1941,7 @@ function renderRooms(){
 // last room so the next one starts blank, without touching any room
 // already saved into p.rooms.
 function startBlankRoom(p){
- state.currentRoom=null;p.startNewRoom=true;p.showRoomSavedChoice=false;
+ state.currentRoom=null;state.editingRoomCaptureId=null;p.startNewRoom=true;p.showRoomSavedChoice=false;
  p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
  p.siteMarkup={image:null,w:0,h:0,marks:[]};
  p.measureCaptures=[];
@@ -2785,31 +2830,49 @@ load();
   const count=(m.marks||[]).filter(x=>x.type==='measure').length;
   if(!count&&!confirm(t('msg.confirmNoMeasurementsSaveAnyway')))return;
   let r=(p.rooms||[]).find(x=>x.id===state.currentRoom);
-  if(!r){
-   // Until now the very first photo of a not-yet-named room sat on shared
-   // draft fields (p.siteRoomName/siteRoomIcon/p.measureCaptures) until
-   // "Send to Studio" was tapped. If a fitter took two or three photos back
-   // to back -- each time picking a different room icon -- without tapping
-   // Send between them, every photo and every icon pick landed on that same
-   // shared draft: only the LAST icon choice survived, and all the photos
-   // ended up bundled into one room. Creating the real room object here, on
-   // the very first photo, means every later action (icon pick, name, more
-   // photos of this same room) is scoped to this one distinct room object
-   // and can never bleed into a different room.
+  const isNewRoom=!r;
+  if(isNewRoom){
+   // Every completed room is its own distinct, permanent object from the moment
+   // its first photo is saved -- every later action (icon pick, name, more
+   // photos of this same room) is scoped to this one object and can never
+   // bleed into a different room.
    r={id:uid(),type:'',name:p.siteRoomName||'',icon:p.siteRoomIcon||'',iconManual:!!p.siteRoomIconManual,location:p.siteRoomLocation||'',notes:p.siteRoomNotes||'',beforePhotos:[],designImages:[],measureCaptures:[],notePhotos:p.notePhotos?JSON.parse(JSON.stringify(p.notePhotos)):[],siteMarkup:{image:null,w:0,h:0,marks:[]}};
    p.rooms=p.rooms||[];p.rooms.unshift(r);
-   state.currentRoom=r.id;
    p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
    p.notePhotos=[];
   }
   r.measureCaptures=r.measureCaptures||[];
-  r.measureCaptures.unshift({id:uid(),image:m.image,w:m.w,h:m.h,marks:JSON.parse(JSON.stringify(m.marks||[])),createdAt:Date.now()});
+  const newCapture={id:uid(),image:m.image,w:m.w,h:m.h,marks:JSON.parse(JSON.stringify(m.marks||[])),createdAt:Date.now()};
+  // Tapping a finished room's own tile to review/edit it (see loadRoomForEdit)
+  // sets state.editingRoomCaptureId to the photo being edited -- Done then
+  // REPLACES that exact photo instead of adding a duplicate. Taking a fresh
+  // photo (this flag unset) always adds a new one, so a room can still end up
+  // with more than one photo if the fitter keeps measuring the same room
+  // without switching away from it.
+  const editingId=state.editingRoomCaptureId;
+  const editIndex=editingId?r.measureCaptures.findIndex(c=>c.id===editingId):-1;
+  if(editIndex>=0){newCapture.id=editingId;r.measureCaptures[editIndex]=newCapture}
+  else{r.measureCaptures.unshift(newCapture)}
+  state.editingRoomCaptureId=null;
   m.image=null;m.marks=[];m.w=0;m.h=0;
   zoom=1;panX=0;panY=0;
+  // This room is now frozen -- back to a blank canvas, ready for the next one.
+  // startNewRoom=true stops renderRooms()'s own "reopen whatever was last
+  // active" fallback from silently pointing state.currentRoom straight back
+  // at the room we just finished.
+  state.currentRoom=null;
+  p.startNewRoom=true;
+  p.showRoomSavedChoice=false;
   save();
   loadMarkup();
-  const st=$('#measurePhotoStatus');if(st)st.textContent=t('msg.measurementsSavedReady',[count]);
-  show('drawings');
+  const st=$('#measurePhotoStatus');if(st)st.textContent='';
+  renderRooms();
+  renderMeasureRoomsStrip();
+  renderMeasureCurrentRoomLabel();
+  // A brand new room needs its icon and name right away -- the same icon grid
+  // used everywhere else in Mobile, setting both in one tap. An already-named
+  // room being re-measured doesn't need to be re-prompted.
+  if(isNewRoom)openSiteRoomIconPicker(r,true);
  };
  $('#markupUndo').onclick=()=>{const m=ensure();if(m?.marks.length){m.marks.pop();save();render()}};$('#markupFit').onclick=fit;
  // A direct, always-available way to wipe every measurement/mark on whatever is
@@ -2842,8 +2905,8 @@ load();
  stage.addEventListener('touchstart',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1];pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),z:zoom};}}, {passive:true});
  stage.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);zoom=Math.max(.15,Math.min(5,pinch.z*d/pinch.d));applyTransform()}}, {passive:true});
  stage.addEventListener('touchend',e=>{if(e.touches.length<2)pinch=null},{passive:true});
- const oldShow=show;show=function(id){oldShow(id);if(id==='measure')setTimeout(loadMarkup,20)};
- const oldRenderAll2=renderAll;renderAll=function(){oldRenderAll2();if(state.screen==='measure'||document.querySelector('#measure.active'))loadMarkup()};
+ const oldShow=show;show=function(id){oldShow(id);if(id==='measure'){setTimeout(loadMarkup,20);renderMeasureRoomsStrip();renderMeasureCurrentRoomLabel()}};
+ const oldRenderAll2=renderAll;renderAll=function(){oldRenderAll2();if(state.screen==='measure'||document.querySelector('#measure.active')){loadMarkup();renderMeasureRoomsStrip();renderMeasureCurrentRoomLabel()}};
  setMode('measure');loadMarkup();
 })();
 </script>
