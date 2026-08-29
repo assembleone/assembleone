@@ -1365,10 +1365,13 @@ function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):(
 // rather than disappearing for the one fitter who should see it.
 function canSeeJob(p){
  const me=window.fittersiqUser||{};
- // The company owner (or FittersIQ admin) isn't scoped by this at all --
- // this filter exists to stop a fitter opening someone else's job, not to
- // stop the boss seeing their own company's work from their own phone.
- if(me.role==='company_owner'||me.isAdmin)return true;
+ // FittersIQ's own platform admin (support access) is a different concern
+ // from the company's own access rules and stays exempt -- but the company
+ // owner is NOT: assigning a job to one fitter must mean only that fitter
+ // can open it on Mobile, even from the owner's own phone. If the owner
+ // needs to work a job themselves, they assign it to themselves like any
+ // other fitter.
+ if(me.isAdmin)return true;
  const ids=(p&&Array.isArray(p.assignedFitterIds))?p.assignedFitterIds:[];
  const emails=(p&&Array.isArray(p.assignedEmails))?p.assignedEmails:[];
  if(!ids.length&&!emails.length)return true;
@@ -1376,12 +1379,21 @@ function canSeeJob(p){
  if(me.email&&emails.includes(String(me.email).trim().toLowerCase()))return true;
  return false;
 }
+// Human-readable denial text for a job this account isn't assigned to --
+// names the actual fitter(s) it belongs to (using the plain name fields
+// already on the synced project, not Studio's fitter roster which Mobile
+// never has) instead of a generic message, so whoever scanned it understands
+// immediately why nothing opened.
+function jobAccessDeniedMessage(p){
+ const names=[p&&p.assignedFitter,...((p&&p.otherFitters)||[])].filter(Boolean);
+ return names.length?('This job is assigned to '+names.join(' and ')+'.'):'Job not assigned to you. Contact the office.';
+}
 function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){
  // The QR/manual identification only ever tells you the exact panel once you're already
  // allowed to see the job it belongs to -- a scan hitting someone else's job must not leak
  // the drawing, customer name or anything else about it, just the same generic message
  // regardless of what was actually scanned.
- if(!canSeeJob(p)){const box=document.querySelector('#scanResult');if(box)box.textContent='Job not assigned to you. Contact the office.';return false}
+ if(!canSeeJob(p)){const box=document.querySelector('#scanResult');if(box)box.textContent=jobAccessDeniedMessage(p);return false}
  state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;const ci=q.copyIndex;state.selectedCopy=(ci!=null&&pt.copies&&pt.copies[ci])?ci:-1;state.screen="install";save();return true}return false}
 function applyPanelRoute(route){
  if(!route)return;
@@ -2131,24 +2143,37 @@ function stripHeavyMediaForSync(project){
   (clone.jobLog||[]).forEach(entry=>{if((entry.photos||[]).length)entry.photos=[]});
   return clone;
 }
-async function exportJob(id){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'))}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
   queuePendingStudioSync(pack);
-  alert("No signal right now -- your update is saved on this phone and will send to Studio automatically once you're back online.");
+  if(!silent)alert("No signal right now -- your update is saved on this phone and will send to Studio automatically once you're back online.");
   return}
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
     await sendPackDirectly(slimPack);
     clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;save();renderAll();
-    alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
+    if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
   }catch(e2){
     console.error(e2);
-    download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");
-    alert((e2&&e2.message?e2.message+' ':'')+t('msg.directSyncUnavailableBackup'));
+    if(!silent){
+      download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(p.name||"FittersIQ_Job").replace(/[^\\w-]+/g,"_")+"_Site_Updates.zip");
+      alert((e2&&e2.message?e2.message+' ':'')+t('msg.directSyncUnavailableBackup'));
+    }
   }
 }}
+// Panel Check and Fitted taps can happen many times in a few seconds (a
+// fitter working through a whole room) -- exportJob re-uploads the whole
+// project each time, so firing it on every single tap would re-send that
+// repeatedly instead of once. This collapses a burst of taps into one sync
+// shortly after the fitter pauses, silently (no popup), so Studio still
+// gets live progress without a popup or a network call per tap.
+let progressSyncDebounce=null;
+function syncProgressSoon(id){
+  if(progressSyncDebounce)clearTimeout(progressSyncDebounce);
+  progressSyncDebounce=setTimeout(()=>{if(typeof exportJob==='function')exportJob(id,true)},1500);
+}
 
 // mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the original,
 // pre-channel Studio-to-phone receiver) lived here. They're superseded by the
@@ -2205,7 +2230,7 @@ function openScannedText(text){
  if(q&&openPanelRoute(q)){markCurrentPanelScanned();if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');stopCamera();show("install");return true}
  const old=parseOldQr(text);
  if(old){const p=state.projects.find(x=>x.name.trim().toLowerCase()===old.job.trim().toLowerCase());const c=p?.cabinets.find(x=>x.name.trim().toLowerCase()===old.wardrobe.trim().toLowerCase());const pt=c?.parts.find(x=>x.code.trim().toLowerCase()===old.part.trim().toLowerCase());if(p&&c&&pt){
-  if(typeof canSeeJob==='function'&&!canSeeJob(p)){$("#scanResult").textContent='Job not assigned to you. Contact the office.';return false}
+  if(typeof canSeeJob==='function'&&!canSeeJob(p)){$("#scanResult").textContent=(typeof jobAccessDeniedMessage==='function'?jobAccessDeniedMessage(p):'Job not assigned to you. Contact the office.');return false}
   state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;markCurrentPanelScanned();save();stopCamera();show("install");return true}}
  $("#scanResult").textContent=t('msg.qrReadJobNotOnDevice');return false;
 }
@@ -2308,6 +2333,7 @@ $("#markPanelCheckChoice").onclick=()=>{
  pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
  pt.lastScannedAt=new Date().toISOString();
  save();
+ if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderInstall();
 };
 $("#markPanelInstallChoice").onclick=()=>{
@@ -2331,6 +2357,7 @@ $("#markPanelInstallChoice").onclick=()=>{
   const installedMark=currentMark(pt);installedMark.status="installed";installedMark.statusUpdatedAt=Date.now();installedMark.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
  }
  save();
+ if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderInstall();
 };
 let jobNotePendingPhotos=[];
