@@ -75,7 +75,8 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-job-title-line{flex:1 1 auto;order:1}
 .customer-job-rooms{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;order:2}
 .customer-job-meta{order:3}
-.room-chip{display:inline-flex;align-items:center;gap:3px;background:#EEF2FF;color:var(--ink);border:1px solid #DCE3FA;border-radius:999px;padding:3px 9px 3px 7px;font-size:12px;font-weight:700}
+.room-chip{display:inline-flex;align-items:center;gap:3px;background:#EEF2FF;color:var(--ink);border:1px solid #DCE3FA;border-radius:999px;padding:3px 9px 3px 7px;font-size:12px;font-weight:700;cursor:pointer}
+.room-chip:hover{background:#DCE7FF;border-color:#8B5CF6}
 .customer-search-wrap{margin-bottom:14px}
 .customer-search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--line);border-radius:12px;font-weight:600}
 .customer-search-input:focus{outline:none;border-color:#0051ff;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
@@ -2201,14 +2202,18 @@ function renderCustomers(){
    return `<div class="customer-card" data-search="${safe(searchText)}"><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">🆕 New from Site</span>`:""}${contactHtml}${lastUpdated?`<div class="customer-card-updated">Last updated ${timeAgo(lastUpdated)}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="Edit customer details">✏️ Edit</button><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></span></div><div class="customer-job-list">${jobs.map(p=>{
      const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
      const status=jobStatusInfo(p);
-     const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
+     const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="Open ${safe(r.name)} on its own">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
      const logCount=(p.jobLog||[]).length;
      const roomCount=(p.rooms||[]).length;
      return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${roomCount} room${roomCount===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button></div></div>`;
    }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
  box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
- box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=()=>openCustomerSiteJobInDrawing(b.dataset.siteToDrawing));
+ box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openCustomerSiteJobInDrawing(b.dataset.siteToDrawing)});
+ // Each room chip opens ONLY that room's own photo/measurements -- passing its
+ // real roomId means openSiteRoomDetails uses that exact room instead of falling
+ // back to "whichever room has a picture" (which always meant the newest one).
+ box.querySelectorAll('[data-open-site-room]').forEach(el=>el.onclick=(e)=>{e.stopPropagation();openSiteRoomDetails(el.dataset.openSiteRoomProject,el.dataset.openSiteRoom)});
  box.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
  box.querySelectorAll('[data-job-notes]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openJobNotesDialog(b.dataset.jobNotes)});
  const search=$("#customerSearchInput");
@@ -2615,10 +2620,15 @@ async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!p
 document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
 
-document.getElementById('siteRoomDetailsClose')?.addEventListener('click',closeSiteRoomDetails);
-document.getElementById('siteRoomDetailsModal')?.addEventListener('click',e=>{if(e.target.id==='siteRoomDetailsModal')closeSiteRoomDetails()});
-document.getElementById('sitePhotoToDrawing')?.addEventListener('click',sendSitePhotoToDrawing);
-document.getElementById('siteOpenProject')?.addEventListener('click',()=>{const m=document.getElementById('siteRoomDetailsModal');if(!m)return;const np=state.projects.find(x=>x.id===m.dataset.projectId);switchToProject(m.dataset.projectId,np?.cabinets?.[0]?.id||null);closeSiteRoomDetails();renderAll();save();show('jobs')});
+// Delegated on document (not the elements themselves) because this modal's markup
+// sits later in the page than this script runs -- a direct getElementById().addEventListener
+// here would silently bind to nothing, since the element doesn't exist in the DOM yet.
+document.addEventListener('click',e=>{
+ if(e.target.closest('#siteRoomDetailsClose')){closeSiteRoomDetails();return}
+ if(e.target.id==='siteRoomDetailsModal'){closeSiteRoomDetails();return}
+ if(e.target.closest('#sitePhotoToDrawing')){sendSitePhotoToDrawing();return}
+ if(e.target.closest('#siteOpenProject')){const m=document.getElementById('siteRoomDetailsModal');if(!m)return;const np=state.projects.find(x=>x.id===m.dataset.projectId);switchToProject(m.dataset.projectId,np?.cabinets?.[0]?.id||null);closeSiteRoomDetails();renderAll();save();show('jobs')}
+});
 
 document.getElementById('siteInboxLater')?.addEventListener('click',()=>document.getElementById('siteInboxModal')?.classList.remove('open'));
 try{const syncChannel=new BroadcastChannel("assembleone-sync");syncChannel.onmessage=()=>{paintSiteInbox();autoImportSitePackets()}}catch(e){}
@@ -3036,19 +3046,6 @@ function openGuidePreviewForPanel(p){
 
 </head><body><div class="wrap">${drawing}<div class="card"><h1>${safe(p.code)} — ${safe(p.name||"Unnamed part")}</h1><div class="row"><strong>${p.length||"—"} × ${p.width||"—"} × ${p.thickness||"—"} mm</strong> · Qty ${p.qty||1}</div><div class="row">${safe(materialForPanel(p)||"Not set")}</div><div class="row">${safe(edgeText(p))}</div><div class="row muted">${safe(p.notes||"")}</div><div class="row muted">${safe(pr?.name||"")} · ${safe(c?.name||"")}</div></div><button class="back" onclick="parent.postMessage('assembleone-close-test','*')">Back to QR labels</button></div>
 
-
-
-
-<div class="site-room-modal" id="siteRoomDetailsModal" aria-hidden="true">
- <div class="site-room-dialog" role="dialog" aria-modal="true" aria-labelledby="siteRoomDetailsTitle">
-  <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
-  <div class="site-room-body">
-   <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
-   <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomPhotoCount">0</b><span>Photos</span></div><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div><div class="site-fact"><b>Ready</b><span>Site package</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div></div><div class="site-drawing-placeholder">SketchUp drawing area<br>Use the site picture beside your drawing while designing</div><div class="site-detail-actions"><button class="btn primary" id="sitePhotoToDrawing" type="button">Use in Drawing</button><button class="btn" id="siteOpenProject" type="button">Open project details</button></div></section>
-  </div>
- </div>
-</div>
-
 <div class="site-inbox-modal" id="siteInboxModal" aria-hidden="true">
  <div class="site-inbox-dialog" role="dialog" aria-modal="true" aria-labelledby="siteInboxModalTitle">
   <h2 id="siteInboxModalTitle">New site job received</h2>
@@ -3095,6 +3092,15 @@ load();
 </div>
 <iframe class="guide-preview-frame" id="guidePreviewFrame" title="Panel drawing preview"></iframe>
 </div>
+</div>
+<div class="site-room-modal" id="siteRoomDetailsModal" aria-hidden="true">
+ <div class="site-room-dialog" role="dialog" aria-modal="true" aria-labelledby="siteRoomDetailsTitle">
+  <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
+  <div class="site-room-body">
+   <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
+   <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomPhotoCount">0</b><span>Photos</span></div><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div><div class="site-fact"><b>Ready</b><span>Site package</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div></div><div class="site-drawing-placeholder">SketchUp drawing area<br>Use the site picture beside your drawing while designing</div><div class="site-detail-actions"><button class="btn primary" id="sitePhotoToDrawing" type="button">Use in Drawing</button><button class="btn" id="siteOpenProject" type="button">Open project details</button></div></section>
+  </div>
+ </div>
 </div>
 <div class="only-print cutlist-sheet" id="cuttingPrintArea"></div>
 <div class="only-print" id="stickerPrintArea"></div>
