@@ -1354,14 +1354,26 @@ function save(){
  return ok;
 }
 function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}:null}
-// TEMPORARILY DISABLED (2026-08-29): reported as a likely cause of a job sent from Studio
-// never appearing on Mobile even after a reload, with the same account confirmed on both
-// sides -- this per-job email filter was the newest, least-proven piece in that path and
-// couldn't be ruled out without live data, so it's switched off until it can be verified
-// against a real send/receive round trip rather than the mocked one this was built and
-// tested against. Every job is visible again, same as before this filter existed.
+// Re-enabled now that the real cause of that sync bug (an empty packet being
+// silently discarded, fixed separately) is known -- this filter was never it.
+// Checked by permanent fitterId first (set once a phone pairs, see a214/a215
+// -- a paired fitter has no real email at all, so this is the only check
+// that actually works for them); the older email check stays as a fallback
+// for anything assigned before pairing existed. A job with neither list
+// populated isn't restricted to anyone yet, so it stays visible to everyone
+// rather than disappearing for the one fitter who should see it.
 function canSeeJob(p){
- return true;
+ const me=window.fittersiqUser||{};
+ // The company owner (or FittersIQ admin) isn't scoped by this at all --
+ // this filter exists to stop a fitter opening someone else's job, not to
+ // stop the boss seeing their own company's work from their own phone.
+ if(me.role==='company_owner'||me.isAdmin)return true;
+ const ids=(p&&Array.isArray(p.assignedFitterIds))?p.assignedFitterIds:[];
+ const emails=(p&&Array.isArray(p.assignedEmails))?p.assignedEmails:[];
+ if(!ids.length&&!emails.length)return true;
+ if(me.fitterId&&ids.includes(me.fitterId))return true;
+ if(me.email&&emails.includes(String(me.email).trim().toLowerCase()))return true;
+ return false;
 }
 function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){
  // The QR/manual identification only ever tells you the exact panel once you're already
@@ -1948,6 +1960,7 @@ function mergePanelStatus(basePt,updatePt){
   if(basePt.statusUpdatedAt&&updatePt.statusUpdatedAt<=basePt.statusUpdatedAt)return;
   basePt.status=updatePt.status;
   basePt.statusUpdatedAt=updatePt.statusUpdatedAt;
+  basePt.updatedByFitterId=updatePt.updatedByFitterId||null;
 }
 function mergeStudioProject(incoming){
  if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
@@ -2244,7 +2257,7 @@ $("#problemPanelMissing").onclick=()=>{
  if(!found)return;
  const{pr,cab,pt}=found;
  state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
- const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();
+ const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
  addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
  save();
  if(typeof exportJob==="function")exportJob(pr.id);
@@ -2289,9 +2302,9 @@ $("#markPanelInstallChoice").onclick=()=>{
   if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return;
   state.lastFittedIncrement={partId:pt.id,at:now};
   pt.installedQty=Math.min(totalUnits,(Number(pt.installedQty)||0)+1);
-  if(pt.installedQty>=totalUnits){pt.status="installed";pt.statusUpdatedAt=Date.now()}
+  if(pt.installedQty>=totalUnits){pt.status="installed";pt.statusUpdatedAt=Date.now();pt.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null}
  }else{
-  const installedMark=currentMark(pt);installedMark.status="installed";installedMark.statusUpdatedAt=Date.now();
+  const installedMark=currentMark(pt);installedMark.status="installed";installedMark.statusUpdatedAt=Date.now();installedMark.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
  }
  save();
  renderInstall();
@@ -2366,6 +2379,7 @@ $("#saveDamage").onclick=()=>{
  found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
  found.pt.status="damaged";
  found.pt.statusUpdatedAt=Date.now();
+ found.pt.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
  found.pt.damageNote=$("#damageNote").value.trim();
  if(damagePhotoData){found.pt.panelPhotos=found.pt.panelPhotos||[];found.pt.panelPhotos.push({id:uid(),data:damagePhotoData})}
  addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[]);

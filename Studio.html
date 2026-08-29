@@ -2506,6 +2506,7 @@ async function exportProjectToMobile(target){const p=ensureSharedProject(target|
   // job on the phone -- computed fresh on every send so a reassignment takes effect the
   // next time this job goes out, not just once at first assignment.
   p.assignedEmails=(typeof window.a211AssignedEmailsFor==='function')?window.a211AssignedEmailsFor(p):[];
+  p.assignedFitterIds=(typeof window.a211FitterIdsFor==='function')?window.a211FitterIdsFor(p):[];
   save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
 // Two fitters on two phones each hold an independent local copy of the same job -- when
 // BOTH eventually sync, whichever packet lands second used to simply overwrite every field
@@ -2529,6 +2530,11 @@ function mergePanelStatus(bp,ip){
   if(bp.statusUpdatedAt&&ip.statusUpdatedAt<=bp.statusUpdatedAt)return;
   bp.status=ip.status;
   bp.statusUpdatedAt=ip.statusUpdatedAt;
+  // Which fitter's phone actually made this change -- travels with the status
+  // it belongs to (never merged independently) so the permanent record can
+  // say who reported a problem or fitted a panel, once more than one fitter
+  // is on a job.
+  bp.updatedByFitterId=ip.updatedByFitterId||null;
 }
 function mergePanelFields(bp,ip){
   ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=Math.max(Number(bp[k])||0,Number(ip[k])||0)});
@@ -6576,6 +6582,18 @@ body.fiq-locked .app{display:none!important}
     return [...new Set(emails)];
   }
   window.a211AssignedEmailsFor=assignedEmailsFor;
+  // The permanent fitterId(s) behind whoever is assigned to a job -- unlike
+  // the email list above, every fitter has one of these the moment they're
+  // added to the roster (see a214), so this is the real, reliable way Mobile
+  // checks "is this job mine" once a fitter has connected a phone. Kept as an
+  // array from day one (lead + otherFitters) so multiple fitters on one job
+  // already works at the data level, even though the UI for it comes later.
+  function fitterIdsFor(p){
+    const names=[p&&p.assignedFitter,...((p&&p.otherFitters)||[])].filter(Boolean);
+    const ids=names.map(n=>{const f=fitterByName(n);return f&&f.id?f.id:null}).filter(Boolean);
+    return [...new Set(ids)];
+  }
+  window.a211FitterIdsFor=fitterIdsFor;
   function digitsOnly(s){return String(s||'').replace(/[^0-9]/g,'')}
   function promptNewFitter(){
     const name=prompt('Fitter name:');
