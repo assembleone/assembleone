@@ -738,7 +738,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <span class="fitters-wordmark"><span class="brand-title-row"><strong>Fitters</strong><strong class="iq-green">IQ</strong><small>Mobile</small></span><em class="fitters-tagline">Plan it · <b>Scan it</b> · <u>Fit it</u></em></span>
   </div>
   <div id="context" class="context">Cloud Sync</div>
-  <div class="fiq-account-badge" id="fiqAccountBadge" style="display:none"><span id="fiqAccountEmail"></span><button id="fiqSignOutBtn" type="button" aria-label="Sign out" title="Sign out">⏻</button></div>
+  <div class="fiq-account-badge" id="fiqAccountBadge" style="display:none"><span id="fiqAccountEmail"></span><button id="fiqHelpBtn" type="button" aria-label="How FittersIQ works" title="How FittersIQ works">?</button><button id="fiqSignOutBtn" type="button" aria-label="Sign out" title="Sign out">⏻</button></div>
 </header>
 <main>
 <section id="projects" class="screen active">
@@ -767,6 +767,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span data-i18n="measure.doneRoomGuide">Done · Room Guide</span></button>
    <button class="mini-btn measure61-tools" id="openMeasureTools" type="button"><span class="measure61-top-icon">🛠️</span><span data-i18n="measure.tools">Tools</span></button>
   </div>
+  <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Photos → Measurements → Notes → Check → Send" aria-label="Help">?</button>
   <div class="quick-measure-types three-main-measures" id="quickMeasureTypes" aria-label="Measurement type">
    <button type="button" data-kind="Wall to wall" class="measure-kind active"><b>↔</b><span data-i18n="measure.kindWallToWall">Wall to wall</span></button>
    <button type="button" data-kind="Floor to ceiling" class="measure-kind"><b>↕</b><span data-i18n="measure.kindFloorToCeiling">Floor to ceiling</span></button>
@@ -847,6 +848,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <div class="scan-actions scan55-actions" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
+  <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Scan → Identify → Fit → Mark Fitted" aria-label="Help" style="margin:8px auto 0">? Help</button>
   <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
   <div class="scan55-current"><span class="scan55-folder"><img src="assets/nav_project_flat.png?v=1" alt="" style="width:36px;height:36px;object-fit:contain;vertical-align:middle"></span><div><small data-i18n="scan.currentJob">Current job</small><strong id="scanCurrentJob">No project open</strong></div><button class="btn" id="scanChangeJob" data-i18n="scan.changeJob">Change job ›</button></div>
   <div class="scan55-recent-head"><strong data-i18n="scan.recentScans">Recent scans</strong><button id="scanViewAll" type="button" data-i18n="scan.viewAll">View all ›</button></div>
@@ -873,6 +875,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section id="install" class="screen">
  <div class="scan-tool scan55-tool">
   <div class="scan-progress-card scan55-progress">
+   <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Check each panel. Green means checked. Mark anything Missing or Damaged." aria-label="Help" style="margin:0 auto 8px">? Help</button>
    <div class="scan-ring" id="installProgressRing"><div class="scan-ring-text"><b id="installFraction">0 / 0</b><span data-i18n="install.panelsInstalled">Panels installed</span></div></div>
    <div class="scan55-stat"><b id="installInstalledCount">0</b><span data-i18n="install.installedLabel">Installed</span></div>
    <div class="scan55-stat remaining"><b id="installMissingCount">0</b><span data-i18n="install.missingLabel">Missing</span></div>
@@ -3384,11 +3387,12 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   }
 
   function unlockApp(user, claims){
-    window.fittersiqUser = { uid:user.uid, email:user.email, companyId:claims.companyId||null, role:claims.role||null, isAdmin: claims.fittersiq_admin===true };
+    window.fittersiqUser = { uid:user.uid, email:user.email, companyId:claims.companyId||null, role:claims.role||null, isAdmin: claims.fittersiq_admin===true, fitterId: claims.fitterId||null };
     document.body.classList.remove('fiq-locked');
     $('fiqAuthGate').style.display='none';
     var badge=$('fiqAccountBadge');
     if(badge){badge.style.display='flex'; $('fiqAccountEmail').textContent=user.email;}
+    if(typeof window.a215MaybeShowOnboarding==='function')window.a215MaybeShowOnboarding(claims);
   }
 
   var DEVICE_ID_KEY = 'assembleone_device_id';
@@ -3552,5 +3556,187 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
 </script>
 <script>window.FIQ_HELP_APP="mobile";</script>
 <script src="fittersiq-help.js"></script>
+<style id="a215-onboarding-style">
+.fiq-onboard-overlay{position:fixed;inset:0;z-index:100000;background:linear-gradient(160deg,#0B2545,#173657);display:none;align-items:center;justify-content:center;padding:20px}
+.fiq-onboard-overlay.open{display:flex}
+.fiq-onboard-card{position:relative;width:min(440px,100%);max-height:88vh;overflow-y:auto;background:#fff;border-radius:22px;padding:30px 24px 24px;box-shadow:0 30px 70px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;text-align:center}
+.fiq-onboard-welcome{font-size:28px;font-weight:900;color:#fff;text-align:center;padding:40px 10px}
+.fiq-onboard-welcome small{display:block;font-size:16px;font-weight:700;color:#6BBF3A;margin-top:10px;letter-spacing:.5px}
+.fiq-onboard-card h1{font-size:21px;margin:0 0 10px;color:#0B2545}
+.fiq-onboard-card p{font-size:15px;color:#5B6B7C;margin:0 0 10px;line-height:1.55}
+.fiq-onboard-flow{display:flex;align-items:flex-start;justify-content:center;gap:4px;flex-wrap:wrap;margin:12px 0;width:100%}
+.fiq-onboard-flow .arrow{font-size:16px;color:#B9C2CC;padding:8px 2px 0}
+.fiq-onboard-flow .stage{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:800;color:#B9C2CC;width:52px}
+.fiq-onboard-flow .stage.current{color:#0B2545}
+.fiq-onboard-flow .stage b{font-size:26px;line-height:1}
+.fiq-onboard-mini{display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:9px 16px;font-weight:800;font-size:14px;margin:4px}
+.fiq-onboard-mini.missing{background:#fff1f1;color:#bf1f29;border:2px solid #f4b3b3}
+.fiq-onboard-mini.damaged{background:#fff7e6;color:#a15c00;border:2px solid #f0c98a}
+.fiq-onboard-mini.check{background:#EFF8E9;color:#4E9D28;border:2px solid #6BBF3A}
+.fiq-onboard-chain{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;font-size:14px;color:#0B2545;margin:10px 0;flex-wrap:wrap}
+.fiq-onboard-dots{display:flex;gap:6px;margin:14px 0 4px}
+.fiq-onboard-dots span{width:8px;height:8px;border-radius:50%;background:#E2E7EB}
+.fiq-onboard-dots span.active{background:#6BBF3A;width:20px;border-radius:5px}
+.fiq-onboard-controls{display:flex;gap:10px;width:100%;margin-top:10px}
+.fiq-onboard-controls button{flex:1;border-radius:12px;padding:14px;font-weight:900;font-size:15px;border:none;cursor:pointer}
+.fiq-onboard-back{background:#F5F7FA;color:#5B6B7C}
+.fiq-onboard-next{background:#6BBF3A;color:#fff}
+.fiq-onboard-skip{background:none;border:none;color:#5B6B7C;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline;padding:6px}
+.fiq-onboard-menu-list{display:flex;flex-direction:column;gap:10px;width:100%;margin-top:6px}
+.fiq-onboard-menu-item{display:flex;align-items:center;gap:12px;border:1px solid #E2E7EB;border-radius:14px;padding:14px;background:#F5F7FA;font-weight:800;font-size:15px;color:#0B2545;cursor:pointer;text-align:left}
+.fiq-onboard-menu-item span{font-size:26px}
+.fiq-onboard-close{position:absolute;top:-38px;right:0;background:none;border:none;font-size:28px;color:#fff;cursor:pointer;line-height:1}
+.quick-help-btn{opacity:.85}
+.quick-help-pill{display:block;background:#F5F7FA;border:1px solid #E2E7EB;color:#5B6B7C;font-weight:800;font-size:12px;border-radius:999px;padding:6px 14px;cursor:pointer;width:fit-content}
+.fiq-quick-help-toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#0B2545;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:700;z-index:99000;max-width:90vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;transition:opacity .2s}
+.fiq-quick-help-toast.show{opacity:1}
+</style>
+<div class="fiq-onboard-overlay" id="fiqOnboardOverlay">
+ <div class="fiq-onboard-card" id="fiqOnboardCard"><button type="button" class="fiq-onboard-close" id="fiqOnboardCloseBtn" aria-label="Close">×</button></div>
+</div>
+<script id="a215-onboarding-script">
+(function(){
+  const SEEN_KEY='fiq_onboarding_seen_v1';
+  function hasSeen(){try{return localStorage.getItem(SEEN_KEY)==='1'}catch(e){return false}}
+  function markSeen(){try{localStorage.setItem(SEEN_KEY,'1')}catch(e){}}
+  function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+  // Same five stages the real app moves a job through -- reused for the
+  // Welcome/Finish screens (whole journey) and as the tappable Help menu.
+  const FLOW=[{icon:'📷',label:'Measure'},{icon:'✅',label:'Check'},{icon:'🔍',label:'Scan'},{icon:'🔧',label:'Fit'},{icon:'🏁',label:'Complete'}];
+  function flowHtml(highlight){
+    const hl=highlight||[];
+    return '<div class="fiq-onboard-flow">'+FLOW.map((s,i)=>{
+      const cur=hl.length?hl.includes(i):true;
+      return (i>0?'<span class="arrow">→</span>':'')+'<div class="stage'+(cur?' current':'')+'"><b>'+s.icon+'</b>'+s.label+'</div>';
+    }).join('')+'</div>';
+  }
+
+  const STEPS=[
+    { heading:'Welcome to FittersIQ Mobile',
+      body:'<p>Your jobs, measurements, panels and fitting progress in one place.</p>'+flowHtml([]) },
+    { heading:'Measure the job',
+      body:'<p>Take photos.<br>Add the important measurements.<br>Add notes when needed.<br>Check everything before sending.</p>'+
+           '<div class="fiq-onboard-mini check">📤 Send to Studio</div>' },
+    { heading:'Check your job',
+      body:'<p>When the prepared job comes back, check the drawings, notes and panels before you start fitting.<br>Scan or check the panels you have received.</p>'+
+           '<div class="fiq-onboard-mini check">✅ Green means checked</div>' },
+    { heading:'Something wrong?',
+      body:'<div><span class="fiq-onboard-mini missing">❔ Missing</span><span class="fiq-onboard-mini damaged">⚠ Damaged</span></div>'+
+           '<p>Panel missing? Mark Missing.<br>Panel damaged? Mark Damaged.<br>Add a photo or note if it helps explain the problem.</p>' },
+    { heading:'Find it. Scan it. Fit it.',
+      body:'<p>Scan the QR code.<br>FittersIQ identifies the panel.<br>Fit the panel.<br>Mark it Fitted.</p>'+
+           '<div class="fiq-onboard-chain"><span>QR label</span><span class="arrow">→</span><span>Panel</span><span class="arrow">→</span><span>Fitted ✓</span></div>'+
+           '<p style="font-size:13px">QR damaged? Use the panel number printed on the label.</p>' },
+    { heading:'Finish the job',
+      body:'<p>Check that everything you fitted is green.<br>FittersIQ shows anything still needing attention.<br>When everything is finished, complete the job.</p>'+flowHtml([]) }
+  ];
+
+  const MENU=[
+    {label:'Measure',icon:'📷',step:1},
+    {label:'Check',icon:'✅',step:2},
+    {label:'Problems',icon:'❔',step:3},
+    {label:'Scan & Fit',icon:'🔍',step:4},
+    {label:'Complete',icon:'🏁',step:5}
+  ];
+
+  let mode='intro'; // 'intro' (auto first-run carousel) | 'single' (jumped in from the menu)
+  let idx=0;
+
+  function overlayEl(){return document.getElementById('fiqOnboardOverlay')}
+  function cardEl(){return document.getElementById('fiqOnboardCard')}
+  function openOverlay(){overlayEl().classList.add('open')}
+  function closeOverlay(){overlayEl().classList.remove('open')}
+  function closeBtnHtml(){return '<button type="button" class="fiq-onboard-close" id="fiqOnboardCloseBtn" aria-label="Close">×</button>'}
+
+  function wireCloseBtn(onClose){
+    const btn=document.getElementById('fiqOnboardCloseBtn');
+    if(btn)btn.onclick=onClose||(()=>{markSeen();closeOverlay()});
+  }
+
+  function renderWelcomeSplash(name,after){
+    cardEl().innerHTML=closeBtnHtml()+'<div class="fiq-onboard-welcome">Welcome'+(name?(' '+esc(name)):'')+'<small>FittersIQ Mobile</small></div>';
+    wireCloseBtn();
+    openOverlay();
+    setTimeout(after,1600);
+  }
+
+  function renderMenu(){
+    mode='menu';
+    cardEl().innerHTML=closeBtnHtml()+'<h1>How FittersIQ works</h1>'+flowHtml([])+
+      '<div class="fiq-onboard-menu-list">'+MENU.map(m=>'<button type="button" class="fiq-onboard-menu-item" data-onboard-jump="'+m.step+'"><span>'+m.icon+'</span>'+m.label+'</button>').join('')+'</div>';
+    wireCloseBtn();
+    cardEl().querySelectorAll('[data-onboard-jump]').forEach(btn=>{
+      btn.onclick=()=>{idx=Number(btn.dataset.onboardJump);mode='single';renderStep()};
+    });
+    openOverlay();
+  }
+
+  function renderStep(){
+    const card=cardEl(),step=STEPS[idx],isLast=idx===STEPS.length-1;
+    const dots=mode==='intro'?'<div class="fiq-onboard-dots">'+STEPS.map((_,i)=>'<span class="'+(i===idx?'active':'')+'"></span>').join('')+'</div>':'';
+    let controls;
+    if(mode==='single'){
+      controls='<div class="fiq-onboard-controls"><button type="button" class="fiq-onboard-back" id="fiqOnboardMenuBack">← Back to menu</button></div>';
+    }else{
+      controls='<div class="fiq-onboard-controls">'+
+        (idx>0?'<button type="button" class="fiq-onboard-back" id="fiqOnboardBack">Back</button>':'')+
+        '<button type="button" class="fiq-onboard-next" id="fiqOnboardNext">'+(isLast?'Start FittersIQ':'Next')+'</button>'+
+      '</div>'+(isLast?'':'<button type="button" class="fiq-onboard-skip" id="fiqOnboardSkip">Skip</button>');
+    }
+    card.innerHTML=closeBtnHtml()+'<h1>'+esc(step.heading)+'</h1>'+step.body+dots+controls;
+    wireCloseBtn();
+    if(mode==='single'){
+      document.getElementById('fiqOnboardMenuBack').onclick=()=>renderMenu();
+    }else{
+      const back=document.getElementById('fiqOnboardBack');if(back)back.onclick=()=>{idx--;renderStep()};
+      document.getElementById('fiqOnboardNext').onclick=()=>{
+        if(isLast){markSeen();closeOverlay();return}
+        idx++;renderStep();
+      };
+      const skip=document.getElementById('fiqOnboardSkip');if(skip)skip.onclick=()=>{markSeen();closeOverlay()};
+    }
+  }
+
+  function startIntro(){mode='intro';idx=0;renderStep()}
+
+  // Only ever auto-triggered for a fitter account, and only until they've
+  // dismissed it once (Skip, Start FittersIQ, or the × all count) -- after
+  // that it's only reachable deliberately, from the ? button in the header.
+  window.a215MaybeShowOnboarding=async function(claims){
+    if(!claims||claims.role!=='fitter'||hasSeen())return;
+    let name='';
+    try{
+      if(claims.companyId&&claims.fitterId){
+        const snap=await window.fiqAuthFns.getDoc(window.fiqAuthFns.doc(window.fiqFirestore,'companies',claims.companyId,'fitters',claims.fitterId));
+        if(snap.exists())name=snap.data().name||'';
+      }
+    }catch(e){}
+    renderWelcomeSplash(name,startIntro);
+  };
+
+  document.getElementById('fiqHelpBtn')?.addEventListener('click',renderMenu);
+
+  // Short, one-line reminders on the real working screens -- deliberately not
+  // the full guide, just enough to jog a fitter's memory without pulling them
+  // out of what they're doing.
+  let helpToastTimer=null;
+  document.querySelectorAll('[data-quick-help]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      let toast=document.getElementById('fiqQuickHelpToast');
+      if(!toast){
+        toast=document.createElement('div');
+        toast.id='fiqQuickHelpToast';
+        toast.className='fiq-quick-help-toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent=btn.dataset.quickHelp;
+      toast.classList.add('show');
+      if(helpToastTimer)clearTimeout(helpToastTimer);
+      helpToastTimer=setTimeout(()=>toast.classList.remove('show'),3200);
+    });
+  });
+})();
+</script>
 
 </body></html>
