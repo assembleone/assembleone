@@ -286,6 +286,12 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .room-switch-btn.room-switch-finished.active{background:#e6f7ec}
 .floor-preset-btn.active{border-color:#FFC600;background:#fffbea;font-weight:900}
 .room-switch-add{font-size:20px;padding:10px 18px}
+.room-switch-finish{color:#fff!important;background:var(--fi-green,#6BBF3A)!important;border-color:var(--fi-green-dark,#4E9D28)!important}
+.room-saved-choice{max-width:420px;margin:18px auto 0;text-align:center;background:#fff;border:1px solid var(--line,#E2E7EB);border-radius:18px;padding:28px 20px;box-shadow:0 8px 24px rgba(46,41,78,.08)}
+.room-saved-tick{width:56px;height:56px;line-height:56px;margin:0 auto 12px;border-radius:50%;background:#e6f7ec;color:#16a34a;font-size:30px;font-weight:900}
+.room-saved-title{font-size:20px;font-weight:900;color:var(--ink,#0B2545)}
+.room-saved-sub{color:var(--muted,#5B6B7C);font-size:14px;margin:4px 0 18px}
+.room-saved-choice .btn{display:block;width:100%;margin-top:10px;min-height:52px;font-size:16px;border-radius:14px}
 @media(max-width:560px){#measure .markup-topbar{padding:4px}#measure .mini-btn{padding:6px 7px;font-size:11px}#measure .measure-kind{height:50px}}
 </style>
 
@@ -295,16 +301,20 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 #measure .measure61-topbar{display:grid;grid-template-columns:minmax(120px,1fr) minmax(130px,1fr) minmax(105px,.72fr);gap:7px;overflow:visible;padding:6px;background:#fff;border:1px solid #dedce7;border-radius:16px}
 #measure .measure61-topbar .mini-btn{min-height:50px;border-radius:14px;padding:5px 8px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:950;white-space:nowrap}
 #measure .measure61-picture{background:#eef8ff!important;border:2px solid #78bde9!important;color:#173966!important}
-#measure .measure61-room{background:#eaf8ee!important;border:2px solid #35ad65!important;color:#176d38!important}
-#measure .measure61-tools{background:#fff7df!important;border:2px solid #efbf29!important;color:#5d4700!important}
+#measure .measure61-room{background:var(--fi-green,#6BBF3A)!important;border:2px solid var(--fi-green-dark,#4E9D28)!important;color:#fff!important;min-height:60px}
+#measure .measure-room-save-text{display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;gap:1px;min-width:0}
+#measure .measure-room-save-text b{font-size:11px;font-weight:950;letter-spacing:.2px;white-space:normal}
+#measure .measure-room-save-text small{font-size:10px;font-weight:750;opacity:.92}
+#measure .measure-room-save-arrow{font-size:18px}
+#measure .measure61-tools{background:#fff!important;border:2px solid #d7e0ea!important;color:#174E98!important}
 #measure .measure61-top-icon{font-size:23px;line-height:1}
 #measure .measure-photo-status{position:absolute;left:12px;top:72px;z-index:4;background:#fff;border-radius:8px;padding:2px 7px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
 #measure .measure-photo-status:empty{display:none}
 #measure .three-main-measures{grid-template-columns:repeat(3,1fr);gap:7px}
 #measure .three-main-measures .measure-kind{height:64px;border-radius:15px;border:2px solid #d9d7e2;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:3px;box-shadow:0 3px 10px rgba(35,30,75,.07)}
-#measure .three-main-measures .measure-kind:nth-child(1){background:#eef7ff;border-color:#80bcec}
-#measure .three-main-measures .measure-kind:nth-child(2){background:#f2edff;border-color:#a391df}
-#measure .three-main-measures .measure-kind:nth-child(3){background:#fff3e6;border-color:#efa95e}
+#measure .three-main-measures .measure-kind:nth-child(1),
+#measure .three-main-measures .measure-kind:nth-child(2),
+#measure .three-main-measures .measure-kind:nth-child(3){background:#eef7ff;border-color:#bcdcf7}
 #measure .three-main-measures .measure-kind b{font-size:27px;color:#174e98}
 #measure .three-main-measures .measure-kind span{font-size:12px;font-weight:950;color:#174e98}
 #measure .three-main-measures .measure-kind.active{background:#174e98!important;border-color:#174e98!important;box-shadow:0 5px 14px rgba(46,41,78,.24)}
@@ -764,11 +774,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <input id="markupCameraPhoto" class="js-file-input" type="file" accept="image/*" capture="environment">
    <input id="markupGalleryPhoto" class="js-file-input" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.gif">
    <span id="measurePhotoStatus" class="measure-photo-status" aria-live="polite"></span>
-   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span data-i18n="measure.doneRoomGuide">Done · Room Guide</span></button>
+   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE → ROOM GUIDE</b><small>Save &amp; continue</small></span><span class="measure61-top-icon measure-room-save-arrow" aria-hidden="true">→</span></button>
    <button class="mini-btn measure61-tools" id="openMeasureTools" type="button"><span class="measure61-top-icon">🛠️</span><span data-i18n="measure.tools">Tools</span></button>
   </div>
   <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Photos → Measurements → Notes → Check → Send" aria-label="Help">?</button>
-  <div class="measure-done-hint">✓ <strong>Done</strong> saves this room's photo and measurements, then opens <strong>Room Guide</strong> to name and finish it →</div>
   <div class="quick-measure-types three-main-measures" id="quickMeasureTypes" aria-label="Measurement type">
    <button type="button" data-kind="Wall to wall" class="measure-kind active"><b>↔</b><span data-i18n="measure.kindWallToWall">Wall to wall</span></button>
    <button type="button" data-kind="Floor to ceiling" class="measure-kind"><b>↕</b><span data-i18n="measure.kindFloorToCeiling">Floor to ceiling</span></button>
@@ -1728,6 +1737,12 @@ function wireRoomCard(p,r){
   state.currentRoom=null;
   p.startNewRoom=true;
   p.newRoomDraftStarted=true;
+  // Rather than silently reopening a fresh blank room card (the old
+  // behaviour, which looked identical whether a room had just been saved
+  // or you'd never started one), land on an explicit choice so it's
+  // obvious the room was saved and what happens next.
+  p.showRoomSavedChoice=true;
+  p.justSavedRoomName=room.name;
   save();exportJob(p.id);renderRooms();
  };
  if(r){
@@ -1787,7 +1802,25 @@ function renderRooms(){
  // status can still be corrected afterwards, so sort them to the end with a checkmark
  // instead of removing the only way back into them.
  const orderedRooms=[...p.rooms].sort((a,b)=>(a.finished?1:0)-(b.finished?1:0));
- const switcherHtml=p.rooms.length>=1?`<div class="room-switcher">${orderedRooms.map(x=>`<button type="button" class="room-switch-btn ${x.id===r?.id?'active':''} ${x.finished?'room-switch-finished':''}" data-room-id="${x.id}">${x.finished?'✓ ':(x.icon||'🏠')+' '}${safe(x.name)}</button>`).join('')}<button type="button" class="room-switch-btn room-switch-add ${r?'':'active'}" id="addRoomSwitchBtn">＋ ${t('room.addRoomLabel')}</button></div>`:'';
+ const switcherHtml=p.rooms.length>=1?`<div class="room-switcher">${orderedRooms.map(x=>`<button type="button" class="room-switch-btn ${x.id===r?.id&&!p.showRoomSavedChoice?'active':''} ${x.finished?'room-switch-finished':''}" data-room-id="${x.id}">${x.finished?'✓ ':(x.icon||'🏠')+' '}${safe(x.name)}</button>`).join('')}<button type="button" class="room-switch-btn room-switch-add ${r||p.showRoomSavedChoice?'':'active'}" id="addRoomSwitchBtn">＋ ${t('room.addRoomLabel')}</button><button type="button" class="room-switch-btn room-switch-finish" id="finishJobSwitchBtn">✔ Finish Job</button></div>`:'';
+ // Right after a room is saved, land on an explicit "what next" choice
+ // instead of silently reopening a blank room card -- see
+ // #sendNewSiteToStudio, which sets this flag.
+ if(p.showRoomSavedChoice){
+  list.innerHTML=switcherHtml+`<div class="room-saved-choice">
+   <div class="room-saved-tick">✓</div>
+   <div class="room-saved-title">${safe(p.justSavedRoomName||'Room')} saved</div>
+   <div class="room-saved-sub">What would you like to do next?</div>
+   <button type="button" class="btn primary room-saved-add" id="addAnotherRoomBtn">➕ Add Another Room</button>
+   <button type="button" class="btn room-saved-finish" id="finishJobChoiceBtn">✔ Finish Job</button>
+  </div>`;
+  $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;p.startNewRoom=false;p.showRoomSavedChoice=false;save();renderRooms()});
+  if($('#addRoomSwitchBtn'))$('#addRoomSwitchBtn').onclick=()=>startBlankRoom(p);
+  if($('#finishJobSwitchBtn'))$('#finishJobSwitchBtn').onclick=()=>finishJob(p);
+  if($('#addAnotherRoomBtn'))$('#addAnotherRoomBtn').onclick=()=>{p.showRoomSavedChoice=false;startBlankRoom(p);show('measure')};
+  if($('#finishJobChoiceBtn'))$('#finishJobChoiceBtn').onclick=()=>finishJob(p);
+  return;
+ }
  list.innerHTML=switcherHtml+roomCardHtml(p,r);
  $$('.room-switch-btn[data-room-id]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.roomId;p.startNewRoom=false;save();renderRooms()});
  // The "add a room" card is staged directly on the project (p.siteMarkup etc) until it's
@@ -1797,16 +1830,35 @@ function renderRooms(){
  // silently opened already showing someone else's old marks and photo count instead of
  // a blank room -- clear the staging area every time "Add Room" is tapped, not just when
  // a room is actually completed.
- if($('#addRoomSwitchBtn'))$('#addRoomSwitchBtn').onclick=()=>{
-   state.currentRoom=null;p.startNewRoom=true;
-   p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
-   p.siteMarkup={image:null,w:0,h:0,marks:[]};
-   p.measureCaptures=[];
-   p.notePhotos=[];
-   p.newRoomDraftStarted=true;
-   save();renderRooms();
- };
+ if($('#addRoomSwitchBtn'))$('#addRoomSwitchBtn').onclick=()=>{startBlankRoom(p);renderRooms()};
+ if($('#finishJobSwitchBtn'))$('#finishJobSwitchBtn').onclick=()=>finishJob(p);
  wireRoomCard(p,r);
+}
+// Shared by both "+ Add Room" (stay on Room Guide) and "Add Another Room"
+// (jump straight to Site Measure) -- clears whatever was staged for the
+// last room so the next one starts blank, without touching any room
+// already saved into p.rooms.
+function startBlankRoom(p){
+ state.currentRoom=null;p.startNewRoom=true;p.showRoomSavedChoice=false;
+ p.siteRoomName='';p.siteRoomIcon='';p.siteRoomIconManual=false;p.siteRoomNotes='';p.siteRoomLocation='';
+ p.siteMarkup={image:null,w:0,h:0,marks:[]};
+ p.measureCaptures=[];
+ p.notePhotos=[];
+ p.newRoomDraftStarted=true;
+ save();
+}
+// Tells Studio the measuring visit itself is done -- a lightweight signal
+// on top of the continuous per-room sync that already happens as each
+// room is saved (see #sendNewSiteToStudio), not a replacement for it.
+function finishJob(p){
+ if(!p.rooms||!p.rooms.length){alert('Measure at least one room before finishing this job.');return}
+ if(!confirm('Finish this job? Studio will be told the site visit is complete.'))return;
+ p.showRoomSavedChoice=false;
+ p.siteVisitComplete=true;
+ p.siteVisitFinishedAt=new Date().toISOString();
+ save();
+ exportJob(p.id);
+ show('projects');
 }
 function renderRoomDetail(r){
  const detail=$('#roomGuideDetail');
