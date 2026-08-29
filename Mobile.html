@@ -2969,7 +2969,13 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
           if((state.deletedProjectIds||[]).includes(incoming.id)){await window.removeMobilePacket(packet);continue}
           const units=incoming.cabinets,panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]),pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
           const isNote=packet.sendType==="note";
-          if(!isNote&&(!units.length||!panels.length)){await window.removeMobilePacket(packet);continue}
+          // This used to silently discard (and mark permanently "received", so a refresh
+          // could never bring it back) any job sent before it had panels on it -- e.g. the
+          // moment a fitter is assigned, before the drawing is finished, since that already
+          // triggers a send on its own. That's exactly the class of bug the comment above
+          // this loop says this code avoids: still apply it, so the job at least shows up
+          // (even at 0 panels) instead of vanishing without a trace the fitter has no way
+          // to know happened.
           const p=mergeStudioProject(incoming);
           save();await window.removeMobilePacket(packet);
           lastApplied={packet,p,units,panels,pieces,isNote};

@@ -6670,7 +6670,12 @@ body.fiq-locked .app{display:none!important}
         // Computed before anything changes assignedFitter below -- this is "does this job
         // have nobody on it yet, and has it never reached Mobile" at the moment the boss
         // acts, regardless of which of the two ways (pick existing / add new) they used.
-        const wasUnassignedAndUnsent=!p.assignedFitter&&!p.lastMobileSync;
+        // Also requires at least one real panel already on the job: sending the moment a
+        // fitter is assigned -- often before the drawing is even started -- used to fire an
+        // empty cutting list that looked identical to a real send, with nothing afterwards
+        // to prompt sending the real one once it existed.
+        const hasPanels=(p.cabinets||[]).some(c=>(c.parts||[]).length>0);
+        const wasUnassignedAndUnsent=!p.assignedFitter&&!p.lastMobileSync&&hasPanels;
         if(sel.value==='__add__'){
           const fitter=promptNewFitter();
           p.assignedFitter=fitter?fitter.name:'';
