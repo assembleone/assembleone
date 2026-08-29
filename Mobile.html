@@ -768,6 +768,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button class="mini-btn measure61-tools" id="openMeasureTools" type="button"><span class="measure61-top-icon">🛠️</span><span data-i18n="measure.tools">Tools</span></button>
   </div>
   <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Photos → Measurements → Notes → Check → Send" aria-label="Help">?</button>
+  <div class="measure-done-hint">✓ <strong>Done</strong> saves this room's photo and measurements, then opens <strong>Room Guide</strong> to name and finish it →</div>
   <div class="quick-measure-types three-main-measures" id="quickMeasureTypes" aria-label="Measurement type">
    <button type="button" data-kind="Wall to wall" class="measure-kind active"><b>↔</b><span data-i18n="measure.kindWallToWall">Wall to wall</span></button>
    <button type="button" data-kind="Floor to ceiling" class="measure-kind"><b>↕</b><span data-i18n="measure.kindFloorToCeiling">Floor to ceiling</span></button>
@@ -1546,7 +1547,30 @@ function openSiteRoomIconPicker(holder,isRoom){
  document.body.appendChild(overlay);
  overlay.querySelector('#closeSiteIconPicker').onclick=e=>{e.preventDefault();e.stopPropagation();overlay.remove()};
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
- overlay.querySelectorAll('[data-icon]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const icon=b.dataset.icon;if(isRoom){holder.icon=icon;holder.iconManual=true}else{holder.siteRoomIcon=icon;holder.siteRoomIconManual=true}const nameInput=document.getElementById('siteRoomName');if(nameInput&&!nameInput.value.trim()){nameInput.value=b.dataset.name;if(isRoom)holder.name=b.dataset.name;else holder.siteRoomName=b.dataset.name;const title=document.getElementById('siteRoomTitle');if(title)title.textContent=b.dataset.name}const liveBtn=document.getElementById('siteRoomIconBtn');if(liveBtn)liveBtn.textContent=icon;save();overlay.remove();renderRooms()});
+ overlay.querySelectorAll('[data-icon]').forEach(b=>b.onclick=e=>{
+  e.preventDefault();e.stopPropagation();
+  const icon=b.dataset.icon;
+  if(isRoom){holder.icon=icon;holder.iconManual=true}else{holder.siteRoomIcon=icon;holder.siteRoomIconManual=true}
+  // Picking an icon here IS how a fitter names the room -- it always fills
+  // the name (not just the first time), matching what they just tapped, so
+  // there's never a moment where the icon says one thing and the name says
+  // another. They can still edit the text afterwards for something more
+  // specific.
+  const nameInput=document.getElementById('siteRoomName');
+  if(nameInput){
+   nameInput.value=b.dataset.name;
+   if(isRoom)holder.name=b.dataset.name;else holder.siteRoomName=b.dataset.name;
+   const title=document.getElementById('siteRoomTitle');if(title)title.textContent=b.dataset.name;
+  }
+  const liveBtn=document.getElementById('siteRoomIconBtn');if(liveBtn)liveBtn.textContent=icon;
+  save();
+  // A brief visible "selected" flash on the tapped icon before the sheet
+  // closes, so it's obvious the tap registered and did something, instead
+  // of the sheet just vanishing.
+  overlay.querySelectorAll('[data-icon]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  setTimeout(()=>{overlay.remove();renderRooms()},220);
+ });
 }
 let siteLocationMapInstance=null,siteLocationMarker=null;
 async function initSiteLocationMap(p){
@@ -3608,6 +3632,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
 .fiq-onboard-close{position:absolute;top:-38px;right:0;background:none;border:none;font-size:28px;color:#fff;cursor:pointer;line-height:1}
 .quick-help-btn{opacity:.85}
 .quick-help-pill{display:block;background:#F5F7FA;border:1px solid #E2E7EB;color:#5B6B7C;font-weight:800;font-size:12px;border-radius:999px;padding:6px 14px;cursor:pointer;width:fit-content}
+.measure-done-hint{margin:8px 0;padding:8px 12px;border:2px solid #2f80d4;background:#eef6ff;border-radius:10px;color:#174E98;font-size:12px;font-weight:700;line-height:1.4}
 .fiq-quick-help-toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#0B2545;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:700;z-index:99000;max-width:90vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;transition:opacity .2s}
 .fiq-quick-help-toast.show{opacity:1}
 </style>
