@@ -6838,6 +6838,9 @@ body.fiq-locked .app{display:none!important}
 .fp-status.active{background:#e6f7ec;color:#16a34a}
 .fp-connect-btn{border:2px solid #4ca618;background:#f4fcef;color:#2c6b0a;font-weight:800;border-radius:10px;padding:8px 14px;cursor:pointer}
 .fp-deactivate-btn{border:2px solid #f4b3b3;background:#fff1f1;color:#bf1f29;font-weight:800;border-radius:10px;padding:8px 14px;cursor:pointer}
+.fp-delete-btn{margin-left:auto;border:none;background:none;color:#bf1f29;font-size:18px;cursor:pointer;padding:6px 8px;border-radius:8px;line-height:1}
+.fp-delete-btn:hover{background:#fff1f1}
+.fitters-clear-test-btn{display:block;margin:14px auto 0;background:none;border:none;color:#a4a0ad;font-size:12px;text-decoration:underline;cursor:pointer}
 .fitters-add-form{border:2px dashed var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
 .fitters-add-form label{font-weight:800;font-size:13px;display:flex;flex-direction:column;gap:4px}
 .fitters-add-form input{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
@@ -6919,6 +6922,7 @@ body.fiq-locked .app{display:none!important}
         '<div class="fp-status '+(active?'active':'not-connected')+'">Mobile access: '+(active?'Active':'Not connected')+'</div>'+
         '<button type="button" class="fp-connect-btn" data-connect-fitter="'+safe(f.id)+'">'+(active?'Send new code':'Connect Mobile')+'</button>'+
         (active?'<button type="button" class="fp-deactivate-btn" data-deactivate-fitter="'+safe(f.id)+'">Disconnect</button>':'')+
+        '<button type="button" class="fp-delete-btn" data-delete-fitter="'+safe(f.id)+'" title="Delete '+safe(f.name)+'" aria-label="Delete '+safe(f.name)+'">🗑</button>'+
       '</div>';
     }).join('')||'<p class="muted">No fitters yet — add one below.</p>';
     body.innerHTML=rows+
@@ -6927,13 +6931,18 @@ body.fiq-locked .app{display:none!important}
         '<label>Mobile number (for WhatsApp)<input id="newFitterPhone" type="tel" placeholder="+44 7700 900123"></label>'+
         '<label>Email (optional)<input id="newFitterEmail" type="email" placeholder="Only if they already have one"></label>'+
         '<button type="button" class="btn primary" id="saveNewFitterBtn">Save fitter</button>'+
-      '</div>';
+      '</div>'+
+      (fitters.length?'<button type="button" class="fitters-clear-test-btn" id="clearTestFittersBtn">Clear test fitters (development/testing only)</button>':'');
     body.querySelectorAll('[data-connect-fitter]').forEach(btn=>{
       btn.onclick=()=>openPairingFor(btn.dataset.connectFitter);
     });
     body.querySelectorAll('[data-deactivate-fitter]').forEach(btn=>{
       btn.onclick=()=>deactivateFitter(btn.dataset.deactivateFitter);
     });
+    body.querySelectorAll('[data-delete-fitter]').forEach(btn=>{
+      btn.onclick=()=>deleteFitterPermanently(btn.dataset.deleteFitter);
+    });
+    document.getElementById('clearTestFittersBtn')?.addEventListener('click',clearAllTestFitters);
     document.getElementById('saveNewFitterBtn').onclick=async()=>{
       const name=(document.getElementById('newFitterName').value||'').trim();
       if(!name){alert('Enter a name for the fitter.');return}
@@ -6986,6 +6995,64 @@ body.fiq-locked .app{display:none!important}
     }catch(e){
       alert((e&&e.message)||'Could not disconnect this fitter. Please try again.');
     }
+  }
+
+  // Clears every job reference to a fitter by name -- shared by delete (one
+  // fitter) and Clear test fitters (all of them), so a removed fitter never
+  // lingers as a dangling "assigned to" string on a job.
+  function clearFitterFromJobs(name){
+    const nameLower=name.trim().toLowerCase();
+    state.projects.forEach(p=>{
+      if((p.assignedFitter||'').trim().toLowerCase()===nameLower)p.assignedFitter='';
+      if(Array.isArray(p.otherFitters))p.otherFitters=p.otherFitters.filter(n=>n.trim().toLowerCase()!==nameLower);
+    });
+  }
+  // Revokes real Mobile access/seat and marks the permanent fitter record
+  // deleted -- Firestore rules deliberately never allow that record to be
+  // hard-deleted (so a job's history never points at a vanished id), so
+  // "deleted" here means fully deactivated, exactly like Disconnect, plus
+  // the roster entry itself disappearing from Studio. A fitter who was
+  // added but never actually paired has no membership to suspend, which is
+  // expected and not an error.
+  async function revokeFitterCloudAccess(fitterId){
+    const cid=companyId();if(!cid)return;
+    try{
+      const setStatus=fs().httpsCallable(window.fiqFunctions,'setMemberStatus');
+      await setStatus({companyId:cid,uid:'fitter_'+fitterId,status:'suspended'});
+    }catch(e){ /* never actually connected -- nothing to revoke */ }
+    await fs().setDoc(fs().doc(fdb(),'companies',cid,'fitters',fitterId),{mobileStatus:'inactive',deleted:true,deletedAt:fs().serverTimestamp()},{merge:true});
+  }
+  async function deleteFitterPermanently(fitterId){
+    const fitter=ensureFitters().find(f=>f.id===fitterId);if(!fitter)return;
+    if(!confirm('Delete '+fitter.name+'? This will remove this fitter and their Mobile connection.'))return;
+    try{
+      await revokeFitterCloudAccess(fitterId);
+      state.fitters=ensureFitters().filter(f=>f.id!==fitterId);
+      clearFitterFromJobs(fitter.name);
+      save();
+      if(typeof renderAll==='function')renderAll();
+      renderFittersModal();
+    }catch(e){
+      alert((e&&e.message)||'Could not delete this fitter. Please try again.');
+    }
+  }
+  // Development/testing utility only -- wipes the whole roster in one go so
+  // a messy set of test fitters (duplicates, leftovers from earlier testing)
+  // can be cleared before a clean real test, without deleting each one by
+  // hand. Same underlying cleanup as a single delete, just for everyone.
+  async function clearAllTestFitters(){
+    const fitters=ensureFitters();
+    if(!fitters.length)return;
+    if(!confirm('Remove all '+fitters.length+' fitter'+(fitters.length===1?'':'s')+' from this company and disconnect any Mobile access they have?\n\nThis is for clearing test data before a clean test -- it cannot be undone from here.'))return;
+    for(const fitter of fitters.slice()){
+      try{ await revokeFitterCloudAccess(fitter.id); }
+      catch(e){ console.error('Could not fully clear fitter',fitter.name,e); }
+    }
+    state.fitters=[];
+    state.projects.forEach(p=>{p.assignedFitter='';p.otherFitters=[]});
+    save();
+    if(typeof renderAll==='function')renderAll();
+    renderFittersModal();
   }
 
   async function openPairingFor(fitterId){
