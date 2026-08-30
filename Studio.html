@@ -2641,6 +2641,14 @@ function mergePanelStatus(bp,ip){
 function mergePanelFields(bp,ip){
   ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=Math.max(Number(bp[k])||0,Number(ip[k])||0)});
   ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]});
+  // Who most recently scanned this panel (a fitter, or "__owner__"), kept in step with
+  // scannedQty above -- only overwrite if the incoming scan is actually newer, the same
+  // "only a genuinely later update wins" rule mergePanelStatus already applies to status,
+  // so an out-of-order packet can't undo a later scan's attribution.
+  if(ip.lastScannedAt&&(!bp.lastScannedAt||Date.parse(ip.lastScannedAt)>Date.parse(bp.lastScannedAt))){
+    bp.lastScannedAt=ip.lastScannedAt;
+    bp.lastScannedByFitterId=ip.lastScannedByFitterId||null;
+  }
   mergePanelStatus(bp,ip);
 }
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}

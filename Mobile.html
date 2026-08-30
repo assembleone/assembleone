@@ -2958,7 +2958,7 @@ function scanTotals(p=project()){
 // Panel Check or Fitted on the fitter's behalf. Both are deliberate choices made
 // afterwards via the Mark Panel menu, the same way Missing/Damaged already work.
 // lastScannedAt is just "this was opened/viewed", used for the recent-activity list.
-function markCurrentPanelScanned(){const pt=part();if(!pt)return;pt.lastScannedAt=new Date().toISOString();save();renderScanDashboard()}
+function markCurrentPanelScanned(){const pt=part();if(!pt)return;pt.lastScannedAt=new Date().toISOString();pt.lastScannedByFitterId=currentActorFitterId();save();renderScanDashboard()}
 function renderScanDashboard(){
  const total=scanTotals();
  const pr=project();const cj=$("#scanCurrentJob");if(cj)cj.textContent=pr?`${pr.name||t('msg.projectFallback')}${pr.code?' · '+pr.code:''}`:t('scan.noProjectOpen');
@@ -3091,6 +3091,7 @@ function handlePanelCheckScan(){
  const q=Math.max(1,Number(pt.qty)||1);
  pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
  pt.lastScannedAt=new Date().toISOString();
+ pt.lastScannedByFitterId=currentActorFitterId();
  save();
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderScanDashboard();
@@ -3110,10 +3111,31 @@ function renderPanelCheckResult(pt,status){
  $('#pcResultRoom').textContent=room?.name||cab?.name||'';
  $('#pcResultStatus').textContent=status==='missing'?'Missing':status==='damaged'?'Damaged':'Checked';
 }
+// Every meaningful Mobile action needs a clear person attached to it, whether that's a
+// fitter or the company owner -- the owner doesn't get a fake fitter profile just to be
+// recordable here, so "__owner__" (the same reserved value Studio already uses for
+// assignedFitter) stands in for their real identity wherever this file previously only
+// ever recorded a fitterId. Studio already resolves that value to the owner's real name
+// wherever it displays a fitter (window.a211FitterDisplayName).
+function currentActorFitterId(){
+ const me=window.fittersiqUser||{};
+ if(me.fitterId)return me.fitterId;
+ if(me.role==='company_owner')return '__owner__';
+ return null;
+}
+// A ready-to-display name for whoever is signed in right now, for the places (job log
+// entries) that store a human-readable string rather than an id to be looked up later.
+// me.name is fetched once at sign-in (see unlockApp) from the fitter's own roster entry
+// or the company's ownerName -- falls back to email, then the old generic label, only if
+// that fetch hasn't completed yet or the account predates it.
+function currentActorDisplayName(){
+ const me=window.fittersiqUser||{};
+ return me.name||me.email||"Fitter";
+}
 // Shared by the Problem Panel menu (Find Panel) and Panel Check's own Missing button so
 // both ways of flagging a panel missing behave identically and stay in sync.
 function applyMissingStatus(pr,pt){
- const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
+ const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=currentActorFitterId();
  addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
  save();
  if(typeof exportJob==="function")exportJob(pr.id);
@@ -3191,7 +3213,7 @@ $('#bompMarkRemainingInstalled').onclick=()=>{
  if(!confirm('Mark every remaining panel in this unit as Installed?'))return;
  (cab.parts||[]).forEach(p=>{
   const cat=partStatusCategory(p);
-  if(cat==='remaining'||cat==='checked'){p.status='installed';p.statusUpdatedAt=Date.now();p.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null}
+  if(cat==='remaining'||cat==='checked'){p.status='installed';p.statusUpdatedAt=Date.now();p.updatedByFitterId=currentActorFitterId()}
  });
  save();
  if(typeof exportJob==='function')exportJob(pr.id);
@@ -3202,7 +3224,7 @@ $('#bompMarkRoomComplete').onclick=()=>{
  if(!confirm('Mark this whole unit as complete? Missing or damaged panels will be left as they are.'))return;
  (cab.parts||[]).forEach(p=>{
   const cat=partStatusCategory(p);
-  if(cat!=='missing'&&cat!=='damaged'){p.status='installed';p.statusUpdatedAt=Date.now();p.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null}
+  if(cat!=='missing'&&cat!=='damaged'){p.status='installed';p.statusUpdatedAt=Date.now();p.updatedByFitterId=currentActorFitterId()}
  });
  addJobLogEntry(pr,'✅ '+(cab.name||'Unit')+' marked complete',[]);
  save();
@@ -3246,6 +3268,7 @@ $("#markPanelCheckChoice").onclick=()=>{
  const q=Math.max(1,Number(pt.qty)||1);
  pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
  pt.lastScannedAt=new Date().toISOString();
+ pt.lastScannedByFitterId=currentActorFitterId();
  save();
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderInstall();
@@ -3266,9 +3289,9 @@ $("#markPanelInstallChoice").onclick=()=>{
   if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return;
   state.lastFittedIncrement={partId:pt.id,at:now};
   pt.installedQty=Math.min(totalUnits,(Number(pt.installedQty)||0)+1);
-  if(pt.installedQty>=totalUnits){pt.status="installed";pt.statusUpdatedAt=Date.now();pt.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null}
+  if(pt.installedQty>=totalUnits){pt.status="installed";pt.statusUpdatedAt=Date.now();pt.updatedByFitterId=currentActorFitterId()}
  }else{
-  const installedMark=currentMark(pt);installedMark.status="installed";installedMark.statusUpdatedAt=Date.now();installedMark.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
+  const installedMark=currentMark(pt);installedMark.status="installed";installedMark.statusUpdatedAt=Date.now();installedMark.updatedByFitterId=currentActorFitterId();
  }
  save();
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
@@ -3330,7 +3353,7 @@ $("#openDesignGuideScan").onclick=()=>{$("#designGuidePanel").classList.toggle("
 function addJobLogEntry(p,text,photos){
  if(!p)return null;
  p.jobLog=p.jobLog||[];
- const entry={id:uid(),author:(window.fittersiqUser&&window.fittersiqUser.email)||"Fitter",at:Date.now(),text:String(text||"").trim(),photos:photos||[]};
+ const entry={id:uid(),author:currentActorDisplayName(),at:Date.now(),text:String(text||"").trim(),photos:photos||[]};
  p.jobLog.push(entry);
  return entry;
 }
@@ -3344,7 +3367,7 @@ $("#saveDamage").onclick=()=>{
  found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
  found.pt.status="damaged";
  found.pt.statusUpdatedAt=Date.now();
- found.pt.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
+ found.pt.updatedByFitterId=currentActorFitterId();
  found.pt.damageNote=$("#damageNote").value.trim();
  if(damagePhotoData){found.pt.panelPhotos=found.pt.panelPhotos||[];found.pt.panelPhotos.push({id:uid(),data:damagePhotoData})}
  addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[]);
@@ -4492,6 +4515,23 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     var badge=$('fiqAccountBadge');
     if(badge){badge.style.display='flex'; $('fiqAccountEmail').textContent=user.email;}
     if(typeof window.a215MaybeShowOnboarding==='function')window.a215MaybeShowOnboarding(claims);
+    // A real display name for whoever is actually signed in -- used to attribute Mobile
+    // actions (job log entries, panel status changes) to a real person instead of a bare
+    // email or a generic "Fitter" label. The owner's name lives on the company record
+    // (set at signup, see completeOnboarding); a fitter's lives on their own roster entry
+    // (set when the boss added them in Studio) since a paired fitter's Auth account has no
+    // name of its own. Fetched once here rather than on every action.
+    if(claims.companyId){
+      if(claims.role==='company_owner'){
+        authFns.getDoc(authFns.doc(db,'companies',claims.companyId)).then(function(snap){
+          if(snap.exists())window.fittersiqUser.name = snap.data().ownerName || '';
+        }).catch(function(){});
+      }else if(claims.fitterId){
+        authFns.getDoc(authFns.doc(db,'companies',claims.companyId,'fitters',claims.fitterId)).then(function(snap){
+          if(snap.exists())window.fittersiqUser.name = snap.data().name || '';
+        }).catch(function(){});
+      }
+    }
   }
 
   var DEVICE_ID_KEY = 'assembleone_device_id';
