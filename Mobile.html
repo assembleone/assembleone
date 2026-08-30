@@ -3017,7 +3017,14 @@ function handlePanelIdentified(){
 function openScannedText(text){
  let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
  if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
- if(q&&openPanelRoute(q)){handlePanelIdentified();return true}
+ if(q){
+  // Recognised as a FittersIQ panel QR either way -- openPanelRoute already sets the
+  // right message on failure (access denied, or panel not on this phone), so don't fall
+  // through to the legacy-format check and generic message below, which would silently
+  // overwrite it with the wrong explanation.
+  if(openPanelRoute(q)){handlePanelIdentified();return true}
+  return false;
+ }
  const old=parseOldQr(text);
  if(old){const p=state.projects.find(x=>x.name.trim().toLowerCase()===old.job.trim().toLowerCase());const c=p?.cabinets.find(x=>x.name.trim().toLowerCase()===old.wardrobe.trim().toLowerCase());const pt=c?.parts.find(x=>x.code.trim().toLowerCase()===old.part.trim().toLowerCase());if(p&&c&&pt){
   if(typeof canSeeJob==='function'&&!canSeeJob(p)){$("#scanResult").textContent=(typeof jobAccessDeniedMessage==='function'?jobAccessDeniedMessage(p):'Job not assigned to you. Contact the office.');return false}
@@ -3042,6 +3049,16 @@ function findPanelByNumber(value){
 $("#findPanelByCode").onclick=()=>findPanelByNumber($("#manualPanelCode").value);
 $("#manualPanelCode").addEventListener("keydown",e=>{if(e.key==="Enter")findPanelByNumber(e.target.value)});
 let mediaStream=null,scanRunning=false,detector=null,jsqrCanvas=null,jsqrCtx=null,scanLoopTimer=null;
+// Safari/WebKit can report BarcodeDetector as present (passes "in window") while its
+// detect() implementation doesn't actually accept a live <video> element the way Chrome's
+// does -- it throws on every single frame instead of just finding nothing. The scan loop's
+// own try/catch used to swallow that silently forever, which is exactly "the scanner opens
+// but never recognises anything": jsQR (confirmed working, loaded from CDN) was never even
+// tried because detector looked available at the one-time feature-detection check. Now a
+// detect() failure is treated as "this browser's BarcodeDetector doesn't really work",
+// permanently falls back to jsQR for the rest of this session, and is logged once instead
+// of disappearing.
+let detectorFailed=false;
 async function startCamera(){
  if(scanRunning)return;
  scanRunning=true;
@@ -3050,9 +3067,14 @@ async function startCamera(){
   const v=$("#camera");v.srcObject=null;v.srcObject=mediaStream;await v.play();
   await new Promise(resolve=>{if(v.readyState>=2)resolve();else v.addEventListener("loadeddata",resolve,{once:true})});
   $("#cameraWrap").classList.remove("hidden");$("#stopScanner").classList.remove("hidden");$("#startScanner").classList.add("hidden");
-  detector=null;
+  detector=null;detectorFailed=false;
   if("BarcodeDetector" in window){try{detector=new BarcodeDetector({formats:["qr_code"]})}catch(e){detector=null}}
   if(!detector){$("#scanResult").textContent=t('msg.preparingScanner');try{await ensureJsQR()}catch(e){}$("#scanResult").textContent=""}
+  // Warm up audio here, inside the same user-gesture call stack that opened the camera --
+  // browsers refuse to let a freshly-created AudioContext make sound unless it's started
+  // (or resumed) from a direct user interaction, and by the time a scan actually succeeds
+  // we're several async ticks away from the tap that started this.
+  ensureScanAudio();
   scanLoop();
  }catch(e){scanRunning=false;alert(t('msg.cameraCouldNotOpen'))}
 }
@@ -3060,8 +3082,14 @@ async function scanLoop(){
  if(!scanRunning)return;
  try{
   if(detector){
-   const codes=await detector.detect($("#camera"));
-   if(codes.length){$("#scanResult").textContent=t('msg.qrLabelFound');if(openScannedText(codes[0].rawValue))return}
+   let codes=null;
+   try{codes=await detector.detect($("#camera"))}
+   catch(e){
+    console.error('BarcodeDetector failed on this device, switching to jsQR',e);
+    detector=null;detectorFailed=true;
+    try{await ensureJsQR()}catch(e2){}
+   }
+   if(codes&&codes.length){handleDetectedQrText(codes[0].rawValue)}
   }else if(typeof jsQR!=="undefined"){
    const v=$("#camera");
    if(v.videoWidth){
@@ -3072,11 +3100,68 @@ async function scanLoop(){
     jsqrCtx.drawImage(v,0,0,w,h);
     const imageData=jsqrCtx.getImageData(0,0,w,h);
     const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:"dontInvert"});
-    if(code&&code.data){$("#scanResult").textContent=t('msg.qrLabelFound');if(openScannedText(code.data))return}
+    if(code&&code.data){handleDetectedQrText(code.data)}
    }
   }
  }catch(e){}
  scanLoopTimer=setTimeout(scanLoop,detector?80:150);
+}
+// The loop above re-reads the same physical QR code many times a second while it's still
+// in view -- without this, holding a panel in frame for even half a second would count it
+// several times over (scannedQty incrementing repeatedly, or the same "found" sound firing
+// on a loop). A code is only actually acted on once per DEDUP_WINDOW_MS; seeing the exact
+// same text again inside that window is treated as "still the same panel, already handled"
+// and silently skipped -- no re-processing, no repeated sound. Moving to a genuinely
+// different panel changes the text immediately, so there's no added delay for the normal
+// "scan next item" case a checkout-style workflow needs.
+const QR_DEDUP_WINDOW_MS=2500;
+let lastScannedQrText=null,lastScannedQrAt=0;
+function handleDetectedQrText(raw){
+ $("#scanResult").textContent=t('msg.qrLabelFound');
+ const now=Date.now();
+ if(raw===lastScannedQrText&&(now-lastScannedQrAt)<QR_DEDUP_WINDOW_MS)return;
+ lastScannedQrText=raw;lastScannedQrAt=now;
+ const ok=openScannedText(raw);
+ if(ok)playScanSuccessFeedback();else playScanErrorFeedback();
+}
+// Short Web Audio tones instead of an audio file -- no asset to add, and it works the
+// instant the scanner opens rather than waiting on a network request. Needs to be created
+// (or resumed) from a real user gesture, see startCamera().
+let scanAudioCtx=null;
+function ensureScanAudio(){
+ if(!scanAudioCtx){try{scanAudioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){scanAudioCtx=null}}
+ if(scanAudioCtx&&scanAudioCtx.state==='suspended'){try{scanAudioCtx.resume()}catch(e){}}
+ return scanAudioCtx;
+}
+function playScanTone(freq,durationMs,type){
+ const ctx=ensureScanAudio();if(!ctx)return;
+ try{
+  const osc=ctx.createOscillator(),gain=ctx.createGain();
+  osc.type=type||'sine';osc.frequency.value=freq;
+  osc.connect(gain);gain.connect(ctx.destination);
+  const now=ctx.currentTime;
+  gain.gain.setValueAtTime(0.0001,now);
+  gain.gain.exponentialRampToValueAtTime(0.4,now+0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001,now+durationMs/1000);
+  osc.start(now);osc.stop(now+durationMs/1000+0.03);
+ }catch(e){}
+}
+// A single short, clean, high beep -- deliberately close to a supermarket checkout scanner
+// so a fitter working through a stack of panels learns to trust it without watching the
+// screen. Paired with a short vibration where the device supports it.
+function playScanSuccessFeedback(){
+ playScanTone(1568,110,'sine');
+ try{if(navigator.vibrate)navigator.vibrate(60)}catch(e){}
+}
+// Low and doubled, so it's unmistakably not the success beep even half-heard -- for an
+// unrecognised QR or a panel this fitter isn't allowed to open. A duplicate (the same code
+// still in view) is handled separately above and deliberately makes no sound at all, since
+// it isn't an error -- constantly re-buzzing while a panel simply sits in frame for a
+// moment too long would defeat the point of not having to watch the screen.
+function playScanErrorFeedback(){
+ playScanTone(220,160,'square');
+ setTimeout(()=>playScanTone(220,160,'square'),190);
+ try{if(navigator.vibrate)navigator.vibrate([80,60,80])}catch(e){}
 }
 function stopCamera(){scanRunning=false;if(scanLoopTimer){clearTimeout(scanLoopTimer);scanLoopTimer=null}if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;const v=$("#camera");if(v)v.srcObject=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
 $("#startScanner").onclick=()=>{state.scanMode='check';startCamera()};$("#stopScanner").onclick=stopCamera;
@@ -4581,56 +4666,6 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       }
     }catch(e){console.error('Owner company-job recovery failed',e)}
   }
-
-  // TEMPORARY, read-only diagnostic for tracing the live recovery path on a real phone --
-  // does not merge, save, or write anything, so it's safe to run repeatedly. Remove once
-  // the trace is done. Run from the browser console: window.__diagnoseRecovery().then(r=>console.log(JSON.stringify(r,null,2)))
-  window.__diagnoseRecovery = async function(){
-    const report = {
-      buildHasRecoveryCode: true, // if you can call this function at all, the build has it
-      fittersiqUser: window.fittersiqUser || null,
-    };
-    try{
-      const fs=window.fiqAuthFns, db=window.fiqFirestore, user=window.fittersiqUser;
-      report.hasAuthFns = !!fs;
-      report.hasFirestore = !!db;
-      report.companyId = user && user.companyId || null;
-      if(!fs||!db||!user||!user.companyId){ report.stoppedAt = 'no fs/db/user/companyId'; return report; }
-      const q = fs.query(fs.collection(db,'companies',user.companyId,'jobs'), fs.where('kind','==','studioToMobilePacket'));
-      let snap;
-      try{
-        snap = await fs.getDocs(q);
-      }catch(e){
-        report.queryError = (e && e.message) || String(e);
-        return report;
-      }
-      report.docCount = snap.size !== undefined ? snap.size : null;
-      report.jobs = [];
-      snap.forEach(function(docSnap){
-        const data = docSnap.data() || {};
-        const incoming = data.project || data;
-        const entry = {
-          docId: docSnap.id,
-          status: data.status,
-          hasValidProjectShape: !!(incoming && incoming.id && Array.isArray(incoming.cabinets)),
-          projectId: incoming ? incoming.id : null,
-          projectName: incoming ? incoming.name : null,
-          customer: incoming ? incoming.customer : null,
-          assignedFitterIds: incoming ? incoming.assignedFitterIds : null,
-          assignedEmails: incoming ? incoming.assignedEmails : null,
-          alreadyInLocalProjects: incoming ? (state.projects||[]).some(function(x){return x.id===incoming.id}) : null,
-          inDeletedProjectIds: incoming ? (state.deletedProjectIds||[]).includes(incoming.id) : null,
-          canSeeJobResult: (incoming && typeof canSeeJob==='function') ? canSeeJob(incoming) : null,
-        };
-        report.jobs.push(entry);
-      });
-      report.localProjectCountBeforeAnyMerge = (state.projects||[]).length;
-      report.localProjectIds = (state.projects||[]).map(function(p){return p.id});
-    }catch(e){
-      report.unexpectedError = (e && e.stack) || String(e);
-    }
-    return report;
-  };
 
   var DEVICE_ID_KEY = 'assembleone_device_id';
   function getDeviceId(){
