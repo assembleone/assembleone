@@ -1205,6 +1205,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -1221,6 +1222,8 @@ window.db = getDatabase(app);
 window.fiqAuth = getAuth(app);
 window.fiqFunctions = getFunctions(app);
 window.fiqFirestore = getFirestore(app);
+window.fiqStorage = getStorage(app);
+window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL };
 window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
@@ -2512,6 +2515,50 @@ function exportProjectRecord(projectId){
  download(makeZip([{name:"project.json",data:JSON.stringify(pack)},{name:"tradebase-summary.csv",data:summary},{name:"README.txt",data:"Technical FittersIQ project record for attaching to the customer in your trade database."}]),cleanFileName((p.customer||p.name||"Project")+"_FittersIQ_Record")+".zip");
 }
 async function mobileSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open("assembleone_direct_sync_v1",2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"});if(!db.objectStoreNames.contains("mobileInbox"))db.createObjectStore("mobileInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
+// Firestore documents cap out around 1MiB, but one real job -- several rooms, each with
+// several site photos, plus generated drawings -- routinely exceeds that once everything
+// is embedded as base64. Firebase Storage has no such per-document ceiling, so every image
+// above a small inline threshold gets uploaded there instead and replaced with its
+// download URL; the Firestore document then only ever carries structured job data plus
+// short URL strings, regardless of how many rooms or photos the job has. Mobile just
+// displays these the same way it already displays a data: URI -- <img src> doesn't care
+// which it gets. Paths are keyed by each photo/drawing's own existing id (already unique
+// per room/cabinet/panel throughout this app), so nothing from one room can ever collide
+// with or overwrite another, and resending an updated photo just overwrites the same
+// object instead of piling up old versions.
+const HEAVY_MEDIA_INLINE_THRESHOLD=6000;
+async function uploadIfHeavyDataUri(value,path){
+  if(typeof value!=='string'||!value.startsWith('data:')||value.length<HEAVY_MEDIA_INLINE_THRESHOLD)return value;
+  const {ref,uploadString,getDownloadURL}=window.fiqStorageFns||{};
+  if(!ref||!window.fiqStorage)return value;
+  const objRef=ref(window.fiqStorage,path);
+  await uploadString(objRef,value,'data_url');
+  return await getDownloadURL(objRef);
+}
+async function offloadHeavyMediaForMobileSync(project,companyId){
+  const p=JSON.parse(JSON.stringify(project));
+  const jobId=p.id;
+  const uploads=[];
+  let counter=0;
+  function walk(node){
+    if(!node||typeof node!=='object')return;
+    if(Array.isArray(node)){node.forEach(walk);return}
+    Object.keys(node).forEach(key=>{
+      const val=node[key];
+      if(typeof val==='string'&&val.startsWith('data:')&&val.length>=HEAVY_MEDIA_INLINE_THRESHOLD){
+        const fileId=node.id||('f'+(counter++));
+        const ext=/^data:image\/png/i.test(val)?'png':'jpg';
+        const path=`companies/${companyId}/jobs/${jobId}/media/${fileId}-${key}-${counter++}.${ext}`;
+        uploads.push(uploadIfHeavyDataUri(val,path).then(url=>{node[key]=url}));
+      }else if(val&&typeof val==='object'){
+        walk(val);
+      }
+    });
+  }
+  walk(p);
+  await Promise.all(uploads);
+  return p;
+}
 async function sendPackToPhoneDirectly(pack){
  const packet={...pack,syncId:uid(),syncStatus:"waiting"};
  let stored=false;
@@ -2526,14 +2573,23 @@ async function sendPackToPhoneDirectly(pack){
  let cloudSent=false,cloudError=null;
  const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;
  if(fs&&db2&&user&&user.companyId){
-   const envelope={kind:"studioToMobilePacket",status:"waiting",companyId:user.companyId,createdBy:user.uid,createdByEmail:user.email||"",createdAt:fs.serverTimestamp(),...packet};
-   let approxBytes=0;
-   try{approxBytes=new Blob([JSON.stringify(envelope)]).size}catch(e){approxBytes=JSON.stringify(envelope).length}
-   if(approxBytes>900000){
-     cloudError="This job's photos and drawings are too large to send to the phone in one go (about "+Math.round(approxBytes/1024)+"KB). Remove a large drawing image or photo and try again.";
-   }else{
-     try{await fs.addDoc(fs.collection(db2,"companies",user.companyId,"jobs"),envelope);cloudSent=true}
-     catch(e){console.error("Cloud send to Mobile failed",e);cloudError=e?.message||"Could not reach the cloud."}
+   let projectForCloud=packet.project;
+   try{
+     projectForCloud=await offloadHeavyMediaForMobileSync(packet.project,user.companyId);
+   }catch(e){
+     console.error("Uploading job photos/drawings to Storage failed",e);
+     cloudError="Could not upload this job's photos and drawings right now. Check your connection and try again.";
+   }
+   if(!cloudError){
+     const envelope={kind:"studioToMobilePacket",status:"waiting",companyId:user.companyId,createdBy:user.uid,createdByEmail:user.email||"",createdAt:fs.serverTimestamp(),...packet,project:projectForCloud};
+     let approxBytes=0;
+     try{approxBytes=new Blob([JSON.stringify(envelope)]).size}catch(e){approxBytes=JSON.stringify(envelope).length}
+     if(approxBytes>900000){
+       cloudError="This job could not be sent to the phone right now. Please try again in a moment.";
+     }else{
+       try{await fs.addDoc(fs.collection(db2,"companies",user.companyId,"jobs"),envelope);cloudSent=true}
+       catch(e){console.error("Cloud send to Mobile failed",e);cloudError="Could not send this job to the phone right now. Please check your connection and try again."}
+     }
    }
  }else if(!user||!user.companyId){
    cloudError="This account is not linked to a company yet, so it cannot reach a phone on a different device.";

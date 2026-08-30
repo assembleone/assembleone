@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Job photos and drawings sent from Studio to Mobile. Only an authenticated member of
+    // the owning company (the companyId custom claim set at sign-in/pairing time) may
+    // upload here, which is exactly who is allowed to write these jobs in Firestore too.
+    // Reads are left open because these download URLs are the exact same unguessable,
+    // per-object links Firebase's own getDownloadURL() is designed to hand out -- they are
+    // only ever reached by someone who already had legitimate, rules-checked Firestore
+    // access to the job document that contains the link.
+    match /companies/{companyId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.companyId == companyId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
