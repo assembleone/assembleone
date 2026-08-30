@@ -1044,13 +1044,87 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
  <input id="roomDesignGallery" type="file" accept="image/*" multiple hidden>
 </section>
 
+<style id="a170-panel-check-find-panel">
+.pc-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px}
+.pc-header strong{font-size:19px}
+.pc-counter{background:#eef7ff;border:1px solid #bcdcf7;border-radius:999px;padding:6px 14px;font-weight:900;color:#174e98;font-size:14px;white-space:nowrap}
+.pc-result{border:2px solid #18ad50;background:#f2fff6;border-radius:18px;padding:12px;margin-top:10px;display:grid;gap:10px}
+.pc-result.status-missing{border-color:#e0982a;background:#fff8ec}
+.pc-result.status-damaged{border-color:#d92f38;background:#fff2f2}
+.pc-result-top{display:flex;align-items:center;gap:10px}
+.pc-result-icon{width:44px;height:44px;border-radius:50%;background:#18ad50;color:#fff;display:grid;place-items:center;font-size:24px;flex:none}
+.pc-result.status-missing .pc-result-icon{background:#e0982a}
+.pc-result.status-damaged .pc-result-icon{background:#d92f38}
+.pc-result-info{flex:1;min-width:0;display:flex;flex-direction:column}
+.pc-result-info b{font-size:18px}
+.pc-result-info small{color:#6d6a7e;font-weight:700}
+.pc-result-status{font-weight:900;font-size:12px;color:#18ad50;text-transform:uppercase}
+.pc-result.status-missing .pc-result-status{color:#e0982a}
+.pc-result.status-damaged .pc-result-status{color:#d92f38}
+.pc-result-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.pc-result-actions .btn{min-height:52px;padding:6px 4px;font-size:13px;font-weight:900}
+.pc-result-actions .warn{background:#fff3e0;border-color:#e0982a;color:#8a5314}
+.pc-result-actions .danger{background:#fdeaea;border-color:#d92f38;color:#8f1f26}
+.pc-links{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.pc-links .btn{min-height:48px;font-weight:850}
+.pc-sheet-overlay{position:fixed;inset:0;background:rgba(24,22,55,.55);z-index:5200;display:flex;align-items:flex-end;justify-content:center;padding:0}
+.pc-sheet-overlay.hidden{display:none}
+.pc-sheet{width:min(560px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:20px 20px 0 0;padding:16px;box-sizing:border-box}
+.pc-sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.pc-sheet-head strong{font-size:19px}
+.pc-sheet-head button{border:0;background:transparent;font-size:28px;line-height:1;color:#6d6a7e}
+.pc-missing-row{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid #dedfe7;border-radius:13px;margin-bottom:8px}
+.pc-missing-row .info{flex:1;min-width:0}
+.pc-missing-row .info b{display:block}
+.pc-missing-row .info small{color:#6d6a7e}
+.pc-missing-row .actions{display:flex;gap:6px}
+.pc-missing-row .actions button{min-height:38px;padding:0 10px;font-size:12px;font-weight:900;border-radius:10px;border:1px solid #dedfe7;background:#fff}
+.pc-summary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.pc-summary-stat{border:1px solid #dedfe7;border-radius:14px;padding:12px;text-align:center}
+.pc-summary-stat b{display:block;font-size:28px}
+.pc-summary-stat.checked b{color:#18ad50}
+.pc-summary-stat.missing b{color:#e0982a}
+.pc-summary-stat.damaged b{color:#d92f38}
+.pc-drawing-sheet{max-height:92vh}
+.pc-drawing-body{position:relative;min-height:260px;background:#eceef3;border-radius:14px;overflow:hidden}
+.pc-drawing-body img{width:100%;display:block}
+.pc-drawing-empty{padding:40px 20px;text-align:center;color:#6d6a7e;font-weight:700}
+.damage-panel-overlay{position:fixed;inset:0;background:rgba(24,22,55,.55);z-index:5200;display:flex;align-items:flex-end;justify-content:center}
+.damage-panel-overlay.hidden{display:none}
+.damage-panel-overlay .damage-sheet{width:min(480px,100%);max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;margin-top:0;box-sizing:border-box}
+.damage-panel-head{display:flex;align-items:center;justify-content:space-between}
+.damage-panel-head button{border:0;background:transparent;font-size:26px;line-height:1;color:#8f1f26}
+.bomp-filters{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px}
+.bomp-chip{border:1px solid #dedfe7;background:#fff;border-radius:999px;padding:7px 13px;font-weight:850;font-size:12px;white-space:nowrap}
+.bomp-chip.active{background:#174e98;border-color:#174e98;color:#fff}
+.bomp-bulk-row{display:flex;gap:8px;margin-bottom:10px}
+.bomp-bulk-row .btn{flex:1;min-height:46px;font-weight:850;font-size:13px}
+</style>
+
 <section id="scan" class="screen">
  <div class="scan-tool scan55-tool">
+  <div class="pc-header"><strong>Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div></div>
   <div class="scan-actions scan55-actions" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
-  <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Scan → Identify → Fit → Mark Fitted" aria-label="Help" style="margin:8px auto 0">? Help</button>
+  <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Scan → instant Checked → ready for the next panel straight away" aria-label="Help" style="margin:8px auto 0">? Help</button>
   <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
+  <div id="panelCheckResult" class="pc-result hidden">
+   <div class="pc-result-top">
+    <span class="pc-result-icon" id="pcResultIcon">✓</span>
+    <div class="pc-result-info"><b id="pcResultCode"></b><span id="pcResultName"></span><small id="pcResultRoom"></small></div>
+    <span class="pc-result-status" id="pcResultStatus">Checked</span>
+   </div>
+   <div class="pc-result-actions">
+    <button type="button" id="pcViewDrawing" class="btn">🖼 Drawing</button>
+    <button type="button" id="pcMarkMissing" class="btn warn">Missing</button>
+    <button type="button" id="pcMarkDamaged" class="btn danger">Damaged</button>
+   </div>
+  </div>
+  <div class="pc-links">
+   <button type="button" id="pcMissingListBtn" class="btn">Missing Panels <span id="pcMissingBadge" class="scan-badge">0</span></button>
+   <button type="button" id="pcSummaryBtn" class="btn">Summary</button>
+  </div>
   <div class="scan55-current"><span class="scan55-folder"><img src="assets/nav_project_flat.png?v=1" alt="" style="width:36px;height:36px;object-fit:contain;vertical-align:middle"></span><div><small data-i18n="scan.currentJob">Current job</small><strong id="scanCurrentJob">No project open</strong></div><button class="btn" id="scanChangeJob" data-i18n="scan.changeJob">Change job ›</button></div>
   <div class="scan55-recent-head"><strong data-i18n="scan.recentScans">Recent scans</strong><button id="scanViewAll" type="button" data-i18n="scan.viewAll">View all ›</button></div>
   <div id="recentScans" class="scan55-recent"></div>
@@ -1075,8 +1149,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 
 <section id="install" class="screen">
  <div class="scan-tool scan55-tool">
+  <div class="scan-actions scan55-actions" style="grid-template-columns:1fr;margin-bottom:12px">
+   <button class="scan-action main" id="findPanelScanBtn"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span>Scan to Find Panel</span><small>Where does this panel go?</small></button>
+  </div>
   <div class="scan-progress-card scan55-progress">
-   <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Check each panel. Green means checked. Mark anything Missing or Damaged." aria-label="Help" style="margin:0 auto 8px">? Help</button>
+   <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Scan or pick a panel to see where it goes on the drawing. Use BOM / Progress below to update status without scanning." aria-label="Help" style="margin:0 auto 8px">? Help</button>
    <div class="scan-ring" id="installProgressRing"><div class="scan-ring-text"><b id="installFraction">0 / 0</b><span data-i18n="install.panelsInstalled">Panels installed</span></div></div>
    <div class="scan55-stat"><b id="installInstalledCount">0</b><span data-i18n="install.installedLabel">Installed</span></div>
    <div class="scan55-stat remaining"><b id="installMissingCount">0</b><span data-i18n="install.missingLabel">Missing</span></div>
@@ -1089,7 +1166,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button class="scan-action notes" id="openJobNotes"><b class="scan55-icon">📝</b><span>Job Notes</span><small id="jobNotesBadge">Messages &amp; updates</small></button>
   </div>
   <div id="designGuidePanel" class="room-section hidden"></div>
-  <div id="damagePanel" class="damage-sheet hidden"><strong>⚠ <span data-i18n="damage.title">Damaged panel</span></strong><input id="damagePanelCode" inputmode="text" data-i18n-placeholder="damage.panelPlaceholder" placeholder="Panel number, for example P-001"><textarea id="damageNote" data-i18n-placeholder="damage.whatDamaged" placeholder="What is damaged?"></textarea><label class="btn damage-photo-btn" for="damagePhotoInput"><span data-i18n="damage.addPhoto">📷 Add a photo</span><input id="damagePhotoInput" type="file" accept="image/*" capture="environment" hidden></label><div id="damagePhotoPreview" class="hidden"><img id="damagePhotoImg" alt="Damage photo"></div><button class="btn danger" id="saveDamage" data-i18n="damage.save">Save damaged panel</button><button class="btn damage-whatsapp-btn hidden" id="shareDamageWhatsapp" type="button" data-i18n="damage.shareWhatsapp">💬 Send to supplier on WhatsApp</button></div>
   <div id="problemPanelMenu" class="measure-picture-menu hidden" role="dialog" aria-modal="true" aria-label="Problem panel">
    <div class="measure-picture-card">
     <div class="measure-picture-head"><strong>Problem Panel</strong><button type="button" id="closeProblemPanelMenu" aria-label="Close">×</button></div>
@@ -1113,9 +1189,56 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <div id="jobNotePhotoPreview" class="job-notes-photo-preview"></div>
    <button class="btn primary" id="saveJobNote">Save note</button>
   </div>
-  <div class="card"><h2 data-i18n="install.installationHeading">Installation</h2><div id="installWardrobes" class="wardrobe-tabs"></div><div id="installList"></div></div>
+  <div class="card"><h2>BOM / Progress</h2><div id="installWardrobes" class="wardrobe-tabs"></div>
+   <div class="bomp-filters" id="bompFilters">
+    <button type="button" class="bomp-chip active" data-bomp-filter="all">All</button>
+    <button type="button" class="bomp-chip" data-bomp-filter="remaining">Remaining</button>
+    <button type="button" class="bomp-chip" data-bomp-filter="checked">Checked</button>
+    <button type="button" class="bomp-chip" data-bomp-filter="missing">Missing</button>
+    <button type="button" class="bomp-chip" data-bomp-filter="damaged">Damaged</button>
+    <button type="button" class="bomp-chip" data-bomp-filter="installed">Installed</button>
+   </div>
+   <div class="bomp-bulk-row">
+    <button type="button" class="btn primary" id="bompMarkRemainingInstalled">Mark remaining as Installed</button>
+    <button type="button" class="btn" id="bompMarkRoomComplete">Mark room complete</button>
+   </div>
+  <div id="installList"></div></div>
  </div>
 </section>
+
+<div id="damagePanelOverlay" class="damage-panel-overlay hidden">
+ <div id="damagePanel" class="damage-sheet">
+  <div class="damage-panel-head"><strong>⚠ <span data-i18n="damage.title">Damaged panel</span></strong><button type="button" id="closeDamagePanel" aria-label="Close">×</button></div>
+  <input id="damagePanelCode" inputmode="text" data-i18n-placeholder="damage.panelPlaceholder" placeholder="Panel number, for example P-001">
+  <textarea id="damageNote" data-i18n-placeholder="damage.whatDamaged" placeholder="What is damaged?"></textarea>
+  <label class="btn damage-photo-btn" for="damagePhotoInput"><span data-i18n="damage.addPhoto">📷 Add a photo</span><input id="damagePhotoInput" type="file" accept="image/*" capture="environment" hidden></label>
+  <div id="damagePhotoPreview" class="hidden"><img id="damagePhotoImg" alt="Damage photo"></div>
+  <button class="btn danger" id="saveDamage" data-i18n="damage.save">Save damaged panel</button>
+  <button class="btn damage-whatsapp-btn hidden" id="shareDamageWhatsapp" type="button" data-i18n="damage.shareWhatsapp">💬 Send to supplier on WhatsApp</button>
+ </div>
+</div>
+
+<div id="pcMissingOverlay" class="pc-sheet-overlay hidden">
+ <div class="pc-sheet">
+  <div class="pc-sheet-head"><strong>Missing Panels</strong><button type="button" id="pcMissingClose">×</button></div>
+  <div id="pcMissingList" class="pc-missing-list"></div>
+ </div>
+</div>
+
+<div id="pcSummaryOverlay" class="pc-sheet-overlay hidden">
+ <div class="pc-sheet">
+  <div class="pc-sheet-head"><strong>Panel Check Summary</strong><button type="button" id="pcSummaryClose">×</button></div>
+  <div id="pcSummaryBody"></div>
+  <button type="button" class="btn primary" id="pcSendSummary" style="width:100%">Send Summary to Studio</button>
+ </div>
+</div>
+
+<div id="pcDrawingOverlay" class="pc-sheet-overlay hidden">
+ <div class="pc-sheet pc-drawing-sheet">
+  <div class="pc-sheet-head"><strong id="pcDrawingTitle">Drawing</strong><button type="button" id="pcDrawingClose">×</button></div>
+  <div id="pcDrawingBody" class="pc-drawing-body"></div>
+ </div>
+</div>
 
 <section id="bom" class="screen">
  <div class="card"><h2 data-i18n="bom.projectSummary">Project Summary</h2><div class="muted" data-i18n="bom.subtitle">The complete project in one simple room by room overview.</div><div id="mobileJobBom" style="margin-top:12px"></div></div>
@@ -1217,7 +1340,7 @@ function ensureJsQR(){if(typeof jsQR!=="undefined")return Promise.resolve();if(!
 let leafletLoadPromise=null;
 function ensureLeaflet(){if(typeof L!=="undefined")return Promise.resolve();if(!leafletLoadPromise)leafletLoadPromise=Promise.all([loadStyleOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"),loadScriptOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")]);return leafletLoadPromise}
 const I18N={
- en:{"nav.project":"Jobs","nav.roomGuide":"Site Measure","nav.scan":"Scan","nav.install":"Install",
+ en:{"nav.project":"Jobs","nav.roomGuide":"Site Measure","nav.scan":"Panel Check","nav.install":"Find Panel",
   "proj.newSiteJob":"New Site Job","proj.addStudioProject":"Add Studio Project","proj.myProjects":"My Projects","proj.tapToContinue":"Tap one project to continue.","proj.open":"Open","proj.noCustomer":"No customer","proj.empty":"No projects yet.","proj.emptyHint":"Tap New Site Job to begin.","proj.room":"room","proj.rooms":"rooms","proj.unit":"unit","proj.units":"units","proj.roomFallback":"Room","proj.projectFallback":"Project","proj.readyToInstall":"Ready to install","proj.stillDrawing":"Drawing in progress",
   "room.title":"Room Guide","room.subtitle":"Open the room guide and install from the Studio information.","room.addRoom":"+ Add room","room.addRoomLabel":"Add room","room.openRoom":"Open room","room.measurement":"measurement","room.measurements":"measurements","room.designView":"design view","room.designViews":"design views","room.fromStudio":"Room from Studio","room.workingOn":"You're working on","room.notThisJob":"Not this job? Switch ›",
   "intake.title":"Name this room","intake.subtitle":"Add the customer, address and room before sending it to Studio.","intake.customerName":"Customer name","intake.customerPlaceholder":"Example: Mrs Jones","intake.roomName":"Room name","intake.roomPlaceholder":"Example: Main bedroom","intake.address":"Address","intake.addressPlaceholder":"Example: 12 High Street, Springfield","intake.floor":"Floor / Level","intake.floorPlaceholder":"e.g. Ground floor, or 3rd floor","intake.maps":"Maps","intake.exactLocation":"Exact location","intake.useCurrentLocation":"Use My Current Location","intake.pinSet":"Pin set","intake.tapMapHint":"Tap the map to drop a pin exactly where the job is.","intake.notes":"Notes","intake.notesPlaceholder":"Anything Studio must remember","intake.addNotePhoto":"Add photo","intake.measurementsTaken":"measurement(s) taken","intake.measurementsBtn":"Measurements","intake.sendToStudio":"Send to Studio","intake.savedPhotos":"Saved photos & measurements",
@@ -1589,7 +1712,11 @@ function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=
  // the drawing, customer name or anything else about it, just the same generic message
  // regardless of what was actually scanned.
  if(!canSeeJob(p)){const box=document.querySelector('#scanResult');if(box)box.textContent=jobAccessDeniedMessage(p);return false}
- state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;const ci=q.copyIndex;state.selectedCopy=(ci!=null&&pt.copies&&pt.copies[ci])?ci:-1;state.screen="install";save();return true}return false}
+ // Screen navigation is the caller's decision, not this function's -- Panel Check
+ // resolves a scan to a panel without ever leaving the Panel Check screen, so this must
+ // not silently overwrite state.screen out from under it. Callers that do want to
+ // navigate (Find Panel, applyPanelRoute) already call show("install") themselves.
+ state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;const ci=q.copyIndex;state.selectedCopy=(ci!=null&&pt.copies&&pt.copies[ci])?ci:-1;save();return true}return false}
 function applyPanelRoute(route){
  if(!route)return;
  if(openPanelRoute(route)){
@@ -2540,7 +2667,11 @@ function renderInstall(){
   return;
  }
  wardrobeButtons("#installWardrobes",renderInstall);
- box.innerHTML=c?.parts.length?c.parts.map(p=>`<div class="measure-row"><div class="measure-main">${safe(p.code)} · ${safe(p.name)||t('install.unnamedPanel')}</div><div class="muted">${safe(p.length||"—")} × ${safe(p.width||"—")} × ${safe(p.thickness||"—")} mm · ${safe(statusLabel(p.status))}</div><button class="btn primary open-panel" data-id="${p.id}" style="margin-top:7px">${t('install.openPanel')}</button></div>`).join(""):`<div class="muted">${t('install.noPanels')}</div>`;
+ const bompFilter=state.bompFilter||'all';
+ document.querySelectorAll('#bompFilters .bomp-chip').forEach(chip=>chip.classList.toggle('active',chip.dataset.bompFilter===bompFilter));
+ const allParts=c?.parts||[];
+ const filteredParts=bompFilter==='all'?allParts:allParts.filter(p=>partStatusCategory(p)===bompFilter);
+ box.innerHTML=filteredParts.length?filteredParts.map(p=>`<div class="measure-row"><div class="measure-main">${safe(p.code)} · ${safe(p.name)||t('install.unnamedPanel')}</div><div class="muted">${safe(p.length||"—")} × ${safe(p.width||"—")} × ${safe(p.thickness||"—")} mm · ${safe(statusLabel(p.status))}</div><button class="btn primary open-panel" data-id="${p.id}" style="margin-top:7px">${t('install.openPanel')}</button></div>`).join(""):`<div class="muted">${allParts.length?'No panels match this filter.':t('install.noPanels')}</div>`;
  $$(".open-panel").forEach(b=>b.onclick=()=>{state.currentPart=b.dataset.id;state.selectedCopy=-1;save();renderInstall()});
 }
 // Mirrors Studio's own mergeMobileProject exactly, just with the roles reversed: here
@@ -2804,6 +2935,21 @@ function renderScanDashboard(){
  const total=scanTotals();
  const pr=project();const cj=$("#scanCurrentJob");if(cj)cj.textContent=pr?`${pr.name||t('msg.projectFallback')}${pr.code?' · '+pr.code:''}`:t('scan.noProjectOpen');
  const recent=$("#recentScans");if(recent){const items=total.rows.filter(({pt})=>pt.lastScannedAt||Number(pt.damagedQty)>0).sort((a,b)=>new Date(b.pt.lastScannedAt||0)-new Date(a.pt.lastScannedAt||0)).slice(0,6);recent.innerHTML=items.length?items.map(({pt,c})=>{const dmg=Number(pt.damagedQty)>0;const when=pt.lastScannedAt?new Date(pt.lastScannedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';return `<div class="scan55-recent-row ${dmg?'damaged':''}"><div class="state">${dmg?'!':'✓'}</div><div><strong>${safe(pt.code||t('msg.panelFallback'))}</strong><small>${safe(pt.name||c.name||t('msg.panelFallback'))}</small></div><time>${when}</time></div>`}).join(''):`<div class="scan55-empty">${t('scan.noPanelsScanned')}</div>`}
+ if(typeof renderPanelCheckCounter==='function')renderPanelCheckCounter();
+}
+function renderPanelCheckCounter(){
+ const el=$('#panelCheckCounter');if(!el)return;
+ const t2=scanTotals();
+ el.textContent=`${t2.scanned} / ${t2.total} checked`;
+ const badge=$('#pcMissingBadge');if(badge)badge.textContent=t2.remaining;
+}
+function partStatusCategory(pt){
+ const q=Math.max(1,Number(pt.qty)||1);
+ if(pt.status==='installed'||(Number(pt.installedQty)||0)>=q)return 'installed';
+ if(pt.status==='damaged'||(Number(pt.damagedQty)||0)>0)return 'damaged';
+ if(pt.status==='missing')return 'missing';
+ if((Number(pt.scannedQty)||0)>=q)return 'checked';
+ return 'remaining';
 }
 // Mirrors scanTotals()'s already-correct pattern: a panel row with qty > 1 (identical
 // pieces sharing one code) tracks HOW MANY of its pieces are fitted as its own number,
@@ -2828,14 +2974,26 @@ function parseOldQr(text){
  if(!lines.job||!lines.wardrobe||!lines.part)return null;
  return {job:lines.job,wardrobe:lines.wardrobe,part:lines.part};
 }
+// Panel Check and Find Panel share one scanner and one lookup path -- the only
+// difference is what happens once a panel is identified. state.scanMode records which
+// screen the fitter opened the camera from (see the Panel Check nav pill and the Find
+// Panel "Scan to Find Panel" button) and is read here, not re-derived, so a manual
+// paste/photo scan taken mid-flow still behaves consistently with how the camera got
+// opened in the first place.
+function handlePanelIdentified(){
+ if(state.scanMode==='check'){handlePanelCheckScan();return}
+ markCurrentPanelScanned();
+ if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
+ stopCamera();show("install");
+}
 function openScannedText(text){
  let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
  if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
- if(q&&openPanelRoute(q)){markCurrentPanelScanned();if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');stopCamera();show("install");return true}
+ if(q&&openPanelRoute(q)){handlePanelIdentified();return true}
  const old=parseOldQr(text);
  if(old){const p=state.projects.find(x=>x.name.trim().toLowerCase()===old.job.trim().toLowerCase());const c=p?.cabinets.find(x=>x.name.trim().toLowerCase()===old.wardrobe.trim().toLowerCase());const pt=c?.parts.find(x=>x.code.trim().toLowerCase()===old.part.trim().toLowerCase());if(p&&c&&pt){
   if(typeof canSeeJob==='function'&&!canSeeJob(p)){$("#scanResult").textContent=(typeof jobAccessDeniedMessage==='function'?jobAccessDeniedMessage(p):'Job not assigned to you. Contact the office.');return false}
-  state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;markCurrentPanelScanned();save();stopCamera();show("install");return true}}
+  state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;handlePanelIdentified();return true}}
  $("#scanResult").textContent=t('msg.qrReadJobNotOnDevice');return false;
 }
 $("#openQrText").onclick=()=>openScannedText($("#qrText").value.trim());
@@ -2893,12 +3051,139 @@ async function scanLoop(){
  scanLoopTimer=setTimeout(scanLoop,detector?80:150);
 }
 function stopCamera(){scanRunning=false;if(scanLoopTimer){clearTimeout(scanLoopTimer);scanLoopTimer=null}if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;const v=$("#camera");if(v)v.srcObject=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
-$("#startScanner").onclick=startCamera;$("#stopScanner").onclick=stopCamera;
-const scanNavBtn=document.querySelector('.nav.scan-main');if(scanNavBtn)scanNavBtn.onclick=()=>{show('scan');startCamera()};
+$("#startScanner").onclick=()=>{state.scanMode='check';startCamera()};$("#stopScanner").onclick=stopCamera;
+const scanNavBtn=document.querySelector('.nav.scan-main');if(scanNavBtn)scanNavBtn.onclick=()=>{state.scanMode='check';show('scan');startCamera()};
+const findPanelScanBtn=$("#findPanelScanBtn");if(findPanelScanBtn)findPanelScanBtn.onclick=()=>{state.scanMode='find';show('scan');startCamera()};
+// Panel Check's whole point is speed: a match auto-records Checked and the camera keeps
+// running so the very next panel can be scanned without any tap in between. Missing/
+// Damaged stay one tap away on the same result card for the rare correction.
+function handlePanelCheckScan(){
+ const pr=project(),pt=part();
+ if(!pr||!pt)return;
+ const q=Math.max(1,Number(pt.qty)||1);
+ pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
+ pt.lastScannedAt=new Date().toISOString();
+ save();
+ if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
+ renderScanDashboard();
+ renderPanelCheckResult(pt,'checked');
+ scanLoopTimer=setTimeout(scanLoop,1100);
+}
+function renderPanelCheckResult(pt,status){
+ const box=$('#panelCheckResult');if(!box||!pt)return;
+ box.classList.remove('hidden','status-missing','status-damaged');
+ if(status==='missing')box.classList.add('status-missing');
+ if(status==='damaged')box.classList.add('status-damaged');
+ const cab=cabinet();
+ const room=(project()?.rooms||[]).find(r=>r.id===(cab?.roomId));
+ $('#pcResultIcon').textContent=status==='missing'?'❔':status==='damaged'?'⚠':'✓';
+ $('#pcResultCode').textContent=pt.code||t('msg.panelFallback');
+ $('#pcResultName').textContent=pt.name||cab?.name||'';
+ $('#pcResultRoom').textContent=room?.name||cab?.name||'';
+ $('#pcResultStatus').textContent=status==='missing'?'Missing':status==='damaged'?'Damaged':'Checked';
+}
+// Shared by the Problem Panel menu (Find Panel) and Panel Check's own Missing button so
+// both ways of flagging a panel missing behave identically and stay in sync.
+function applyMissingStatus(pr,pt){
+ const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
+ addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
+ save();
+ if(typeof exportJob==="function")exportJob(pr.id);
+}
+$('#pcMarkMissing').onclick=()=>{
+ const pr=project(),pt=part();if(!pr||!pt)return;
+ applyMissingStatus(pr,pt);
+ renderPanelCheckResult(pt,'missing');
+ if(typeof renderInstall==='function')renderInstall();
+};
+$('#pcMarkDamaged').onclick=()=>{
+ const pt=part();if(!pt)return;
+ $('#damagePanelOverlay').classList.remove('hidden');
+ $('#damagePanelCode').value=pt.code||'';
+ $('#damageNote').focus();
+};
+function renderPanelCheckDrawing(){
+ const body=$('#pcDrawingBody'),cab=cabinet(),pt=part();
+ if(!body)return;
+ if(!pt){body.innerHTML='<div class="pc-drawing-empty">Scan a panel first.</div>';return}
+ if(!cab||!cab.drawing||cab.drawingType==='pdf'){body.innerHTML='<div class="pc-drawing-empty">No drawing available for this panel yet.</div>';return}
+ const marks=[{x:pt.x,y:pt.y,status:pt.status||'ready'}].concat((pt.copies||[]).map(m=>({x:m.x,y:m.y,status:m.status||'ready'})));
+ body.innerHTML=`<img src="${cab.drawing}" alt="Drawing">`+marks.filter(m=>m.x!=null&&m.y!=null).map(m=>`<div class="panel-highlight status-${m.status}" style="left:${m.x}%;top:${m.y}%"></div>`).join('');
+ const title=$('#pcDrawingTitle');if(title)title.textContent=(pt.code?pt.code+' — ':'')+(pt.name||cab.name||'Drawing');
+}
+$('#pcViewDrawing').onclick=()=>{renderPanelCheckDrawing();$('#pcDrawingOverlay').classList.remove('hidden')};
+$('#pcDrawingClose').onclick=()=>$('#pcDrawingOverlay').classList.add('hidden');
+$('#pcDrawingOverlay').addEventListener('click',e=>{if(e.target.id==='pcDrawingOverlay')$('#pcDrawingOverlay').classList.add('hidden')});
+function renderPanelCheckMissingList(){
+ const list=$('#pcMissingList');if(!list)return;
+ const rows=scanTotals().rows.filter(({pt})=>(Number(pt.scannedQty)||0)<Math.max(1,Number(pt.qty)||1));
+ list.innerHTML=rows.length?rows.map(({pt,c})=>`<div class="pc-missing-row"><div class="info"><b>${safe(pt.code||t('msg.panelFallback'))}</b><small>${safe(pt.name||c.name||'')}</small></div><div class="actions"><button type="button" data-pcm-missing="${pt.id}">Missing</button><button type="button" data-pcm-damaged="${pt.id}">Damaged</button></div></div>`).join(''):'<div class="muted">Everything expected has been checked.</div>';
+ list.querySelectorAll('[data-pcm-missing]').forEach(b=>b.onclick=()=>{
+  const found=rows.find(r=>r.pt.id===b.dataset.pcmMissing);if(!found)return;
+  const pr=project();if(!pr)return;
+  state.currentCabinet=found.c.id;state.currentPart=found.pt.id;state.currentRoom=found.c.roomId||null;
+  applyMissingStatus(pr,found.pt);
+  renderPanelCheckMissingList();renderPanelCheckCounter();
+  if(typeof renderInstall==='function')renderInstall();
+ });
+ list.querySelectorAll('[data-pcm-damaged]').forEach(b=>b.onclick=()=>{
+  const found=rows.find(r=>r.pt.id===b.dataset.pcmDamaged);if(!found)return;
+  state.currentCabinet=found.c.id;state.currentPart=found.pt.id;state.currentRoom=found.c.roomId||null;
+  save();
+  $('#pcMissingOverlay').classList.add('hidden');
+  $('#damagePanelOverlay').classList.remove('hidden');
+  $('#damagePanelCode').value=found.pt.code||'';
+  $('#damageNote').focus();
+ });
+}
+$('#pcMissingListBtn').onclick=()=>{renderPanelCheckMissingList();$('#pcMissingOverlay').classList.remove('hidden')};
+$('#pcMissingClose').onclick=()=>$('#pcMissingOverlay').classList.add('hidden');
+$('#pcMissingOverlay').addEventListener('click',e=>{if(e.target.id==='pcMissingOverlay')$('#pcMissingOverlay').classList.add('hidden')});
+function renderPanelCheckSummary(){
+ const body=$('#pcSummaryBody');if(!body)return;
+ const t2=scanTotals();
+ // scanTotals() already tracks scanned/damaged as quantity- and partial-aware (a 3-of-9
+ // multi-piece row counts as 3, not "done" or "not done"). Missing has no such partial
+ // counter -- status is a single flag for the whole row -- so it's counted separately,
+ // by quantity, from rows explicitly marked missing.
+ let missing=0;
+ t2.rows.forEach(({pt})=>{if(pt.status==='missing')missing+=Math.max(1,Number(pt.qty)||1)});
+ body.innerHTML=`<div class="pc-summary-grid"><div class="pc-summary-stat"><b>${t2.total}</b><span>Expected</span></div><div class="pc-summary-stat checked"><b>${t2.scanned}</b><span>Checked</span></div><div class="pc-summary-stat missing"><b>${missing}</b><span>Missing</span></div><div class="pc-summary-stat damaged"><b>${t2.damaged}</b><span>Damaged</span></div></div>`;
+}
+$('#pcSummaryBtn').onclick=()=>{renderPanelCheckSummary();$('#pcSummaryOverlay').classList.remove('hidden')};
+$('#pcSummaryClose').onclick=()=>$('#pcSummaryOverlay').classList.add('hidden');
+$('#pcSummaryOverlay').addEventListener('click',e=>{if(e.target.id==='pcSummaryOverlay')$('#pcSummaryOverlay').classList.add('hidden')});
+$('#pcSendSummary').onclick=()=>{const pr=project();if(!pr)return;if(typeof exportJob==='function')exportJob(pr.id);alert('Summary sent to Studio.')};
 $("#scanPhoto").onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!("BarcodeDetector" in window)){alert(t('msg.browserCannotReadQrPhoto'));return}try{const bmp=await createImageBitmap(f),d=new BarcodeDetector({formats:["qr_code"]}),codes=await d.detect(bmp);if(codes.length)openScannedText(codes[0].rawValue);else $("#scanResult").textContent=t('msg.noQrFoundInPhoto')}catch(e){$("#scanResult").textContent=t('msg.qrPhotoCouldNotBeRead')}};
 const scanChangeJob=$("#scanChangeJob");if(scanChangeJob)scanChangeJob.onclick=()=>show("projects");
 const scanViewAll=$("#scanViewAll");if(scanViewAll)scanViewAll.onclick=()=>show("install");
-$("#openDamage").onclick=()=>{$("#damagePanel").classList.toggle("hidden");if(!$("#damagePanel").classList.contains("hidden"))$("#damagePanelCode").focus()};
+document.querySelectorAll('#bompFilters .bomp-chip').forEach(chip=>{chip.onclick=()=>{state.bompFilter=chip.dataset.bompFilter;renderInstall()}});
+$('#bompMarkRemainingInstalled').onclick=()=>{
+ const pr=project(),cab=cabinet();if(!pr||!cab)return;
+ if(!confirm('Mark every remaining panel in this unit as Installed?'))return;
+ (cab.parts||[]).forEach(p=>{
+  const cat=partStatusCategory(p);
+  if(cat==='remaining'||cat==='checked'){p.status='installed';p.statusUpdatedAt=Date.now();p.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null}
+ });
+ save();
+ if(typeof exportJob==='function')exportJob(pr.id);
+ renderInstall();
+};
+$('#bompMarkRoomComplete').onclick=()=>{
+ const pr=project(),cab=cabinet();if(!pr||!cab)return;
+ if(!confirm('Mark this whole unit as complete? Missing or damaged panels will be left as they are.'))return;
+ (cab.parts||[]).forEach(p=>{
+  const cat=partStatusCategory(p);
+  if(cat!=='missing'&&cat!=='damaged'){p.status='installed';p.statusUpdatedAt=Date.now();p.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null}
+ });
+ addJobLogEntry(pr,'✅ '+(cab.name||'Unit')+' marked complete',[]);
+ save();
+ if(typeof exportJob==='function')exportJob(pr.id);
+ renderInstall();
+};
+$("#openDamage").onclick=()=>{$("#damagePanelOverlay").classList.remove("hidden");$("#damagePanelCode").focus()};
+$("#closeDamagePanel").onclick=()=>$("#damagePanelOverlay").classList.add("hidden");
+$("#damagePanelOverlay").addEventListener("click",e=>{if(e.target.id==="damagePanelOverlay")$("#damagePanelOverlay").classList.add("hidden")});
 let problemPanelCode=null;
 function openProblemPanelMenu(code){problemPanelCode=code;$("#problemPanelMenu").classList.remove("hidden")}
 function closeProblemPanelMenu(){$("#problemPanelMenu").classList.add("hidden")}
@@ -2910,15 +3195,12 @@ $("#problemPanelMissing").onclick=()=>{
  if(!found)return;
  const{pr,cab,pt}=found;
  state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
- const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=(window.fittersiqUser&&window.fittersiqUser.fitterId)||null;
- addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
- save();
- if(typeof exportJob==="function")exportJob(pr.id);
+ applyMissingStatus(pr,pt);
  renderInstall();
 };
 $("#problemPanelDamaged").onclick=()=>{
  closeProblemPanelMenu();
- $("#damagePanel").classList.remove("hidden");
+ $("#damagePanelOverlay").classList.remove("hidden");
  $("#damagePanelCode").value=problemPanelCode||"";
  $("#damageNote").focus();
 };
@@ -3045,6 +3327,8 @@ $("#saveDamage").onclick=()=>{
  $("#damagePhotoPreview").classList.add("hidden");$("#damagePhotoImg").src="";damagePhotoData=null;
  renderScanDashboard();
  if(typeof renderInstallDashboard==='function')renderInstallDashboard();
+ if(typeof renderInstall==='function')renderInstall();
+ if(state.scanMode==='check')renderPanelCheckResult(found.pt,'damaged');
  $("#shareDamageWhatsapp").classList.remove("hidden");
  alert(t('msg.panelMarkedDamaged',[found.pt.code]));
 };
