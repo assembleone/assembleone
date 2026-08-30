@@ -188,7 +188,7 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .svs-title small{display:block;font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .svs-room-list{padding:10px 12px 4px;display:flex;flex-direction:column;gap:8px}
 .svs-room-row{display:flex;align-items:center;gap:10px;width:100%;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-align:left}
-.svs-room-icon{font-size:24px;flex:none}
+.svs-room-icon{font-size:26px;flex:none;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#eef7ff;border:1px solid #bcdcf7;border-radius:50%}
 .svs-room-info{flex:1;min-width:0}
 .svs-room-info b{display:block;font-size:15px;font-weight:900;color:var(--ink)}
 .svs-room-info small{display:block;font-size:12px;color:var(--muted);font-weight:700}
@@ -360,7 +360,6 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 #measure .markup-app{height:calc(100dvh - 108px);gap:3px}
 #measure .markup-topbar{background:#fff;border:1px solid #dedce7;border-radius:12px;padding:5px;gap:4px;overflow-x:auto}
 #measure .mini-btn{font-size:12px;padding:7px 9px;border-radius:10px}
-#measure .quick-measure-types{grid-template-columns:repeat(4,1fr);gap:5px}
 #measure .measure-kind{height:54px;border-radius:12px;flex-direction:column;gap:1px}
 #measure .measure-kind b{font-size:25px;color:#174e98}
 #measure .measure-kind.active b{color:#fff}
@@ -402,8 +401,9 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .measure-rooms-strip{padding:4px 12px 14px}
 .measure-rooms-strip:empty{padding:0}
 .measure-current-room-label{display:block;width:100%;padding:0 4px 8px;text-align:center;background:none;border:none}
-.measure-current-room-chip{display:inline-flex;align-items:center;gap:6px;background:#fffbea;border:1px solid #FFC600;border-radius:999px;padding:6px 14px;font-size:15px;font-weight:900;color:var(--ink,#0B2545)}
-.measure-current-room-chip.measure-current-room-placeholder{background:#f8faff;border-color:#b9c3e0;color:#174E98}
+.measure-current-room-chip{display:inline-flex;align-items:center;gap:7px;background:#fffbea;border:1px solid #FFC600;border-radius:999px;padding:4px 14px 4px 4px;font-size:14px;font-weight:900;color:var(--ink,#0B2545)}
+.measure-current-room-chip.measure-current-room-placeholder{background:#f8faff;border-color:#b9c3e0;color:#174E98;padding:6px 14px}
+.measure-current-room-chip .measure-current-room-icon{font-size:22px;flex:none;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:50%}
 .room-saved-choice .btn{display:block;width:100%;margin-top:10px;min-height:52px;font-size:16px;border-radius:14px}
 @media(max-width:560px){#measure .markup-topbar{padding:4px}#measure .mini-btn{padding:6px 7px;font-size:11px}#measure .measure-kind{height:50px}}
 </style>
@@ -2069,7 +2069,7 @@ function renderMeasureCurrentRoomLabel(){
  // (ensureExtras, run on every render) backfills every room's icon with a
  // generic fallback the moment it's blank, but never touches the name, so
  // name is the only reliable "has the fitter actually chosen this yet" signal.
- if(r&&r.name){box.innerHTML=`<span class="measure-current-room-chip">${r.icon||'📍'} ${safe(r.name)}</span>`}
+ if(r&&r.name){box.innerHTML=`<span class="measure-current-room-chip"><span class="measure-current-room-icon">${r.icon||'📍'}</span>${safe(r.name)}</span>`}
  else{box.innerHTML=`<span class="measure-current-room-chip measure-current-room-placeholder">🏠 Choose Room</span>`}
  box.onclick=chooseRoomForCurrentPhoto;
 }
