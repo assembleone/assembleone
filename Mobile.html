@@ -4582,6 +4582,56 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     }catch(e){console.error('Owner company-job recovery failed',e)}
   }
 
+  // TEMPORARY, read-only diagnostic for tracing the live recovery path on a real phone --
+  // does not merge, save, or write anything, so it's safe to run repeatedly. Remove once
+  // the trace is done. Run from the browser console: window.__diagnoseRecovery().then(r=>console.log(JSON.stringify(r,null,2)))
+  window.__diagnoseRecovery = async function(){
+    const report = {
+      buildHasRecoveryCode: true, // if you can call this function at all, the build has it
+      fittersiqUser: window.fittersiqUser || null,
+    };
+    try{
+      const fs=window.fiqAuthFns, db=window.fiqFirestore, user=window.fittersiqUser;
+      report.hasAuthFns = !!fs;
+      report.hasFirestore = !!db;
+      report.companyId = user && user.companyId || null;
+      if(!fs||!db||!user||!user.companyId){ report.stoppedAt = 'no fs/db/user/companyId'; return report; }
+      const q = fs.query(fs.collection(db,'companies',user.companyId,'jobs'), fs.where('kind','==','studioToMobilePacket'));
+      let snap;
+      try{
+        snap = await fs.getDocs(q);
+      }catch(e){
+        report.queryError = (e && e.message) || String(e);
+        return report;
+      }
+      report.docCount = snap.size !== undefined ? snap.size : null;
+      report.jobs = [];
+      snap.forEach(function(docSnap){
+        const data = docSnap.data() || {};
+        const incoming = data.project || data;
+        const entry = {
+          docId: docSnap.id,
+          status: data.status,
+          hasValidProjectShape: !!(incoming && incoming.id && Array.isArray(incoming.cabinets)),
+          projectId: incoming ? incoming.id : null,
+          projectName: incoming ? incoming.name : null,
+          customer: incoming ? incoming.customer : null,
+          assignedFitterIds: incoming ? incoming.assignedFitterIds : null,
+          assignedEmails: incoming ? incoming.assignedEmails : null,
+          alreadyInLocalProjects: incoming ? (state.projects||[]).some(function(x){return x.id===incoming.id}) : null,
+          inDeletedProjectIds: incoming ? (state.deletedProjectIds||[]).includes(incoming.id) : null,
+          canSeeJobResult: (incoming && typeof canSeeJob==='function') ? canSeeJob(incoming) : null,
+        };
+        report.jobs.push(entry);
+      });
+      report.localProjectCountBeforeAnyMerge = (state.projects||[]).length;
+      report.localProjectIds = (state.projects||[]).map(function(p){return p.id});
+    }catch(e){
+      report.unexpectedError = (e && e.stack) || String(e);
+    }
+    return report;
+  };
+
   var DEVICE_ID_KEY = 'assembleone_device_id';
   function getDeviceId(){
     try{
