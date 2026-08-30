@@ -1090,11 +1090,23 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .bomp-chip.active{background:#174e98;border-color:#174e98;color:#fff}
 .bomp-bulk-row{display:flex;gap:8px;margin-bottom:10px}
 .bomp-bulk-row .btn{flex:1;min-height:46px;font-weight:850;font-size:13px}
+.pc-sound-btn{border:1px solid #dedfe7;background:#fff;border-radius:10px;width:38px;height:38px;font-size:17px;flex:none;line-height:1}
+.scan-sound-options{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.scan-sound-opt{border:2px solid #dedfe7;background:#fff;border-radius:12px;min-height:52px;font-weight:900;font-size:14px}
+.scan-sound-opt.active{background:#174e98;border-color:#174e98;color:#fff}
+.scan-vibrate-row{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;padding:4px 2px}
+.scan-vibrate-row input{width:20px;height:20px}
+.scan-flash-overlay{position:fixed;inset:0;z-index:6000;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;background:rgba(24,173,80,0);transition:opacity .12s ease,background-color .12s ease}
+.scan-flash-overlay.show{opacity:1}
+.scan-flash-overlay.show.success{background:rgba(24,173,80,.32)}
+.scan-flash-overlay.show.error{background:rgba(217,47,56,.32)}
+.scan-flash-icon{font-size:min(38vw,170px);font-weight:900;color:#fff;text-shadow:0 6px 20px rgba(0,0,0,.4);transform:scale(.6);transition:transform .16s cubic-bezier(.34,1.56,.64,1)}
+.scan-flash-overlay.show .scan-flash-icon{transform:scale(1)}
 </style>
 
 <section id="scan" class="screen">
  <div class="scan-tool scan55-tool">
-  <div class="pc-header"><strong>Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div></div>
+  <div class="pc-header"><strong>Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div><button type="button" id="scanSoundBtn" class="pc-sound-btn" aria-label="Scan sound settings">🔊</button></div>
   <div class="scan-actions scan55-actions" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
@@ -1229,6 +1241,22 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <div class="pc-sheet-head"><strong id="pcDrawingTitle">Drawing</strong><button type="button" id="pcDrawingClose">×</button></div>
   <div id="pcDrawingBody" class="pc-drawing-body"></div>
  </div>
+</div>
+
+<div id="scanSoundSheet" class="pc-sheet-overlay hidden">
+ <div class="pc-sheet">
+  <div class="pc-sheet-head"><strong>Scan Sound</strong><button type="button" id="scanSoundClose">×</button></div>
+  <div class="scan-sound-options">
+   <button type="button" class="scan-sound-opt" data-sound="off">Off</button>
+   <button type="button" class="scan-sound-opt" data-sound="normal">Normal</button>
+   <button type="button" class="scan-sound-opt" data-sound="loud">Loud</button>
+  </div>
+  <label class="scan-vibrate-row"><input type="checkbox" id="scanVibrateToggle"> Vibration</label>
+ </div>
+</div>
+
+<div id="scanFlashOverlay" class="scan-flash-overlay">
+ <div class="scan-flash-icon" id="scanFlashIcon">✓</div>
 </div>
 
 <section id="bom" class="screen">
@@ -3127,13 +3155,29 @@ function handleDetectedQrText(raw){
 // Short Web Audio tones instead of an audio file -- no asset to add, and it works the
 // instant the scanner opens rather than waiting on a network request. Needs to be created
 // (or resumed) from a real user gesture, see startCamera().
+// Sound/vibration are independently controllable and remembered per device (site
+// conditions vary far more than what any one fitter would want to reconfigure every time
+// Mobile opens) -- deliberately just two tiny settings behind a small icon, not a full
+// settings screen, so Panel Check itself stays uncluttered. The green/red flash is NOT
+// gated by either: it's the one confirmation that always works even with sound off and
+// vibration unsupported.
+const SCAN_SOUND_KEY='assembleone_scan_sound_level',SCAN_VIBRATE_KEY='assembleone_scan_vibrate';
+function getScanSoundLevel(){try{const v=localStorage.getItem(SCAN_SOUND_KEY);return(v==='off'||v==='loud')?v:'normal'}catch(e){return'normal'}}
+function setScanSoundLevel(v){try{localStorage.setItem(SCAN_SOUND_KEY,v)}catch(e){}}
+function getScanVibrateEnabled(){try{return localStorage.getItem(SCAN_VIBRATE_KEY)!=='off'}catch(e){return true}}
+function setScanVibrateEnabled(on){try{localStorage.setItem(SCAN_VIBRATE_KEY,on?'on':'off')}catch(e){}}
 let scanAudioCtx=null;
 function ensureScanAudio(){
  if(!scanAudioCtx){try{scanAudioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){scanAudioCtx=null}}
  if(scanAudioCtx&&scanAudioCtx.state==='suspended'){try{scanAudioCtx.resume()}catch(e){}}
  return scanAudioCtx;
 }
-function playScanTone(freq,durationMs,type){
+// peak is the GainNode's own ceiling (0..1) -- the actual loudest this can safely ask for;
+// physical device volume is always the fitter's own, untouched. "Loud" also stacks a second
+// beep 110ms later, which reads as noticeably more attention-grabbing in a noisy room than
+// simply raising the gain further would, the same way real checkout scanners often use a
+// double-beep for a harder-to-read code rather than just a louder single one.
+function playScanTone(freq,durationMs,type,peak){
  const ctx=ensureScanAudio();if(!ctx)return;
  try{
   const osc=ctx.createOscillator(),gain=ctx.createGain();
@@ -3141,28 +3185,74 @@ function playScanTone(freq,durationMs,type){
   osc.connect(gain);gain.connect(ctx.destination);
   const now=ctx.currentTime;
   gain.gain.setValueAtTime(0.0001,now);
-  gain.gain.exponentialRampToValueAtTime(0.4,now+0.008);
+  gain.gain.exponentialRampToValueAtTime(peak,now+0.006);
   gain.gain.exponentialRampToValueAtTime(0.0001,now+durationMs/1000);
   osc.start(now);osc.stop(now+durationMs/1000+0.03);
  }catch(e){}
 }
-// A single short, clean, high beep -- deliberately close to a supermarket checkout scanner
-// so a fitter working through a stack of panels learns to trust it without watching the
-// screen. Paired with a short vibration where the device supports it.
+// A short, clean, high beep -- deliberately close to a supermarket checkout scanner so a
+// fitter working through a stack of panels learns to trust it without watching the screen.
+// Square wave carries more perceived loudness than sine at the same gain, which matters
+// more on a building site than peak level alone. The big green tick fires regardless of
+// the sound setting, so there's always a strong visual confirmation too.
 function playScanSuccessFeedback(){
- playScanTone(1568,110,'sine');
- try{if(navigator.vibrate)navigator.vibrate(60)}catch(e){}
+ const level=getScanSoundLevel();
+ if(level!=='off'){
+  const peak=level==='loud'?1:0.5;
+  playScanTone(1760,100,'square',peak);
+  if(level==='loud')setTimeout(()=>playScanTone(1760,100,'square',peak),110);
+ }
+ if(getScanVibrateEnabled()){try{if(navigator.vibrate)navigator.vibrate(getScanSoundLevel()==='loud'?90:55)}catch(e){}}
+ showScanFlash('success');
 }
-// Low and doubled, so it's unmistakably not the success beep even half-heard -- for an
-// unrecognised QR or a panel this fitter isn't allowed to open. A duplicate (the same code
-// still in view) is handled separately above and deliberately makes no sound at all, since
-// it isn't an error -- constantly re-buzzing while a panel simply sits in frame for a
-// moment too long would defeat the point of not having to watch the screen.
+// Lower and doubled with a rougher waveform, so it's unmistakably not the success beep
+// even half-heard -- for an unrecognised QR or a panel this fitter isn't allowed to open.
+// A duplicate (the same code still in view) is handled separately and deliberately makes
+// no sound or flash at all, since it isn't an error -- constantly re-buzzing while a panel
+// simply sits in frame a moment too long would defeat the point of not watching the screen.
 function playScanErrorFeedback(){
- playScanTone(220,160,'square');
- setTimeout(()=>playScanTone(220,160,'square'),190);
- try{if(navigator.vibrate)navigator.vibrate([80,60,80])}catch(e){}
+ const level=getScanSoundLevel();
+ if(level!=='off'){
+  const peak=level==='loud'?1:0.5;
+  playScanTone(190,180,'sawtooth',peak);
+  setTimeout(()=>playScanTone(190,180,'sawtooth',peak),210);
+ }
+ if(getScanVibrateEnabled()){try{if(navigator.vibrate)navigator.vibrate([90,70,90])}catch(e){}}
+ showScanFlash('error');
 }
+// Large, brief, and fully automatic -- appears over whatever's on screen and clears itself,
+// nothing to tap or dismiss. This is the one confirmation that always works, sound and
+// vibration settings aside.
+let scanFlashTimer=null;
+function showScanFlash(kind){
+ const el=document.getElementById('scanFlashOverlay');if(!el)return;
+ const icon=document.getElementById('scanFlashIcon');
+ el.classList.remove('success','error');
+ el.classList.add(kind);
+ if(icon)icon.textContent=kind==='success'?'✓':'✕';
+ requestAnimationFrame(()=>el.classList.add('show'));
+ clearTimeout(scanFlashTimer);
+ scanFlashTimer=setTimeout(()=>{el.classList.remove('show')},kind==='success'?650:900);
+}
+function renderScanSoundSheet(){
+ const level=getScanSoundLevel();
+ document.querySelectorAll('#scanSoundSheet .scan-sound-opt').forEach(function(b){b.classList.toggle('active',b.dataset.sound===level)});
+ const vt=document.getElementById('scanVibrateToggle');if(vt)vt.checked=getScanVibrateEnabled();
+}
+$('#scanSoundBtn')?.addEventListener('click',function(){renderScanSoundSheet();document.getElementById('scanSoundSheet').classList.remove('hidden')});
+$('#scanSoundClose')?.addEventListener('click',function(){document.getElementById('scanSoundSheet').classList.add('hidden')});
+document.getElementById('scanSoundSheet')?.addEventListener('click',function(e){if(e.target.id==='scanSoundSheet')e.currentTarget.classList.add('hidden')});
+document.querySelectorAll('#scanSoundSheet .scan-sound-opt').forEach(function(b){
+ b.onclick=function(){
+  setScanSoundLevel(b.dataset.sound);
+  renderScanSoundSheet();
+  if(b.dataset.sound!=='off')playScanTone(1760,100,'square',b.dataset.sound==='loud'?1:0.5);
+ };
+});
+document.getElementById('scanVibrateToggle')?.addEventListener('change',function(e){
+ setScanVibrateEnabled(e.target.checked);
+ if(e.target.checked){try{if(navigator.vibrate)navigator.vibrate(55)}catch(err){}}
+});
 function stopCamera(){scanRunning=false;if(scanLoopTimer){clearTimeout(scanLoopTimer);scanLoopTimer=null}if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;const v=$("#camera");if(v)v.srcObject=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
 $("#startScanner").onclick=()=>{state.scanMode='check';startCamera()};$("#stopScanner").onclick=stopCamera;
 const scanNavBtn=document.querySelector('.nav.scan-main');if(scanNavBtn)scanNavBtn.onclick=()=>{state.scanMode='check';show('scan');startCamera()};
