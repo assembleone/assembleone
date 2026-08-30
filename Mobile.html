@@ -121,23 +121,26 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .room-guide-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.room-guide-head h2{margin:0}.room-guide-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:12px}.room-card{background:#fff;border:1px solid var(--line);border-radius:15px;overflow:hidden;box-shadow:0 7px 20px rgba(46,41,78,.08)}.room-thumb{height:170px;background:#e9e8ee;display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:850;overflow:hidden}.room-thumb img{width:100%;height:100%;object-fit:cover}.room-card-body{padding:12px}.room-card-title{font-size:21px;font-weight:900;color:var(--ink)}.room-card-meta{font-size:12px;color:var(--muted);margin:4px 0 10px}.room-guide-detail{display:block}.room-detail-top{display:flex;gap:8px;align-items:center;margin-bottom:10px}.room-detail-top h2{margin:0;flex:1}.room-section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}.room-photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.room-photo-tile{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#f1f1f5}.room-photo-tile img{display:block;width:100%;height:170px;object-fit:cover}.room-photo-tile button{position:absolute;right:6px;top:6px;border:0;border-radius:999px;background:#E53935;color:#fff;width:31px;height:31px;font-weight:900}.room-empty{padding:24px;text-align:center;background:#f5f5f8;border:1px dashed #c9c8d2;border-radius:11px;color:var(--muted)}.room-actions{display:flex;gap:7px;flex-wrap:wrap}.room-notes{min-height:95px}.room-count{display:inline-block;padding:4px 8px;border-radius:999px;background:#FFF4B8;color:#174E98;font-size:11px;font-weight:900}.room-type-dialog{position:fixed;z-index:5000;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center}.room-type-sheet{width:min(620px,100%);max-height:87vh;overflow:auto;background:#fff;border-radius:18px 18px 0 0;padding:15px;padding-bottom:calc(15px + env(safe-area-inset-bottom))}.room-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.room-type-btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:12px 5px;font-weight:850;color:var(--ink)}.room-type-btn.active{border-color:#FFC600;background:#fffbea;border-width:2px}.room-type-btn b{font-size:23px;display:block}.room-name-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}.design-caption{padding:7px;font-size:12px;font-weight:800}
 @media(max-width:560px){.room-guide-head{align-items:flex-start}.room-guide-list{grid-template-columns:1fr}.room-thumb{height:185px}.room-photo-grid{grid-template-columns:1fr 1fr}.room-photo-tile img{height:145px}.room-type-grid{grid-template-columns:repeat(3,1fr)}.room-guide-head .btn{padding:9px 10px;font-size:12px}}
 /* Site Measure rebuild: job header, room selector, photo pager, thin room strip, notes row, send bar, customer/notes modals */
-.measure-job-header{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--line)}
-.measure-back-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:19px;font-weight:900;color:var(--ink)}
+.measure-job-header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff;border-bottom:1px solid var(--line)}
+.measure-back-btn{flex:none;width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:16px;font-weight:900;color:var(--ink)}
 .measure-job-title{flex:1;min-width:0}
 .measure-job-name-row{display:flex;align-items:center;gap:6px}
-.measure-job-name-row strong{font-size:18px;font-weight:900;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.measure-edit-name-btn{flex:none;border:none;background:none;font-size:14px;color:#174E98;opacity:.75}
-.measure-job-subtitle{font-size:12px;color:var(--muted);font-weight:700}
-.measure-customer-btn{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;font-size:13px;font-weight:900;color:var(--ink);display:flex;align-items:center;gap:5px}
+.measure-job-name-row strong{font-size:15px;font-weight:900;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.measure-edit-name-btn{flex:none;border:none;background:none;font-size:13px;color:#174E98;opacity:.75}
+.measure-job-subtitle{font-size:10px;color:var(--muted);font-weight:700}
+.measure-customer-btn{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;color:var(--ink);display:flex;align-items:center;gap:5px}
 .measure61-roomsel{display:flex!important;align-items:center;justify-content:center;gap:4px;overflow:hidden}
 .measure-current-room-chip{display:inline-flex;align-items:center;gap:5px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .measure-current-room-chip.measure-current-room-placeholder{color:#174E98}
-.measure-photo-pager{display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 10px}
+/* Overlaid on the photo itself (top edge), not a separate row -- this is what
+   frees up the height the photo needed. pointer-events stay off the wrapper
+   so drawing gestures beneath it aren't blocked; only the buttons re-enable them. */
+.measure-photo-pager{position:absolute;top:8px;left:8px;right:8px;z-index:15;display:flex;align-items:center;justify-content:center;gap:6px;pointer-events:none}
 .measure-photo-pager.hidden{display:none}
-.pager-btn{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:17px;font-weight:900;color:var(--ink);display:flex;align-items:center;justify-content:center}
+.pager-btn{pointer-events:auto;flex:none;width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#fffdf8ee;font-size:15px;font-weight:900;color:var(--ink);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .pager-btn:disabled{opacity:.35}
 .pager-btn.pager-delete{color:#E53935;border-color:#f2c6c4}
-.pager-label{font-weight:900;font-size:14px;color:var(--ink);min-width:52px;text-align:center}
+.pager-label{pointer-events:none;font-weight:900;font-size:13px;color:var(--ink);min-width:52px;text-align:center;background:#fffdf8ee;border-radius:8px;padding:8px 4px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .pager-tools{margin-left:auto}
 /* Thin room strip: compact pills with the existing room icons, not big cards */
 .room-pill-strip{display:flex;gap:8px;overflow-x:auto;padding:8px 12px 4px}
@@ -865,18 +868,33 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b><small>Save this room</small></span></button>
    <button type="button" id="measureCurrentRoomLabel" class="mini-btn measure61-roomsel"></button>
   </div>
-  <div id="measurePhotoPager" class="measure-photo-pager hidden">
-   <button type="button" id="pagerPrev" class="pager-btn" aria-label="Previous photo">‹</button>
-   <span id="pagerLabel" class="pager-label">1 / 1</span>
-   <button type="button" id="pagerNext" class="pager-btn" aria-label="Next photo">›</button>
-   <button type="button" id="pagerDelete" class="pager-btn pager-delete" aria-label="Delete this photo">🗑</button>
-   <button type="button" id="openMeasureTools" class="pager-btn pager-tools" aria-label="Measurement tools">🛠️</button>
+  <div id="markupStage" class="markup-stage">
+   <div id="markupWorld" class="markup-world">
+    <img id="markupImage" alt="Site photo or drawing">
+    <svg id="markupSvg" class="markup-svg" xmlns="http://www.w3.org/2000/svg">
+     <defs>
+      <marker id="arrowStart" markerWidth="12" markerHeight="12" refX="5" refY="6" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M11,1 L1,6 L11,11 Z" fill="currentColor"/></marker>
+      <marker id="arrowEnd" markerWidth="12" markerHeight="12" refX="7" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L11,6 L1,11 Z" fill="currentColor"/></marker>
+     </defs>
+     <g id="markupMarks"></g>
+     <g id="markupPreview"></g>
+    </svg>
+   </div>
+   <div id="markupEmpty" class="markup-empty"><b data-i18n="measure.addPictureOrDrawing">📷 Add picture or drawing</b><span data-i18n="measure.tapAddPictureHint">Tap Add Picture, choose a file, take a photo, or drop it here.</span></div>
+   <div id="measurePhotoPager" class="measure-photo-pager hidden">
+    <button type="button" id="pagerPrev" class="pager-btn" aria-label="Previous photo">‹</button>
+    <span id="pagerLabel" class="pager-label">1 / 1</span>
+    <button type="button" id="pagerNext" class="pager-btn" aria-label="Next photo">›</button>
+    <button type="button" id="pagerDelete" class="pager-btn pager-delete" aria-label="Delete this photo">🗑</button>
+    <button type="button" id="openMeasureTools" class="pager-btn pager-tools" aria-label="Measurement tools">🛠️</button>
+   </div>
   </div>
   <div class="quick-measure-types three-main-measures" id="quickMeasureTypes" aria-label="Measurement type">
    <button type="button" data-kind="Wall to wall" class="measure-kind active"><b>↔</b><span data-i18n="measure.kindWallToWall">Wall to wall</span></button>
    <button type="button" data-kind="Floor to ceiling" class="measure-kind"><b>↕</b><span data-i18n="measure.kindFloorToCeiling">Floor to ceiling</span></button>
    <button type="button" data-kind="Depth" class="measure-kind"><b>↘</b><span data-i18n="measure.kindDepth">Depth</span></button>
   </div>
+  <div class="markup-hint" id="markupHint" data-i18n="measure.dragHint">Drag arrow → enter size → save</div>
   <div id="otherKinds" class="other-kinds hidden measure-tools-drawer" role="dialog" aria-label="More tools">
    <div class="other-kinds-head"><strong data-i18n="measure.moreTools">More tools</strong><button type="button" id="closeOtherKinds">×</button></div>
    <div class="other-kinds-grid">
@@ -898,21 +916,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    </div>
    <span class="zoom-mini" id="markupZoomLabel">100%</span>
   </div>
-  <div id="markupStage" class="markup-stage">
-   <div id="markupWorld" class="markup-world">
-    <img id="markupImage" alt="Site photo or drawing">
-    <svg id="markupSvg" class="markup-svg" xmlns="http://www.w3.org/2000/svg">
-     <defs>
-      <marker id="arrowStart" markerWidth="12" markerHeight="12" refX="5" refY="6" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M11,1 L1,6 L11,11 Z" fill="currentColor"/></marker>
-      <marker id="arrowEnd" markerWidth="12" markerHeight="12" refX="7" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L11,6 L1,11 Z" fill="currentColor"/></marker>
-     </defs>
-     <g id="markupMarks"></g>
-     <g id="markupPreview"></g>
-    </svg>
-   </div>
-   <div id="markupEmpty" class="markup-empty"><b data-i18n="measure.addPictureOrDrawing">📷 Add picture or drawing</b><span data-i18n="measure.tapAddPictureHint">Tap Add Picture, choose a file, take a photo, or drop it here.</span></div>
-  </div>
-  <div class="markup-hint" id="markupHint" data-i18n="measure.dragHint">Drag arrow → enter size → save</div>
  </div>
  <div id="measureRoomsStrip" class="measure-rooms-strip"></div>
  <button type="button" id="measureNotesRow" class="measure-notes-row">📋 <span>Notes</span> <span id="measureNotesCount" class="notes-count">(0)</span> <span class="notes-chev">›</span></button>
@@ -3302,12 +3305,23 @@ load();
 .a217-sync-dot.show{display:flex}
 body:has(#measure.active){overflow:hidden}
 body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;padding-top:14px;padding-bottom:78px}
-#measure.active{height:100%;overflow:hidden}
-#measure.active .markup-app{height:100%!important;min-height:0!important;display:flex;overflow:hidden;gap:3px}
+/* #measure itself is now the flex column that owns the whole screen's real
+   estate -- the job header, room strip, Notes row and Send bar are its
+   fixed-size siblings, and .markup-app (containing the photo) is the ONE
+   flexible child that grows or shrinks to fill whatever's left. Before this,
+   .markup-app claimed height:100% of #measure on its own, with #measure's
+   overflow:hidden silently clipping every sibling added after it clean off
+   the screen -- not just pushing them below a fold, but hiding them entirely. */
+#measure.active{height:100%;overflow:hidden;display:flex;flex-direction:column}
+#measure.active .measure-job-header{flex:0 0 auto}
+#measure.active .markup-app{flex:1 1 auto;min-height:0;height:auto!important;display:flex;overflow:hidden;gap:3px}
 #measure.active .measure-simple-topbar{flex:0 0 auto;min-height:0}
 #measure.active .three-main-measures{flex:0 0 auto}
 #measure.active .markup-stage{flex:1 1 auto;min-height:0!important;height:auto!important;max-height:none!important}
 #measure.active .markup-hint{flex:0 0 13px}
+#measure.active #measureRoomsStrip{flex:0 0 auto}
+#measure.active #measureNotesRow{flex:0 0 auto}
+#measure.active #measureSendBar{flex:0 0 auto}
 #measure.active .measure-editor{align-items:flex-end;padding-bottom:76px}
 #measure.active .measure-sheet{max-height:calc(100dvh - 92px);overflow:auto;padding:11px 12px 12px}
 @media(max-width:620px){
