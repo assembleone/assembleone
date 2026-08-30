@@ -4531,7 +4531,48 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
           if(snap.exists())window.fittersiqUser.name = snap.data().name || '';
         }).catch(function(){});
       }
+      // The normal receive path (mobileInboxPackets/receiveStudioDirect, defined further
+      // down) only ever queries status=='waiting' and immediately flips a job to
+      // 'received' the moment ANY session merges it -- a one-time queue-consumption model
+      // that's correct for a fitter's own phone (nobody else needs that exact packet once
+      // it's landed) but wrong for the owner, who has company-wide access and must be able
+      // to see every job ever sent to their company, not just ones still sitting unclaimed
+      // in the queue. A fresh owner session (new device, cleared storage, or simply one
+      // that wasn't the session that originally consumed a given packet) would otherwise
+      // show "No projects yet" forever for anything already received elsewhere -- this is
+      // the exact bug being fixed here. Runs once at sign-in, not on every poll: this is a
+      // one-time local bootstrap, not an ongoing queue like the fitter path.
+      if(claims.role==='company_owner'){
+        recoverAllCompanyJobsForOwner(claims.companyId);
+      }
     }
+  }
+  // Read-only with respect to Firestore status -- deliberately never calls
+  // removeMobilePacket/marks anything 'received', since that transition belongs to the
+  // normal per-fitter consume-once flow and must not be disturbed by the owner merely
+  // looking at company-wide history. Only ever ADDS a project the owner doesn't already
+  // have locally; an existing local copy (however it got there) is left alone.
+  async function recoverAllCompanyJobsForOwner(companyId){
+    try{
+      const fs=window.fiqAuthFns,db=window.fiqFirestore;
+      if(!fs||!db||!companyId)return;
+      const q=fs.query(fs.collection(db,'companies',companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'));
+      const snap=await fs.getDocs(q);
+      let changed=false;
+      snap.forEach(function(docSnap){
+        const data=docSnap.data()||{};
+        const incoming=data.project||data;
+        if(!incoming||!incoming.id||!Array.isArray(incoming.cabinets))return;
+        if((state.projects||[]).some(function(x){return x.id===incoming.id}))return;
+        if((state.deletedProjectIds||[]).includes(incoming.id))return;
+        if(data.exportedAt)incoming._packetExportedAt=data.exportedAt;
+        if(typeof mergeStudioProject==='function'){mergeStudioProject(incoming);changed=true}
+      });
+      if(changed){
+        if(typeof save==='function')save();
+        if(typeof renderAll==='function')renderAll();
+      }
+    }catch(e){console.error('Owner company-job recovery failed',e)}
   }
 
   var DEVICE_ID_KEY = 'assembleone_device_id';
