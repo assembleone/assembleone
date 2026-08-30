@@ -5614,7 +5614,9 @@ body.fiq-locked .app{display:none!important}
       authFns.getDoc(authFns.doc(db,'companies',claims.companyId)).then(function(snap){
         if(snap.exists()){
           window.fittersiqUser.companyName = snap.data().name || '';
+          window.fittersiqUser.ownerName = snap.data().ownerName || '';
           if(typeof window.a202SyncTopbarName==='function')window.a202SyncTopbarName();
+          if(typeof renderAll==='function')renderAll();
         }
       }).catch(function(){});
     }
@@ -6592,7 +6594,7 @@ body.fiq-locked .app{display:none!important}
   function reporterFor(p,code){
     const log=(p.jobLog||[]).filter(e=>e&&e.text&&code&&e.text.indexOf(code)!==-1).sort((a,b)=>(b.at||0)-(a.at||0))[0];
     if(log&&log.author)return log.author;
-    return p.assignedFitter||'';
+    return typeof window.a211FitterDisplayName==='function'?window.a211FitterDisplayName(p.assignedFitter):(p.assignedFitter||'');
   }
   function attentionItemsDetailed(){
     const items=[];
@@ -6700,7 +6702,14 @@ body.fiq-locked .app{display:none!important}
   // is simply left out rather than silently blocking the whole job for everyone.
   function assignedEmailsFor(p){
     const names=[p&&p.assignedFitter,...((p&&p.otherFitters)||[])].filter(Boolean);
-    const emails=names.map(n=>{const f=fitterByName(n);return f&&f.email?f.email.trim().toLowerCase():null}).filter(Boolean);
+    const emails=names.map(n=>{
+      // The owner has no roster entry to look up -- assigning to them uses their own
+      // account email directly, which is also what restricts a job assigned to the owner
+      // from showing up for every other fitter in the company (the owner sees it anyway,
+      // company-wide, regardless of this list -- see canSeeJob in Mobile.html).
+      if(n==='__owner__')return (window.fittersiqUser&&window.fittersiqUser.email)?window.fittersiqUser.email.trim().toLowerCase():null;
+      const f=fitterByName(n);return f&&f.email?f.email.trim().toLowerCase():null;
+    }).filter(Boolean);
     return [...new Set(emails)];
   }
   window.a211AssignedEmailsFor=assignedEmailsFor;
@@ -6716,6 +6725,7 @@ body.fiq-locked .app{display:none!important}
     return [...new Set(ids)];
   }
   window.a211FitterIdsFor=fitterIdsFor;
+  window.a211FitterDisplayName=fitterDisplayName;
   function digitsOnly(s){return String(s||'').replace(/[^0-9]/g,'')}
   function promptNewFitter(){
     const name=prompt('Fitter name:');
@@ -6762,11 +6772,26 @@ body.fiq-locked .app{display:none!important}
     save();
     if(typeof renderAll==='function')renderAll();
   }
+  // The owner is selectable in every fitter picker without a duplicate roster entry --
+  // they already have a real account and don't need one manufactured just to appear in
+  // this list. "__owner__" is a reserved assignedFitter/otherFitters value handled
+  // specially everywhere a plain fitter name would otherwise be looked up.
+  function ownerOptionLabel(){
+    const name=(window.fittersiqUser&&(window.fittersiqUser.ownerName||window.fittersiqUser.email))||'Owner';
+    return name+' — Owner';
+  }
+  // Anywhere assignedFitter/otherFitters might be shown as plain text rather than looked
+  // up through the picker (e.g. a "who reported this" fallback) needs this instead of the
+  // raw value, or an owner-assigned job would display the literal sentinel "__owner__".
+  function fitterDisplayName(name){
+    return name==='__owner__'?ownerOptionLabel():(name||'');
+  }
   function fitterRowHtml(p,idx){
     const fitters=ensureFitters();
     const current=p.assignedFitter||'';
     const currentFitter=fitterByName(current);
     const options=['<option value="">— Assign fitter —</option>']
+      .concat(['<option value="__owner__" '+(current==='__owner__'?'selected':'')+'>'+safe(ownerOptionLabel())+'</option>'])
       .concat(fitters.map(f=>'<option value="'+safe(f.name)+'" '+(f.name===current?'selected':'')+'>'+safe(f.name)+'</option>'))
       .concat(['<option value="__add__">+ Add new fitter</option>'])
       .concat(currentFitter?['<option value="__edit__">✏️ Edit '+safe(currentFitter.name)+'’s details</option>','<option value="__delete__">🗑 Remove '+safe(currentFitter.name)+'</option>']:[]);
@@ -6785,16 +6810,20 @@ body.fiq-locked .app{display:none!important}
     const fitters=ensureFitters();
     const lead=(p.assignedFitter||'').trim().toLowerCase();
     const others=(p.otherFitters||[]).filter(Boolean);
+    const ownerAlreadyOnJob=lead==='__owner__'||others.some(n=>n==='__owner__');
     const available=fitters.filter(f=>f.name.trim().toLowerCase()!==lead&&!others.some(n=>n.trim().toLowerCase()===f.name.trim().toLowerCase()));
     const chips=others.map((name,i)=>{
-      const f=fitterByName(name);
+      const isOwner=name==='__owner__';
+      const label=isOwner?ownerOptionLabel():name;
+      const f=isOwner?null:fitterByName(name);
       const hasPhone=!!(f&&f.phone);
-      return '<div class="fitter-chip"><span>'+safe(name)+'</span>'+
+      return '<div class="fitter-chip"><span>'+safe(label)+'</span>'+
         '<button type="button" class="fitter-chip-whatsapp" data-other-whatsapp="'+i+'" data-team-project="'+safe(p.id)+'" title="Message on WhatsApp" '+(hasPhone?'':'disabled')+'>💬</button>'+
         '<button type="button" class="fitter-chip-remove" data-other-remove="'+i+'" data-team-project="'+safe(p.id)+'" title="Remove from this job">✕</button>'+
       '</div>';
     }).join('');
     const addOptions=['<option value="">+ Add another fitter</option>']
+      .concat(ownerAlreadyOnJob?[]:['<option value="__owner__">'+safe(ownerOptionLabel())+'</option>'])
       .concat(available.map(f=>'<option value="'+safe(f.name)+'">'+safe(f.name)+'</option>'))
       .concat(['<option value="__add__">+ New fitter…</option>']);
     return '<div class="fitter-team-others">'+chips+
