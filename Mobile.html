@@ -4533,26 +4533,32 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       }
       // The normal receive path (mobileInboxPackets/receiveStudioDirect, defined further
       // down) only ever queries status=='waiting' and immediately flips a job to
-      // 'received' the moment ANY session merges it -- a one-time queue-consumption model
-      // that's correct for a fitter's own phone (nobody else needs that exact packet once
-      // it's landed) but wrong for the owner, who has company-wide access and must be able
-      // to see every job ever sent to their company, not just ones still sitting unclaimed
-      // in the queue. A fresh owner session (new device, cleared storage, or simply one
-      // that wasn't the session that originally consumed a given packet) would otherwise
-      // show "No projects yet" forever for anything already received elsewhere -- this is
-      // the exact bug being fixed here. Runs once at sign-in, not on every poll: this is a
-      // one-time local bootstrap, not an ongoing queue like the fitter path.
-      if(claims.role==='company_owner'){
-        recoverAllCompanyJobsForOwner(claims.companyId);
-      }
+      // 'received' the moment ANY session merges it. Treating that as a one-time,
+      // disposable packet breaks recovery for EVERY identity, not just the owner: a
+      // fitter who gets a new phone, clears storage, or simply wasn't the specific
+      // session that first consumed their own assigned job would see "No projects yet"
+      // forever too, even though Firestore still has it. 'received' is kept as an
+      // acknowledgement/sync marker (Studio can still show "seen on phone"), but it must
+      // never make a job unfetchable again -- Firestore stays the recoverable source of
+      // truth regardless of status. Runs once at sign-in for anyone with a company, not
+      // on every poll: a one-time local bootstrap, not a second ongoing queue.
+      recoverAccessibleCompanyJobs(claims.companyId);
     }
   }
   // Read-only with respect to Firestore status -- deliberately never calls
   // removeMobilePacket/marks anything 'received', since that transition belongs to the
-  // normal per-fitter consume-once flow and must not be disturbed by the owner merely
-  // looking at company-wide history. Only ever ADDS a project the owner doesn't already
-  // have locally; an existing local copy (however it got there) is left alone.
-  async function recoverAllCompanyJobsForOwner(companyId){
+  // normal per-fitter consume-once flow (still used for fresh 'waiting' packets via the
+  // regular poll) and must not be disturbed by a recovery pass re-reading history.
+  // Only ever ADDS a project not already held locally; an existing local copy (however
+  // it got there) is left alone -- so running this on every sign-in/refresh is safe and
+  // never creates duplicates.
+  //
+  // canSeeJob is applied to each job's own data BEFORE it's ever merged or saved, not
+  // after -- a fitter this job isn't assigned to must never have it enter local storage
+  // at all, not just be hidden from view once it's already there. The owner's blanket
+  // access and a fitter's assignment-only access (see canSeeJob itself) both come from
+  // this one check, so there is exactly one place that rule lives.
+  async function recoverAccessibleCompanyJobs(companyId){
     try{
       const fs=window.fiqAuthFns,db=window.fiqFirestore;
       if(!fs||!db||!companyId)return;
@@ -4565,6 +4571,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
         if(!incoming||!incoming.id||!Array.isArray(incoming.cabinets))return;
         if((state.projects||[]).some(function(x){return x.id===incoming.id}))return;
         if((state.deletedProjectIds||[]).includes(incoming.id))return;
+        if(typeof canSeeJob==='function'&&!canSeeJob(incoming))return;
         if(data.exportedAt)incoming._packetExportedAt=data.exportedAt;
         if(typeof mergeStudioProject==='function'){mergeStudioProject(incoming);changed=true}
       });
