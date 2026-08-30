@@ -121,7 +121,7 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .room-guide-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.room-guide-head h2{margin:0}.room-guide-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:12px}.room-card{background:#fff;border:1px solid var(--line);border-radius:15px;overflow:hidden;box-shadow:0 7px 20px rgba(46,41,78,.08)}.room-thumb{height:170px;background:#e9e8ee;display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:850;overflow:hidden}.room-thumb img{width:100%;height:100%;object-fit:cover}.room-card-body{padding:12px}.room-card-title{font-size:21px;font-weight:900;color:var(--ink)}.room-card-meta{font-size:12px;color:var(--muted);margin:4px 0 10px}.room-guide-detail{display:block}.room-detail-top{display:flex;gap:8px;align-items:center;margin-bottom:10px}.room-detail-top h2{margin:0;flex:1}.room-section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}.room-photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.room-photo-tile{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#f1f1f5}.room-photo-tile img{display:block;width:100%;height:170px;object-fit:cover}.room-photo-tile button{position:absolute;right:6px;top:6px;border:0;border-radius:999px;background:#E53935;color:#fff;width:31px;height:31px;font-weight:900}.room-empty{padding:24px;text-align:center;background:#f5f5f8;border:1px dashed #c9c8d2;border-radius:11px;color:var(--muted)}.room-actions{display:flex;gap:7px;flex-wrap:wrap}.room-notes{min-height:95px}.room-count{display:inline-block;padding:4px 8px;border-radius:999px;background:#FFF4B8;color:#174E98;font-size:11px;font-weight:900}.room-type-dialog{position:fixed;z-index:5000;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center}.room-type-sheet{width:min(620px,100%);max-height:87vh;overflow:auto;background:#fff;border-radius:18px 18px 0 0;padding:15px;padding-bottom:calc(15px + env(safe-area-inset-bottom))}.room-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.room-type-btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:12px 5px;font-weight:850;color:var(--ink)}.room-type-btn.active{border-color:#FFC600;background:#fffbea;border-width:2px}.room-type-btn b{font-size:23px;display:block}.room-name-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}.design-caption{padding:7px;font-size:12px;font-weight:800}
 @media(max-width:560px){.room-guide-head{align-items:flex-start}.room-guide-list{grid-template-columns:1fr}.room-thumb{height:185px}.room-photo-grid{grid-template-columns:1fr 1fr}.room-photo-tile img{height:145px}.room-type-grid{grid-template-columns:repeat(3,1fr)}.room-guide-head .btn{padding:9px 10px;font-size:12px}}
 /* Site Measure rebuild: job header, room selector, photo pager, thin room strip, notes row, send bar, customer/notes modals */
-.measure-job-header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff;border-bottom:1px solid var(--line)}
+.measure-job-header{display:flex;align-items:center;gap:8px;padding:4px 10px;background:#fff;border-bottom:1px solid var(--line)}
 .measure-back-btn{flex:none;width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:16px;font-weight:900;color:var(--ink)}
 .measure-job-title{flex:1;min-width:0}
 .measure-job-name-row{display:flex;align-items:center;gap:6px}
@@ -143,17 +143,17 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .pager-label{pointer-events:none;font-weight:900;font-size:13px;color:var(--ink);min-width:52px;text-align:center;background:#fffdf8ee;border-radius:8px;padding:8px 4px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .pager-tools{margin-left:auto}
 /* Thin room strip: compact pills with the existing room icons, not big cards */
-.room-pill-strip{display:flex;gap:8px;overflow-x:auto;padding:8px 12px 4px}
-.room-pill{flex:none;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 12px 8px 10px;font-weight:900;color:var(--ink);position:relative}
+.room-pill-strip{display:flex;gap:6px;overflow-x:auto;padding:4px 12px 3px}
+.room-pill{flex:none;display:flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 11px 7px 9px;font-weight:900;color:var(--ink);position:relative}
 .room-pill.active{border-color:#FFC600;background:#fffbea;border-width:2px}
 .room-pill-icon{font-size:18px;line-height:1}
 .room-pill-name{font-size:13px;white-space:nowrap}
 .room-pill-check{width:16px;height:16px;border-radius:50%;background:#2ea043;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none}
 .room-pill-add{border-style:dashed;color:#174E98}
-.measure-notes-row{display:flex;align-items:center;gap:8px;width:calc(100% - 24px);margin:6px 12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-weight:800;color:var(--ink)}
+.measure-notes-row{display:flex;align-items:center;gap:8px;width:calc(100% - 24px);margin:3px 12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-weight:800;color:var(--ink)}
 .measure-notes-row .notes-count{color:var(--muted);font-weight:700}
 .measure-notes-row .notes-chev{margin-left:auto;color:var(--muted)}
-.measure-send-bar{display:flex;align-items:center;gap:10px;margin:8px 12px 12px;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:14px}
+.measure-send-bar{display:flex;align-items:center;gap:10px;margin:3px 12px 4px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:14px}
 .measure-send-bar:empty{display:none;margin:0;padding:0;border:none}
 .send-bar-status{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
 .send-bar-tick{flex:none;width:32px;height:32px;border-radius:50%;background:#e6f7ec;color:#16a34a;font-weight:900;display:flex;align-items:center;justify-content:center}
@@ -3304,7 +3304,11 @@ load();
 .a217-sync-dot{position:absolute;left:12%;top:8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e5484d;color:#fff;border:3px solid #174e98;display:none;align-items:center;justify-content:center;font:900 10px Arial;line-height:1;box-shadow:0 2px 7px #0004;z-index:20}
 .a217-sync-dot.show{display:flex}
 body:has(#measure.active){overflow:hidden}
-body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;padding-top:14px;padding-bottom:78px}
+/* The big FittersIQ logo bar is redundant here -- the compact job header
+   below already carries back/job-name/edit/Customer, so the logo bar is
+   hidden entirely on this one screen and main reclaims all of its height. */
+body:has(#measure.active) header.fitters-header{display:none!important}
+body:has(#measure.active) main{height:100dvh!important;overflow:hidden;padding-top:env(safe-area-inset-top)!important;padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
 /* #measure itself is now the flex column that owns the whole screen's real
    estate -- the job header, room strip, Notes row and Send bar are its
    fixed-size siblings, and .markup-app (containing the photo) is the ONE
@@ -3325,12 +3329,12 @@ body:has(#measure.active) main{height:calc(100dvh - 68px);overflow:hidden;paddin
 #measure.active .measure-editor{align-items:flex-end;padding-bottom:76px}
 #measure.active .measure-sheet{max-height:calc(100dvh - 92px);overflow:auto;padding:11px 12px 12px}
 @media(max-width:620px){
- body:has(#measure.active) header{height:42px;min-height:42px}
- body:has(#measure.active) main{height:calc(100dvh - 42px);padding:14px 4px 74px}
+ body:has(#measure.active) main{height:100dvh!important;padding:env(safe-area-inset-top) 4px calc(140px + env(safe-area-inset-bottom))!important}
  #measure.active .measure-simple-topbar{grid-template-columns:.8fr 1.6fr .65fr;gap:3px}
  #measure.active .measure-simple-topbar .mini-btn{padding:5px 4px;font-size:10px;min-height:38px}
  #measure.active .three-main-measures{gap:3px}
- #measure.active .three-main-measures .measure-kind{height:50px;border-radius:11px;padding:2px}
+ #measure.active .three-main-measures{padding:0 0 1px}
+ #measure.active .three-main-measures .measure-kind{height:44px;border-radius:11px;padding:2px}
  #measure.active .three-main-measures .measure-kind b{font-size:22px}
  #measure.active .three-main-measures .measure-kind span{font-size:9px}
  #measure.active .markup-stage{border-radius:9px}
