@@ -890,7 +890,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button type="button" id="measureCurrentRoomLabel" class="mini-btn measure61-roomsel"></button>
    <button class="mini-btn measure61-picture" id="chooseMeasurePhoto" type="button"><span class="measure61-top-icon">📷</span><span data-i18n="measure.addPicture">Add Picture</span></button>
    <input id="markupCameraPhoto" class="js-file-input" type="file" accept="image/*" capture="environment">
-   <input id="markupGalleryPhoto" class="js-file-input" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.gif">
    <span id="measurePhotoStatus" class="measure-photo-status" aria-live="polite"></span>
    <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b></span></button>
   </div>
@@ -953,14 +952,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
  </div>
  <!-- Kept for compatibility with the existing project save system. -->
  <div class="hidden"><input id="jobName"><input id="customer"><input id="address"><input id="phone"><textarea id="jobNotes"></textarea><button id="saveDetails"></button><select id="measureArea"><option>Whole room</option></select><input id="measureValue"><input id="measureName"><input id="measureNote"><button id="addMeasure"></button><div id="measurementList"></div><input id="cameraPhoto" type="file"><input id="galleryPhoto" type="file"><div id="photoList"></div></div>
- <div id="measurePictureMenu" class="measure-picture-menu hidden" role="dialog" aria-modal="true" aria-label="Add picture">
-  <div class="measure-picture-card">
-   <div class="measure-picture-head"><strong data-i18n="measure.addPicture">Add Picture</strong><button type="button" id="closeMeasurePictureMenu" aria-label="Close">×</button></div>
-   <button type="button" id="takeMeasurePhoto"><span>📷</span><b data-i18n="measure.takePhoto">Take Photo</b></button>
-   <button type="button" id="pickMeasurePicture"><span>🖼️</span><b data-i18n="measure.choosePicture">Choose Picture or Drawing</b></button>
-   <button type="button" id="pasteMeasurePicture"><span>📋</span><b data-i18n="measure.pastePictureTitle">Paste Picture</b></button>
-  </div>
- </div>
 </section>
 
 <section id="newSiteJob" class="screen">
@@ -1351,7 +1342,7 @@ const I18N={
   "bom.projectSummary":"Project Summary","bom.subtitle":"The complete project in one simple room by room overview.","bom.openProjectFirst":"Open a project first.","bom.rooms":"Rooms","bom.units":"Units","bom.panels":"Panels","bom.pieces":"Pieces","bom.materials":"Materials","bom.noMaterialsYet":"No materials yet.","bom.roomByRoom":"Room by room","bom.pcs":"pcs","bom.noUnitsAssigned":"No units assigned.","bom.noRoomsYet":"No rooms yet.",
   "intake.photoSingular":"photo","intake.photoPlural":"photos","intake.readyToSendSuffix":"ready to send to Studio","intake.sentToStudioSuffix":"sent to Studio so far","intake.floorBasement":"Basement","intake.floorGround":"Ground","intake.floor1st":"1st floor","intake.floor2nd":"2nd floor","intake.floor3rd":"3rd floor",
   "scan.scanningFor":"Scanning for","scan.scanningWholeProject":"Scanning the complete project","scan.typeOnlyPanelHint":"Type only the panel number, for example","scan.openCorrectJobFirst":"Open the correct published job first, then type its panel number.",
-  "measure.addPicture":"Add Picture","measure.doneRoomGuide":"Done · Room Guide","measure.tools":"Tools","measure.kindWallToWall":"Wall to wall","measure.kindFloorToCeiling":"Floor to ceiling","measure.kindDepth":"Depth","measure.moreTools":"More tools","measure.pastePicture":"Paste picture","measure.modeMeasure":"Measure","measure.modeLine":"Line","measure.modeCurve":"Curve","measure.modeBox":"Box","measure.modeCircle":"Circle","measure.modeMove":"Move","measure.undo":"Undo","measure.fitPicture":"Fit picture","measure.zoomOut":"Zoom out","measure.zoomIn":"Zoom in","measure.kindFloorUp":"Floor up","measure.kindCeilingDown":"Ceiling down","measure.kindFromLeft":"From left","measure.kindFromRight":"From right","measure.kindCustom":"Custom measurement","measure.other":"Other","measure.addPictureOrDrawing":"📷 Add picture or drawing","measure.tapAddPictureHint":"Tap Add Picture, choose a file, take a photo, or drop it here.","measure.dragHint":"Drag arrow → enter size → save","measure.measurementIn":"Measurement in","measure.name":"Name","measure.delete":"Delete","measure.addMeasurement":"＋ Add measurement","measure.noMeasurements":"No measurements yet.","measure.noSitePhotos":"No site photos yet.","measure.takePhoto":"Take Photo","measure.choosePicture":"Choose Picture or Drawing","measure.pastePictureTitle":"Paste Picture",
+  "measure.addPicture":"Add Picture","measure.doneRoomGuide":"Done · Room Guide","measure.tools":"Tools","measure.kindWallToWall":"Wall to wall","measure.kindFloorToCeiling":"Floor to ceiling","measure.kindDepth":"Depth","measure.moreTools":"More tools","measure.pastePicture":"Paste picture","measure.modeMeasure":"Measure","measure.modeLine":"Line","measure.modeCurve":"Curve","measure.modeBox":"Box","measure.modeCircle":"Circle","measure.modeMove":"Move","measure.undo":"Undo","measure.fitPicture":"Fit picture","measure.zoomOut":"Zoom out","measure.zoomIn":"Zoom in","measure.kindFloorUp":"Floor up","measure.kindCeilingDown":"Ceiling down","measure.kindFromLeft":"From left","measure.kindFromRight":"From right","measure.kindCustom":"Custom measurement","measure.other":"Other","measure.addPictureOrDrawing":"📷 Add picture or drawing","measure.tapAddPictureHint":"Tap Add Picture to open the camera.","measure.dragHint":"Drag arrow → enter size → save","measure.measurementIn":"Measurement in","measure.name":"Name","measure.delete":"Delete","measure.addMeasurement":"＋ Add measurement","measure.noMeasurements":"No measurements yet.","measure.noSitePhotos":"No site photos yet.","measure.takePhoto":"Take Photo","measure.choosePicture":"Choose Picture or Drawing","measure.pastePictureTitle":"Paste Picture",
   "msg.storageQuota":"Your phone is out of storage space for this app. Please delete some old finished jobs from the Project list to free up space, then try again — what you just did is showing on screen but was not saved.","msg.panelNotYetOnPhone":"This panel isn't on your phone yet. Checking for it now — if it doesn't appear in a few seconds, send the job to this phone again from Studio.","msg.openProjectDot":"Open a project.","msg.jobDetailsSaved":"Job details saved.","msg.enterMeasurement":"Enter the measurement.","msg.measurementsAddedCount":"{0} measurements added","msg.photoLoadFailed":"That photo could not be loaded. Please try again.","msg.openProjectFirst":"Open a project first.","msg.openOrCreateProjectFirst":"Open or create a project first.","msg.typeAddressFirst":"Type the address first, or drop a pin on the map.","msg.locationNotAvailable":"Location is not available on this device.","msg.locationFailed":"Could not get your location. Check location permission and try again.","msg.addRoomNameFirst":"Add the room name first.","msg.confirmDeletePhotoMeasurements":"Delete this photo and its measurements?","msg.enterFloorNumberExample":"Enter the floor number, for example 5 or 10.","msg.confirmDeleteMeasuredRoom":"Delete this measured room?","msg.confirmDeleteNamed":"Delete {0}?","msg.cameraCouldNotOpen":"The camera could not be opened. Check camera permission, or use Scan from photo.","msg.panelNotFoundCheckNumber":"Panel not found. Check the panel number.","msg.panelMarkedDamaged":"{0} marked damaged.","msg.confirmRemoveSitePlan":"Remove this site plan or photo? Pins and messages will stay in the project.","msg.confirmDeletePinConversation":"Delete this pin and its conversation?","msg.tapNewPositionPlan":"Tap the new position on the plan.","msg.addRoomPictureFirst":"Add a room picture first.","msg.confirmNoMeasurementsSaveAnyway":"No measurements have been added yet. Save this picture anyway?","msg.newNoteFromStudio":"New note from Studio:","msg.newCuttingListReceived":"New cutting list received: {0} panels and {1} pieces.","msg.newSiteJobReceived":"New site job received: {0} unit, {1} panels and {2} pieces.","msg.projectArrivedCouldNotOpen":"A project arrived from Studio but could not be opened.","msg.confirmDeleteProjectFromPhone":"Delete \"{0}\" from this phone?","msg.chooseRoomIconFirst":"Choose the room icon first.","msg.typeCustomRoomName":"Type the custom room name.","msg.chooseFloor":"Choose the floor.","msg.notValidProjectZip":"This is not a valid FittersIQ project ZIP.","msg.projectOpenedPanelReady":"Project opened. The scanned panel is ready.","msg.cuttingListReceivedTrack":"Cutting list received. Scan panels to check them off, and track install progress here.","msg.projectOpenedPhoneIpad":"Project opened on this phone or iPad.","msg.sentToStudioAutoAppear":"Sent to Studio. Open Studio and the new job will appear automatically.","msg.directSyncUnavailableBackup":"Direct sync was unavailable, so a backup file was downloaded.","msg.browserCannotReadQrPhoto":"This browser cannot read a QR from a photo. Use the normal phone camera and paste the label text.","msg.noQrFoundInPhoto":"No QR code was found in that photo.","msg.qrPhotoCouldNotBeRead":"The QR photo could not be read.","msg.addFloorPlanFirst":"Add a floor plan or site photo first.","msg.tapPlanWhereWork":"Tap the plan where the work is happening.","msg.chooseAtLeastOneTrade":"Choose at least one trade.","msg.writeMessageOrPhoto":"Write a message or add a photo.","msg.photoCouldNotLoadRetryDifferent":"That photo could not be loaded. Please try taking it again, or choose a different one.","msg.choosePictureFile":"Choose a picture file","msg.noProjectStatus":"No project","msg.loadingStatus":"Loading…","msg.photoReadyStatus":"Photo ready","msg.shownNotSavedStorageFull":"Shown but not saved — storage is full","msg.couldNotReadPhotoRetry":"Could not read that photo — please try again","roomType.kitchen":"Kitchen","roomType.livingRoom":"Living Room","roomType.tvWall":"TV Wall","roomType.masterBedroom":"Master Bedroom","roomType.bedroom":"Bedroom","roomType.kidsBedroom":"Kids Bedroom","roomType.dressingRoom":"Dressing Room","roomType.bathroom":"Bathroom","roomType.office":"Office","roomType.laundry":"Laundry","roomType.utilityRoom":"Utility Room","roomType.hallway":"Hallway","roomType.underStairs":"Under Stairs","roomType.wineRoom":"Wine Room","roomType.library":"Library","roomType.custom":"Custom","msg.addRoomHeading":"Add room","msg.chooseRoomHelp":"Choose the room. You can add the same type as many times as needed.","msg.roomNamePlaceholder":"Room name","msg.addBtnShort":"Add","msg.chooseIconHeading":"Choose icon","msg.qrReadJobNotOnDevice":"The QR was read, but this published job is not on the device yet. Open the project ZIP from Studio, then scan again.","msg.typePanelNumberExample":"Type a panel number, for example P-001.","msg.preparingScanner":"Preparing scanner…","msg.qrLabelFound":"QR label found.","msg.panelValueNotFoundCheckNumber":"Panel {0} was not found. Check the number or open the correct published project.","msg.openCorrectJobTypeNumber":"Open the correct published job first, then type the panel number.","msg.labelBelongsToOpenJob":"That label belongs to {0}. Open that job first.","msg.valueNotFoundInsideActive":"{0} was not found inside {1} ({2}). Check the number.","msg.couldNotLoad":"Could not load","msg.languageHeading":"Language","msg.measurementUnitsHeading":"Measurement Units","msg.millimetersLabel":"Millimeters (mm)","msg.centimetersLabel":"Centimeters (cm)","msg.inchesLabel":"Inches (in)","msg.measurementFallback":"Measurement","msg.noMeasurementsYet":"No measurements yet.","msg.photoNotePlaceholder":"Photo note","msg.noSitePhotosYet":"No site photos yet.","msg.noWardrobesInJob":"No wardrobes in this job.","msg.mapPreviewUnavailable":"Map preview unavailable right now — the button above still saves your exact location.","msg.tapToChangeIcon":"Tap to change icon","msg.newJobNoCustomerYet":"New job — no customer name yet","msg.confirmResumeJob":"Continue working on {0}? Tap Cancel to choose a different job.","msg.backToProjectsBtn":"← Projects","msg.newJobHeading":"New job","msg.noMeasurementPicture":"No measurement picture","msg.measurementCountSuffix":"{0} measurement(s)","msg.chooseRoomStepTitle":"Choose room","msg.customRoomLabel":"Custom room","msg.typeRoomNamePlaceholder2":"Type room name","msg.floorFirstFloor":"First floor","msg.floorChooseNumber":"Choose number","msg.floorNumberLabel":"Floor number","msg.floorNumberExample":"Example: 5","msg.useFloorBtn":"Use floor","msg.addNoteSummary":"Add note","msg.optionalNoteStudioPlaceholder":"Optional note for Studio","msg.moreMeasurementsBtn":"More measurements","msg.saveRoomBtn":"Save room","msg.sendToStudioBtn":"Send to Studio","msg.floorStepTitle":"Floor","msg.iconLiving":"Living","msg.iconWine":"Wine","msg.iconOther":"Other","msg.floorNumberFormat":"Floor {0}","msg.useFloorLabel":"Use {0}","msg.measureModeHint":"Measure mode: drag from one point to another. A straight arrow line will be created.","msg.lineModeHint":"Straight line mode: every finger or Pencil stroke becomes a clean straight line.","msg.curveModeHint":"Curve mode: draw freely with your finger or Apple Pencil.","msg.boxModeHint":"Box mode: drag to draw a box -- drag further to make it bigger.","msg.circleModeHint":"Circle mode: drag to draw a circle or oval -- drag further to make it bigger.","msg.moveModeHint":"Move mode: drag the photo. Pinch with two fingers to zoom.","msg.noPictureCopied":"No picture copied","msg.choosePictureInstead":"Choose a picture instead","msg.fileNotPicture":"That file is not a picture","msg.measurementsSavedReady":"{0} measurement(s) saved · ready for the next photo","msg.projectFallback":"Project","msg.panelFallback":"Panel","msg.wardrobeFallback":"Wardrobe","msg.studioDrawingSuffix":" — Studio drawing","msg.highlightedDrawingAlt":"Highlighted drawing for {0}","msg.jobColonLabel":"Job: ","msg.panelColonLabel":"Panel: ","msg.damageColonLabel":"Damage: ","msg.notDescribed":"Not described","msg.jobFallback":"Job","trade.builder":"Builder","trade.bricklayer":"Bricklayer","trade.plumber":"Plumber","trade.electrician":"Electrician","trade.decorator":"Decorator","trade.carpenter":"Carpenter","trade.wardrobes":"Wardrobes","trade.flooring":"Flooring","trade.kitchenInstaller":"Kitchen Installer","trade.tiler":"Tiler","trade.hvac":"HVAC / Air Conditioning","trade.heating":"Heating","trade.windows":"Windows","trade.doors":"Doors","trade.roofer":"Roofer","trade.landscaper":"Landscaper","trade.supplier":"Supplier","trade.client":"Client","trade.other":"Other","msg.pinStatusNewShort":"New","msg.pinStatusWaitingShort":"Waiting","msg.pinStatusDoneShort":"Done","msg.pinStatusProblemShort":"Problem","msg.noProjectMessagesYet":"No project messages yet.","msg.originalLangPrefix":"Original ({0}): ","msg.noRepliesYet2":"No replies yet.","msg.siteFallback":"Site","msg.repliesCount":"{0} replies","msg.noUpdatesYet":"No updates yet.","msg.siteUpdatesHeading":"Site updates","msg.newBadge2":"NEW","msg.waitingForStudioOpen":"Waiting for Studio to open: "},
  es:{"nav.project":"Proyecto","nav.roomGuide":"Habitación","nav.scan":"Escanear","nav.install":"Instalar",
   "proj.newSiteJob":"Nuevo trabajo","proj.addStudioProject":"Añadir proyecto de Studio","proj.myProjects":"Mis proyectos","proj.tapToContinue":"Toca un proyecto para continuar.","proj.open":"Abrir","proj.noCustomer":"Sin cliente","proj.empty":"Aún no hay proyectos.","proj.emptyHint":"Toca Nuevo trabajo para empezar.","proj.room":"habitación","proj.rooms":"habitaciones","proj.unit":"unidad","proj.units":"unidades","proj.roomFallback":"Habitación","proj.projectFallback":"Proyecto","proj.readyToInstall":"Listo para instalar","proj.stillDrawing":"En proceso de diseño",
@@ -1924,10 +1915,27 @@ function openSiteRoomIconPicker(holder,isRoom){
  });
 }
 let siteLocationMapInstance=null,siteLocationMarker=null;
-async function initSiteLocationMap(p,elId){
+// Nominatim (OSM's own reverse-geocoder) matches the tile provider already used for the
+// map itself, so no extra API key/account is needed. It's a shared public service with a
+// fair-use policy -- fine for one lookup per pin placement, never polled or batched.
+async function reverseGeocodeAddress(p,lat,lng,addressElId){
+ try{
+  const resp=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=0`,{headers:{'Accept':'application/json'}});
+  if(!resp.ok)return;
+  const data=await resp.json();
+  if(data&&data.display_name){
+   p.address=data.display_name;
+   save();
+   const addrEl=addressElId&&document.getElementById(addressElId);
+   if(addrEl)addrEl.value=data.display_name;
+  }
+ }catch(e){console.warn('Reverse geocoding failed',e)}
+}
+async function initSiteLocationMap(p,elId,addressElId){
  try{
  const el=document.getElementById(elId||'siteLocationMap');
  if(!el)return;
+ addressElId=addressElId||(elId==='nsjLocationMap'?'nsjAddress':elId==='customerLocationMap'?'customerAddressInput':'siteAddress');
  await ensureLeaflet();
  if(typeof L==='undefined')return;
  if(siteLocationMapInstance){try{siteLocationMapInstance.remove()}catch(e){}siteLocationMapInstance=null;siteLocationMarker=null}
@@ -1940,12 +1948,15 @@ async function initSiteLocationMap(p,elId){
  siteLocationMapInstance=map;
  setTimeout(()=>{if(siteLocationMapInstance===map&&!anyTileLoaded){el.innerHTML=`<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;font-weight:800;color:#8a8398;font-size:13px">${t('msg.mapPreviewUnavailable')}</div>`}},5000);
  const hint=el.nextElementSibling;
- function placePin(lat,lng){
-  if(siteLocationMarker)siteLocationMarker.setLatLng([lat,lng]);else siteLocationMarker=L.marker([lat,lng],{draggable:true}).addTo(map).on('dragend',e=>{const pos=e.target.getLatLng();p.geoLat=pos.lat;p.geoLng=pos.lng;save();if(hint)hint.textContent=`${t('intake.pinSet')} · ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`});
+ function placePin(lat,lng,skipGeocode){
+  if(siteLocationMarker)siteLocationMarker.setLatLng([lat,lng]);else siteLocationMarker=L.marker([lat,lng],{draggable:true}).addTo(map).on('dragend',e=>{const pos=e.target.getLatLng();p.geoLat=pos.lat;p.geoLng=pos.lng;save();if(hint)hint.textContent=`${t('intake.pinSet')} · ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;reverseGeocodeAddress(p,pos.lat,pos.lng,addressElId)});
   p.geoLat=lat;p.geoLng=lng;save();
   if(hint)hint.textContent=`${t('intake.pinSet')} · ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  if(!skipGeocode)reverseGeocodeAddress(p,lat,lng,addressElId);
  }
- if(p.geoLat!=null)placePin(p.geoLat,p.geoLng);
+ // Re-opening this map for a pin dropped earlier just needs to show it, not look the
+ // address up again every time the screen is revisited.
+ if(p.geoLat!=null)placePin(p.geoLat,p.geoLng,true);
  map.on('click',e=>placePin(e.latlng.lat,e.latlng.lng));
  if(p.geoLat==null&&navigator.geolocation){
   navigator.geolocation.getCurrentPosition(pos=>{if(siteLocationMapInstance===map)map.setView([pos.coords.latitude,pos.coords.longitude],16)},()=>{},{timeout:4000});
@@ -2010,6 +2021,7 @@ function wireRoomCard(p,r){
   navigator.geolocation.getCurrentPosition(pos=>{
    p.geoLat=pos.coords.latitude;p.geoLng=pos.coords.longitude;save();
    btn.textContent=old;btn.disabled=false;
+   reverseGeocodeAddress(p,pos.coords.latitude,pos.coords.longitude,'siteAddress');
    renderRooms();
   },err=>{
    btn.textContent=old;btn.disabled=false;
@@ -2274,6 +2286,7 @@ document.getElementById('nsjUseLocationBtn')?.addEventListener('click',()=>{
  navigator.geolocation.getCurrentPosition(pos=>{
   p.geoLat=pos.coords.latitude;p.geoLng=pos.coords.longitude;save();
   btn.textContent=old;btn.disabled=false;
+  reverseGeocodeAddress(p,pos.coords.latitude,pos.coords.longitude,'nsjAddress');
   initSiteLocationMap(p,'nsjLocationMap');
  },()=>{btn.textContent=old;btn.disabled=false;alert('Could not get your location.')},{enableHighAccuracy:true,timeout:10000});
 });
@@ -2304,6 +2317,7 @@ document.getElementById('customerUseLocationBtn')?.addEventListener('click',()=>
  navigator.geolocation.getCurrentPosition(pos=>{
   p.geoLat=pos.coords.latitude;p.geoLng=pos.coords.longitude;save();
   btn.textContent=old;btn.disabled=false;
+  reverseGeocodeAddress(p,pos.coords.latitude,pos.coords.longitude,'customerAddressInput');
   initSiteLocationMap(p,'customerLocationMap');
  },()=>{btn.textContent=old;btn.disabled=false;alert('Could not get your location.')},{enableHighAccuracy:true,timeout:10000});
 });
@@ -2402,6 +2416,14 @@ async function sendAllRoomsToStudio(p){
  });
  p.sentPhotoCount=(p.sentPhotoCount||0)+sentTotal;
  window.__lastSentSummary={rooms:rooms.length,photos:rooms.reduce((n,x)=>n+(x.measureCaptures||[]).length,0),notes:notesCount};
+ // A confirmed send means Studio now has the master copy -- Mobile keeping its own copy
+ // around forever is exactly how this screen turns into an archive of every job ever
+ // measured. Studio can always push it back (as a studioToMobilePacket) if it's later
+ // assigned to a fitter for Panel Check or Install, which arrives through the separate
+ // inbox merge in mergeStudioProject(), not this array -- removing it here doesn't block
+ // that.
+ if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);
+ state.projects=state.projects.filter(x=>x.id!==p.id);
  state.currentProject=null;
  save();
  show('sentToStudio');
@@ -3493,8 +3515,12 @@ load();
  function closeEditor(){editingId=null;pending=null;$('#measureEditor').classList.add('hidden');render()}
  $('#saveEditor').onclick=()=>{const m=ensure();if(!m||!pending)return;pending.value=$('#editorValue').value.trim();pending.unit=$('#editorValueUnit')?.textContent||currentMeasureUnitLabel();pending.name=$('#editorName').value.trim()||pending.kind;if(!pending.value)return alert(t('msg.enterMeasurement'));if(!editingId){pending.id=uid();m.marks.push(pending)}save();closeEditor();render();const st=$('#measurePhotoStatus');if(st)st.textContent=t('msg.measurementsAddedCount',[(m.marks||[]).filter(x=>x.type==='measure').length]);};
  $('#deleteEditor').onclick=()=>{const m=ensure();if(!m||!editingId)return;m.marks=m.marks.filter(x=>x.id!==editingId);save();closeEditor();render()};$('#closeEditor').onclick=closeEditor;
- let cameraInput=$('#markupCameraPhoto'),galleryInput=$('#markupGalleryPhoto');
- const photoButton=$('#takeMeasurePhoto'),chooseButton=$('#chooseMeasurePhoto'),pasteButton=$('#pasteMeasurePhoto'),photoStatus=$('#measurePhotoStatus'),pictureMenu=$('#measurePictureMenu'),pickPictureButton=$('#pickMeasurePicture'),pastePictureButton=$('#pasteMeasurePicture'),closePictureButton=$('#closeMeasurePictureMenu');
+ // Mobile Site Measure is used standing at the job with the camera -- Add Picture goes
+ // straight to the camera with no intermediate menu. Choose Picture/Paste Picture were
+ // removed here (Studio still has its own separate picture-choosing tools for drawings/
+ // screenshots/imports, untouched by this).
+ let cameraInput=$('#markupCameraPhoto');
+ const chooseButton=$('#chooseMeasurePhoto'),pasteButton=$('#pasteMeasurePhoto'),photoStatus=$('#measurePhotoStatus');
  function setPhotoStatus(t){if(photoStatus)photoStatus.textContent=t||''}
  function isImageFile(file){const type=String(file?.type||'').toLowerCase(),name=String(file?.name||'').toLowerCase();return type.startsWith('image/')||/\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(name)}
  // Add Picture always ADDS a new photo to the current room (creating the room
@@ -3536,19 +3562,13 @@ load();
    const fresh=input.cloneNode(true);
    fresh.value='';
    input.parentNode.replaceChild(fresh,input);
-   if(which==='camera')cameraInput=fresh;else if(which==='gallery')galleryInput=fresh;
+   if(which==='camera')cameraInput=fresh;
    wirePhotoInput(fresh,which);
   };
  }
- function openPictureMenu(){pictureMenu?.classList.remove('hidden')}
- function closePictureMenu(){pictureMenu?.classList.add('hidden')}
- async function pasteMeasureImage(e){e?.preventDefault?.();try{if(!navigator.clipboard?.read)throw new Error('Clipboard unavailable');const items=await navigator.clipboard.read();for(const item of items){const type=item.types.find(t=>t.startsWith('image/'));if(type){loadMeasurePhotoFile(await item.getType(type));closePictureMenu();return}}setPhotoStatus(t('msg.noPictureCopied'))}catch(err){setPhotoStatus(t('msg.choosePictureInstead'))}}
- if(chooseButton){chooseButton.onclick=e=>{e.preventDefault();e.stopPropagation();openPictureMenu()}}
- if(photoButton){photoButton.onclick=e=>{e.preventDefault();e.stopPropagation();closePictureMenu();cameraInput.value='';cameraInput.click()};wirePhotoInput(cameraInput,'camera')}
- if(pickPictureButton){pickPictureButton.onclick=e=>{e.preventDefault();e.stopPropagation();closePictureMenu();galleryInput.value='';galleryInput.click()};wirePhotoInput(galleryInput,'gallery')}
- if(closePictureButton)closePictureButton.onclick=closePictureMenu;
- if(pictureMenu)pictureMenu.addEventListener('click',e=>{if(e.target===pictureMenu)closePictureMenu()});
- if(pastePictureButton)pastePictureButton.onclick=pasteMeasureImage;
+ async function pasteMeasureImage(e){e?.preventDefault?.();try{if(!navigator.clipboard?.read)throw new Error('Clipboard unavailable');const items=await navigator.clipboard.read();for(const item of items){const type=item.types.find(t=>t.startsWith('image/'));if(type){loadMeasurePhotoFile(await item.getType(type));return}}setPhotoStatus(t('msg.noPictureCopied'))}catch(err){setPhotoStatus(t('msg.choosePictureInstead'))}}
+ if(chooseButton){chooseButton.onclick=e=>{e.preventDefault();e.stopPropagation();cameraInput.value='';cameraInput.click()};wirePhotoInput(cameraInput,'camera')}
+ if(pasteButton)pasteButton.onclick=pasteMeasureImage;
  if(pasteButton)pasteButton.onclick=pasteMeasureImage;
  // Keep dragged screenshots inside the measuring page instead of letting the browser open them.
  function hasDraggedFile(dt){try{return [...(dt?.types||[])].includes('Files')||[...(dt?.items||[])].some(i=>i.kind==='file')}catch(_){return !!dt?.files?.length}}
