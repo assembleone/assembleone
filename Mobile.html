@@ -1102,11 +1102,13 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-flash-overlay.show.error{background:rgba(217,47,56,.32)}
 .scan-flash-icon{font-size:min(38vw,170px);font-weight:900;color:#fff;text-shadow:0 6px 20px rgba(0,0,0,.4);transform:scale(.6);transition:transform .16s cubic-bezier(.34,1.56,.64,1)}
 .scan-flash-overlay.show .scan-flash-icon{transform:scale(1)}
+.scan-tool.find-mode #panelCheckCounter,.scan-tool.find-mode #panelCheckResult,.scan-tool.find-mode .pc-links{display:none}
+.pc-drawing-sheet .panel-drawing{min-height:240px}
 </style>
 
 <section id="scan" class="screen">
  <div class="scan-tool scan55-tool">
-  <div class="pc-header"><strong>Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div><button type="button" id="scanSoundBtn" class="pc-sound-btn" aria-label="Scan sound settings">🔊</button></div>
+  <div class="pc-header"><strong id="scanHeaderTitle">Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div><button type="button" id="scanSoundBtn" class="pc-sound-btn" aria-label="Scan sound settings">🔊</button></div>
   <div class="scan-actions scan55-actions" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
@@ -1252,6 +1254,14 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button type="button" class="scan-sound-opt" data-sound="loud">Loud</button>
   </div>
   <label class="scan-vibrate-row"><input type="checkbox" id="scanVibrateToggle"> Vibration</label>
+ </div>
+</div>
+
+<div id="findPanelOverlay" class="pc-sheet-overlay hidden">
+ <div class="pc-sheet pc-drawing-sheet">
+  <div class="pc-sheet-head"><strong>Find Panel</strong><button type="button" id="findPanelResultClose">×</button></div>
+  <div id="findPanelResultBody" class="panel-detail"></div>
+  <button type="button" class="btn primary" id="findPanelScanNextBtn" style="width:100%;min-height:54px;margin-top:12px">Scan Next Panel</button>
  </div>
 </div>
 
@@ -1767,7 +1777,7 @@ function show(name){
    jobConfirmedThisSession=true;
   }
  }
- if(name!=='scan'&&typeof scanRunning!=='undefined'&&scanRunning&&typeof stopCamera==='function')stopCamera();state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=(name==='measure'||name==='newSiteJob'||name==='siteVisitSummary'||name==='sentToStudio')?'siteMeasureFlow':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons()}
+ if(name!=='scan'&&typeof scanRunning!=='undefined'&&scanRunning&&typeof stopCamera==='function')stopCamera();state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=(name==='measure'||name==='newSiteJob'||name==='siteVisitSummary'||name==='sentToStudio')?'siteMeasureFlow':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons();if(typeof applyScanModeUI==='function')applyScanModeUI()}
 $$(".nav").forEach(b=>b.onclick=()=>{if(b.dataset.screen==='siteMeasureFlow'){startSiteMeasureFlow();return}show(b.dataset.screen)});
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
@@ -3040,7 +3050,47 @@ function handlePanelIdentified(){
  if(state.scanMode==='check'){handlePanelCheckScan();return}
  markCurrentPanelScanned();
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
- stopCamera();show("install");
+ stopCamera();
+ openFindPanelResult();
+}
+// Find Panel's one job is "this is panel P-XX, this is where it goes" -- shown as an
+// overlay on top of wherever the camera was opened from, not a navigation to the BOM/
+// Install screen, so there's nothing to walk back out of afterwards. The highlighted dot
+// only ever appears when this exact panel (or scanned copy) genuinely has a placed x/y on
+// the drawing -- a missing position is reported as missing, never defaulted to the drawing
+// centre, since a wrong guess here would send a fitter to the wrong physical spot.
+function renderFindPanelResult(){
+ const body=$('#findPanelResultBody');if(!body)return;
+ const p=project(),c=cabinet(),pt=part();
+ if(!p||!c||!pt){body.innerHTML='<div class="muted">Panel not found on this phone.</div>';return}
+ const room=(p.rooms||[]).find(r=>r.id===c.roomId);
+ const ci=Number(state.selectedCopy);
+ const activePos=(ci>=0&&pt.copies&&pt.copies[ci])?pt.copies[ci]:pt;
+ const hasDrawing=!!(c.drawing&&c.drawingType!=='pdf');
+ const hasPosition=hasDrawing&&activePos&&activePos.x!=null&&activePos.y!=null;
+ let drawingHtml;
+ if(!hasDrawing){
+  drawingHtml='<div class="panel-drawing"><div class="muted">No drawing available for this panel yet.</div></div>';
+ }else if(!hasPosition){
+  drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"></div><div class="muted" style="margin-top:6px">This panel has not been marked on the drawing yet. Check the panel manually or ask the office to place it.</div>`;
+ }else{
+  drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"><div class="panel-highlight active status-${safe(activePos.status||'ready')}" style="left:${Number(activePos.x)}%;top:${Number(activePos.y)}%"></div></div>`;
+ }
+ body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${drawingHtml}`;
+}
+function openFindPanelResult(){renderFindPanelResult();$('#findPanelOverlay').classList.remove('hidden')}
+function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden')}
+$('#findPanelResultClose').onclick=closeFindPanelResult;
+$('#findPanelOverlay').addEventListener('click',e=>{if(e.target.id==='findPanelOverlay')closeFindPanelResult()});
+$('#findPanelScanNextBtn').onclick=()=>{closeFindPanelResult();startCamera()};
+// The shared scanner screen's own header/chrome switches with it -- Panel Check's counter,
+// result card and Missing Panels/Summary links are all "checked" concepts that don't apply
+// while just looking up where a panel goes, so they're hidden rather than shown alongside
+// an unrelated Find Panel result.
+function applyScanModeUI(){
+ const tool=document.querySelector('#scan .scan-tool');
+ if(tool)tool.classList.toggle('find-mode',state.scanMode==='find');
+ const title=$('#scanHeaderTitle');if(title)title.textContent=state.scanMode==='find'?'Find Panel':'Panel Check';
 }
 function openScannedText(text){
  let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
@@ -3254,9 +3304,9 @@ document.getElementById('scanVibrateToggle')?.addEventListener('change',function
  if(e.target.checked){try{if(navigator.vibrate)navigator.vibrate(55)}catch(err){}}
 });
 function stopCamera(){scanRunning=false;if(scanLoopTimer){clearTimeout(scanLoopTimer);scanLoopTimer=null}if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;const v=$("#camera");if(v)v.srcObject=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
-$("#startScanner").onclick=()=>{state.scanMode='check';startCamera()};$("#stopScanner").onclick=stopCamera;
-const scanNavBtn=document.querySelector('.nav.scan-main');if(scanNavBtn)scanNavBtn.onclick=()=>{state.scanMode='check';show('scan');startCamera()};
-const findPanelScanBtn=$("#findPanelScanBtn");if(findPanelScanBtn)findPanelScanBtn.onclick=()=>{state.scanMode='find';show('scan');startCamera()};
+$("#startScanner").onclick=()=>{state.scanMode='check';applyScanModeUI();startCamera()};$("#stopScanner").onclick=stopCamera;
+const scanNavBtn=document.querySelector('.nav.scan-main');if(scanNavBtn)scanNavBtn.onclick=()=>{state.scanMode='check';applyScanModeUI();show('scan');startCamera()};
+const findPanelScanBtn=$("#findPanelScanBtn");if(findPanelScanBtn)findPanelScanBtn.onclick=()=>{state.scanMode='find';applyScanModeUI();show('scan');startCamera()};
 // Panel Check's whole point is speed: a match auto-records Checked and the camera keeps
 // running so the very next panel can be scanned without any tap in between. Missing/
 // Damaged stay one tap away on the same result card for the rare correction.
