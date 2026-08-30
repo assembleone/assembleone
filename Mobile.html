@@ -1674,13 +1674,19 @@ function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):(
 // rather than disappearing for the one fitter who should see it.
 function canSeeJob(p){
  const me=window.fittersiqUser||{};
- // FittersIQ's own platform admin (support access) is a different concern
- // from the company's own access rules and stays exempt -- but the company
- // owner is NOT: assigning a job to one fitter must mean only that fitter
- // can open it on Mobile, even from the owner's own phone. If the owner
- // needs to work a job themselves, they assign it to themselves like any
- // other fitter.
+ // FittersIQ's own platform admin (support access) is a different concern from the
+ // company's own access rules and stays exempt.
  if(me.isAdmin)return true;
+ // The owner's access is company-wide by design, not assignment-based -- a one-person
+ // company, an owner training staff, helping a fitter on site, or checking a job before
+ // sending someone out all need the owner to open and scan ANY job in their own company
+ // without first assigning it to themselves as if they were a fitter. This does not
+ // widen access between different companies: state.projects on this phone only ever
+ // holds jobs already fetched from this signed-in owner's own company in the first
+ // place. A fitter gets no such exemption -- assignment is still the only thing that
+ // lets one fitter see a job, so one fitter can never see another's assigned job just
+ // for sharing a company.
+ if(me.role==='company_owner')return true;
  const ids=(p&&Array.isArray(p.assignedFitterIds))?p.assignedFitterIds:[];
  const emails=(p&&Array.isArray(p.assignedEmails))?p.assignedEmails:[];
  if(!ids.length&&!emails.length)return true;
