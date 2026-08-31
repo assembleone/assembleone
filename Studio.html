@@ -2429,10 +2429,27 @@ function openStudioRoom(roomId){
 function renderStudioRoomGuide(){
  const box=$("#studioRoomGuide");if(!box)return;const p=ensureSharedProject(project());if(!p){box.innerHTML='<div class="empty">Open a project first.</div>';return}
  const unassigned=p.cabinets.filter(c=>!c.roomId||!p.rooms.some(r=>r.id===c.roomId));
- const rooms=p.rooms.map(r=>{const units=p.cabinets.filter(c=>c.roomId===r.id);return `<button class="room-dashboard-btn" data-open-studio-room="${r.id}"><span class="room-dashboard-icon">${r.icon||"🏠"}</span><span class="room-dashboard-name">${safe(r.name)}</span><span class="room-dashboard-count">${units.length} wardrobe${units.length===1?"":"s"} or cabinet${units.length===1?"":"s"}</span></button>`}).join("");
+ // A room that arrived with real site photos/measurements from Mobile shows that count
+ // here instead of the generic unit count -- it's the clearest way to tell, before
+ // tapping, that this room opens its own photos/measurements rather than the cabinet
+ // list (see the click handler below).
+ const rooms=p.rooms.map(r=>{const units=p.cabinets.filter(c=>c.roomId===r.id);const photos=siteRoomPictures(r).length,measures=siteRoomMeasureCount(r);const hasSite=photos||measures||String(r.notes||'').trim();const countLine=hasSite?`📷 ${photos} photo${photos===1?"":"s"} · 📏 ${measures} measurement${measures===1?"":"s"}`:`${units.length} wardrobe${units.length===1?"":"s"} or cabinet${units.length===1?"":"s"}`;return `<button class="room-dashboard-btn" data-open-studio-room="${r.id}"><span class="room-dashboard-icon">${r.icon||"🏠"}</span><span class="room-dashboard-name">${safe(r.name)}</span><span class="room-dashboard-count">${countLine}</span></button>`}).join("");
  const warning=unassigned.length?`<button class="room-dashboard-btn room-dashboard-warning" data-open-unassigned-room><span class="room-dashboard-icon">＋</span><span class="room-dashboard-name">Place ${unassigned.length} unit${unassigned.length===1?"":"s"}</span><span class="room-dashboard-count">Tap a room, then add the unit</span></button>`:"";
  box.innerHTML=p.rooms.length?`<div class="room-dashboard-grid">${rooms}${warning}</div>`:'<div class="room-simple-empty">No room selected yet. Press Choose room and tap a picture.</div>';
- $$('[data-open-studio-room]').forEach(x=>x.onclick=()=>{state.currentRoom=x.dataset.openStudioRoom;save();updateUnitAddWording();openStudioRoom(x.dataset.openStudioRoom)});
+ // A room with real site content from Mobile opens its own photos/measurements/notes
+ // (openSiteRoomDetails -- already scoped strictly to the one room passed in, same
+ // viewer Customer Library's own room chips already use). A room with no site content
+ // is a Studio-native room with nothing to show there, so it keeps opening the existing
+ // cabinet-management sheet exactly as before.
+ $$('[data-open-studio-room]').forEach(x=>{
+  const r=p.rooms.find(rm=>rm.id===x.dataset.openStudioRoom);
+  x.onclick=()=>{
+   state.currentRoom=x.dataset.openStudioRoom;save();updateUnitAddWording();
+   const hasSite=r&&(siteRoomPictures(r).length||siteRoomMeasureCount(r)||String(r.notes||'').trim());
+   if(hasSite&&typeof openSiteRoomDetails==='function')openSiteRoomDetails(p.id,x.dataset.openStudioRoom);
+   else openStudioRoom(x.dataset.openStudioRoom);
+  };
+ });
  const unBtn=$('[data-open-unassigned-room]');if(unBtn)unBtn.onclick=()=>{if(p.rooms[0])openStudioRoom(p.rooms[0].id);else addStudioRoom()};
 }
 
@@ -6266,6 +6283,19 @@ body.fiq-locked .app{display:none!important}
     if(!(p.rooms||[]).length){
       renderAll();
       if(typeof addStudioRoom==='function')addStudioRoom();else show('jobs');
+      return;
+    }
+    // A job with more than one room (typically a multi-room Site Measure sent from
+    // Mobile) used to silently jump straight into whichever room happened to be first,
+    // so the room-icon grid (renderStudioRoomGuide, further down) never actually got
+    // seen from this entry point even though it already existed. Land on the room
+    // picker instead and let the room icons themselves decide which one to open. A
+    // single-room job still has nothing to choose between, so it keeps going straight
+    // to Drawing exactly as before.
+    if((p.rooms||[]).length>1){
+      if(!p.rooms.some(r=>r.id===state.currentRoom))state.currentRoom=null;
+      state.currentCabinet=null;state.currentPart=null;
+      renderAll();save();show('jobs');
       return;
     }
     let room=(p.rooms||[]).find(r=>r.id===state.currentRoom)||p.rooms[0];
