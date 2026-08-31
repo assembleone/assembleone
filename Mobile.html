@@ -1805,6 +1805,12 @@ function show(name){
 $$(".nav").forEach(b=>b.onclick=()=>{if(b.dataset.screen==='siteMeasureFlow'){startSiteMeasureFlow();return}show(b.dataset.screen)});
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
+// A job counts as a Studio installation project once Studio has actually added
+// cutting-list panels to it -- that data only ever arrives from Studio (Mobile's own
+// Site Measure flow only ever produces rooms/photos/measurements, never cabinets/parts),
+// so this is a reliable signal for "this came from Studio" without a new field that could
+// drift out of sync with what's actually in the project.
+function isInstallationJob(p){return !!(p&&(p.cabinets||[]).some(c=>(c.parts||[]).length>0))}
 // Tapping "New Job" more than once (before the first one has been given a customer)
 // used to create another completely blank job every time, so the Projects list slowly
 // filled up with several empty "New Site Job / No customer" cards to sort through. One
@@ -1815,21 +1821,30 @@ function newJob(){
  const existing=blankUnstartedJob();
  if(existing){state.currentProject=existing.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob");return}
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('site_job_created');const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob")}
-// Tapping "Site Measure" resumes whatever's already in progress instead of
-// always starting from scratch: a visit with real content (a customer name
-// or at least one room) goes straight to its Summary; a blank slate (or a
-// job started but abandoned before any customer info was entered) goes to
-// the New Site Job screen.
+// Tapping the Site Measure nav tab resumes whatever's already in progress instead of
+// always starting from scratch: a visit with real content (a customer name or at least
+// one room) goes straight to its Summary; a blank slate (or a job started but abandoned
+// before any customer info was entered) goes to the New Site Job screen. This must never
+// resume a Studio installation project just because it happened to be the last thing
+// open elsewhere in the app -- state.currentProject is shared globally, so without the
+// isInstallationJob() guard, leaving a Studio job open in Panel Check/Install and then
+// tapping Site Measure would "continue" that Studio job instead of the fitter's own
+// measuring work.
 function startSiteMeasureFlow(){
  const p=project();
- if(p&&((p.rooms||[]).length||p.customer)){
+ if(p&&!isInstallationJob(p)&&((p.rooms||[]).length||p.customer)){
   state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();
   show("siteVisitSummary");
   return;
  }
  newJob();
 }
-if($("#newJob"))$("#newJob").onclick=startSiteMeasureFlow;
+// "+ New Site Job" is an explicit, unambiguous request to start fresh -- unlike the nav
+// tab above, it must never resume an in-progress visit, a previous customer, or whatever
+// project happens to be current. newJob() itself only reuses a genuinely blank, never-
+// touched job (nothing to carry over there); anything with real content always gets a
+// brand new one.
+if($("#newJob"))$("#newJob").onclick=()=>newJob();
 if($("#syncAllJobsBtn"))$("#syncAllJobsBtn").onclick=()=>{if(typeof syncAllJobs==='function')syncAllJobs()};
 $('#langCurrentBtn').onclick=openLangPicker;
 function renderHeader(){
@@ -1869,24 +1884,32 @@ function renderProjects(){
  if(blanks.length>1){const keep=blanks.some(b=>b.id===state.currentProject)?state.currentProject:blanks[0].id;state.projects=state.projects.filter(p=>p.id===keep||!blanks.some(b=>b.id===p.id));save()}
  const FLOOR_KEYS={'Basement':'intake.floorBasement','Ground':'intake.floorGround','1st floor':'intake.floor1st','2nd floor':'intake.floor2nd','3rd floor':'intake.floor3rd'};
  const floorLabel=f=>{const k=FLOOR_KEYS[f];return k?t(k):f};
- const hasCuttingList=p=>(p.cabinets||[]).some(c=>(c.parts||[]).length>0);
  const allRoomsFinished=p=>(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished);
- // Jobs never disappear from this list just by being opened -- Studio stays
- // the master copy and this only reorders the display, so any job (started
- // or not) is always one tap away via Studio Jobs in the bottom nav. A job whose every
- // room has been finished sinks to the bottom the same way, instead of sitting mixed in
- // with jobs still being actively fitted.
+ function jobCard(p){
+  const display=projectRoomDisplay(p);const rooms=(p.rooms||[]).length;const units=(p.cabinets||[]).length;const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);const ready=isInstallationJob(p);const finished=allRoomsFinished(p);const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>`:'';const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';
+  return `<div class="job"><div class="mobile-job-icon">${display.icon}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${badge}${syncBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-id="${p.id}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`;
+ }
  // A job assigned to someone else's email never appears on this phone at all -- not
  // greyed out, not visible-but-locked, just not in the list, the same way it would look
  // if this phone had never heard of it.
  const visibleProjects=state.projects.filter(p=>typeof canSeeJob!=='function'||canSeeJob(p));
- const sorted=[...visibleProjects].sort((a,b)=>{
+ // Site Measure and Studio installation work are two different jobs to a fitter even when
+ // the underlying array is one shared state.projects -- mixing them in one list was the
+ // actual clutter being reported, not just a display preference. isInstallationJob() is
+ // the same signal already used for the "ready to install" badge, just also used here to
+ // split the list instead of merely sorting it. Jobs never disappear from either group
+ // just by being opened -- Studio stays the master copy and a genuinely completed Site
+ // Measure visit removes itself once sendAllRoomsToStudio() confirms Studio has it (see
+ // that function), not by hiding it here.
+ const siteJobs=visibleProjects.filter(p=>!isInstallationJob(p));
+ const installJobs=[...visibleProjects.filter(isInstallationJob)].sort((a,b)=>{
    const fa=allRoomsFinished(a)?1:0,fb=allRoomsFinished(b)?1:0;
-   if(fa!==fb)return fa-fb;
-   return (hasCuttingList(a)?0:1)-(hasCuttingList(b)?0:1);
+   return fa-fb;
  });
- box.innerHTML=sorted.length?sorted.map(p=>{const display=projectRoomDisplay(p);const rooms=(p.rooms||[]).length;const units=(p.cabinets||[]).length;const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);const ready=hasCuttingList(p);const finished=allRoomsFinished(p);const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>`:'';const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';return `<div class="job"><div class="mobile-job-icon">${display.icon}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${badge}${syncBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-id="${p.id}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`}).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
- $$(".open-job").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.id;const p=project();state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;jobConfirmedThisSession=true;save();const hasCuttingList=(p.cabinets||[]).some(c=>(c.parts||[]).length>0);show(hasCuttingList?"install":"drawings")});
+ const siteHtml=siteJobs.length?siteJobs.map(jobCard).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
+ const installHtml=installJobs.length?`<div class="mobile-projects-title">Studio Installation Jobs</div><div class="mobile-projects-help">Sent from Studio for Panel Check and Find Panel.</div>`+installJobs.map(jobCard).join(""):"";
+ box.innerHTML=siteHtml+installHtml;
+ $$(".open-job").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.id;const p=project();state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;jobConfirmedThisSession=true;save();show(isInstallationJob(p)?"install":"drawings")});
  $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
 }
 function renderMeasure(){
@@ -2931,7 +2954,22 @@ function stripHeavyMediaForSync(project){
   (clone.jobLog||[]).forEach(entry=>{if((entry.photos||[]).length)entry.photos=[]});
   return clone;
 }
-async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+// Mirrors sendAllRoomsToStudio's own safe archive-on-confirmed-send pattern, but for the
+// installation side: once every room in a Studio job has genuinely been marked finished
+// (a deliberate, gated action -- see requireLeadFitter/#finishJobBtn) AND that state has
+// now actually reached Studio (this only ever runs right after a successful export, from
+// whichever action happened to trigger it -- the finish button itself, a later panel
+// action, or an automatic retry), there is nothing further for this phone to do with its
+// own copy. Studio remains the permanent record; if this project is ever reassigned and
+// resent, it arrives fresh via mergeStudioProject(), same as any other Studio packet.
+function archiveIfFinishedInstallation(p){
+ if(!isInstallationJob(p))return;
+ if(!(p.rooms||[]).length||!p.rooms.every(r=>r.finished))return;
+ if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);
+ state.projects=state.projects.filter(x=>x.id!==p.id);
+ if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}
+}
+async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';archiveIfFinishedInstallation(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
@@ -2941,7 +2979,7 @@ async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
     await sendPackDirectly(slimPack);
-    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';save();renderAll();
+    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';archiveIfFinishedInstallation(p);save();renderAll();
     if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
     return'sent';
   }catch(e2){
@@ -2975,12 +3013,18 @@ function studioSyncStatus(p){
   if(p.lastStudioSync)return{cls:'synced',label:'✓ Synced to Studio'};
   return{cls:'unsent',label:'Not sent yet'};
 }
-// The one obvious manual fallback asked for -- syncs every measured job in
-// one tap instead of opening each one individually. Runs silently per job
-// (no popup per job) and reports one clear summary at the end; each job's
-// own status badge in the list reflects the outcome afterwards.
+// The one obvious manual fallback asked for -- syncs every measured Site Measure job in
+// one tap instead of opening each one individually. Runs silently per job (no popup per
+// job) and reports one clear summary at the end; each job's own status badge in the list
+// reflects the outcome afterwards. Installation jobs are deliberately excluded: they
+// already sync automatically on every Panel Check scan, damage/missing report, and
+// finish action (see syncProgressSoon and the direct exportJob calls throughout), and a
+// Site Measure job that has already been confirmed-sent to Studio is removed from
+// state.projects entirely by sendAllRoomsToStudio() -- so this can only ever resync
+// still-active, unsent (or genuinely failed/queued) Site Measure work, never a completed
+// job or a Studio installation project.
 async function syncAllJobs(){
-  const jobs=state.projects.filter(p=>(p.rooms||[]).length);
+  const jobs=state.projects.filter(p=>(p.rooms||[]).length&&!isInstallationJob(p));
   if(!jobs.length){alert('No measured jobs to sync yet -- add a room first.');return}
   for(const p of jobs){try{await exportJob(p.id,true)}catch(e){}}
   renderProjects();
