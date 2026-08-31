@@ -158,6 +158,10 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .send-bar-status{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
 .send-bar-tick{flex:none;width:32px;height:32px;border-radius:50%;background:#e6f7ec;color:#16a34a;font-weight:900;display:flex;align-items:center;justify-content:center}
 .send-bar-text b{display:block;font-size:13px;font-weight:900;color:var(--ink);white-space:nowrap}
+.send-bar-sync{margin-top:3px;font-size:11px;font-weight:800;white-space:nowrap}
+.send-bar-sync.pending{color:#8a6300}
+.send-bar-sync.blocked{color:#bf1f29}
+.send-bar-sync.synced{color:#16a34a}
 .send-bar-text small{display:block;font-size:11px;color:var(--muted);font-weight:700}
 .send-bar-btn{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.25;padding:10px 16px;min-height:52px;border-radius:12px}
 .send-bar-btn span{font-size:14px;font-weight:900}
@@ -1022,8 +1026,8 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section id="sentToStudio" class="screen">
  <div class="sts-body">
   <div class="sts-tick">✓</div>
-  <h2>Sent to Studio!</h2>
-  <p class="muted">Your site visit has been received. You can start a new site job.</p>
+  <h2>Received by Studio ✓</h2>
+  <p class="muted">Studio has confirmed it received your site visit.</p>
   <div class="sts-summary" id="stsSummary"></div>
   <button type="button" class="btn primary sts-new-btn" id="stsStartNewBtn">Start new site job</button>
  </div>
@@ -2293,7 +2297,9 @@ function renderSendBar(){
  const rooms=(p.rooms||[]).filter(x=>(x.measureCaptures||[]).length);
  if(!rooms.length){box.innerHTML='';return}
  const totalPhotos=rooms.reduce((n,x)=>n+(x.measureCaptures||[]).length,0);
- box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'}</small></div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>`;
+ const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
+ const syncLine=sync&&sync.cls!=='unsent'?`<div class="send-bar-sync ${sync.cls}">${sync.label}</div>`:'';
+ box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>`;
  document.getElementById('sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
 }
 // Tapping a finished room's own tile edits ONLY that room -- its photos live
@@ -2605,12 +2611,14 @@ function renderSentToStudio(){
  el.innerHTML=`<div class="sts-summary-row">🏠 <b>${s.rooms}</b> room${s.rooms===1?'':'s'}</div><div class="sts-summary-row">📷 <b>${s.photos}</b> photo${s.photos===1?'':'s'}</div><div class="sts-summary-row">📝 <b>${s.notes}</b> note${s.notes===1?'':'s'}</div>`;
 }
 document.getElementById('stsStartNewBtn')?.addEventListener('click',()=>newJob());
-// Do NOT clear the active visit just because Send was tapped -- exportJob's
-// own retry/fallback path sets p.studioSyncBlocked when the upload genuinely
-// failed (bad signal, packet too large, etc). Only when that flag is still
-// false after exportJob resolves do we treat the upload as acknowledged and
-// move the visit out of the active workspace. On failure, everything stays
-// exactly as it was and the fitter can just tap Send to Studio again.
+// Do NOT clear the active visit, delete anything, or show the success screen just
+// because Send was tapped and the write succeeded -- a resolved Firestore write only
+// proves the packet reached Studio's waiting queue, not that Studio has it. The only
+// genuine acknowledgement is Studio itself flipping that exact document's status to
+// 'received' once it has actually merged the packet in, which checkPendingStudioReceipts
+// (on the existing poll loop) watches for and which is what actually archives the job and
+// shows the tick -- see there. This function's job is only ever: attempt the write, record
+// which document to watch, and leave everything else exactly as it was on any failure.
 async function sendAllRoomsToStudio(p){
  const rooms=(p.rooms||[]).filter(x=>(x.measureCaptures||[]).length);
  if(!rooms.length)return;
@@ -2622,8 +2630,8 @@ async function sendAllRoomsToStudio(p){
  // return value -- studioSyncBlocked alone is never set for the transient/no-signal case.
  const status=await exportJob(p.id,true);
  if(btn){btn.disabled=false;const span=btn.querySelector('span');if(span)span.textContent='🚀 SEND TO STUDIO'}
+ renderSendBar();
  if(status!=='sent'){
-  renderSendBar();
   alert(status==='queued'
    ? 'No signal right now. Nothing was lost -- your site visit is still saved on this phone and will send to Studio automatically once you have signal.'
    : 'Could not reach Studio. Nothing was lost -- your site visit is still saved on this phone. Tap Send to Studio again once you have signal.');
@@ -2637,19 +2645,14 @@ async function sendAllRoomsToStudio(p){
  });
  p.sentPhotoCount=(p.sentPhotoCount||0)+sentTotal;
  window.__lastSentSummary={rooms:rooms.length,photos:rooms.reduce((n,x)=>n+(x.measureCaptures||[]).length,0),notes:notesCount};
- // A confirmed send means Studio now has the master copy -- Mobile keeping its own copy
- // sitting in the active working area forever is exactly how that screen turns into an
- // archive of every job ever measured. Rather than deleting it outright (retention policy
- // is still an open question), it's flagged mobileArchived and moves into the collapsed
- // "Sent to Studio" section instead -- the data survives, it's just out of the way. Studio
- // can always push it back (as a studioToMobilePacket) if it's later assigned to a fitter
- // for Panel Check or Install, which arrives through the separate inbox merge in
- // mergeStudioProject() and clears the archived flag there.
- if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);
- p.mobileArchived=true;p.mobileArchivedAt=new Date().toISOString();
- state.currentProject=null;
+ if(p.lastStudioSyncDocId)p.pendingStudioReceiptDocId=p.lastStudioSyncDocId;
  save();
- show('sentToStudio');
+ renderSendBar();
+ // Nothing else to do here -- the job stays fully active and visible ("Waiting to send",
+ // via studioSyncStatus/renderSendBar) until checkPendingStudioReceipts sees Studio's own
+ // confirmation on the next poll (every 2.5s, plus on focus/visibility), at which point it
+ // archives the job and -- only if the fitter is still on this exact screen -- shows the
+ // success tick before returning home automatically.
 }
 function renderRooms(){
  let p=project();
@@ -3065,12 +3068,25 @@ const SYNC_GIVE_UP_MS=45000;
 window.retryPendingStudioSync=async function(){
   let arr;try{arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]")}catch(e){arr=[]}
   if(!arr.length)return;
-  let dirty=false;
+  let dirty=false,projectsChanged=false;
   for(let i=0;i<arr.length;i++){
     const entry=arr[i];
     try{
-      await sendPackDirectly(entry.pack);
+      const result=await sendPackDirectly(entry.pack);
       arr[i]=null;dirty=true;
+      // The write succeeding here only means the retry itself got through -- it's the
+      // exact same "not yet confirmed" situation as a first-try success, so this must
+      // feed the same pendingStudioReceiptDocId/checkPendingStudioReceipts path rather
+      // than being treated as done. Without this, a job that failed once and only
+      // recovered via this background retry would never get archived even after Studio
+      // genuinely confirms it, because nothing would be watching its doc.
+      const proj=state.projects.find(x=>x.id===entry.pack.project?.id);
+      if(proj){
+        proj.lastStudioSync=entry.pack.exportedAt;proj.studioSyncBlocked=false;proj.studioSyncBlockedReason='';
+        if(result&&result.docId)proj.pendingStudioReceiptDocId=result.docId;
+        if(typeof archiveIfFinishedInstallation==='function')archiveIfFinishedInstallation(proj);
+        projectsChanged=true;
+      }
     }catch(e){
       if(!entry.gaveUp&&Date.now()-entry.queuedAt>SYNC_GIVE_UP_MS){
         entry.gaveUp=true;dirty=true;
@@ -3080,6 +3096,7 @@ window.retryPendingStudioSync=async function(){
     }
   }
   if(dirty){try{localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.filter(Boolean)))}catch(e){}}
+  if(projectsChanged){save();renderAll()}
 };
 // A job's full export only ever grows -- every site photo, measurement capture and
 // damage/install photo it has ever collected gets resent every single time, because
@@ -3112,7 +3129,7 @@ function archiveIfFinishedInstallation(p){
  p.mobileArchived=true;p.mobileArchivedAt=new Date().toISOString();
  if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}
 }
-async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';archiveIfFinishedInstallation(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{const sendResult=await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.lastStudioSyncDocId=sendResult.docId;archiveIfFinishedInstallation(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
@@ -3121,8 +3138,8 @@ async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if
   return'queued'}
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
-    await sendPackDirectly(slimPack);
-    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';archiveIfFinishedInstallation(p);save();renderAll();
+    const slimResult=await sendPackDirectly(slimPack);
+    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.lastStudioSyncDocId=slimResult.docId;archiveIfFinishedInstallation(p);save();renderAll();
     if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
     return'sent';
   }catch(e2){
@@ -3146,14 +3163,23 @@ async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if
 // blocked (needs the fitter/office to do something, see studioSyncBlocked
 // above), synced, or never sent yet. Jobs with no rooms yet have nothing to
 // sync, so they get no status at all.
+// A resolved write only proves the packet reached Studio's queue, not that Studio has
+// it -- 'synced' is only ever shown once studioReceivedAt is actually set (by
+// checkPendingStudioReceipts, watching Studio's own status flip on that exact document).
+// Everything between "not sent yet" and genuinely confirmed -- queued for retry, written
+// but still awaiting confirmation, or an old record from before this field existed --
+// collapses into one simple "Waiting to send", matching the fitter-facing states: they
+// don't need to know which of those it technically is, only that nothing is lost and
+// nothing needs doing yet.
 function studioSyncStatus(p){
   if(!p||!(p.rooms||[]).length)return null;
   try{
     const pending=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]");
-    if(pending.some(x=>x&&x.pack&&x.pack.project&&x.pack.project.id===p.id))return{cls:'pending',label:'⏳ Waiting to sync'};
+    if(pending.some(x=>x&&x.pack&&x.pack.project&&x.pack.project.id===p.id))return{cls:'pending',label:'⏳ Waiting to send'};
   }catch(e){}
   if(p.studioSyncBlocked)return{cls:'blocked',label:'⚠ Needs attention'};
-  if(p.lastStudioSync)return{cls:'synced',label:'✓ Synced to Studio'};
+  if(p.studioReceivedAt)return{cls:'synced',label:'✓ Received by Studio'};
+  if(p.pendingStudioReceiptDocId||p.lastStudioSync)return{cls:'pending',label:'⏳ Waiting to send'};
   return{cls:'unsent',label:'Not sent yet'};
 }
 // The one obvious manual fallback asked for -- syncs every measured Site Measure job in
@@ -3195,7 +3221,48 @@ function syncProgressSoon(id){
 // of being left as a second, easy-to-mistakenly-edit copy of the same job.
 let receivingStudioPack=false;
 try{const directChannel=new BroadcastChannel("assembleone-sync");directChannel.addEventListener("message",e=>{if(e.data?.type==="studio-published"||e.data?.type==="mobile-update")window.receiveStudioDirect()})}catch(e){}
-function pollStudioSync(){if(typeof window.receiveStudioDirect==="function")window.receiveStudioDirect();if(typeof window.retryPendingStudioSync==="function")window.retryPendingStudioSync()}
+// A Site Measure send's write reaching Firestore is not proof Studio has it -- only
+// Studio flipping this exact document's own status to 'received' (in removeInboxPacket,
+// once it has actually merged the packet with mergeMobileProject) is. This piggybacks the
+// existing 2.5s poll loop below instead of adding a second timer, and only ever reads at
+// most one document per project still waiting on confirmation -- there is normally only
+// one such job at a time, so this is not a heavier retry loop, just one more cheap check
+// on an interval that already exists.
+async function checkPendingStudioReceipts(){
+ const pending=state.projects.filter(p=>p.pendingStudioReceiptDocId&&!p.mobileArchived);
+ if(!pending.length)return;
+ const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+ if(!fs||!db||!user||!user.companyId)return;
+ let changed=false;
+ for(const p of pending){
+  try{
+   const snap=await fs.getDoc(fs.doc(db,'companies',user.companyId,'jobs',p.pendingStudioReceiptDocId));
+   const data=snap.exists()?snap.data():null;
+   if(data&&data.status==='received'){
+    p.pendingStudioReceiptDocId=null;
+    p.studioReceivedAt=new Date().toISOString();
+    if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);
+    p.mobileArchived=true;p.mobileArchivedAt=p.studioReceivedAt;
+    changed=true;
+    if(typeof onStudioReceiptConfirmed==='function')onStudioReceiptConfirmed(p);
+   }
+  }catch(e){console.error('Checking Studio receipt failed',e)}
+ }
+ if(changed){save();renderAll();if(typeof renderSendBar==='function')renderSendBar()}
+}
+// Only interrupts the fitter with the success screen if they're genuinely still sitting
+// on this exact job's Site Visit Summary waiting for it -- confirmation arrives on a
+// background poll and could just as easily land while they've moved on to a different
+// job or the scanner, and forcing them back to a finished send they're no longer looking
+// at would be more disruptive than useful. In that case the job simply appears in the
+// collapsed Sent to Studio section next time they check My Projects.
+function onStudioReceiptConfirmed(p){
+ if(state.currentProject!==p.id)return;
+ if(state.screen!=='siteVisitSummary'&&state.screen!=='newSiteJob')return;
+ show('sentToStudio');
+ setTimeout(()=>{if(state.screen==='sentToStudio')show('projects')},1600);
+}
+function pollStudioSync(){if(typeof window.receiveStudioDirect==="function")window.receiveStudioDirect();if(typeof window.retryPendingStudioSync==="function")window.retryPendingStudioSync();if(typeof checkPendingStudioReceipts==="function")checkPendingStudioReceipts()}
 window.addEventListener("focus",pollStudioSync);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pollStudioSync()});setInterval(pollStudioSync,2500);setTimeout(pollStudioSync,400);
 
 function allProjectParts(p=project()){return p?(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({pt,c}))):[]}
@@ -4553,7 +4620,12 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     if(approxBytes>900000)throw new Error("This site job's photos are too large to send to Studio in one go (about "+Math.round(approxBytes/1024)+"KB). Remove a photo or two, or use the backup file instead.");
     const ref=await fs.addDoc(fs.collection(db,"companies",user.companyId,"jobs"),envelope);
     try{new BroadcastChannel("assembleone-sync").postMessage({type:"mobile-update",syncId:ref.id,channel:CHANNEL})}catch(e){}
-    return true;
+    // The write resolving only proves the packet reached Studio's waiting queue, not that
+    // Studio has it -- callers that need real confirmation (see checkPendingStudioReceipts)
+    // watch this exact document's own status field, which Studio itself flips to
+    // 'received' only once it has actually merged the packet in (removeInboxPacket),
+    // the same acknowledgement pattern already used for the Studio-to-Mobile direction.
+    return {docId:ref.id};
   };
 
   // mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the phone-to-Studio
