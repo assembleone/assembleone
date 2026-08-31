@@ -1879,8 +1879,8 @@ function wardrobeButtons(target,onclick){
 const roomTypes=[
  ["Kitchen","🍳"],["Living Room","🛋️"],["TV Wall","📺"],["Master Bedroom","🛏️"],["Bedroom","🛏️"],["Kids Bedroom","🧸"],["Dressing Room","👕"],["Bathroom","🚿"],["Office","💼"],["Laundry","🧺"],["Utility Room","📦"],["Hallway","🚪"],["Under Stairs","🪜"],["Wine Room","🍷"],["Library","📚"],["Custom","＋"]
 ];
-const roomTypeKeyMap={"Kitchen":"kitchen","Living Room":"livingRoom","TV Wall":"tvWall","Master Bedroom":"masterBedroom","Bedroom":"bedroom","Kids Bedroom":"kidsBedroom","Dressing Room":"dressingRoom","Bathroom":"bathroom","Office":"office","Laundry":"laundry","Utility Room":"utilityRoom","Hallway":"hallway","Under Stairs":"underStairs","Wine Room":"wineRoom","Library":"library","Custom":"custom"};
-function roomTypeLabel(n){return t('roomType.'+(roomTypeKeyMap[n]||n))}
+// roomTypeKeyMap/roomTypeLabel now come from the shared i18n.js (Stage 2 of the
+// multilingual audit) so Studio and Mobile use the exact same definitions.
 const currentRoom=()=>project()?.rooms?.find(r=>r.id===state.currentRoom)||null;
 function suggestedRoomName(type){const p=project(),same=(p?.rooms||[]).filter(r=>r.type===type);return same.length?`${roomTypeLabel(type)} ${same.length+1}`:roomTypeLabel(type)}
 function openRoomCreator(){

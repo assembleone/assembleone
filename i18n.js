@@ -151,6 +151,17 @@ const I18N={
 function currentLang(){return localStorage.getItem('assembleone_mobile_lang')||'en'}
 function setLang(lang){localStorage.setItem('assembleone_mobile_lang',lang);paintLangButtons();renderAll();applyI18n()}
 function t(key,params){const lang=currentLang();let s=(I18N[lang]&&I18N[lang][key])||I18N.en[key]||key;if(params)params.forEach((v,i)=>{s=s.split('{'+i+'}').join(v)});return s}
+// Stage 2 of the multilingual audit: shared room-type key/label split so Studio
+// and Mobile store the exact same stable English `type` value (used for saved
+// data and Studio<->Mobile syncing) but can each show a translated label for
+// it. roomTypeKeyMap/roomTypeLabel are copied from Mobile's existing, working
+// version, with one behaviour change: an unmapped type (a legacy or custom
+// room whose stored type isn't one of the 16 known values) now falls back to
+// showing its own raw value instead of a raw, untranslated "roomType.xxx" key
+// string -- this path was never exercised by Mobile's fixed-picker usage, so
+// it's a pure safety improvement, not a change to any real existing behaviour.
+const roomTypeKeyMap={"Kitchen":"kitchen","Living Room":"livingRoom","TV Wall":"tvWall","Master Bedroom":"masterBedroom","Bedroom":"bedroom","Kids Bedroom":"kidsBedroom","Dressing Room":"dressingRoom","Bathroom":"bathroom","Office":"office","Laundry":"laundry","Utility Room":"utilityRoom","Hallway":"hallway","Under Stairs":"underStairs","Wine Room":"wineRoom","Library":"library","Custom":"custom"};
+function roomTypeLabel(n){const key=roomTypeKeyMap[n];return key?t('roomType.'+key):(n||'')}
 const LANG_NAMES={en:'English',es:'Español',da:'Dansk',de:'Deutsch',fr:'Français',ro:'Română',it:'Italiano',pt:'Português',nl:'Nederlands',pl:'Polski'};
 const LANG_FLAGS={
  en:'<svg viewBox="0 0 60 36"><rect fill="#21468B" height="36" width="60"/><path d="M0 0L60 36M60 0L0 36" stroke="#fff" stroke-width="8"/><path d="M0 0L60 36M60 0L0 36" stroke="#C8102E" stroke-width="4"/><path d="M30 0v36M0 18h60" stroke="#fff" stroke-width="12"/><path d="M30 0v36M0 18h60" stroke="#C8102E" stroke-width="7"/></svg>',
