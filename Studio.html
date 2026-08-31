@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon_32.png?v=4"><link rel="apple-touch-icon" href="assets/icon_180.png?v=4"><link rel="manifest" href="manifest-studio.json?v=4"><title>FittersIQ Studio 4.6</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon_32.png?v=4"><link rel="apple-touch-icon" href="assets/icon_180.png?v=4"><link rel="manifest" href="manifest-studio.json?v=4"><title>FittersIQ Studio 4.7</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -2779,7 +2779,17 @@ async function applyOneSitePacket(pack){
  const incoming=ensureSharedProject(pack.project||pack);
  if(pack.exportedAt)incoming._packetExportedAt=pack.exportedAt;
  const merged=mergeMobileProject(incoming);
- await removeInboxPacket(pack.syncId||pack.exportedAt);
+ // Persist this merge locally BEFORE telling Firestore the packet is
+ // received. Marking it 'received' permanently excludes it from every
+ // future fetchCloudSitePackets() query (status=='waiting' only, and there
+ // is no other read of this collection) -- so if the merge above never
+ // durably lands in localStorage/IndexedDB (tab closed, crash, or another
+ // tab's own autosave overwriting state first), a job that WAS successfully
+ // merged is permanently unrecoverable, with Studio never able to ask
+ // Firestore for it again even though the data is still sitting there.
+ // Only mark it consumed once the save has actually succeeded.
+ const saved=typeof save==='function'?await save():true;
+ if(saved!==false)await removeInboxPacket(pack.syncId||pack.exportedAt);
  const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0];
  const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(merged);
  const roomId=room?.id||'';
@@ -2803,6 +2813,43 @@ async function autoImportSitePackets(){
    return true;
  }catch(e){console.error('Auto-import of site packets failed',e);return false}
 }
+// Safety net, mirroring Mobile's recoverAccessibleCompanyJobs (see the long
+// comment on that function): fetchCloudSitePackets() above only ever queries
+// status=='waiting', and applyOneSitePacket marks a packet 'received' the
+// moment it's merged. Neither of those things deletes the underlying
+// Firestore doc -- the full job data is still sitting there under
+// companies/{companyId}/jobs even after 'received'. If a merge was ever
+// interrupted before its save durably landed (see the comment in
+// applyOneSitePacket), the job silently vanishes from local storage with no
+// way for the normal sync path to ever ask Firestore for it again. This
+// re-reads every siteJobPacket doc regardless of status and re-merges any
+// whose project isn't actually present locally -- mergeMobileProject is safe
+// to call repeatedly (merges by id, only adds rooms not already held), so
+// this recovers a job that's still fully intact locally as a no-op, and
+// restores one that was lost. Runs once per app open (see unlockApp), not on
+// an ongoing interval, matching Mobile's own reasoning for the same pattern.
+async function recoverAllCompanySiteJobs(){
+ try{
+  const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+  if(!fs||!db||!user||!user.companyId)return false;
+  const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'));
+  const snap=await fs.getDocs(q);
+  let changed=false;
+  snap.forEach(docSnap=>{
+   const data=docSnap.data()||{};
+   const incoming=data.project||data;
+   if(!incoming||!incoming.id||!Array.isArray(incoming.cabinets))return;
+   const already=state.projects.find(x=>x.id===incoming.id);
+   if(already&&(already.rooms||[]).length>=(incoming.rooms||[]).length)return;
+   const shared=ensureSharedProject(incoming);
+   if(data.exportedAt)shared._packetExportedAt=data.exportedAt;
+   mergeMobileProject(shared);
+   changed=true;
+  });
+  if(changed){await save();renderAll()}
+  return changed;
+ }catch(e){console.error('Site job recovery failed',e);return false}
+}
 async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert('No new site jobs are waiting.');return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
 document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
@@ -2821,7 +2868,13 @@ document.getElementById('siteInboxLater')?.addEventListener('click',()=>document
 try{const syncChannel=new BroadcastChannel("assembleone-sync");syncChannel.onmessage=()=>{paintSiteInbox();autoImportSitePackets()}}catch(e){}
 window.addEventListener('storage',e=>{if(e.key===DIRECT_SYNC_FALLBACK){paintSiteInbox();autoImportSitePackets()}});
 setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox();if(typeof autoImportSitePackets==='function')autoImportSitePackets()},30000);
-setInterval(paintSiteInbox,1800);setTimeout(paintSiteInbox,200);
+// Was setInterval(paintSiteInbox,1800) -- almost certainly a units slip
+// (1.8 SECONDS, not 1800 of anything meaningful), quietly re-querying
+// Firestore roughly 16x more often than the comprehensive 30s interval
+// two lines up already does, for no extra benefit. Keep just the fast
+// first paint; the 30s interval and the explicit sign-in/broadcast/
+// storage/panel-check triggers already cover ongoing refresh.
+setTimeout(paintSiteInbox,200);
 
 async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);switchToProject(incoming.id,incoming.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
 // #exportMobileBtn (Finish and Send, removed) called exportProjectToMobile() directly --
@@ -4410,6 +4463,22 @@ body.guide-only .a131-back-studio{display:block}
   async function stableSave(showNotice){
     commitVisible();
     try{
+      // Every open tab/session holds its own full in-memory `state` and this
+      // function overwrites localStorage/IndexedDB wholesale, with no
+      // cross-tab coordination -- so if another tab merged a job (e.g. a
+      // site job just synced in) and saved first, this save would otherwise
+      // silently discard it the moment this tab's own 4-second autosave
+      // fires next. Rescue anything present in the current on-disk state
+      // that this tab doesn't know about before writing over it -- only
+      // adds projects this tab is missing entirely, never touches ones it
+      // already has.
+      try{
+        const stored=JSON.parse(localStorage.getItem(STORE)||'null');
+        const storedProjects=stored&&Array.isArray(stored.projects)?stored.projects:[];
+        const knownIds=new Set((state.projects||[]).map(p=>p.id));
+        const missing=storedProjects.filter(p=>p&&p.id&&!knownIds.has(p.id));
+        if(missing.length){state.projects=state.projects||[];missing.forEach(p=>state.projects.push(p))}
+      }catch(e){}
       const light=cloneLight();
       localStorage.setItem(STORE,JSON.stringify(light));
       sessionStorage.setItem(STORE+'_draft',JSON.stringify(light));
@@ -5712,6 +5781,7 @@ body.fiq-locked .app{display:none!important}
     if(badge){badge.style.display='flex'; $('fiqAccountEmail').textContent=user.email;}
     if(typeof paintSiteInbox==='function')paintSiteInbox();
     if(typeof autoImportSitePackets==='function')autoImportSitePackets();
+    if(typeof recoverAllCompanySiteJobs==='function')recoverAllCompanySiteJobs();
     if(typeof window.a202SyncTopbarName==='function')window.a202SyncTopbarName();
     if(typeof window.a216MaybeShowStudioOnboarding==='function')window.a216MaybeShowStudioOnboarding(claims);
     if(claims.companyId){
