@@ -1610,6 +1610,14 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 
 </main>
 </div>
+<!-- Multilingual Stage 0: load the shared i18n engine (extracted verbatim from
+     Mobile.html's existing, working I18N/t() system) so it's available for a
+     later stage to actually wire Studio up to it. Nothing in Studio calls any
+     of these functions yet -- this is purely additive, inert plumbing. The
+     small APP_I18N dictionary right below is Studio's own, separate,
+     pre-existing 6-key stub (relabels only the Start Project screen) and is
+     untouched. -->
+<script src="i18n.js?v=1"></script>
 <script>
 
 const APP_I18N={
