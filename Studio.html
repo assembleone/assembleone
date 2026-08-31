@@ -1561,6 +1561,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </section>
 <section class="screen" id="screen-parts">
 <div class="title-row"><div><h2>Panel Check</h2><div class="muted">Check every panel before making the cutting list.</div></div></div>
+<div id="customerSheetEstimateCard"></div>
 <div id="panelCheckStatusBanner"></div>
 <div id="installProgressCard"></div>
 <div id="estimatedMaterialsCard"></div>
@@ -6148,6 +6149,68 @@ body.fiq-locked .app{display:none!important}
   }
   var prevRenderParts=window.renderParts;
   window.renderParts=function(){var r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
+  try{render()}catch(e){}
+})();
+</script>
+<style id="a213-customer-sheet-estimate-style">
+.cust-sheet-card{border-color:#8fa8df}
+.cust-sheet-customer{font-weight:900;font-size:15px;color:var(--ink);margin-bottom:2px}
+.cust-sheet-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-weight:700}
+.cust-sheet-row:first-of-type{border-top:none}
+.cust-sheet-count{font-weight:900;color:#0051ff;white-space:nowrap}
+</style>
+<script id="a213-customer-sheet-estimate-script">
+(function(){
+  // materialForPanel() falls back to whichever project/cabinet is *currently open* --
+  // wrong here since almost every panel being combined belongs to a *different* job (and
+  // often a different cabinet) than the one currently open. Same reasoning, same fix, as
+  // exportCombinedSupplierCsv's inlined material fallback: resolve each panel's material
+  // from its own job/cabinet, never the shared helper.
+  function resolvedMaterial(pr,c,p){return String(p.material||pr.defaultMaterial||c.lastMaterial||'').trim()}
+  function isPanelComplete(pr,c,p){
+    return Boolean(String(p&&p.name||'').trim()&&Number(p&&p.length)>0&&Number(p&&p.width)>0&&Number(p&&p.thickness)>0&&Number(p&&p.qty)>0&&resolvedMaterial(pr,c,p));
+  }
+  // Reuses the exact same packer (window.a181Pack) and per-material sheet settings
+  // (window.a181CfgFor/a181LoadSettings) as the Sheet Optimiser and the single-job
+  // Estimated Sheets card above -- only the "which panels to feed it" logic is new here
+  // (every complete panel from every job this customer has, not just the open job's).
+  function render(){
+    const box=document.getElementById('customerSheetEstimateCard');if(!box)return;
+    const p=(typeof project==='function')?project():null;
+    const customer=(p&&typeof customerFor==='function')?customerFor(p):null;
+    if(!p||!customer||typeof window.a181Pack!=='function'||typeof window.a181CfgFor!=='function'){box.innerHTML='';return}
+    const jobs=(typeof customerProjects==='function')?customerProjects(customer.id):[];
+    if(jobs.length<2){box.innerHTML='';return} // nothing to combine -- the single-job card already covers this
+    const byKey={};
+    jobs.forEach(pr=>{
+      (pr.cabinets||[]).forEach(c=>{
+        (c.parts||[]).filter(pt=>isPanelComplete(pr,c,pt)).forEach(pt=>{
+          const mat=resolvedMaterial(pr,c,pt);
+          const gk=mat.toLowerCase()+'__'+(pt.thickness||0);
+          (byKey[gk]=byKey[gk]||{material:mat,thickness:pt.thickness,pieces:[]});
+          const n=Math.max(1,Number(pt.qty)||1);
+          for(let i=0;i<n;i++)byKey[gk].pieces.push({w:Number(pt.length)||0,h:Number(pt.width)||0});
+        });
+      });
+    });
+    const settings=window.a181LoadSettings?window.a181LoadSettings():{};
+    const groups=Object.keys(byKey).map(gk=>{
+      const g=byKey[gk];
+      const cfg=window.a181CfgFor(settings,g.material,g.thickness);
+      const res=window.a181Pack(g.pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
+      return {material:g.material,thickness:g.thickness,sheets:res.sheets.length};
+    }).sort((a,b)=>b.sheets-a.sheets);
+    if(!groups.length){box.innerHTML='';return}
+    const rows=groups.map(g=>'<div class="cust-sheet-row"><span class="cust-sheet-mat">'+safe(g.material)+' · '+safe(g.thickness)+'mm</span><span class="cust-sheet-count">'+g.sheets+' sheet'+(g.sheets===1?'':'s')+'</span></div>').join('');
+    box.innerHTML='<div class="est-mat-card cust-sheet-card">'+
+      '<div class="cust-sheet-customer">👤 '+safe(customer.name)+'</div>'+
+      '<div class="est-mat-title">🧾 Estimated Sheets Required — all '+jobs.length+' jobs</div>'+
+      rows+
+      '<div class="est-mat-note">Estimate only. Combines every job on file for this customer, kept separate by material and thickness.</div>'+
+    '</div>';
+  }
+  const prevRenderParts2=window.renderParts;
+  window.renderParts=function(){const r=prevRenderParts2?prevRenderParts2.apply(this,arguments):undefined;render();return r};
   try{render()}catch(e){}
 })();
 </script>
