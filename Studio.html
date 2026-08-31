@@ -7922,6 +7922,41 @@ body.fiq-locked .app{display:none!important}
   },1000);
 })();
 </script>
+<script id="a217-measurement-scroll-safety">
+// Chrome/Edge/Firefox all change a focused <input type="number">'s value when
+// the mouse wheel or trackpad scrolls over it -- exactly the panel thickness/
+// length/width/quantity fields, sheet settings, sticker sizes and hardware
+// quantities Studio uses everywhere. Scrolling the page while the cursor
+// happens to pass over one of these silently edits a manufacturing dimension.
+// Fix: the instant a wheel event reaches a focused number input, blur it.
+// Deliberately NOT preventDefault() -- that would also block the page from
+// scrolling while the cursor is over the field, which is the opposite of
+// what's needed (the page must keep scrolling normally; only the value must
+// never change). Delegated on document with capture so it applies to every
+// number input already in the page AND any rendered later, without touching
+// each field's markup individually.
+document.addEventListener('wheel',function(e){
+  var el=document.activeElement;
+  if(el&&el===e.target&&el.tagName==='INPUT'&&el.type==='number')el.blur();
+},{passive:true,capture:true});
+
+// Arrow-key up/down on a number input only changes its value while that
+// input is genuinely focused -- there's no separate page-level arrow-key
+// handler in Studio for this to conflict with, and a focused field IS the
+// normal, intentional way to edit one, so that part is left alone. The real
+// risk is focus lingering on a number field after the user has clearly moved
+// on: clicking a button or another field already blurs it, but clicking
+// plain page content (not itself focusable) does not, by default, so the
+// field can stay silently focused while the user thinks they're done with
+// it. If they then press an arrow key expecting to navigate/scroll, it
+// silently changes the dimension instead. Blurring on any click elsewhere
+// closes that gap without touching arrow-key behaviour while a field is
+// actually being edited.
+document.addEventListener('mousedown',function(e){
+  var el=document.activeElement;
+  if(el&&el!==e.target&&el.tagName==='INPUT'&&el.type==='number')el.blur();
+},true);
+</script>
 <script src="fittersiq-help.js"></script>
 </body>
 </html>
