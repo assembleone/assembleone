@@ -3836,8 +3836,8 @@ load();
 (function(){
  const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)];
  const allTrades=["Builder","Bricklayer","Plumber","Electrician","Decorator","Carpenter","Wardrobes","Flooring","Kitchen Installer","Tiler","HVAC / Air Conditioning","Heating","Windows","Doors","Roofer","Landscaper","Supplier","Client","Other"];
- const tradeKeyMap={"Builder":"builder","Bricklayer":"bricklayer","Plumber":"plumber","Electrician":"electrician","Decorator":"decorator","Carpenter":"carpenter","Wardrobes":"wardrobes","Flooring":"flooring","Kitchen Installer":"kitchenInstaller","Tiler":"tiler","HVAC / Air Conditioning":"hvac","Heating":"heating","Windows":"windows","Doors":"doors","Roofer":"roofer","Landscaper":"landscaper","Supplier":"supplier","Client":"client","Other":"other"};
- function tradeLabel(n){return t('trade.'+(tradeKeyMap[n]||n))}
+ // tradeKeyMap/tradeLabel now come from the shared i18n.js (Stage 4 Site Planner
+ // section of the multilingual audit) so Studio and Mobile use the same map.
  const icons={Builder:"👷",Bricklayer:"🧱",Plumber:"🚿",Electrician:"⚡",Decorator:"🎨",Carpenter:"🪚",Wardrobes:"🚪",Flooring:"▦","Kitchen Installer":"🍽️",Tiler:"◫","HVAC / Air Conditioning":"❄️",Heating:"🔥",Windows:"▤",Doors:"🚪",Roofer:"⌂",Landscaper:"🌿",Supplier:"📦",Client:"👤",Other:"＋"};
  let trade="Builder",icon="👷",status="new",pendingPhoto=null,pendingPoint=null,selectedId=null,moveMode=false,directPhoto=null,recipients=new Set();
  const current=()=>state.projects.find(p=>p.id===state.currentProject);
