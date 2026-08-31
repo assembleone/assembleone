@@ -1364,34 +1364,34 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </div>
 <div class="measure-entry-row">
 <div class="measure-box">
-<label class="measure-field"><span>Thickness</span><div class="measure-wrap unit-mm"><input id="fThickness" step="0.1" type="number" value="19"/><span id="thicknessUnitLabel">mm</span></div></label>
-<label class="measure-field"><span>Length <em class="with-grain-tag" title="The first measurement always follows the grain direction">With Grain</em></span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" title="Double-click to add edge banding" type="number"/><span id="lengthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
-<label class="measure-field"><span>Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" title="Double-click to add edge banding" type="number"/><span id="widthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
+<label class="measure-field"><span data-i18n="studio.drawing.thicknessLabel">Thickness</span><div class="measure-wrap unit-mm"><input id="fThickness" step="0.1" type="number" value="19"/><span id="thicknessUnitLabel">mm</span></div></label>
+<label class="measure-field"><span><span data-i18n="studio.drawing.lengthLabel">Length</span> <em class="with-grain-tag" data-i18n="studio.drawing.withGrainTag" data-i18n-title="studio.drawing.withGrainTitle" title="The first measurement always follows the grain direction">With Grain</em></span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" data-i18n-title="studio.drawing.doubleClickEdgeBanding" title="Double-click to add edge banding" type="number"/><span id="lengthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
+<label class="measure-field"><span data-i18n="studio.drawing.widthLabel">Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" data-i18n-title="studio.drawing.doubleClickEdgeBanding" title="Double-click to add edge banding" type="number"/><span id="widthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
 </div>
 <div class="quantity-card">
-<label class="measure-field"><span>Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" type="number" value="1"/><span>pcs</span></div></label>
+<label class="measure-field"><span data-i18n="studio.drawing.quantityLabel">Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" type="number" value="1"/><span>pcs</span></div></label>
 </div>
 </div>
-<div class="edge-help">Double-click the length or width number to add edge banding: no line → one line → double line.</div>
+<div class="edge-help" data-i18n="studio.drawing.edgeBandingHelp">Double-click the length or width number to add edge banding: no line → one line → double line.</div>
 <div aria-hidden="true" class="edge-control hidden-edge-control">
 <span id="edgeThickness"></span><button id="lengthEdgeBtn" type="button"><span id="lengthEdgeText"></span></button><button id="widthEdgeBtn" type="button"><span id="widthEdgeText"></span></button>
 </div>
 </div><div class="quick-main">
 <div class="quick-group">
-<button class="quick-main-btn" data-quick-menu="lr" type="button">Left / Right</button>
+<button class="quick-main-btn" data-quick-menu="lr" type="button" data-i18n="studio.drawing.leftRightMenu">Left / Right</button>
 <div class="quick-pop" id="quick-lr"><button data-quick-name="Side" type="button">Side</button><button data-quick-name="Left-hand side" type="button">Left-hand side</button><button data-quick-name="Right-hand side" type="button">Right-hand side</button></div>
 </div>
 <div class="quick-group">
-<button class="quick-main-btn" data-quick-menu="tb" type="button">Top / Bottom</button>
+<button class="quick-main-btn" data-quick-menu="tb" type="button" data-i18n="studio.drawing.topBottomMenu">Top / Bottom</button>
 <div class="quick-pop" id="quick-tb"><button data-quick-name="Top" type="button">Top</button><button data-quick-name="Bottom" type="button">Bottom</button></div>
 </div>
-<button class="quick-main-btn" data-quick-name="Back panel" type="button">Back</button>
+<button class="quick-main-btn" data-quick-name="Back panel" type="button" data-i18n="studio.drawing.backPanelBtn">Back</button>
 <details class="chosen-parts">
 <summary id="chosenPartSummary">Chosen Parts</summary>
 <div class="chosen-inner">
 <label class="part-name-combobox">
-<span class="sr-only">Part name</span>
-<input autocomplete="off" id="partNamePicker" list="partNameChoices" placeholder="Choose or type a part name…" spellcheck="true" type="text"/>
+<span class="sr-only" data-i18n="studio.drawing.partNameSrLabel">Part name</span>
+<input autocomplete="off" id="partNamePicker" list="partNameChoices" data-i18n-placeholder="studio.drawing.partNamePlaceholder" placeholder="Choose or type a part name…" spellcheck="true" type="text"/>
 </label>
 <datalist id="partNameChoices">
 <option value="Side"></option><option value="Side panel"></option><option value="Left-hand side"></option><option value="Right-hand side"></option><option value="Top"></option><option value="Bottom"></option><option value="Top and bottom"></option><option value="Back"></option><option value="Back panel"></option><option value="Divider"></option><option value="Centre divider"></option><option value="Middle divider"></option><option value="Vertical divider"></option><option value="Horizontal divider"></option><option value="Fixed shelf"></option><option value="Adjustable shelf"></option><option value="Shelf"></option><option value="Left shelf"></option><option value="Right shelf"></option><option value="Corner shelf"></option><option value="Hanging shelf"></option><option value="Top infill"></option><option value="Bottom infill"></option><option value="Infill"></option><option value="Left infill"></option><option value="Right infill"></option><option value="Plinth"></option><option value="Kickboard"></option><option value="Toe kick"></option><option value="Cover panel"></option><option value="End panel"></option><option value="Scribe panel"></option><option value="Filler panel"></option><option value="Door"></option><option value="Left door"></option><option value="Right door"></option><option value="Centre door"></option><option value="Pair of doors"></option><option value="Sliding door"></option><option value="Pocket door"></option><option value="Drawer front"></option><option value="Drawer side"></option><option value="Drawer left side"></option><option value="Drawer right side"></option><option value="Drawer back"></option><option value="Drawer bottom"></option><option value="Drawer divider"></option><option value="Drawer support"></option><option value="Base side"></option><option value="Wall cabinet side"></option><option value="Tall cabinet side"></option><option value="Base top"></option><option value="Base bottom"></option><option value="Wall cabinet top"></option><option value="Wall cabinet bottom"></option><option value="Base shelf"></option><option value="Wall shelf"></option><option value="Sink rail"></option><option value="Oven rail"></option><option value="Hob rail"></option><option value="Appliance panel"></option><option value="Fridge panel"></option><option value="Dishwasher panel"></option><option value="Worktop"></option><option value="Splashback"></option><option value="Desk top"></option><option value="Desk side"></option><option value="Modesty panel"></option><option value="Keyboard shelf"></option><option value="Printer shelf"></option><option value="Monitor shelf"></option><option value="TV panel"></option><option value="TV shelf"></option><option value="TV top"></option><option value="TV side"></option><option value="TV divider"></option><option value="Fireplace panel"></option><option value="Speaker shelf"></option><option value="Cable panel"></option><option value="Slatted panel"></option><option value="Bench top"></option><option value="Bench side"></option><option value="Seat top"></option><option value="Book shelf"></option><option value="Wine shelf"></option><option value="Bottle shelf"></option><option value="Washer shelf"></option><option value="Dryer shelf"></option><option value="Utility shelf"></option><option value="Hanging rail"></option><option value="LED profile"></option><option value="Light panel"></option><option value="Mirror panel"></option><option value="Glass shelf"></option><option value="Support"></option><option value="Cleat"></option><option value="Batten"></option><option value="Bracket"></option><option value="Handle"></option><option value="Clip"></option><option value="Custom panel"></option>
@@ -1496,16 +1496,16 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </details>
 
 <div class="toolbar panel-action-toolbar">
-<button class="btn primary" id="saveNextBtn">Save &amp; next</button>
+<button class="btn primary" id="saveNextBtn" data-i18n="studio.drawing.saveNextBtn">Save &amp; next</button>
 <div class="measure-meta-box reordered-meta">
 <details class="material-picker" id="materialPickerDetails">
 <summary id="materialSummary">Material — choose once for this job</summary>
 <div class="material-library-grid" id="materialLibraryGrid"></div>
 <div class="material-custom-row">
-<span>Type the exact material name used for this job.</span>
+<span data-i18n="studio.drawing.materialHelpText">Type the exact material name used for this job.</span>
 <div class="material-save-row">
-<input aria-label="Add another material" id="materialCustomInput" placeholder="e.g. Egger U708 Light Grey"/>
-<button class="btn primary" id="saveMaterialBtn" type="button">Save material</button>
+<input aria-label="Add another material" data-i18n-aria="studio.drawing.addAnotherMaterialAria" id="materialCustomInput" placeholder="e.g. Egger U708 Light Grey"/>
+<button class="btn primary" id="saveMaterialBtn" type="button" data-i18n="studio.drawing.saveMaterialBtn">Save material</button>
 </div>
 </div>
 </details>
@@ -1514,42 +1514,42 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <summary id="notesSummary">Notes — optional</summary>
 <div class="notes-library-grid" id="notesLibraryGrid"></div>
 <label class="notes-custom-row">
-<span>Add or use another note</span>
-<input aria-label="Add another note" id="notesCustomInput" placeholder="e.g. LED channel 70 mm from front"/>
+<span data-i18n="studio.drawing.addAnotherNoteLabel">Add or use another note</span>
+<input aria-label="Add another note" data-i18n-aria="studio.drawing.addAnotherNoteAria" id="notesCustomInput" placeholder="e.g. LED channel 70 mm from front"/>
 </label>
 </details>
 <input id="fNotes" type="hidden" value=""/>
 </div>
 <details class="panel-options">
-<summary>Panel options</summary>
+<summary data-i18n="studio.drawing.panelOptionsSummary">Panel options</summary>
 <div class="group-box">
-<span>Same panel markers:</span><span class="group-count" id="markerCount">1</span>
-<button class="btn" id="addSameMarkerBtn">+ Put same number on drawing</button>
-<button class="btn" id="makeUniqueBtn">Make selected marker unique</button>
+<span data-i18n="studio.drawing.samePanelMarkersLabel">Same panel markers:</span><span class="group-count" id="markerCount">1</span>
+<button class="btn" id="addSameMarkerBtn" data-i18n="studio.drawing.putSameNumberBtn">+ Put same number on drawing</button>
+<button class="btn" id="makeUniqueBtn" data-i18n="studio.drawing.makeUniqueBtn">Make selected marker unique</button>
 </div>
 </details>
-<button class="btn" id="deletePartBtn">Delete</button>
-<button class="btn primary panel-check-next-btn" id="checkAllPanelsBtn" type="button">✓ Check All Panels</button>
+<button class="btn" id="deletePartBtn" data-i18n="detail.delete">Delete</button>
+<button class="btn primary panel-check-next-btn" id="checkAllPanelsBtn" type="button" data-i18n="studio.drawing.checkAllPanelsBtn">✓ Check All Panels</button>
 </div>
 <div class="part-list" id="partList"></div>
 </aside>
 <div class="drawing-wrap">
 <div class="drawing-toolbar">
-<select aria-label="Wardrobe or cabinet" class="toolbar-select" id="cabinetSelect"></select>
+<select aria-label="Wardrobe or cabinet" data-i18n-aria="studio.drawing.wardrobeOrCabinetAria" class="toolbar-select" id="cabinetSelect"></select>
 <strong hidden="" id="drawingName">No drawing</strong>
-<button class="btn primary" id="pasteScreenshotBtn" title="Paste a copied screenshot or image">Paste drawing</button>
-<label class="file-btn">Choose drawing<input accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.pdf" id="drawingInputTop" type="file"/></label>
-<label class="file-btn phone-photo-btn">Take photo<input accept="image/*" capture="environment" id="drawingPhotoInput" type="file"/></label>
-<div aria-label="Rooms zoom controls" class="zoom-controls">
-<button class="btn" id="zoomOutBtn" title="Zoom out" type="button">−</button>
+<button class="btn primary" id="pasteScreenshotBtn" data-i18n-title="studio.drawing.pasteScreenshotTitle" title="Paste a copied screenshot or image" data-i18n="studio.drawing.pasteDrawingBtn">Paste drawing</button>
+<label class="file-btn" data-i18n="studio.drawing.chooseDrawingLabel">Choose drawing<input accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.pdf" id="drawingInputTop" type="file"/></label>
+<label class="file-btn phone-photo-btn" data-i18n="measure.takePhoto">Take photo<input accept="image/*" capture="environment" id="drawingPhotoInput" type="file"/></label>
+<div aria-label="Rooms zoom controls" data-i18n-aria="studio.drawing.zoomControlsAria" class="zoom-controls">
+<button class="btn" id="zoomOutBtn" data-i18n-title="studio.drawing.zoomOutTitle" title="Zoom out" type="button">−</button>
 <span class="zoom-value" id="zoomValue">100%</span>
-<button class="btn" id="zoomInBtn" title="Zoom in" type="button">+</button>
-<button class="btn" id="zoomFitBtn" title="Fit drawing" type="button">Fit</button>
+<button class="btn" id="zoomInBtn" data-i18n-title="studio.drawing.zoomInTitle" title="Zoom in" type="button">+</button>
+<button class="btn" id="zoomFitBtn" data-i18n-title="studio.drawing.fitDrawingTitle" title="Fit drawing" type="button" data-i18n="studio.drawing.fitBtn">Fit</button>
 </div>
 </div>
 <div class="drawing-stage" id="drawingStage" tabindex="0">
 <div class="drawing-canvas" id="drawingCanvas">
-<div class="empty" id="drawingEmpty"><strong>Drop a drawing, screenshot or photo here</strong><br/>Paste, drop, choose a file or take a photo.<br/><small>Use the buttons above, drag a drawing into this box, or press Ctrl + V after copying a screenshot.</small></div>
+<div class="empty" id="drawingEmpty"><strong data-i18n="studio.drawing.dropDrawingHere">Drop a drawing, screenshot or photo here</strong><br/><span data-i18n="studio.drawing.pasteDropChoosePhoto">Paste, drop, choose a file or take a photo.</span><br/><small data-i18n="studio.drawing.useButtonsAboveHint">Use the buttons above, drag a drawing into this box, or press Ctrl + V after copying a screenshot.</small></div>
 <img alt="Rooms" id="drawingImage"/><iframe id="drawingPdf" title="PDF drawing"></iframe>
 </div>
 </div>
@@ -1978,7 +1978,7 @@ function renderRooms(){
  const zoom=Math.max(.25,Math.min(4,Number(state.drawingZoom||1)));state.drawingZoom=zoom;if(c)c.viewState.zoom=zoom;$("#zoomValue").textContent=Math.round(zoom*100)+"%";
  function sizeCanvas(){const pad=28,availableW=Math.max(260,stage.clientWidth-pad),availableH=Math.max(320,stage.clientHeight-pad);if(c?.drawingType==="pdf"){canvas.style.width=Math.round(availableW*zoom)+"px";canvas.style.height=Math.round(availableH*zoom)+"px";return}const nw=img.naturalWidth||availableW,nh=img.naturalHeight||availableH,fit=Math.min(availableW/nw,availableH/nh,1);canvas.style.width=Math.max(180,Math.round(nw*fit*zoom))+"px";canvas.style.height=Math.max(180,Math.round(nh*fit*zoom))+"px"}
  sizeCanvas();
- canvas.querySelectorAll(".pin").forEach(x=>x.remove());canvas.querySelectorAll(".site-measure-overlay").forEach(x=>x.remove());img.style.display=pdf.style.display="none";empty.style.display="block";$("#drawingName").textContent=c?.drawingName||c?.name||"No drawing";
+ canvas.querySelectorAll(".pin").forEach(x=>x.remove());canvas.querySelectorAll(".site-measure-overlay").forEach(x=>x.remove());img.style.display=pdf.style.display="none";empty.style.display="block";$("#drawingName").textContent=c?.drawingName||c?.name||t("studio.drawing.noDrawingFallback");
  if(!c?.drawing)return;empty.style.display="none";
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
@@ -2040,7 +2040,7 @@ function renderMaterialPicker(){
  const names=[];
  [...savedMaterials(),...defaults].forEach(x=>{if(x&&!names.some(n=>n.toLowerCase()===x.toLowerCase()))names.push(x)});
  const summary=$("#materialSummary"),grid=$("#materialLibraryGrid"),hidden=$("#fMaterial");
- if(summary)summary.textContent=current?`Material — ${current}`:"Material — choose once for this job";
+ if(summary)summary.textContent=current?t("studio.drawing.materialWithValue",[current]):t("studio.drawing.materialFallback");
  if(hidden)hidden.value=current;
  if(grid){
    grid.innerHTML=names.map(n=>`<button type="button" class="material-choice ${current.toLowerCase()===n.toLowerCase()?"active":""}" data-material-name="${safe(n)}">${safe(n)}</button>`).join("");
@@ -2093,7 +2093,7 @@ function renderNotesPicker(){
  const names=[];
  [...savedNotes(),...defaults].forEach(x=>{if(x&&!names.some(n=>n.toLowerCase()===x.toLowerCase()))names.push(x)});
  const summary=$("#notesSummary"),grid=$("#notesLibraryGrid"),hidden=$("#fNotes");
- if(summary)summary.textContent=current.length?`Notes — ${current.join(" · ")}`:"Notes — optional";
+ if(summary)summary.textContent=current.length?t("studio.drawing.notesWithValue",[current.join(" · ")]):t("studio.drawing.notesFallback");
  if(hidden)hidden.value=p?.notes||"";
  if(grid){
    grid.innerHTML=names.map(n=>`<button type="button" class="note-choice ${current.some(x=>x.toLowerCase()===n.toLowerCase())?"active":""}" data-note-name="${safe(n)}">${safe(n)}</button>`).join("");
@@ -2101,7 +2101,7 @@ function renderNotesPicker(){
  }
 }
 function renderForm(){
- const p=part();const banner=$("#selectedPartBanner");banner.textContent=p?`${p.code} — ${p.name||"Part selected"}`:"No panel selected";banner.classList.toggle("has-panel",!!p);banner.classList.toggle("no-panel",!p);
+ const p=part();const banner=$("#selectedPartBanner");banner.textContent=p?`${p.code} — ${p.name||t("studio.drawing.partSelectedFallback")}`:t("studio.drawing.noPanelSelected");banner.classList.toggle("has-panel",!!p);banner.classList.toggle("no-panel",!p);
  const map={fLength:"length",fWidth:"width",fThickness:"thickness",fQty:"qty",fMaterial:"material",fNotes:"notes"};
  Object.entries(map).forEach(([id,key])=>{const v=p?.[key]??"";$("#"+id).value=["length","width","thickness"].includes(key)?(typeof aoMmToUnit==='function'?aoMmToUnit(v):v):v});
  if(typeof aoRenderUnitLabels==='function')aoRenderUnitLabels();
@@ -2109,14 +2109,14 @@ function renderForm(){
  renderNotesPicker();
  const picker=$("#partNamePicker"),chosenSummary=$("#chosenPartSummary");
  if(picker){picker.value=p?.name||state.lastChosenPartName||""}
- if(chosenSummary)chosenSummary.textContent=p?.name||state.lastChosenPartName||"Chosen Parts";
+ if(chosenSummary)chosenSummary.textContent=p?.name||state.lastChosenPartName||t("studio.drawing.chosenPartsFallback");
  if(p){p.copies=p.copies||[];p.edgeLong=Number(p.edgeLong||0);p.edgeShort=Number(p.edgeShort||0)}
  updateEdgePreview();
  $("#markerCount").textContent=p?(1+(p.copies?.length||0)):"0";
  $$("[data-status]").forEach(b=>b.onclick=()=>{if(p){p.status=b.dataset.status;save();renderAll()}})
 }
 function renderPartList(){
- const c=cabinet(),box=$("#partList");box.innerHTML=c?.parts.length?c.parts.map(p=>`<div class="part-row ${p.id===state.currentPart?"active":""}" data-part="${p.id}"><span class="part-code">${p.code}</span><div><strong>${safe(p.name||"Unnamed part")}</strong><br><small>${p.length||"—"} × ${p.width||"—"} × ${p.thickness||"—"}</small></div><span>${statuses.find(s=>s[0]===p.status)?.[2]||""}</span></div>`).join(""):'<div class="empty">No panels marked yet.</div>';
+ const c=cabinet(),box=$("#partList");box.innerHTML=c?.parts.length?c.parts.map(p=>`<div class="part-row ${p.id===state.currentPart?"active":""}" data-part="${p.id}"><span class="part-code">${p.code}</span><div><strong>${safe(p.name||t("studio.drawing.unnamedPart"))}</strong><br><small>${p.length||"—"} × ${p.width||"—"} × ${p.thickness||"—"}</small></div><span>${statuses.find(s=>s[0]===p.status)?.[2]||""}</span></div>`).join(""):`<div class="empty">${t("studio.drawing.noPanelsMarkedYet")}</div>`;
  $$("[data-part]").forEach(r=>r.onclick=()=>{state.currentPart=r.dataset.part;state.selectedCopy=-1;state.focusMarker=true;renderAll()})
 }
 function jobStatusInfo(p){
@@ -3181,7 +3181,7 @@ $("#saveNextBtn").onclick=()=>{
  setTimeout(()=>{renderMaterialPicker();closeMaterialPicker();closeNotesPicker()},40);
 };
 
-$("#deletePartBtn").onclick=()=>{const c=cabinet(),p=part();if(c&&p&&confirm(`Delete ${p.code}?`)){c.parts=c.parts.filter(x=>x.id!==p.id);c.parts.forEach((x,i)=>x.code=`P-${String(i+1).padStart(3,"0")}`);state.currentPart=null;save();renderAll()}};
+$("#deletePartBtn").onclick=()=>{const c=cabinet(),p=part();if(c&&p&&confirm(t("studio.drawing.deletePanelConfirm",[p.code]))){c.parts=c.parts.filter(x=>x.id!==p.id);c.parts.forEach((x,i)=>x.code=`P-${String(i+1).padStart(3,"0")}`);state.currentPart=null;save();renderAll()}};
 $("#downloadCsvBtn").onclick=()=>{const c=cabinet(),complete=supplierParts();if(!complete.length){alert("No complete parts are ready. Add the part name, thickness, length and width first.");return}const rows=[["Panel No.","Thickness","Length","Long edge lines","Width","Short edge lines","Qty","Material"],...complete.map(p=>[p.code,p.thickness,p.length,p.edgeLong||0,p.width,p.edgeShort||0,p.qty,materialForPanel(p)||""])];const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=((project()?.name||"Job")+"_"+(c?.name||"Wardrobe")).replace(/[^\w-]+/g,"_")+"_cutting_list.csv";a.click()};
 $("#printCuttingBtn").onclick=()=>{$$(".screen").forEach(x=>x.classList.remove("print-target"));$("#screen-cutting").classList.add("print-target");window.print()};
 $("#generateQrBtn").onclick=renderQr;$("#printQrBtn").onclick=()=>{$$(".screen").forEach(x=>x.classList.remove("print-target"));$("#screen-qr").classList.add("print-target");window.print()};
