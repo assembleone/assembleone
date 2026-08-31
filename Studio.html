@@ -83,6 +83,8 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-site-to-drawing{width:100%;text-align:center}
 .customer-job-row-actions{display:flex;gap:8px;flex-wrap:wrap}
 .customer-job-row-actions>*{flex:1;min-width:160px}
+.customer-job-delete-btn{border:none;background:none;color:#a4a0ad;font-size:16px;padding:6px 10px;border-radius:8px;cursor:pointer}
+.customer-job-delete-btn:hover{background:#fff1f1;color:#bf1f29}
 .customer-job-notes-btn{background:#f0f5ff;border-color:#8fb0f0;color:#1452d8;font-weight:800}
 .job-notes-dialog-sheet{max-height:85vh;overflow-y:auto}
 .job-notes-list{display:grid;gap:10px;max-height:280px;overflow-y:auto;margin-bottom:12px}
@@ -1278,7 +1280,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <button class="nav-btn" data-screen="parts" title="Panel Check" aria-label="Panel Check"><span class="nav-colour-icon">🧩</span></button>
 <button class="nav-btn" data-screen="cutting" title="Cutting List" aria-label="Cutting List"><span class="nav-colour-icon">📋</span></button>
 <button class="nav-btn" data-screen="qr" title="QR and Scan" aria-label="QR and Scan"><span class="nav-colour-icon">📲</span></button>
-<button class="nav-btn" data-screen="bom" title="Finish Job" aria-label="Finish Job"><span class="nav-colour-icon">✅</span></button>
 <small>Studio</small>
 </aside>
 <main class="main">
@@ -1597,15 +1598,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <label>Part<select id="phonePartSelect"></select></label>
 <div class="phone-card" id="phoneCard" style="margin-top:12px"></div>
 </section>
-<section class="screen" id="screen-bom">
-<div class="title-row"><div><h2 id="summaryTitle">Send to Phone and iPad</h2><div class="muted" id="summaryHelp">One last visual check.</div></div></div>
-<div id="jobBom"></div>
-<div class="finish-final-actions">
-<button class="btn finish-save-action" id="saveProjectBtn" type="button"><span>💾</span><strong>Save Project</strong><small>Keep all Studio changes</small></button>
-<button class="btn primary finish-send-action" id="exportMobileBtn" type="button"><span>📱</span><strong>Send to Phone</strong><small>Open this job on Mobile</small></button>
-</div>
-<div class="danger-zone"><button class="btn danger" id="deleteJobBtn">Delete this job</button></div>
-</section>
 <section class="screen" id="screen-customers">
 <div class="title-row"><div><h2>Customer Library</h2><div class="muted">Every customer with a job on file, pulled from your saved projects.</div></div></div>
 <div class="customer-search-wrap"><input type="text" id="customerSearchInput" class="customer-search-input" placeholder="🔍 Search by customer, project or address…" autocomplete="off"></div>
@@ -1741,7 +1733,7 @@ function parseGuideHash(){
  return m?{project:decodeURIComponent(m[1]),cabinet:decodeURIComponent(m[2]),part:decodeURIComponent(m[3])}:null
 }
 function updateWorkflowProgress(name){const order=["jobs","mark","parts","cutting","qr","bom"],current=Math.max(0,order.indexOf(name));$$("[data-step-screen]").forEach((el,i)=>{el.classList.toggle("current",i===current);el.classList.toggle("complete",i<current);const badge=el.querySelector(".workflow-status");if(badge)badge.textContent=i<current?"✓":String(i+1)})}
-function show(name){if(name==="project"||name==="rooms")name="jobs";state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===`screen-${name}`));$$(".nav-btn").forEach(x=>x.classList.toggle("active",x.dataset.screen===name));updateWorkflowProgress(name);
+function show(name){if(name==="project"||name==="rooms")name="jobs";if(name==="bom")name="jobs";state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===`screen-${name}`));$$(".nav-btn").forEach(x=>x.classList.toggle("active",x.dataset.screen===name));updateWorkflowProgress(name);
  if(!window.__suppressHistoryPush){
    const navState={screen:name,projectId:state.currentProject||null,cabinetId:state.currentCabinet||null};
    const cur=history.state;
@@ -2200,6 +2192,21 @@ function openJobNotesDialog(projectId){
    o.querySelector('#studioJobNotePreview').innerHTML='';
  };
 }
+// The deliberate place to delete an old job -- takes an explicit job id (never
+// project(), never "whatever's open") so it can only ever remove the one job the owner
+// picked here, exactly like the existing per-card delete already on the Jobs screen
+// (renderJobs' data-delete-job-card, same filter/save/renderAll pattern). Deleting a job
+// never touches the customer record itself or any of that customer's other jobs --
+// customerProjects() will simply no longer include this id once it's gone.
+function deleteCustomerLibraryJob(id){
+ const p=state.projects.find(x=>x.id===id);
+ if(!p)return;
+ if(!confirm('Delete this job?\n\n"'+(p.name||'Untitled job')+'" for '+(p.customer||'this customer')+'.\nThis will remove this project from the customer record.\n\nThis cannot be undone.'))return;
+ state.projects=state.projects.filter(x=>x.id!==p.id);
+ if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
+ save();
+ renderAll();
+}
 function renderCustomers(){
  const box=$("#customersList");if(!box)return;
  // Clean up any blank, never-started projects already sitting from before newJob()
@@ -2244,7 +2251,7 @@ function renderCustomers(){
      const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="Open ${safe(r.name)} on its own">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
      const logCount=(p.jobLog||[]).length;
      const roomCount=(p.rooms||[]).length;
-     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${roomCount} room${roomCount===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button></div></div>`;
+     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${roomCount} room${roomCount===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="Delete this job" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
    }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
  box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
@@ -2255,6 +2262,7 @@ function renderCustomers(){
  box.querySelectorAll('[data-open-site-room]').forEach(el=>el.onclick=(e)=>{e.stopPropagation();openSiteRoomDetails(el.dataset.openSiteRoomProject,el.dataset.openSiteRoom)});
  box.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
  box.querySelectorAll('[data-job-notes]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openJobNotesDialog(b.dataset.jobNotes)});
+ box.querySelectorAll('[data-delete-customer-job]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteCustomerLibraryJob(b.dataset.deleteCustomerJob)});
  const search=$("#customerSearchInput");
  if(search&&!search.dataset.wired){
    search.dataset.wired="1";
@@ -2496,7 +2504,10 @@ function setPartName(name){state.lastChosenPartName=name;const p=part();if(p)p.n
 $$(".nav-btn").forEach(b=>b.onclick=()=>show(b.dataset.screen));
 const toolsToggle=document.getElementById('toolsToggleBtn');const toolsMenu=document.getElementById('toolsMenu');if(toolsToggle&&toolsMenu){toolsToggle.onclick=(e)=>{e.stopPropagation();toolsMenu.classList.toggle('open')};document.addEventListener('click',(e)=>{if(!e.target.closest('.studio-tools'))toolsMenu.classList.remove('open')});}
 $("#newJobBtn").onclick=newJob;$("#newCabinetBtn").onclick=addCabinet;$("#studioAddRoomBtn").onclick=addStudioRoom;$("#studioRoomBackBtn").onclick=()=>show("jobs");
-$("#saveProjectBtn").onclick=()=>{const p=project();if(!p)return;p.name=$("#projectName").value;p.customer=$("#customerName").value;save();renderAll();alert("Job saved.")};
+// #saveProjectBtn (Finish and Send, removed) used to copy #projectName/#customerName into
+// the project and save() -- commitVisible(), called at the start of every save() including
+// the periodic 4s autosave (see switchToProject's own comment on this), already does
+// exactly that on every save, not just when this button was pressed. Nothing to move.
 
 function crc32(bytes){let c=-1;for(const b of bytes){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xEDB88320:0)}return(c^-1)>>>0}
 function u16(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255}function u32(a,o,v){a[o]=v&255;a[o+1]=(v>>>8)&255;a[o+2]=(v>>>16)&255;a[o+3]=(v>>>24)&255}
@@ -2737,11 +2748,20 @@ setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox();if(typeo
 setInterval(paintSiteInbox,1800);setTimeout(paintSiteInbox,200);
 
 async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);switchToProject(incoming.id,incoming.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
-$("#exportMobileBtn").onclick=()=>exportProjectToMobile();
+// #exportMobileBtn (Finish and Send, removed) called exportProjectToMobile() directly --
+// that function (assignment resolution, BOM/cutting-list snapshot, the actual send) is
+// still fully live via #sendCuttingToPhoneBtn on the Supplier screen below, and via the
+// automatic send that already fires the moment a fitter is first assigned to a job from
+// Job Overview (see the assignedFitter change handler). Nothing to move, just one fewer
+// button calling the same shared function.
 if($("#sendCuttingToPhoneBtn"))$("#sendCuttingToPhoneBtn").onclick=()=>exportProjectToMobile();if($("#bomExportBtn"))$("#bomExportBtn").onclick=()=>exportProjectToMobile();if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
 $("#importMobileInput").onchange=e=>{const f=e.target.files[0];const badge=document.getElementById('siteUpdateBadge');if(f&&badge)badge.textContent='Importing…';importMobileUpdates(f);setTimeout(()=>{if(badge)badge.textContent='Site updates imported ✓'},300);e.target.value=""};
 $("#openProjectInput").onchange=e=>{openProjectPackage(e.target.files[0]);e.target.value=""};
-$("#deleteJobBtn").onclick=()=>{const p=project();if(p&&confirm(`Delete the complete job "${p.name}"?\n\nThis removes all wardrobes, drawings, panels, cutting lists and QR labels in this job.`)){state.projects=state.projects.filter(x=>x.id!==p.id);state.currentProject=null;state.currentCabinet=null;state.currentPart=null;save();renderAll();show("jobs")}};
+// Delete Job (Finish and Send, removed) used to operate on whatever project() happened to
+// be open. Its replacement (deleteCustomerLibraryJob, wired inside renderCustomers) takes
+// an explicit job id instead, so it can only ever delete the exact job the owner picked in
+// Customer Library -- never "whatever's currently open" and never any other job belonging
+// to that same customer.
 $("#cabinetSelect").onchange=e=>{state.currentCabinet=e.target.value;state.currentPart=null;save();renderAll()};
 const partNamePicker=$("#partNamePicker");
 if(partNamePicker){
@@ -6356,6 +6376,27 @@ body.fiq-locked .app{display:none!important}
 .jor-warn{flex:none;font-size:18px;width:20px;text-align:center}
 .jor-stat[data-open-panel-check]:hover,.jor-warn[data-open-panel-check]:hover{background:#eef2ff;border-radius:8px}
 .jor-chevron{flex:none;color:var(--muted);font-size:18px}
+/* Panel Check is the main live status on this row -- bigger and bolder than Fitted,
+   which stays informative but visually secondary, matching how much a fitter/office
+   actually needs at a glance versus after the check is already done. */
+.jor-stat-primary{flex:0 0 130px}
+.jor-stat-primary .jor-stat-label{font-size:11px;color:#174E98}
+.jor-stat-primary .jor-stat-value{font-size:17px;color:#174E98}
+.jor-bar-primary{background:#dbe6fa}
+.jor-bar-primary i{background:#174E98}
+.jor-stat-pct{font-size:10px;font-weight:800;color:#174E98;margin-top:2px}
+.jor-stat-secondary{opacity:.72}
+.jor-stat-secondary .jor-stat-value{font-size:12px}
+/* Zero stays quiet (grey, no icon) -- a real number is what should catch the eye. */
+.jor-issues{display:flex;gap:8px;margin-top:4px}
+.jor-issue{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.02em}
+.jor-issue-bad{color:#bf1f29}
+/* A new Site Measure arrival must be unmissable but not another popup -- a persistent
+   glow on its own row until the owner actually opens it (isNewFromSite, cleared by
+   switchToProject -- see there) is the whole mechanism, no separate notification queue. */
+.job-overview-row.jor-new{border-color:#FFC600;border-width:2px;box-shadow:0 0 0 3px rgba(255,198,0,.28),0 2px 6px rgba(20,30,50,.05);animation:jorNewPulse 2.2s ease-in-out infinite}
+@keyframes jorNewPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,198,0,.28),0 2px 6px rgba(20,30,50,.05)}50%{box-shadow:0 0 0 6px rgba(255,198,0,.16),0 2px 6px rgba(20,30,50,.05)}}
+.jor-new-badge{display:inline-block;background:#FFC600;color:#5a4300;font-size:10px;font-weight:900;letter-spacing:.03em;padding:2px 8px;border-radius:999px;margin-bottom:3px}
 @media(max-width:900px){.jor-fitter,.jor-stat{display:none}}
 .job-overview-updated{color:var(--muted);font-size:12px;font-weight:700}
 .dashboard-filter-banner{display:flex;align-items:center;justify-content:space-between;background:#eef3ff;border:1px solid #bcd2ff;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-weight:700}
@@ -6418,11 +6459,35 @@ body.fiq-locked .app{display:none!important}
     }));
     return {installed,total};
   }
+  // One project can genuinely contain several rooms (a single Site Measure visit covering
+  // a hallway and a TV wall is still one job) -- showing only the first room's name made a
+  // multi-room job look like it was missing the rest of the work, or worse, look like each
+  // room might be its own separate job. Every named room gets its own icon, same as the
+  // room chips Customer Library already uses, so a job overview row and its Customer
+  // Library entry read the same way.
   function jobRoomLabel(p){
-    const room=(p.rooms||[])[0];
-    if(room&&room.name)return room.name;
+    const rooms=(p.rooms||[]).filter(r=>r&&r.name);
+    if(rooms.length)return rooms.map(r=>(r.icon||'⌂')+' '+r.name).join('  ')+(rooms.length>1?' · '+rooms.length+' rooms':'');
     const cab=(p.cabinets||[])[0];
     return (cab&&cab.name)||'';
+  }
+  // Damaged and Missing reuse exactly the same per-panel fields Panel Check and Fitted
+  // already read (status/damagedQty, qty-aware) -- no second issue-tracking system, just
+  // two more totals off the same data.
+  function jobDamagedTotals(p){
+    let damaged=0;
+    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      const q=Math.max(1,Number(part.qty)||1);
+      damaged+=Math.min(q,Math.max(0,Number(part.damagedQty)||0));
+    }));
+    return damaged;
+  }
+  function jobMissingTotals(p){
+    let missing=0;
+    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      if(part.status==='missing')missing+=Math.max(1,Number(part.qty)||1);
+    }));
+    return missing;
   }
   function jobNeedsAttention(p){
     const items=(typeof window.a203NeedsAttentionItems==='function')?window.a203NeedsAttentionItems():[];
@@ -6504,32 +6569,47 @@ body.fiq-locked .app{display:none!important}
     const grid=document.getElementById('jobOverviewGrid');
     // No slice/limit here -- the whole point of making this scroll is that a company
     // with many active jobs can see all of them without the homepage growing forever.
-    const recentJobs=namedProjects().slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    // A job Studio itself already considers done (isCompletedProject -- the same real
+    // status the top stat cards use, every panel installed or every room finished on
+    // site) has answered "what am I working on now?" and moves to Customer Library's
+    // list instead, which is unfiltered and keeps the job's full technical history --
+    // nothing here deletes or strips anything, it's a display filter only.
+    const recentJobs=namedProjects().filter(p=>!isCompletedProject(p)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     grid.innerHTML=recentJobs.length?recentJobs.map(p=>{
       const drawingCab=(p.cabinets||[]).find(c=>c.drawing&&c.drawingType!=='pdf');
       const thumb=drawingCab?('<img src="'+drawingCab.drawing+'" alt="Drawing preview">'):'<span>📐</span>';
       const pc=jobPanelCheckTotals(p);
       const pcFinished=jobPanelCheckFinished(p);
       const pcMissing=pcFinished?jobPanelCheckMissingCodes(p):[];
-      const pcIcon=pc.total>0&&pc.checked>=pc.total?'✅':(pc.total>0?'⚠️':'');
+      const pcPct=pc.total?Math.round(pc.checked/pc.total*100):0;
       // Once Panel Check is finished, "checked / total" stops being the useful number --
       // what matters is whether the delivery check is done, and whether anything never
       // turned up. Missing codes go in the full Panel Check screen, not this tight column.
-      const pcValue=pcFinished?(pcMissing.length?'⚠ Missing ('+pcMissing.length+')':'✓ Complete'):((pc.total?pc.checked+' / '+pc.total:'—')+' '+pcIcon);
+      const pcDone=pcFinished&&!pcMissing.length;
+      const pcValue=pcFinished?(pcMissing.length?'⚠ Missing ('+pcMissing.length+')':pc.total+' / '+pc.total+' ✓'):(pc.total?pc.checked+' / '+pc.total:'—');
       const fit=jobFittedTotals(p);
       const showFitted=fit.installed>0;
       const fitPct=fit.total>0?Math.round(fit.installed/fit.total*100):0;
+      const damaged=jobDamagedTotals(p),missing=jobMissingTotals(p);
+      const issueHtml='<span class="jor-issue'+(damaged?' jor-issue-bad':'')+'">DAMAGED '+damaged+(damaged?' ⚠️':'')+'</span>'+
+        '<span class="jor-issue'+(missing?' jor-issue-bad':'')+'">MISSING '+missing+(missing?' ⚠️':'')+'</span>';
       const warn=(jobNeedsAttention(p)||(pcFinished&&pcMissing.length))?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="Needs attention — tap to open Panel Check">⚠️</span>':'<span class="jor-warn"></span>';
-      return '<div class="job-overview-row" data-open-job-card="'+safe(p.id)+'">'+
+      // isNewFromSite is the exact same flag switchToProject() already clears the moment
+      // this job is opened (see there) -- reused as-is, not a new dashboard-only marker,
+      // so it also already survives a reload correctly (it's just a field on the project).
+      const isNew=!!p.isNewFromSite;
+      const newBadge=isNew?'<span class="jor-new-badge">🆕 NEW SITE JOB</span>':'';
+      return '<div class="job-overview-row'+(isNew?' jor-new':'')+'" data-open-job-card="'+safe(p.id)+'">'+
         '<div class="jor-thumb">'+thumb+'</div>'+
-        '<div class="jor-main"><div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room">'+safe(jobRoomLabel(p)||p.name||'')+'</div></div>'+
+        '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room">'+safe(jobRoomLabel(p)||p.name||'')+'</div>'+
+        '<div class="jor-issues">'+issueHtml+'</div></div>'+
         '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):'')+'</div>'+
-        '<div class="jor-stat" data-open-panel-check="'+safe(p.id)+'" title="Open Panel Check"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+pcValue+'</div></div>'+
-        '<div class="jor-stat"><div class="jor-stat-label">Fitted</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
+        '<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="Open Panel Check"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+pcPct+'% checked</div>':'')+'</div>'+
+        '<div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">Fitted</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
         warn+
         '<span class="jor-chevron">›</span>'+
       '</div>';
-    }).join(''):'<div class="empty">No jobs yet.</div>';
+    }).join(''):'<div class="empty">No active jobs — completed jobs are in Customer Library.</div>';
     grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
       if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]'))return;
       switchToProject(row.dataset.openJobCard);
