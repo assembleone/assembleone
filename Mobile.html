@@ -1104,10 +1104,19 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-flash-overlay.show .scan-flash-icon{transform:scale(1)}
 .scan-tool.find-mode #panelCheckCounter,.scan-tool.find-mode #panelCheckResult,.scan-tool.find-mode .pc-links{display:none}
 .pc-drawing-sheet .panel-drawing{min-height:240px}
-.scan-mode-switch{display:flex;width:100%;border-radius:16px;overflow:hidden;border:2px solid #174E98;margin:10px 0;touch-action:pan-y;user-select:none}
+/* Fixed to the viewport, not the document flow, so nothing that happens inside the scan
+   screen -- a tall native camera stream, the .scanning chrome-hiding class, a result
+   overlay, applyScanModeUI() re-renders, resize/orientation changes -- can ever push it
+   out of view or hide it. It sits just above the app's own fixed bottom nav (92px + its
+   own safe-area padding), stays under the modal sheet overlays (they're meant to cover
+   it while open), and above the flash overlay is fine since that's pointer-events:none
+   and translucent. #scan .scan-tool reserves matching bottom padding so normal-flow
+   content can still scroll clear of both fixed bars. */
+.scan-mode-switch{position:fixed;left:10px;right:10px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:1300;display:flex;border-radius:16px;overflow:hidden;border:2px solid #174E98;box-shadow:0 6px 20px rgba(15,12,35,.25);touch-action:pan-y;user-select:none}
 .scan-mode-opt{flex:1;min-height:58px;border:0;background:#fff;color:#174E98;font-weight:900;font-size:15px;letter-spacing:.2px;display:flex;align-items:center;justify-content:center;gap:6px}
 .scan-mode-opt.active{background:#174E98;color:#fff}
 .scan-mode-opt .scan-mode-lock{font-size:14px}
+#scan .scan-tool{padding-bottom:calc(80px + 92px + env(safe-area-inset-bottom))}
 .scan-tool.scanning .scan55-current,.scan-tool.scanning .scan55-recent-head,.scan-tool.scanning #recentScans,.scan-tool.scanning .scan-tools-more,.scan-tool.scanning .quick-help-pill{display:none}
 .fp-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
 .fp-actions .btn{min-height:54px}
@@ -3123,6 +3132,7 @@ function applyScanModeUI(){
  if(tool)tool.classList.toggle('find-mode',state.scanMode==='find');
  const title=$('#scanHeaderTitle');if(title)title.textContent=state.scanMode==='find'?'Find Panel':'Panel Check';
  document.querySelectorAll('#scanModeSwitch .scan-mode-opt').forEach(function(b){b.classList.toggle('active',b.dataset.mode===state.scanMode)});
+ if(typeof positionScanModeSwitch==='function')positionScanModeSwitch();
 }
 // The big Panel Check / Find It switch is one control, not two buttons that happen to sit
 // together -- tapping either half or swiping across it changes mode without reopening the
@@ -3134,6 +3144,25 @@ document.querySelectorAll('#scanModeSwitch .scan-mode-opt').forEach(function(b){
   state.scanMode=mode;save();applyScanModeUI();
  };
 });
+// The bottom nav's real rendered height varies by device/breakpoint (safe-area inset,
+// icon/label wrapping) and isn't reliably guessable from its CSS alone -- a fixed guess
+// left the switch overlapping the nav on a real notched phone. Measure the nav directly
+// and position the switch just above it, re-measuring on resize/orientation change so an
+// iPhone Safari viewport/URL-bar change or rotation can never let them collide again.
+function positionScanModeSwitch(){
+ const sw=document.getElementById('scanModeSwitch');if(!sw)return;
+ const navBar=document.querySelector('.modern-bottom-nav')||document.querySelector('nav');
+ // Distance from the viewport's bottom edge up to the nav's own top edge -- not the nav's
+ // height -- is what actually clears it, since safe-area insets and this browser's own
+ // chrome mean the nav isn't always flush with window.innerHeight.
+ const bottomPx=navBar?Math.max(0,window.innerHeight-navBar.getBoundingClientRect().top)+8:92;
+ sw.style.bottom=bottomPx+'px';
+ const tool=document.querySelector('#scan .scan-tool');
+ if(tool)tool.style.paddingBottom=(bottomPx+90)+'px';
+}
+window.addEventListener('resize',positionScanModeSwitch);
+window.addEventListener('orientationchange',function(){setTimeout(positionScanModeSwitch,150)});
+positionScanModeSwitch();
 (function(){
  const sw=document.getElementById('scanModeSwitch');if(!sw)return;
  let startX=null;
