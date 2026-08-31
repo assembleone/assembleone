@@ -64,7 +64,9 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-edit-btn{padding:5px 10px;font-size:12px;font-weight:800;min-height:0;border-radius:8px}
 .customer-new-tag{display:inline-block;background:#ffe3e3;color:#c81e1e;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:900;margin:0 6px 4px 0;vertical-align:middle}
 .customer-job-list{display:flex;flex-direction:column;gap:6px}
-.customer-job-item{display:flex;flex-direction:column;gap:6px}
+.customer-job-item{display:flex;flex-direction:column;gap:6px;position:relative}
+.customer-job-select{position:absolute;top:10px;right:10px;z-index:2;cursor:pointer}
+.customer-job-select input{width:20px;height:20px;cursor:pointer}
 .customer-job-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border:1px solid var(--line);background:#fafcff;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;width:100%;text-align:left}
 .customer-job-row:hover{border-color:#8B5CF6;background:#F8F5FF}
 .customer-job-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:700}
@@ -1601,6 +1603,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section class="screen" id="screen-customers">
 <div class="title-row"><div><h2>Customer Library</h2><div class="muted">Every customer with a job on file, pulled from your saved projects.</div></div></div>
 <div class="customer-search-wrap"><input type="text" id="customerSearchInput" class="customer-search-input" placeholder="🔍 Search by customer, project or address…" autocomplete="off"></div>
+<button type="button" class="btn primary hidden" id="sendSelectedSupplierBtn" style="width:100%;margin-bottom:10px">📤 Send 0 jobs to supplier</button>
 <div id="customersList"></div>
 </section>
 
@@ -2207,6 +2210,52 @@ function deleteCustomerLibraryJob(id){
  save();
  renderAll();
 }
+// A one-off, in-the-moment selection for bundling several jobs into one supplier send --
+// deliberately not persisted to state (nothing meaningful is lost if it resets), but kept
+// in a plain module-level Set rather than read fresh from the DOM each time, so it
+// survives renderCustomers() rebuilding the list's HTML on every unrelated re-render
+// (autosave, opening a different screen and back, etc.) instead of silently clearing.
+let supplierSelectedJobIds=new Set();
+function updateSendSelectedSupplierButton(){
+ const btn=document.getElementById('sendSelectedSupplierBtn');if(!btn)return;
+ const n=supplierSelectedJobIds.size;
+ btn.classList.toggle('hidden',n===0);
+ btn.textContent='📤 Send '+n+' job'+(n===1?'':'s')+' to supplier';
+}
+// Bundles several jobs' cutting lists into one supplier send without merging them --
+// each row keeps its own Job and Room column, reusing the exact same panel-readiness
+// check (isCompleteSupplierPart) the existing single-job CSV export already uses, just
+// looped over every cabinet in every selected job instead of only the one cabinet
+// currently open. materialForPanel() itself reads the *currently open* project/cabinet
+// as its fallback, which would silently pick up the wrong job's default material while
+// iterating a different one here -- so the same fallback is inlined per job/cabinet
+// instead of reusing that function directly.
+function exportCombinedSupplierCsv(projectIds){
+ if(!projectIds||!projectIds.length)return;
+ const escCsv=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const rows=[['Job','Room','Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes']];
+ projectIds.forEach(id=>{
+  const p=state.projects.find(x=>x.id===id);if(!p)return;
+  (p.cabinets||[]).forEach(c=>{
+   const room=(p.rooms||[]).find(r=>r.id===c.roomId);
+   (c.parts||[]).filter(isCompleteSupplierPart).forEach(pt=>{
+    const mat=String(pt.material||p.defaultMaterial||c.lastMaterial||'').trim()||'Not set';
+    rows.push([p.name||'Job',room?room.name:(c.name||''),pt.code,pt.name||'',pt.thickness,pt.length,pt.width,Number(pt.edgeLong||0),Number(pt.edgeShort||0),Number(pt.qty||1),mat,pt.notes||'']);
+   });
+  });
+ });
+ if(rows.length<=1){alert('No complete panels are ready to send for the selected jobs.');return}
+ const csv='﻿'+rows.map(r=>r.map(escCsv).join(',')).join('\r\n');
+ const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+ const a=document.createElement('a');a.href=url;
+ const first=state.projects.find(x=>x.id===projectIds[0]);
+ a.download=((first?.customer||'Customer')+'_supplier_send_'+projectIds.length+'_jobs').replace(/[^a-z0-9_-]+/gi,'_')+'.csv';
+ document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+document.getElementById('sendSelectedSupplierBtn')?.addEventListener('click',()=>{
+ exportCombinedSupplierCsv([...supplierSelectedJobIds]);
+});
 function renderCustomers(){
  const box=$("#customersList");if(!box)return;
  // Clean up any blank, never-started projects already sitting from before newJob()
@@ -2251,7 +2300,7 @@ function renderCustomers(){
      const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="Open ${safe(r.name)} on its own">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
      const logCount=(p.jobLog||[]).length;
      const roomCount=(p.rooms||[]).length;
-     return `<div class="customer-job-item"><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${roomCount} room${roomCount===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="Delete this job" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
+     return `<div class="customer-job-item"><label class="customer-job-select" title="Select for supplier send"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(p.id)}" ${supplierSelectedJobIds.has(p.id)?'checked':''}></label><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${roomCount} room${roomCount===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="Delete this job" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
    }).join("")}</div></div>`;
  }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
  box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
@@ -2263,6 +2312,15 @@ function renderCustomers(){
  box.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
  box.querySelectorAll('[data-job-notes]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openJobNotesDialog(b.dataset.jobNotes)});
  box.querySelectorAll('[data-delete-customer-job]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteCustomerLibraryJob(b.dataset.deleteCustomerJob)});
+ box.querySelectorAll('.job-select-checkbox').forEach(cb=>{
+  cb.onclick=(e)=>e.stopPropagation();
+  cb.onchange=()=>{
+   if(cb.checked)supplierSelectedJobIds.add(cb.dataset.selectJob);
+   else supplierSelectedJobIds.delete(cb.dataset.selectJob);
+   updateSendSelectedSupplierButton();
+  };
+ });
+ updateSendSelectedSupplierButton();
  const search=$("#customerSearchInput");
  if(search&&!search.dataset.wired){
    search.dataset.wired="1";

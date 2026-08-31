@@ -1174,7 +1174,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <div id="panelCheckResult" class="pc-result hidden">
    <div class="pc-result-top">
     <span class="pc-result-icon" id="pcResultIcon">✓</span>
-    <div class="pc-result-info"><b id="pcResultCode"></b><span id="pcResultName"></span><small id="pcResultRoom"></small></div>
+    <div class="pc-result-info"><b id="pcResultName"></b><small id="pcResultCode"></small><small id="pcResultRoom"></small></div>
     <span class="pc-result-status" id="pcResultStatus">Checked</span>
    </div>
    <div class="pc-result-actions">
@@ -3742,7 +3742,7 @@ $('#pcDrawingOverlay').addEventListener('click',e=>{if(e.target.id==='pcDrawingO
 function renderPanelCheckMissingList(){
  const list=$('#pcMissingList');if(!list)return;
  const rows=scanTotals().rows.filter(({pt})=>(Number(pt.scannedQty)||0)<Math.max(1,Number(pt.qty)||1));
- list.innerHTML=rows.length?rows.map(({pt,c})=>`<div class="pc-missing-row"><div class="info"><b>${safe(pt.code||t('msg.panelFallback'))}</b><small>${safe(pt.name||c.name||'')}</small></div><div class="actions"><button type="button" data-pcm-missing="${pt.id}">Missing</button><button type="button" data-pcm-damaged="${pt.id}">Damaged</button></div></div>`).join(''):'<div class="muted">Everything expected has been checked.</div>';
+ list.innerHTML=rows.length?rows.map(({pt,c})=>`<div class="pc-missing-row"><div class="info"><b>${safe(pt.name||c.name||t('msg.panelFallback'))}</b><small>${safe(pt.code||'')}</small></div><div class="actions"><button type="button" data-pcm-missing="${pt.id}">Missing</button><button type="button" data-pcm-damaged="${pt.id}">Damaged</button></div></div>`).join(''):'<div class="muted">Everything expected has been checked.</div>';
  list.querySelectorAll('[data-pcm-missing]').forEach(b=>b.onclick=()=>{
   const found=rows.find(r=>r.pt.id===b.dataset.pcmMissing);if(!found)return;
   const pr=project();if(!pr)return;
