@@ -1602,8 +1602,8 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="phone-card" id="phoneCard" style="margin-top:12px"></div>
 </section>
 <section class="screen" id="screen-customers">
-<div class="title-row"><div><h2>Customer Library</h2><div class="muted">Every customer with a job on file, pulled from your saved projects.</div></div></div>
-<div class="customer-search-wrap"><input type="text" id="customerSearchInput" class="customer-search-input" placeholder="🔍 Search by customer, project or address…" autocomplete="off"></div>
+<div class="title-row"><div><h2 data-i18n="studio.home.customerLibrary">Customer Library</h2><div class="muted" data-i18n="studio.customerLibrary.subtitleHelp">Every customer with a job on file, pulled from your saved projects.</div></div></div>
+<div class="customer-search-wrap"><input type="text" id="customerSearchInput" class="customer-search-input" data-i18n-placeholder="studio.customerLibrary.searchPlaceholder" placeholder="🔍 Search by customer, project or address…" autocomplete="off"></div>
 <button type="button" class="btn primary hidden" id="sendSelectedSupplierBtn" style="width:100%;margin-bottom:10px">📤 Send 0 jobs to supplier</button>
 <div id="customersList"></div>
 </section>
@@ -2128,27 +2128,27 @@ function jobStatusInfo(p){
  // A fitter who knows where 80 of 100 panels go can press Finish Job without scanning
  // every single one -- "every panel installed" alone would never count that as complete.
  const allRoomsFinished=(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished);
- if(allInstalled||allRoomsFinished)return{label:"✅ Installed",cls:"status-done"};
- if(someInstalled)return{label:"🔧 Installing",cls:"status-progress"};
- if(parts.length)return{label:"📐 Cutting list ready",cls:"status-progress"};
- if(hasDrawing)return{label:"✏️ Drawing in progress",cls:"status-progress"};
- if(hasSite)return{label:"📍 Site measurements received",cls:"status-new"};
- return{label:"🆕 New job",cls:"status-new"};
+ if(allInstalled||allRoomsFinished)return{label:t("studio.customerLibrary.statusInstalled"),cls:"status-done"};
+ if(someInstalled)return{label:t("studio.customerLibrary.statusInstalling"),cls:"status-progress"};
+ if(parts.length)return{label:t("studio.customerLibrary.statusCuttingListReady"),cls:"status-progress"};
+ if(hasDrawing)return{label:t("studio.customerLibrary.statusDrawingInProgress"),cls:"status-progress"};
+ if(hasSite)return{label:t("studio.customerLibrary.statusSiteMeasurementsReceived"),cls:"status-new"};
+ return{label:t("studio.customerLibrary.statusNewJob"),cls:"status-new"};
 }
 function timeAgo(ts){
  if(!ts)return"";
  const s=Math.floor((Date.now()-ts)/1000);
- if(s<60)return"just now";
- const m=Math.floor(s/60);if(m<60)return m+" minute"+(m===1?"":"s")+" ago";
- const h=Math.floor(m/60);if(h<24)return h+" hour"+(h===1?"":"s")+" ago";
- const d=Math.floor(h/24);if(d<30)return d+" day"+(d===1?"":"s")+" ago";
- const mo=Math.floor(d/30);if(mo<12)return mo+" month"+(mo===1?"":"s")+" ago";
- const y=Math.floor(mo/12);return y+" year"+(y===1?"":"s")+" ago";
+ if(s<60)return t("studio.customerLibrary.timeJustNow");
+ const m=Math.floor(s/60);if(m<60)return t(m===1?"studio.customerLibrary.timeMinutesAgoSingular":"studio.customerLibrary.timeMinutesAgoPlural",[m]);
+ const h=Math.floor(m/60);if(h<24)return t(h===1?"studio.customerLibrary.timeHoursAgoSingular":"studio.customerLibrary.timeHoursAgoPlural",[h]);
+ const d=Math.floor(h/24);if(d<30)return t(d===1?"studio.customerLibrary.timeDaysAgoSingular":"studio.customerLibrary.timeDaysAgoPlural",[d]);
+ const mo=Math.floor(d/30);if(mo<12)return t(mo===1?"studio.customerLibrary.timeMonthsAgoSingular":"studio.customerLibrary.timeMonthsAgoPlural",[mo]);
+ const y=Math.floor(mo/12);return t(y===1?"studio.customerLibrary.timeYearsAgoSingular":"studio.customerLibrary.timeYearsAgoPlural",[y]);
 }
 function openEditCustomerDialog(customerId){
  const c=state.customers.find(x=>x.id===customerId);if(!c)return;
  const o=document.createElement('div');o.className='a100-edit-dialog';
- o.innerHTML=`<div class="a100-edit-sheet"><h2>Edit customer</h2><label>Customer name<input id="editCustName"></label><label>Address<input id="editCustAddress"></label><label>Phone<input id="editCustPhone"></label><div class="a100-edit-actions"><button class="btn" id="editCustCancel">Cancel</button><button class="btn primary" id="editCustSave">Save</button></div></div>`;
+ o.innerHTML=`<div class="a100-edit-sheet"><h2>${t("studio.customerLibrary.editCustomerHeading")}</h2><label>${t("intake.customerName")}<input id="editCustName"></label><label>${t("intake.address")}<input id="editCustAddress"></label><label>${t("studio.customerLibrary.phoneLabel")}<input id="editCustPhone"></label><div class="a100-edit-actions"><button class="btn" id="editCustCancel">${t("studio.customerLibrary.cancelBtn")}</button><button class="btn primary" id="editCustSave">${t("studio.customerLibrary.saveBtn")}</button></div></div>`;
  document.body.appendChild(o);
  o.querySelector('#editCustName').value=c.name||"";
  o.querySelector('#editCustAddress').value=c.address||"";
@@ -2181,12 +2181,12 @@ function openJobNotesDialog(projectId){
    const entries=(p.jobLog||[]).slice().sort((a,b)=>(a.at||0)-(b.at||0));
    return entries.length?entries.map(jobLogEntryHtml).join(''):'<div class="job-notes-empty">No notes yet for this job.</div>';
  }
- o.innerHTML=`<div class="a100-edit-sheet job-notes-dialog-sheet"><h2>💬 Job Notes — ${safe(p.name||'Untitled job')}</h2>
+ o.innerHTML=`<div class="a100-edit-sheet job-notes-dialog-sheet"><h2>${t("studio.customerLibrary.jobNotesHeading",[safe(p.name||t("studio.customerLibrary.untitledJob"))])}</h2>
    <div class="job-notes-list" id="studioJobNotesList">${renderList()}</div>
-   <label>Add a note<textarea id="studioJobNoteText" placeholder="Note for the fitter or office..."></textarea></label>
-   <label class="btn" for="studioJobNotePhoto">📷 Add photo(s)<input id="studioJobNotePhoto" type="file" accept="image/*" multiple hidden></label>
+   <label>${t("studio.customerLibrary.addNoteLabel")}<textarea id="studioJobNoteText" placeholder="${t("studio.customerLibrary.notePlaceholder")}"></textarea></label>
+   <label class="btn" for="studioJobNotePhoto">${t("studio.customerLibrary.addPhotosLabel")}<input id="studioJobNotePhoto" type="file" accept="image/*" multiple hidden></label>
    <div class="job-notes-photo-preview" id="studioJobNotePreview"></div>
-   <div class="a100-edit-actions"><button class="btn" id="studioJobNotesClose">Close</button><button class="btn primary" id="studioJobNoteSave">Save note</button></div>
+   <div class="a100-edit-actions"><button class="btn" id="studioJobNotesClose">${t("studio.common.close")}</button><button class="btn primary" id="studioJobNoteSave">${t("studio.customerLibrary.saveNoteBtn")}</button></div>
  </div>`;
  document.body.appendChild(o);
  const close=()=>{o.remove();renderCustomers()};
@@ -2220,7 +2220,7 @@ function openJobNotesDialog(projectId){
 function deleteCustomerLibraryJob(id){
  const p=state.projects.find(x=>x.id===id);
  if(!p)return;
- if(!confirm('Delete this job?\n\n"'+(p.name||'Untitled job')+'" for '+(p.customer||'this customer')+'.\nThis will remove this project from the customer record.\n\nThis cannot be undone.'))return;
+ if(!confirm(t("studio.customerLibrary.deleteJobConfirm",[p.name||t("studio.customerLibrary.untitledJob"),p.customer||t("studio.customerLibrary.thisCustomer")])))return;
  state.projects=state.projects.filter(x=>x.id!==p.id);
  if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
  save();
@@ -2236,7 +2236,7 @@ function updateSendSelectedSupplierButton(){
  const btn=document.getElementById('sendSelectedSupplierBtn');if(!btn)return;
  const n=supplierSelectedJobIds.size;
  btn.classList.toggle('hidden',n===0);
- btn.textContent='📤 Send '+n+' job'+(n===1?'':'s')+' to supplier';
+ btn.textContent=t(n===1?"studio.customerLibrary.sendToSupplierSingular":"studio.customerLibrary.sendToSupplierPlural",[n]);
 }
 // Bundles several jobs' cutting lists into one supplier send without merging them --
 // each row keeps its own Job and Room column, reusing the exact same panel-readiness
@@ -2260,7 +2260,7 @@ function exportCombinedSupplierCsv(projectIds){
    });
   });
  });
- if(rows.length<=1){alert('No complete panels are ready to send for the selected jobs.');return}
+ if(rows.length<=1){alert(t("studio.customerLibrary.noPanelsReadyForSupplier"));return}
  const csv='﻿'+rows.map(r=>r.map(escCsv).join(',')).join('\r\n');
  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
  const a=document.createElement('a');a.href=url;
@@ -2310,15 +2310,15 @@ function renderCustomers(){
    const contactHtml=contactBits.length?`<div class="customer-card-contact">${contactBits.join("<br>")}</div>`:"";
    const lastUpdated=Math.max(c.updatedAt||0,...jobs.map(p=>p.updatedAt||0),0);
    const searchText=[c.name,c.address,...jobs.map(p=>p.name)].filter(Boolean).join(" ").toLowerCase();
-   return `<div class="customer-card" data-search="${safe(searchText)}"><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">🆕 New from Site</span>`:""}${contactHtml}${lastUpdated?`<div class="customer-card-updated">Last updated ${timeAgo(lastUpdated)}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="Edit customer details">✏️ Edit</button><span class="customer-job-count">${jobs.length} job${jobs.length===1?"":"s"}</span></span></div><div class="customer-job-list">${jobs.map(p=>{
+   return `<div class="customer-card" data-search="${safe(searchText)}"><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}${contactHtml}${lastUpdated?`<div class="customer-card-updated">${t("studio.customerLibrary.lastUpdated",[timeAgo(lastUpdated)])}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="${t("studio.customerLibrary.editCustomerDetailsTitle")}">${t("studio.customerLibrary.editBtn")}</button><span class="customer-job-count">${t(jobs.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[jobs.length])}</span></span></div><div class="customer-job-list">${jobs.map(p=>{
      const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
      const status=jobStatusInfo(p);
-     const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="Open ${safe(r.name)} on its own">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
+     const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
      const logCount=(p.jobLog||[]).length;
      const roomCount=(p.rooms||[]).length;
-     return `<div class="customer-job-item"><label class="customer-job-select" title="Select for supplier send"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(p.id)}" ${supplierSelectedJobIds.has(p.id)?'checked':''}></label><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?'<span class="customer-new-tag">🆕 New from Site</span> ':''}<strong>${safe(p.name||"Untitled job")}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${roomCount} room${roomCount===1?"":"s"}</span>${p.updatedAt?`<span class="muted">Updated ${timeAgo(p.updatedAt)}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">📐 Open site measurements in Drawing</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">💬 Job Notes${logCount?` (${logCount})`:""}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="Delete this job" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
+     return `<div class="customer-job-item"><label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(p.id)}" ${supplierSelectedJobIds.has(p.id)?'checked':''}></label><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span> `:''}<strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${t(roomCount===1?"studio.customerLibrary.roomCountSingular":"studio.customerLibrary.roomCountPlural",[roomCount])}</span>${p.updatedAt?`<span class="muted">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">${t("studio.customerLibrary.openSiteMeasurementsInDrawing")}</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="${t("studio.customerLibrary.deleteThisJobTitle")}" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
    }).join("")}</div></div>`;
- }).join(""):'<div class="empty">No jobs yet — customer names will appear here once you start a project.</div>';
+ }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsYetEmpty")}</div>`;
  box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
  box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openCustomerSiteJobInDrawing(b.dataset.siteToDrawing)});
  // Each room chip opens ONLY that room's own photo/measurements -- passing its
