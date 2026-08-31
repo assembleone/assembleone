@@ -1104,16 +1104,27 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-flash-overlay.show .scan-flash-icon{transform:scale(1)}
 .scan-tool.find-mode #panelCheckCounter,.scan-tool.find-mode #panelCheckResult,.scan-tool.find-mode .pc-links{display:none}
 .pc-drawing-sheet .panel-drawing{min-height:240px}
+.scan-mode-switch{display:flex;width:100%;border-radius:16px;overflow:hidden;border:2px solid #174E98;margin:10px 0;touch-action:pan-y;user-select:none}
+.scan-mode-opt{flex:1;min-height:58px;border:0;background:#fff;color:#174E98;font-weight:900;font-size:15px;letter-spacing:.2px;display:flex;align-items:center;justify-content:center;gap:6px}
+.scan-mode-opt.active{background:#174E98;color:#fff}
+.scan-mode-opt .scan-mode-lock{font-size:14px}
+.scan-tool.scanning .scan55-current,.scan-tool.scanning .scan55-recent-head,.scan-tool.scanning #recentScans,.scan-tool.scanning .scan-tools-more,.scan-tool.scanning .quick-help-pill{display:none}
+.fp-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.fp-actions .btn{min-height:54px}
 </style>
 
 <section id="scan" class="screen">
  <div class="scan-tool scan55-tool">
   <div class="pc-header"><strong id="scanHeaderTitle">Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div><button type="button" id="scanSoundBtn" class="pc-sound-btn" aria-label="Scan sound settings">🔊</button></div>
-  <div class="scan-actions scan55-actions" style="grid-template-columns:1fr">
+  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
+  <div class="scan-actions scan55-actions" id="scanStartRow" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
+  <div id="scanModeSwitch" class="scan-mode-switch">
+   <button type="button" class="scan-mode-opt active" data-mode="check"><span class="scan-mode-lock" id="scanModeLockIcon">🔒</span>PANEL CHECK</button>
+   <button type="button" class="scan-mode-opt" data-mode="find">FIND IT →</button>
+  </div>
   <button class="quick-help-btn quick-help-pill" type="button" data-quick-help="Scan → instant Checked → ready for the next panel straight away" aria-label="Help" style="margin:8px auto 0">? Help</button>
-  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
   <div id="panelCheckResult" class="pc-result hidden">
    <div class="pc-result-top">
     <span class="pc-result-icon" id="pcResultIcon">✓</span>
@@ -1261,7 +1272,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
  <div class="pc-sheet pc-drawing-sheet">
   <div class="pc-sheet-head"><strong>Find Panel</strong><button type="button" id="findPanelResultClose">×</button></div>
   <div id="findPanelResultBody" class="panel-detail"></div>
-  <button type="button" class="btn primary" id="findPanelScanNextBtn" style="width:100%;min-height:54px;margin-top:12px">Scan Next Panel</button>
+  <div class="fp-actions">
+   <button type="button" id="fpMarkMissing" class="btn warn">Missing</button>
+   <button type="button" id="fpMarkDamaged" class="btn danger">Damaged</button>
+  </div>
+  <button type="button" class="btn primary" id="findPanelScanNextBtn" style="width:100%;min-height:54px;margin-top:8px">Scan Next Panel</button>
  </div>
 </div>
 
@@ -1767,7 +1782,7 @@ function applyPanelRoute(route){
 // load. Without this, load() below only ever runs once at startup and the new
 // #panel=... in the URL would be silently ignored.
 window.addEventListener("hashchange",()=>{const route=parsePanelHash();if(route)applyPanelRoute(route)});
-async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{renderAll();applyI18n();paintLangButtons()}}
+async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{renderAll();applyI18n();paintLangButtons()}if(typeof applyScanModeUI==='function')applyScanModeUI()}
 function show(name){
  if((name==='measure'||name==='drawings')&&!jobConfirmedThisSession&&state.currentProject){
   const rp=state.projects.find(x=>x.id===state.currentProject);
@@ -3083,6 +3098,22 @@ function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden')}
 $('#findPanelResultClose').onclick=closeFindPanelResult;
 $('#findPanelOverlay').addEventListener('click',e=>{if(e.target.id==='findPanelOverlay')closeFindPanelResult()});
 $('#findPanelScanNextBtn').onclick=()=>{closeFindPanelResult();startCamera()};
+// Missing/Damaged from Find It reuse the exact same status fields, job log and Studio
+// sync as Panel Check's own Missing/Damaged actions (applyMissingStatus, #saveDamage) --
+// there is only ever one missing/damaged data model, Find It just gives another entry
+// point into it so the fitter never has to leave the drawing they just landed on.
+$('#fpMarkMissing').onclick=()=>{
+ const pr=project(),pt=part();if(!pr||!pt)return;
+ applyMissingStatus(pr,pt);
+ renderFindPanelResult();
+ if(typeof renderInstall==='function')renderInstall();
+};
+$('#fpMarkDamaged').onclick=()=>{
+ const pt=part();if(!pt)return;
+ $('#damagePanelOverlay').classList.remove('hidden');
+ $('#damagePanelCode').value=pt.code||'';
+ $('#damageNote').focus();
+};
 // The shared scanner screen's own header/chrome switches with it -- Panel Check's counter,
 // result card and Missing Panels/Summary links are all "checked" concepts that don't apply
 // while just looking up where a panel goes, so they're hidden rather than shown alongside
@@ -3091,7 +3122,31 @@ function applyScanModeUI(){
  const tool=document.querySelector('#scan .scan-tool');
  if(tool)tool.classList.toggle('find-mode',state.scanMode==='find');
  const title=$('#scanHeaderTitle');if(title)title.textContent=state.scanMode==='find'?'Find Panel':'Panel Check';
+ document.querySelectorAll('#scanModeSwitch .scan-mode-opt').forEach(function(b){b.classList.toggle('active',b.dataset.mode===state.scanMode)});
 }
+// The big Panel Check / Find It switch is one control, not two buttons that happen to sit
+// together -- tapping either half or swiping across it changes mode without reopening the
+// camera or leaving the screen, matching "one scanner, two modes, no separate pages".
+document.querySelectorAll('#scanModeSwitch .scan-mode-opt').forEach(function(b){
+ b.onclick=function(){
+  const mode=b.dataset.mode;
+  if(state.scanMode===mode)return;
+  state.scanMode=mode;save();applyScanModeUI();
+ };
+});
+(function(){
+ const sw=document.getElementById('scanModeSwitch');if(!sw)return;
+ let startX=null;
+ sw.addEventListener('touchstart',function(e){startX=e.touches[0].clientX},{passive:true});
+ sw.addEventListener('touchend',function(e){
+  if(startX==null)return;
+  const dx=e.changedTouches[0].clientX-startX;startX=null;
+  if(Math.abs(dx)<40)return;
+  const next=dx<0?'find':'check';
+  if(state.scanMode===next)return;
+  state.scanMode=next;save();applyScanModeUI();
+ },{passive:true});
+})();
 function openScannedText(text){
  let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
  if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
@@ -3144,7 +3199,7 @@ async function startCamera(){
   mediaStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
   const v=$("#camera");v.srcObject=null;v.srcObject=mediaStream;await v.play();
   await new Promise(resolve=>{if(v.readyState>=2)resolve();else v.addEventListener("loadeddata",resolve,{once:true})});
-  $("#cameraWrap").classList.remove("hidden");$("#stopScanner").classList.remove("hidden");$("#startScanner").classList.add("hidden");
+  $("#cameraWrap").classList.remove("hidden");$("#stopScanner").classList.remove("hidden");$("#startScanner").classList.add("hidden");document.querySelector('#scan .scan-tool')?.classList.add('scanning');
   detector=null;detectorFailed=false;
   if("BarcodeDetector" in window){try{detector=new BarcodeDetector({formats:["qr_code"]})}catch(e){detector=null}}
   if(!detector){$("#scanResult").textContent=t('msg.preparingScanner');try{await ensureJsQR()}catch(e){}$("#scanResult").textContent=""}
@@ -3303,7 +3358,7 @@ document.getElementById('scanVibrateToggle')?.addEventListener('change',function
  setScanVibrateEnabled(e.target.checked);
  if(e.target.checked){try{if(navigator.vibrate)navigator.vibrate(55)}catch(err){}}
 });
-function stopCamera(){scanRunning=false;if(scanLoopTimer){clearTimeout(scanLoopTimer);scanLoopTimer=null}if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;const v=$("#camera");if(v)v.srcObject=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden")}
+function stopCamera(){scanRunning=false;if(scanLoopTimer){clearTimeout(scanLoopTimer);scanLoopTimer=null}if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null;const v=$("#camera");if(v)v.srcObject=null;$("#cameraWrap").classList.add("hidden");$("#stopScanner").classList.add("hidden");$("#startScanner").classList.remove("hidden");document.querySelector('#scan .scan-tool')?.classList.remove('scanning')}
 $("#startScanner").onclick=()=>{state.scanMode='check';applyScanModeUI();startCamera()};$("#stopScanner").onclick=stopCamera;
 const scanNavBtn=document.querySelector('.nav.scan-main');if(scanNavBtn)scanNavBtn.onclick=()=>{state.scanMode='check';applyScanModeUI();show('scan');startCamera()};
 const findPanelScanBtn=$("#findPanelScanBtn");if(findPanelScanBtn)findPanelScanBtn.onclick=()=>{state.scanMode='find';applyScanModeUI();show('scan');startCamera()};
@@ -3605,6 +3660,7 @@ $("#saveDamage").onclick=()=>{
  if(typeof renderInstallDashboard==='function')renderInstallDashboard();
  if(typeof renderInstall==='function')renderInstall();
  if(state.scanMode==='check')renderPanelCheckResult(found.pt,'damaged');
+ if(state.scanMode==='find'&&typeof renderFindPanelResult==='function')renderFindPanelResult();
  $("#shareDamageWhatsapp").classList.remove("hidden");
  alert(t('msg.panelMarkedDamaged',[found.pt.code]));
 };
