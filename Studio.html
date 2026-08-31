@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icon_32.png?v=4"><link rel="apple-touch-icon" href="assets/icon_180.png?v=4"><link rel="manifest" href="manifest-studio.json?v=4"><title>FittersIQ Studio 4.7</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon_32.png?v=4"><link rel="apple-touch-icon" href="assets/icon_180.png?v=4"><link rel="manifest" href="manifest-studio.json?v=4"><title>FittersIQ Studio 4.8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -1633,10 +1633,17 @@ const APP_I18N={
  pl:{start:'Rozpocznij projekt',startHelp:'Wpisz zlecenie i wybierz, co budujesz. Pomieszczenia pozostają w projekcie i są wysyłane na telefon.',job:'Nad czym pracujesz?',summary:'Zakończ i wyślij',summaryHelp:'Sprawdź cały projekt, a następnie wyślij go na telefon lub iPad.',finish:'Wyślij na telefon lub iPad'}
 };
 function applyAppLanguage(lang){
- const t=APP_I18N[lang]||APP_I18N.en;
+ // Multilingual Stage 1: this still shows Studio's own 6 strings from its own
+ // small APP_I18N dictionary (nothing translated here has changed) -- only
+ // the persistence step is now routed through the shared system's setLang()
+ // instead of Studio maintaining its own separate stored language. Local var
+ // renamed from `t` to `dict` so it can never be confused with the shared
+ // global t() function, even though this function never calls it.
+ const dict=APP_I18N[lang]||APP_I18N.en;
  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
- set('startTitle',t.start);set('startHelp',t.startHelp);set('jobDetailsTitle',t.job);set('summaryTitle',t.summary);set('summaryHelp',t.summaryHelp);set('finishTitle',t.finish);
- document.documentElement.lang=lang;localStorage.setItem('assembleone_language',lang);
+ set('startTitle',dict.start);set('startHelp',dict.startHelp);set('jobDetailsTitle',dict.job);set('summaryTitle',dict.summary);set('summaryHelp',dict.summaryHelp);set('finishTitle',dict.finish);
+ document.documentElement.lang=lang;
+ if(typeof setLang==='function')setLang(lang);else localStorage.setItem('assembleone_language',lang);
 }
 
 const STORE="buildSOS_v12";
@@ -3477,9 +3484,20 @@ load();
  window.renderSitePlanner=renderSite;renderSite();
 })();
 
+// Multilingual Stage 1: one-time migration from Studio's old, separate
+// language key to the shared one i18n.js uses, so an existing Studio user's
+// language choice isn't lost the moment Studio starts reading through the
+// shared system instead of its own. Runs every load but is a no-op the
+// instant the shared key has anything in it (including right after this
+// first migration), and equally a no-op for anyone who never touched
+// Studio's language picker before.
+if(!localStorage.getItem('assembleone_mobile_lang')){
+ const legacyLang=localStorage.getItem('assembleone_language');
+ if(legacyLang)localStorage.setItem('assembleone_mobile_lang',legacyLang);
+}
 const appLang=document.getElementById('appLanguage');
 function paintFlagLanguage(lang){document.querySelectorAll('#flagLanguageButtons [data-lang]').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang))}
-if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';appLang.addEventListener('change',e=>{applyAppLanguage(e.target.value);paintFlagLanguage(e.target.value)});document.querySelectorAll('#flagLanguageButtons [data-lang]').forEach(b=>b.addEventListener('click',()=>{appLang.value=b.dataset.lang;appLang.dispatchEvent(new Event('change'))}));applyAppLanguage(appLang.value);paintFlagLanguage(appLang.value)}
+if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||localStorage.getItem('assembleone_language')||'en';appLang.addEventListener('change',e=>{applyAppLanguage(e.target.value);paintFlagLanguage(e.target.value)});document.querySelectorAll('#flagLanguageButtons [data-lang]').forEach(b=>b.addEventListener('click',()=>{appLang.value=b.dataset.lang;appLang.dispatchEvent(new Event('change'))}));applyAppLanguage(appLang.value);paintFlagLanguage(appLang.value)}
 </script>
 <style>
 /* Version 9.0 guided workflow and contained drawing */
