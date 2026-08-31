@@ -172,6 +172,7 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .notes-photo-delete{position:absolute;top:4px;right:4px;width:24px;height:24px;border:0;border-radius:50%;background:#E53935;color:#fff;font-weight:900;font-size:12px}
 /* New Site Job (Customer intake) */
 .nsj-header{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--line)}
+.nsj-step{display:none}.nsj-step.active{display:block}
 .nsj-title{flex:1;min-width:0}
 .nsj-title strong{display:block;font-size:17px;font-weight:900;color:var(--ink)}
 .nsj-title small{display:block;font-size:11px;color:var(--muted);font-weight:700}
@@ -972,20 +973,37 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section id="newSiteJob" class="screen">
  <div class="nsj-header">
   <button type="button" id="nsjBackBtn" class="measure-back-btn" aria-label="Back">←</button>
-  <div class="nsj-title"><strong>New Site Job</strong><small>Customer information</small></div>
+  <div class="nsj-title"><strong>New Site Job</strong><small id="nsjStepSubtitle">Customer information</small></div>
   <button type="button" id="nsjNextBtn" class="btn primary nsj-next-btn">Next</button>
  </div>
  <div class="nsj-body">
-  <label>Customer name<input id="nsjCustomerName" placeholder="e.g. Smith"></label>
-  <label>Phone<input id="nsjPhone" type="tel" placeholder="Phone number"></label>
-  <label>Email (optional)<input id="nsjEmail" type="email" placeholder="Email address"></label>
-  <label>Address<textarea id="nsjAddress" placeholder="Address" rows="2"></textarea></label>
-  <label>Location
-   <div id="nsjLocationMap" class="nsj-location-map"></div>
-   <div class="muted" id="nsjLocationHint">Tap the map or use current location to drop a pin.</div>
-   <button type="button" class="btn" id="nsjUseLocationBtn" style="width:100%;margin-top:6px">📍 Use current location</button>
-  </label>
-  <label>Access details (optional)<textarea id="nsjAccessNotes" placeholder="e.g. Gate code, parking, key location..." rows="2"></textarea></label>
+  <div class="nsj-step" data-nsj-step="1">
+   <label>Customer name<input id="nsjCustomerName" placeholder="e.g. Smith"></label>
+  </div>
+  <div class="nsj-step" data-nsj-step="2">
+   <label>Phone (optional)<input id="nsjPhone" type="tel" inputmode="tel" placeholder="Phone number" style="font-size:20px;padding:16px"></label>
+  </div>
+  <div class="nsj-step" data-nsj-step="3">
+   <label>Email (optional)<input id="nsjEmail" type="email" inputmode="email" placeholder="Email address" style="font-size:20px;padding:16px"></label>
+  </div>
+  <div class="nsj-step" data-nsj-step="4">
+   <label>Address<textarea id="nsjAddress" placeholder="Address" rows="2"></textarea></label>
+   <label>Location
+    <div id="nsjLocationMap" class="nsj-location-map"></div>
+    <div class="muted" id="nsjLocationHint">Tap the map or use current location to drop a pin.</div>
+    <button type="button" class="btn" id="nsjUseLocationBtn" style="width:100%;margin-top:6px">📍 Use current location</button>
+   </label>
+   <label>Access details (optional)<textarea id="nsjAccessNotes" placeholder="e.g. Gate code, parking, key location..." rows="2"></textarea></label>
+  </div>
+  <div class="nsj-step" data-nsj-step="5">
+   <div class="muted" style="margin-bottom:10px">What are we measuring?</div>
+   <div id="nsjRoomGrid" class="room-type-grid"></div>
+  </div>
+  <div class="nsj-step" data-nsj-step="6">
+   <div class="muted" style="margin-bottom:10px">Which floor is it on?</div>
+   <div id="nsjFloorGrid" class="floor-btn-row"></div>
+   <button type="button" class="btn" id="nsjSkipFloor" style="width:100%;margin-top:10px">Not sure / skip floor</button>
+  </div>
  </div>
 </section>
 
@@ -1848,7 +1866,7 @@ function blankUnstartedJob(){return state.projects.find(p=>p.name==="New Site Jo
 function newJob(){
  const existing=blankUnstartedJob();
  if(existing){state.currentProject=existing.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob");return}
- if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('site_job_created');const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[]};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob")}
+ if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('site_job_created');const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[],nsjStep:1};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob")}
 // Tapping the Site Measure nav tab resumes whatever's already in progress instead of
 // always starting from scratch: a visit with real content (a customer name or at least
 // one room) goes straight to its Summary; a blank slate (or a job started but abandoned
@@ -1860,10 +1878,17 @@ function newJob(){
 // measuring work.
 function startSiteMeasureFlow(){
  const p=project();
- if(p&&!isInstallationJob(p)&&((p.rooms||[]).length||p.customer)){
-  state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();
-  show("siteVisitSummary");
-  return;
+ if(p&&!isInstallationJob(p)){
+  // Still inside the customer/site/room wizard (see renderNewSiteJobScreen) -- resume it
+  // at the exact question the fitter left, even if it already created a pending room in
+  // the Room step, rather than dropping them into Site Visit Summary before the wizard
+  // (and its still-optional fields) has actually finished.
+  if(p.nsjStep){show("newSiteJob");return}
+  if((p.rooms||[]).length||p.customer){
+   state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();
+   show("siteVisitSummary");
+   return;
+  }
  }
  newJob();
 }
@@ -2394,8 +2419,19 @@ document.getElementById('measureHomeBtn')?.addEventListener('click',()=>{
 // email, address, a pin-drop location, and access notes (gate code, parking,
 // key location). All of it travels with the project object, so it's already
 // included whenever the whole visit is sent to Studio.
+//
+// One question at a time (Customer -> Phone -> Email -> Address -> Room -> Floor)
+// instead of one long form, so the fitter isn't dropped into the measuring screen
+// after typing only a customer name. p.nsjStep is the only new bookkeeping -- a plain
+// integer on the same project object, persisted the same way as every other field
+// here, so a reload or a nav-away-and-back resumes at the right question instead of
+// losing progress or silently jumping into Site Visit Summary with no room yet (see
+// startSiteMeasureFlow). Room type and floor reuse the exact same addRoom()/roomTypes/
+// floor-label vocabulary already used everywhere else in Mobile -- nothing new there.
+const NSJ_STEP_SUBTITLES={1:'Customer information',2:'Phone number (optional)',3:'Email address (optional)',4:'Site address',5:'What are we measuring?',6:'Which floor?'};
 function renderNewSiteJobScreen(){
  const p=project();if(!p)return;
+ p.nsjStep=p.nsjStep||1;
  document.getElementById('nsjCustomerName').value=p.customer||'';
  document.getElementById('nsjPhone').value=p.phone||'';
  document.getElementById('nsjEmail').value=p.email||'';
@@ -2403,9 +2439,56 @@ function renderNewSiteJobScreen(){
  document.getElementById('nsjAccessNotes').value=p.accessNotes||'';
  const hint=document.getElementById('nsjLocationHint');
  if(hint)hint.textContent=p.geoLat!=null?`Pin set · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:'Tap the map or use current location to drop a pin.';
- initSiteLocationMap(p,'nsjLocationMap');
+ document.querySelectorAll('#newSiteJob .nsj-step').forEach(el=>el.classList.toggle('active',Number(el.dataset.nsjStep)===p.nsjStep));
+ const sub=document.getElementById('nsjStepSubtitle');if(sub)sub.textContent=NSJ_STEP_SUBTITLES[p.nsjStep]||'';
+ const nextBtn=document.getElementById('nsjNextBtn');if(nextBtn)nextBtn.classList.toggle('hidden',p.nsjStep>=5);
+ if(p.nsjStep===4)initSiteLocationMap(p,'nsjLocationMap');
+ if(p.nsjStep===5)renderNsjRoomGrid(p);
+ if(p.nsjStep===6)renderNsjFloorGrid(p);
 }
-document.getElementById('nsjBackBtn')?.addEventListener('click',()=>show('projects'));
+function nsjPendingRoom(p){return p.nsjPendingRoomId?(p.rooms||[]).find(r=>r.id===p.nsjPendingRoomId):null}
+// Tapping a room type is the whole action here (no separate Next) -- but going Back
+// from Floor to re-pick the room type must correct the SAME room, not add another one
+// next to it, or Back-and-change-your-mind would leave an abandoned half-made room
+// behind. nsjPendingRoomId just points at whichever room this wizard is currently
+// building; addRoom() itself is untouched.
+function renderNsjRoomGrid(p){
+ const box=document.getElementById('nsjRoomGrid');if(!box)return;
+ const pending=nsjPendingRoom(p);
+ box.innerHTML=roomTypes.map(([n,i])=>`<button type="button" class="room-type-btn ${pending&&pending.type===n?'active':''}" data-room-type="${safe(n)}" data-icon="${i}"><b>${i}</b>${safe(roomTypeLabel(n))}</button>`).join('');
+ box.querySelectorAll('[data-room-type]').forEach(b=>b.onclick=()=>{
+  const type=b.dataset.roomType,icon=b.dataset.icon;
+  const name=type==='Custom'?(prompt('Name this room:')||'').trim():suggestedRoomName(type);
+  if(type==='Custom'&&!name)return;
+  const existing=nsjPendingRoom(p);
+  if(existing){existing.type=type;existing.name=name;existing.icon=icon}
+  else{addRoom(type,name,icon);p.nsjPendingRoomId=state.currentRoom}
+  p.nsjStep=6;save();renderNewSiteJobScreen();
+ });
+}
+function renderNsjFloorGrid(p){
+ const box=document.getElementById('nsjFloorGrid');if(!box)return;
+ const room=nsjPendingRoom(p);
+ const presets=['Basement','Ground','1st floor','2nd floor','3rd floor'];
+ box.innerHTML=presets.map(f=>`<button type="button" class="btn floor-preset-btn ${room&&room.location===f?'active':''}" data-floor="${f}" style="padding:14px 12px;font-size:15px">${safe(floorDisplayLabel(f))}</button>`).join('');
+ box.querySelectorAll('[data-floor]').forEach(b=>b.onclick=()=>{const r=nsjPendingRoom(p);if(r)r.location=b.dataset.floor;nsjFinishWizard(p)});
+}
+// Studio-facing structure is exactly what Site Measure already produces (a real room
+// on p.rooms, same schema as any other) -- this just clears the wizard bookkeeping and
+// hands off to the existing measure screen for the room it just built.
+function nsjFinishWizard(p){
+ delete p.nsjStep;delete p.nsjPendingRoomId;
+ save();
+ show('measure');
+}
+document.getElementById('nsjSkipFloor')?.addEventListener('click',()=>{const p=project();if(p)nsjFinishWizard(p)});
+// Back corrects the previous question in place -- it must not leave the wizard (and
+// so must not risk a second job being started) unless there's nowhere earlier to go.
+document.getElementById('nsjBackBtn')?.addEventListener('click',()=>{
+ const p=project();
+ if(p&&p.nsjStep>1){p.nsjStep--;save();renderNewSiteJobScreen();return}
+ show('projects');
+});
 document.getElementById('nsjCustomerName')?.addEventListener('input',e=>{const p=project();if(p)p.customer=e.target.value;save()});
 document.getElementById('nsjPhone')?.addEventListener('input',e=>{const p=project();if(p)p.phone=e.target.value;save()});
 document.getElementById('nsjEmail')?.addEventListener('input',e=>{const p=project();if(p)p.email=e.target.value;save()});
@@ -2422,13 +2505,18 @@ document.getElementById('nsjUseLocationBtn')?.addEventListener('click',()=>{
   initSiteLocationMap(p,'nsjLocationMap');
  },()=>{btn.textContent=old;btn.disabled=false;alert('Could not get your location.')},{enableHighAccuracy:true,timeout:10000});
 });
+// Customer name is the one required field (the fresh job's actual identity); phone,
+// email and address all allow Next with nothing entered -- no separate Skip flow.
 document.getElementById('nsjNextBtn')?.addEventListener('click',()=>{
  const p=project();if(!p)return;
- const name=document.getElementById('nsjCustomerName').value.trim();
- if(!name)return alert('Add the customer name first.');
- p.customer=name;
+ if(p.nsjStep===1){
+  const name=document.getElementById('nsjCustomerName').value.trim();
+  if(!name)return alert('Add the customer name first.');
+  p.customer=name;
+ }
+ p.nsjStep=Math.min(6,(p.nsjStep||1)+1);
  save();
- show('measure');
+ renderNewSiteJobScreen();
 });
 document.getElementById('svsBackBtn')?.addEventListener('click',()=>show('projects'));
 document.getElementById('svsCustomerBtn')?.addEventListener('click',openCustomerPanel);
