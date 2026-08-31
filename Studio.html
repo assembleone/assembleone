@@ -6395,6 +6395,12 @@ body.fiq-locked .app{display:none!important}
 .jor-main{min-width:0;flex:1 1 160px}
 .jor-name{font-weight:900;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jor-room{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jor-room-chips{display:flex;flex-wrap:wrap;gap:5px;white-space:normal}
+.jor-room-chip{display:inline-flex;align-items:center;gap:4px;background:#EEF2FF;color:var(--ink);border:1px solid #DCE3FA;border-radius:999px;padding:4px 10px 4px 7px;font-size:12px;font-weight:700;cursor:pointer;min-height:26px}
+.jor-room-chip:hover{background:#DCE7FF;border-color:#8B5CF6}
+.jor-room-chip-icon{font-size:14px;line-height:1}
+.jor-room-chip-plain{cursor:default}
+.jor-room-chip-plain:hover{background:#EEF2FF;border-color:#DCE3FA}
 .jor-fitter{flex:0 0 130px;min-width:0}
 .jor-fitter-input{width:100%;border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:700;color:var(--ink);background:#f7f8fb}
 .jor-fitter-input:focus{background:#fff;border-color:#8B5CF6}
@@ -6500,6 +6506,19 @@ body.fiq-locked .app{display:none!important}
     if(rooms.length)return rooms.map(r=>(r.icon||'⌂')+' '+r.name).join('  ')+(rooms.length>1?' · '+rooms.length+' rooms':'');
     const cab=(p.cabinets||[])[0];
     return (cab&&cab.name)||'';
+  }
+  // Each room gets its own independently-clickable chip instead of one plain text label
+  // -- opening Room must open only Room, opening TV Wall must open only TV Wall. Same
+  // room-scoped entry point already used by Customer Library's own room chips and the
+  // job workspace's room picker (see the click wiring below and renderStudioRoomGuide),
+  // just reused here so a room's data reads and opens identically everywhere it appears.
+  function jobRoomChipsHtml(p){
+    const rooms=(p.rooms||[]).filter(r=>r&&r.name);
+    if(!rooms.length){
+      const cab=(p.cabinets||[])[0];
+      return cab?'<span class="jor-room-chip jor-room-chip-plain">'+safe(cab.name)+'</span>':'';
+    }
+    return rooms.map(r=>'<button type="button" class="jor-room-chip" data-open-jor-room="'+safe(p.id)+'" data-jor-room-id="'+safe(r.id)+'" title="Open '+safe(r.name)+'"><span class="jor-room-chip-icon">'+safe(r.icon||'⌂')+'</span><span class="jor-room-chip-name">'+safe(r.name)+'</span></button>').join('');
   }
   // Damaged and Missing reuse exactly the same per-panel fields Panel Check and Fitted
   // already read (status/damagedQty, qty-aware) -- no second issue-tracking system, just
@@ -6629,9 +6648,10 @@ body.fiq-locked .app{display:none!important}
       // so it also already survives a reload correctly (it's just a field on the project).
       const isNew=!!p.isNewFromSite;
       const newBadge=isNew?'<span class="jor-new-badge">🆕 NEW SITE JOB</span>':'';
+      const roomChips=jobRoomChipsHtml(p);
       return '<div class="job-overview-row'+(isNew?' jor-new':'')+'" data-open-job-card="'+safe(p.id)+'">'+
         '<div class="jor-thumb">'+thumb+'</div>'+
-        '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room">'+safe(jobRoomLabel(p)||p.name||'')+'</div>'+
+        '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room jor-room-chips">'+(roomChips||safe(p.name||''))+'</div>'+
         '<div class="jor-issues">'+issueHtml+'</div></div>'+
         '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):'')+'</div>'+
         '<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="Open Panel Check"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+pcPct+'% checked</div>':'')+'</div>'+
@@ -6641,10 +6661,31 @@ body.fiq-locked .app{display:none!important}
       '</div>';
     }).join(''):'<div class="empty">No active jobs — completed jobs are in Customer Library.</div>';
     grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
-      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]'))return;
+      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]')||e.target.closest('[data-open-jor-room]'))return;
       switchToProject(row.dataset.openJobCard);
       save();
       if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
+    });
+    // A room chip opens exactly that room, never the whole job's first room -- real site
+    // content (photos/measurements/notes from Mobile) opens the same room-scoped viewer
+    // Customer Library already uses; a Studio-native room with nothing sent from site
+    // opens that one room inside its own job workspace instead.
+    grid.querySelectorAll('[data-open-jor-room]').forEach(btn=>{
+      btn.onclick=(e)=>{
+        e.stopPropagation();
+        const projectId=btn.dataset.openJorRoom,roomId=btn.dataset.jorRoomId;
+        const proj=state.projects.find(x=>x.id===projectId);
+        const room=proj&&(proj.rooms||[]).find(r=>r.id===roomId);
+        const hasSite=room&&(siteRoomPictures(room).length||siteRoomMeasureCount(room)||String(room.notes||'').trim());
+        if(hasSite&&typeof openSiteRoomDetails==='function'){
+          openSiteRoomDetails(projectId,roomId);
+        }else{
+          switchToProject(projectId);
+          state.currentRoom=roomId;
+          save();
+          if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
+        }
+      };
     });
     // The Panel Check stat and the "needs attention" warning icon are the actionable parts
     // of a row -- someone tapping them wants to go fix the problem, not land on the drawing
