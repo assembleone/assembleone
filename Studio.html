@@ -1364,12 +1364,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </div>
 <div class="measure-entry-row">
 <div class="measure-box">
-<label class="measure-field"><span data-i18n="studio.drawing.thicknessLabel">Thickness</span><div class="measure-wrap unit-mm"><input id="fThickness" step="0.1" type="number" value="19"/><span id="thicknessUnitLabel">mm</span></div></label>
-<label class="measure-field"><span><span data-i18n="studio.drawing.lengthLabel">Length</span> <em class="with-grain-tag" data-i18n="studio.drawing.withGrainTag" data-i18n-title="studio.drawing.withGrainTitle" title="The first measurement always follows the grain direction">With Grain</em></span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" data-i18n-title="studio.drawing.doubleClickEdgeBanding" title="Double-click to add edge banding" type="number"/><span id="lengthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
-<label class="measure-field"><span data-i18n="studio.drawing.widthLabel">Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" data-i18n-title="studio.drawing.doubleClickEdgeBanding" title="Double-click to add edge banding" type="number"/><span id="widthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
+<label class="measure-field"><span data-i18n="studio.drawing.thicknessLabel">Thickness</span><div class="measure-wrap unit-mm"><input id="fThickness" step="0.1" type="number" value="19" data-i18n-placeholder="studio.drawing.insertThicknessPlaceholder" placeholder="Insert thickness"/><span id="thicknessUnitLabel">mm</span></div></label>
+<label class="measure-field"><span><span data-i18n="studio.drawing.lengthLabel">Length</span> <em class="with-grain-tag" data-i18n="studio.drawing.withGrainTag" data-i18n-title="studio.drawing.withGrainTitle" title="The first measurement always follows the grain direction">With Grain</em></span><div class="measure-wrap unit-mm" id="lengthMeasureWrap"><input id="fLength" step="0.1" data-i18n-title="studio.drawing.doubleClickEdgeBanding" title="Double-click to add edge banding" type="number" data-i18n-placeholder="studio.drawing.insertLengthPlaceholder" placeholder="Insert length"/><span id="lengthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
+<label class="measure-field"><span data-i18n="studio.drawing.widthLabel">Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" data-i18n-title="studio.drawing.doubleClickEdgeBanding" title="Double-click to add edge banding" type="number" data-i18n-placeholder="studio.drawing.insertWidthPlaceholder" placeholder="Insert width"/><span id="widthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
 </div>
 <div class="quantity-card">
-<label class="measure-field"><span data-i18n="studio.drawing.quantityLabel">Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" type="number" value="1"/><span>pcs</span></div></label>
+<label class="measure-field"><span data-i18n="studio.drawing.quantityLabel">Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" type="number" value="1" data-i18n-placeholder="studio.drawing.insertQuantityPlaceholder" placeholder="Insert quantity"/><span>pcs</span></div></label>
 </div>
 </div>
 <div class="edge-help" data-i18n="studio.drawing.edgeBandingHelp">Double-click the length or width number to add edge banding: no line → one line → double line.</div>
@@ -1822,7 +1822,7 @@ function addCabinet(){
  const p=project();if(!p)return;
  const room=selectedStudioRoom(),label=unitLabelForRoom(room),same=p.cabinets.filter(c=>room?c.roomId===room.id:true).length;
  const defaultName=label.charAt(0).toUpperCase()+label.slice(1)+(same?` ${same+1}`:"");
- const name=prompt(`${label.charAt(0).toUpperCase()+label.slice(1)} name:`,defaultName);if(name===null)return;
+ const name=prompt(t("studio.home.cabinetNamePromptLabel",[label.charAt(0).toUpperCase()+label.slice(1)]),defaultName);if(name===null)return;
  const c={id:uid(),name:name||defaultName,roomId:room?.id||"",drawing:null,drawingType:null,parts:[]};
  p.cabinets.push(c);state.currentCabinet=c.id;state.currentPart=null;save();renderAll();show("mark")
 }
@@ -1921,19 +1921,19 @@ function openSiteRoomDetails(projectId,roomId){
 }
 function closeSiteRoomDetails(){const m=document.getElementById('siteRoomDetailsModal');m?.classList.remove('open');m?.setAttribute('aria-hidden','true')}
 function sendSitePhotoToDrawing(){
- const m=document.getElementById('siteRoomDetailsModal'),p=ensureSharedProject(state.projects.find(x=>x.id===m?.dataset.projectId));if(!p)return;const room=p.rooms.find(r=>r.id===m.dataset.roomId)||p.rooms[0];const caps=siteRoomCaptures(room);const cap=caps[+(m.dataset.pictureIndex||0)];if(!cap)return alert('No site picture is available.');
+ const m=document.getElementById('siteRoomDetailsModal'),p=ensureSharedProject(state.projects.find(x=>x.id===m?.dataset.projectId));if(!p)return;const room=p.rooms.find(r=>r.id===m.dataset.roomId)||p.rooms[0];const caps=siteRoomCaptures(room);const cap=caps[+(m.dataset.pictureIndex||0)];if(!cap)return alert(t("studio.siteRoom.noSitePictureAvailable"));
  let c=p.cabinets.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' design',roomId:room?.id||'',drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
- c.drawing=cap.image;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';c.siteMarkup=cap.marks?.length?{image:cap.image,w:cap.w,h:cap.h,marks:JSON.parse(JSON.stringify(cap.marks))}:null;switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');alert('The site photo is now beside the drawing tools as your reference.')
+ c.drawing=cap.image;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';c.siteMarkup=cap.marks?.length?{image:cap.image,w:cap.w,h:cap.h,marks:JSON.parse(JSON.stringify(cap.marks))}:null;switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');alert(t("studio.siteRoom.sitePhotoBesideDrawingToast"))
 }
 function openCustomerSiteJobInDrawing(projectId){
- const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert('Job not found.');
+ const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert(t("studio.siteRoom.jobNotFound"));
  // Photos can live on a specific room (the multi-room "Room Guide" flow) or directly on
  // the project itself (the simpler "New Site Job" flow attaches sitePhotos/siteMarkup
  // to the project, never creating a room at all) -- check both, or the picture from a
  // job captured the simple way would be silently missed here.
  const room=p.rooms.find(r=>bestSiteReference(r).image);
  const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(p);
- if(!ref.image)return alert('No site measurements are attached to this job yet.');
+ if(!ref.image)return alert(t("studio.siteRoom.noSiteMeasurementsAttached"));
  const roomId=room?.id||'';
  let c=p.cabinets.find(x=>x.roomId===roomId);
  if(!c){c={id:uid(),name:(room?.name||p.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
@@ -1941,18 +1941,18 @@ function openCustomerSiteJobInDrawing(projectId){
  c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null;
  switchToProject(p.id,c.id);
  renderAll();save();show('mark');
- toast('Site measurements opened in Drawing — customer, room, photos and notes are preserved.');
+ toast(t("studio.siteRoom.siteMeasurementsOpenedToast"));
 }
 function renderProject(){
  const p=project();$("#projectName").value=p?.name||"";$("#customerName").value=p?.customer||"";
  const box=$("#cabinetList");
- if(!p){box.innerHTML='<div class="empty">Choose a job first.</div>';return}
- box.innerHTML=p.cabinets.length?p.cabinets.map(c=>`<div class="cabinet-card"><div><strong>${safe(c.name)}</strong><div class="muted">${c.parts.length} parts ${c.drawing?"· drawing added":""}</div></div><div><button class="btn primary" data-open-cabinet="${c.id}">Open</button> <button class="btn danger" data-delete-cabinet="${c.id}">Delete</button></div></div>`).join(""):'<div class="empty">No wardrobes yet.</div>';
+ if(!p){box.innerHTML=`<div class="empty">${t("studio.home.chooseJobFirstEmpty")}</div>`;return}
+ box.innerHTML=p.cabinets.length?p.cabinets.map(c=>`<div class="cabinet-card"><div><strong>${safe(c.name)}</strong><div class="muted">${c.parts.length} ${t("studio.home.partsCountLabel")} ${c.drawing?t("studio.home.drawingAddedSuffix"):""}</div></div><div><button class="btn primary" data-open-cabinet="${c.id}">${t("proj.open")}</button> <button class="btn danger" data-delete-cabinet="${c.id}">${t("detail.delete")}</button></div></div>`).join(""):`<div class="empty">${t("studio.home.noWardrobesYetEmpty")}</div>`;
  $$("[data-open-cabinet]").forEach(b=>b.onclick=()=>{state.currentCabinet=b.dataset.openCabinet;state.currentPart=null;renderAll();show("mark")});
- $$("[data-delete-cabinet]").forEach(b=>b.onclick=()=>{if(confirm("Delete this wardrobe and all its parts?")){p.cabinets=p.cabinets.filter(c=>c.id!==b.dataset.deleteCabinet);state.currentCabinet=p.cabinets[0]?.id||null;save();renderAll()}})
+ $$("[data-delete-cabinet]").forEach(b=>b.onclick=()=>{if(confirm(t("studio.home.deleteWardrobeConfirm"))){p.cabinets=p.cabinets.filter(c=>c.id!==b.dataset.deleteCabinet);state.currentCabinet=p.cabinets[0]?.id||null;save();renderAll()}})
 }
 function renderCabinetSelect(){
- const p=project(),s=$("#cabinetSelect");s.innerHTML=p?.cabinets.length?p.cabinets.map(c=>`<option value="${c.id}">${safe(c.name)}</option>`).join(""):'<option>No wardrobe</option>';if(p?.cabinets.some(c=>c.id===state.currentCabinet))s.value=state.currentCabinet
+ const p=project(),s=$("#cabinetSelect");s.innerHTML=p?.cabinets.length?p.cabinets.map(c=>`<option value="${c.id}">${safe(c.name)}</option>`).join(""):`<option>${t("studio.home.noWardrobeOption")}</option>`;if(p?.cabinets.some(c=>c.id===state.currentCabinet))s.value=state.currentCabinet
 }
 // Shared by the Drawing workspace overlay and the site-room-details photo viewer so a
 // mark drawn on a specific site photo always renders identically wherever that photo
@@ -2480,8 +2480,8 @@ function ensureSharedProject(p){
 }
 const studioRoomTypes=[["Kitchen","🍳"],["Living Room","🛋️"],["TV Wall","📺"],["Master Bedroom","🛏️"],["Bedroom","🛏️"],["Kids Bedroom","🧸"],["Dressing Room","👕"],["Bathroom","🚿"],["Office","💼"],["Laundry","🧺"],["Utility Room","📦"],["Hallway","🚪"],["Under Stairs","🪜"],["Wine Room","🍷"],["Library","📚"],["Custom","＋"]];
 function suggestedStudioRoomName(type){const p=ensureSharedProject(project());const same=(p?.rooms||[]).filter(r=>r.type===type);const label=typeof roomTypeLabel==="function"?roomTypeLabel(type):type;return same.length?`${label} ${same.length+1}`:label}
-function createStudioRoom(type,name,icon){const p=ensureSharedProject(project());if(!p)return alert("Open a project first.");const clean=(name||"").trim();if(!clean)return;const r={id:uid(),type,name:clean,icon:icon||"🏠",beforePhotos:[],designImages:[],notes:"",siteMarkup:{image:null,w:0,h:0,marks:[]}};p.rooms.push(r);state.currentRoom=r.id;save();renderStudioRoomGuide();updateUnitAddWording()}
-function addStudioRoom(){const p=ensureSharedProject(project());if(!p)return alert("Open a project first.");const overlay=document.createElement("div");overlay.className="room-type-dialog";overlay.innerHTML=`<div class="room-type-sheet"><div class="room-type-top"><h2>${t("msg.chooseRoomStepTitle")}</h2><button class="btn room-type-close" id="closeStudioRoomCreator" aria-label="${t("studio.common.close")}">×</button></div><div class="room-type-help">${t("studio.home.roomPickerHelp")}</div><div class="room-type-grid">${studioRoomTypes.map(([name,icon])=>`<button class="room-type-btn" data-studio-room-type="${safe(name)}" data-studio-room-icon="${icon}"><b>${icon}</b>${safe(typeof roomTypeLabel==="function"?roomTypeLabel(name):name)}</button>`).join("")}</div><div id="studioCustomRoomRow" class="room-name-row hidden"><input id="studioCustomRoomName" placeholder="${t("studio.home.customRoomNamePlaceholder")}"><button class="btn primary" id="saveStudioCustomRoom">${t("msg.addRoomHeading")}</button></div></div>`;document.body.appendChild(overlay);const close=()=>overlay.remove();overlay.querySelector("#closeStudioRoomCreator").onclick=close;overlay.onclick=e=>{if(e.target===overlay)close()};overlay.querySelectorAll("[data-studio-room-type]").forEach(button=>button.onclick=()=>{const type=button.dataset.studioRoomType,icon=button.dataset.studioRoomIcon;if(type==="Custom"){overlay.querySelector("#studioCustomRoomRow").classList.remove("hidden");overlay.querySelector("#studioCustomRoomName").focus();return}createStudioRoom(type,suggestedStudioRoomName(type),icon);close()});overlay.querySelector("#saveStudioCustomRoom").onclick=()=>{const input=overlay.querySelector("#studioCustomRoomName");const name=input.value.trim();if(!name){input.focus();return}createStudioRoom("Custom",name,"🏠");close()};overlay.querySelector("#studioCustomRoomName").onkeydown=e=>{if(e.key==="Enter")overlay.querySelector("#saveStudioCustomRoom").click()}}
+function createStudioRoom(type,name,icon){const p=ensureSharedProject(project());if(!p)return alert(t("msg.openProjectFirst"));const clean=(name||"").trim();if(!clean)return;const r={id:uid(),type,name:clean,icon:icon||"🏠",beforePhotos:[],designImages:[],notes:"",siteMarkup:{image:null,w:0,h:0,marks:[]}};p.rooms.push(r);state.currentRoom=r.id;save();renderStudioRoomGuide();updateUnitAddWording()}
+function addStudioRoom(){const p=ensureSharedProject(project());if(!p)return alert(t("msg.openProjectFirst"));const overlay=document.createElement("div");overlay.className="room-type-dialog";overlay.innerHTML=`<div class="room-type-sheet"><div class="room-type-top"><h2>${t("msg.chooseRoomStepTitle")}</h2><button class="btn room-type-close" id="closeStudioRoomCreator" aria-label="${t("studio.common.close")}">×</button></div><div class="room-type-help">${t("studio.home.roomPickerHelp")}</div><div class="room-type-grid">${studioRoomTypes.map(([name,icon])=>`<button class="room-type-btn" data-studio-room-type="${safe(name)}" data-studio-room-icon="${icon}"><b>${icon}</b>${safe(typeof roomTypeLabel==="function"?roomTypeLabel(name):name)}</button>`).join("")}</div><div id="studioCustomRoomRow" class="room-name-row hidden"><input id="studioCustomRoomName" placeholder="${t("studio.home.customRoomNamePlaceholder")}"><button class="btn primary" id="saveStudioCustomRoom">${t("msg.addRoomHeading")}</button></div></div>`;document.body.appendChild(overlay);const close=()=>overlay.remove();overlay.querySelector("#closeStudioRoomCreator").onclick=close;overlay.onclick=e=>{if(e.target===overlay)close()};overlay.querySelectorAll("[data-studio-room-type]").forEach(button=>button.onclick=()=>{const type=button.dataset.studioRoomType,icon=button.dataset.studioRoomIcon;if(type==="Custom"){overlay.querySelector("#studioCustomRoomRow").classList.remove("hidden");overlay.querySelector("#studioCustomRoomName").focus();return}createStudioRoom(type,suggestedStudioRoomName(type),icon);close()});overlay.querySelector("#saveStudioCustomRoom").onclick=()=>{const input=overlay.querySelector("#studioCustomRoomName");const name=input.value.trim();if(!name){input.focus();return}createStudioRoom("Custom",name,"🏠");close()};overlay.querySelector("#studioCustomRoomName").onkeydown=e=>{if(e.key==="Enter")overlay.querySelector("#saveStudioCustomRoom").click()}}
 function assignCabinetRoom(cabinetId,roomId){const p=ensureSharedProject(project()),c=p?.cabinets.find(x=>x.id===cabinetId);if(!c)return;c.roomId=roomId||"";save();renderStudioRoomGuide();renderProject()}
 function openStudioRoom(roomId){
  const p=ensureSharedProject(project()),r=p?.rooms.find(x=>x.id===roomId);if(!p||!r)return;
@@ -2587,9 +2587,11 @@ function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;co
   // straight through with no limit -- every downstream count (Estimated Sheets, Fitted,
   // Panel Check) would then try to work with thousands of a single panel. One real panel
   // is never going to legitimately need more than a few hundred identical pieces.
-  if(key==="qty"&&raw!==""&&+raw>500){alert("That quantity ("+raw+") looks like a mistake for a single panel -- capped at 500. Split genuinely larger batches into more than one panel row.");$("#"+id).value=500}
+  if(key==="qty"&&raw!==""&&+raw>500){alert(t("studio.drawing.quantityCappedAlert",[raw]));$("#"+id).value=500}
   p[key]=isMeasure?(raw===""?"":(typeof aoUnitToMm==='function'?aoUnitToMm(+raw):+raw)):(key==="qty"?(raw===""?"":Math.min(500,+raw)):raw);if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key]}save();renderPartList();renderCutting();renderPhone()}}
-Object.entries({fThickness:"Insert thickness",fLength:"Insert length",fWidth:"Insert width",fQty:"Insert quantity"}).forEach(([id,ph])=>{const el=$("#"+id);if(el)el.placeholder=ph});
+// Placeholders for fThickness/fLength/fWidth/fQty now come from the static
+// data-i18n-placeholder attributes above (applyI18n() keeps them correct on
+// every language switch, not just once at load like this used to).
 ["fLength:length","fWidth:width","fThickness:thickness","fQty:qty","fNotes:notes"].forEach(x=>{const[a,b]=x.split(":");bindField(a,b)});
 function setPartName(name){state.lastChosenPartName=name;const p=part();if(p)p.name=name;save();renderAll()}
 $$(".nav-btn").forEach(b=>b.onclick=()=>show(b.dataset.screen));
@@ -2610,7 +2612,7 @@ function download(blob,name){const a=document.createElement("a");a.href=URL.crea
 function downloadA1(data,name){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:"application/json"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 function cleanFileName(name){return String(name||"FittersIQ_Job").replace(/[^\w-]+/g,"_")}
 function exportProjectRecord(projectId){
- const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert("Project not found.");
+ const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert(t("studio.drawing.projectNotFound"));
  const row=[p.customer||"",p.name||"",p.address||"",p.phone||"",(p.rooms||[]).length,(p.cabinets||[]).length,new Date().toLocaleDateString()];
  const summary="Customer,Project,Address,Phone,Rooms,Units,Exported\n"+row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
  const pack={app:"AssembleOne",schema:"assembleone-archive-v1",exportedAt:new Date().toISOString(),project:p};
@@ -2865,7 +2867,7 @@ async function recoverAllCompanySiteJobs(){
   return changed;
  }catch(e){console.error('Site job recovery failed',e);return false}
 }
-async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert('No new site jobs are waiting.');return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
+async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert(t("studio.siteJobsInbox.noNewSiteJobsWaiting"));return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
 document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
 
@@ -3030,17 +3032,17 @@ function readDrawingFileAsDataUrl(file){
 async function importRoomsFile(file){
  if(!file)return;
  if(!drawingFileAllowed(file)){
-   alert("Please choose a picture, screenshot or PDF file.");
+   alert(t("studio.drawing.choosePicScreenshotPdf"));
    return;
  }
  const c=ensureRoomsWorkspace();
  const stage=$("#drawingStage");
  stage.classList.add("importing");
- showRoomsMessage("Opening "+(file.name||"photo or screenshot")+"…");
+ showRoomsMessage(t("studio.drawing.openingFileTemplate",[file.name||t("studio.drawing.photoOrScreenshotFallback")]));
  try{
    const isPdf=(file.type||"").toLowerCase()==="application/pdf"||/\.pdf$/i.test(file.name||"");
    const data=isPdf?await readFileAsDataUrl(file):await readDrawingFileAsDataUrl(file);
-   if(!data)throw new Error("The file was empty.");
+   if(!data)throw new Error(t("studio.drawing.fileWasEmptyError"));
    c.drawing=data;
    c.drawingType=isPdf?"pdf":"image";
    c.drawingName=file.name||"Photo or screenshot";
@@ -3051,13 +3053,13 @@ async function importRoomsFile(file){
    renderAll();
    const stored=save();
    if(!stored){
-     setTimeout(()=>alert("The drawing is showing correctly, but it is too large for permanent browser storage. Keep this page open while working, or use a smaller screenshot."),50);
+     setTimeout(()=>alert(t("studio.drawing.drawingTooLargeStorage")),50);
    }
  }catch(err){
    stage.classList.remove("importing");
    console.error(err);
-   showRoomsMessage(err.message||"Please try another picture or screenshot.",true);
-   alert(err.message||"The drawing could not be opened.");
+   showRoomsMessage(err.message||t("studio.drawing.tryAnotherPicScreenshot"),true);
+   alert(err.message||t("studio.drawing.drawingCouldNotBeOpened"));
  }
 }
 function firstDroppedFile(dt){
@@ -3136,7 +3138,7 @@ drop.addEventListener("drop",e=>{
  e.preventDefault();e.stopPropagation();drop.classList.remove("drag-over");
  const file=firstDroppedFile(e.dataTransfer);
  if(file)importRoomsFile(file);
- else alert("That item is not a picture file. Try dragging a PNG or JPG from your Downloads or Pictures folder.");
+ else alert(t("studio.drawing.notPictureFileDragHint"));
 });
 document.addEventListener("dragover",e=>e.preventDefault());
 document.addEventListener("drop",e=>{if(!drop.contains(e.target))e.preventDefault()});
@@ -3144,7 +3146,7 @@ drop.addEventListener("click",e=>{
  if(e.target.closest(".pin"))return;
  const c=cabinet();
  if(!c?.drawing){$("#drawingInputTop").click();return}
- if(c.drawingType==="pdf")return alert("For marking panels, use a PNG or JPG screenshot of the PDF.");
+ if(c.drawingType==="pdf")return alert(t("studio.drawing.pdfUseScreenshotForMarking"));
  const r=$("#drawingCanvas").getBoundingClientRect();
  createPartAt((e.clientX-r.left)/r.width*100,(e.clientY-r.top)/r.height*100);
 });
@@ -3182,7 +3184,7 @@ $("#saveNextBtn").onclick=()=>{
 };
 
 $("#deletePartBtn").onclick=()=>{const c=cabinet(),p=part();if(c&&p&&confirm(t("studio.drawing.deletePanelConfirm",[p.code]))){c.parts=c.parts.filter(x=>x.id!==p.id);c.parts.forEach((x,i)=>x.code=`P-${String(i+1).padStart(3,"0")}`);state.currentPart=null;save();renderAll()}};
-$("#downloadCsvBtn").onclick=()=>{const c=cabinet(),complete=supplierParts();if(!complete.length){alert("No complete parts are ready. Add the part name, thickness, length and width first.");return}const rows=[["Panel No.","Thickness","Length","Long edge lines","Width","Short edge lines","Qty","Material"],...complete.map(p=>[p.code,p.thickness,p.length,p.edgeLong||0,p.width,p.edgeShort||0,p.qty,materialForPanel(p)||""])];const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=((project()?.name||"Job")+"_"+(c?.name||"Wardrobe")).replace(/[^\w-]+/g,"_")+"_cutting_list.csv";a.click()};
+$("#downloadCsvBtn").onclick=()=>{const c=cabinet(),complete=supplierParts();if(!complete.length){alert(t("studio.drawing.noCompletePartsReadyAddFirst"));return}const rows=[["Panel No.","Thickness","Length","Long edge lines","Width","Short edge lines","Qty","Material"],...complete.map(p=>[p.code,p.thickness,p.length,p.edgeLong||0,p.width,p.edgeShort||0,p.qty,materialForPanel(p)||""])];const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=((project()?.name||"Job")+"_"+(c?.name||"Wardrobe")).replace(/[^\w-]+/g,"_")+"_cutting_list.csv";a.click()};
 $("#printCuttingBtn").onclick=()=>{$$(".screen").forEach(x=>x.classList.remove("print-target"));$("#screen-cutting").classList.add("print-target");window.print()};
 $("#generateQrBtn").onclick=renderQr;$("#printQrBtn").onclick=()=>{$$(".screen").forEach(x=>x.classList.remove("print-target"));$("#screen-qr").classList.add("print-target");window.print()};
 $("#phonePartSelect").onchange=e=>{state.currentPart=e.target.value;save();renderPhone()};
@@ -3201,7 +3203,7 @@ $("#widthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeShort=(Number(
 ["fLength","fWidth","fThickness"].forEach(id=>$("#"+id).addEventListener("input",updateEdgePreview));
 function cycleMeasurementEdge(kind,e){
  if(e){e.preventDefault();e.stopPropagation()}
- const p=part();if(!p)return alert("Mark or select a panel first.");
+ const p=part();if(!p)return alert(t("studio.drawing.markOrSelectPanelFirst"));
  const key=kind==="length"?"edgeLong":"edgeShort";
  p[key]=(Number(p[key]||0)+1)%3;
  save();updateEdgePreview();renderCutting();
@@ -3216,9 +3218,9 @@ function cycleMeasurementEdge(kind,e){
 $$('[data-quick-menu]').forEach(b=>b.onclick=e=>{e.stopPropagation();const menu=$("#quick-"+b.dataset.quickMenu);$$('.quick-pop').forEach(x=>{if(x!==menu)x.classList.remove('open')});menu.classList.toggle('open')});
 $$('[data-quick-name]').forEach(b=>b.onclick=e=>{e.stopPropagation();setPartName(b.dataset.quickName);$$('.quick-pop').forEach(x=>x.classList.remove('open'));const lib=b.closest('.common-part-library');if(lib)lib.open=false;const chosen=document.querySelector('.chosen-parts');if(chosen)chosen.open=false;});
 document.addEventListener('click',()=>$$('.quick-pop').forEach(x=>x.classList.remove('open')));
-$$("[data-template]").forEach(b=>b.onclick=()=>{const p=part();if(!p)return alert("Mark a panel first.");p.name=b.dataset.template;if($("#partNamePicker")) $("#partNamePicker").value=b.dataset.template;save();renderAll()});
-$("#addSameMarkerBtn").onclick=()=>{const p=part();if(!p)return alert("Choose a panel first.");p.copies=p.copies||[];p.copies.push({x:Math.min(94,(p.x||50)+5),y:Math.min(94,(p.y||50)+5)});p.qty=Math.max(Number(p.qty||1),1+p.copies.length);state.selectedCopy=p.copies.length-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false;alert("The same part number has been added again. Drag the new marker to the matching panel.")};
-$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert("Select one of the repeated markers first.");const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false};
+$$("[data-template]").forEach(b=>b.onclick=()=>{const p=part();if(!p)return alert(t("studio.drawing.markPanelFirst"));p.name=b.dataset.template;if($("#partNamePicker")) $("#partNamePicker").value=b.dataset.template;save();renderAll()});
+$("#addSameMarkerBtn").onclick=()=>{const p=part();if(!p)return alert(t("studio.drawing.choosePanelFirst"));p.copies=p.copies||[];p.copies.push({x:Math.min(94,(p.x||50)+5),y:Math.min(94,(p.y||50)+5)});p.qty=Math.max(Number(p.qty||1),1+p.copies.length);state.selectedCopy=p.copies.length-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false;alert(t("studio.drawing.samePartNumberAddedAgain"))};
+$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert(t("studio.drawing.selectRepeatedMarkerFirst"));const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false};
 
 
 function buildCuttingPrint(){
@@ -3568,7 +3570,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
   document.querySelectorAll('[data-step-screen]').forEach(el=>el.addEventListener('click',()=>{
     const target=el.dataset.stepScreen;
     if(target==='bom' && !readiness().slice(0,5).every(Boolean)){
-      alert('Finish Start, Drawing, Panels, Cutting list and QR labels first. Each box will turn green when it is ready.');
+      alert(t("studio.drawing.finishStepsFirstWorkflow"));
       return;
     }
     show(target);
@@ -3661,7 +3663,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
       const files=Array.from(e.dataTransfer?.files||[]);
       const file=files.find(drawingFileAllowed);
       if(file)await importRoomsFile(file);
-      else alert('Drop a PNG, JPG, WEBP or PDF file here.');
+      else alert(t("studio.drawing.dropImageFileHere"));
     },true);
   }
 
@@ -4383,7 +4385,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
   }
   function printQrLabels(){
     if(!document.querySelector('#qrGrid .qr-card')){renderQr();setTimeout(printQrLabels,150);return}
-    const html=printableQrHtml();if(!html){toast('Generate QR codes first',true);return}
+    const html=printableQrHtml();if(!html){toast(t("studio.drawing.generateQrCodesFirst"),true);return}
     const w=window.open('','_blank');
     if(!w){toast('Allow pop ups to print QR labels',true);return}
     w.document.open();w.document.write(html);w.document.close();
@@ -4428,7 +4430,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
  // that block's own `qrData` reference resolved to nothing, so every
  // sticker printed with no QR code at all, silently.
  window.qrData=qrData;
- function printSupplierPack(){const list=rows();if(!list.length){setStatus('No complete panels are ready to print.','err');return}const btn=document.getElementById('printSupplierPackBtn');if(btn)btn.disabled=true;setStatus('Building supplier pack…');try{const pr=project(),ref=window.assembleOneJobRef?assembleOneJobRef(pr):'';const cutting=`<section><h1>Supplier Cutting List</h1><p>${safe(pr?.name||'Project')} · ${safe(cabinet()?.name||'Unit')}</p>${list.map(p=>`<div class="card"><div class="row"><div><div class="code">${safe(p.code)}</div><div class="name">${safe(p.name||'')}</div></div><div class="qty">Qty ${Number(p.qty||1)}</div></div><div class="measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="small">Material: ${safe(mat(p))}</div><div class="small">Edging: ${edge(p.edgeLong,'long')} · ${edge(p.edgeShort,'short')}</div>${p.notes?`<div class="small">Notes: ${safe(p.notes)}</div>`:''}</div>`).join('')}</section>`;const stickers=`<section style="break-before:page;page-break-before:always"><h1>Supplier QR Stickers</h1><p>${safe(pr?.name||'Project')} · ${safe(cabinet()?.name||'Unit')}</p><div class="stickers">${list.map(p=>{const q=qrData(phoneQrText(p));return `<div class="sticker"><div><div class="row"><div class="code">${safe(p.code)}</div><div class="qty">Qty ${Number(p.qty||1)}</div></div><div class="name">${safe(p.name||'')}</div><div class="measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="small">Material: ${safe(mat(p))}</div><div class="small">${safe(ref)} · ${safe(pr?.name||'')}</div></div>${q?`<img src="${q}">`:''}</div>`}).join('')}</div></section>`;const sheetSection=(typeof window.a181SheetOptimPrintHtml==='function')?window.a181SheetOptimPrintHtml():'';if(openPrint('Supplier Pack',cutting+sheetSection+stickers))setStatus('✓ Supplier pack ready to print')}catch(e){console.error(e);setStatus('Supplier pack could not be created.','err')}finally{if(btn)setTimeout(()=>btn.disabled=false,400)}}
+ function printSupplierPack(){const list=rows();if(!list.length){setStatus(t("studio.drawing.noCompletePanelsReadyToPrint"),'err');return}const btn=document.getElementById('printSupplierPackBtn');if(btn)btn.disabled=true;setStatus('Building supplier pack…');try{const pr=project(),ref=window.assembleOneJobRef?assembleOneJobRef(pr):'';const cutting=`<section><h1>Supplier Cutting List</h1><p>${safe(pr?.name||'Project')} · ${safe(cabinet()?.name||'Unit')}</p>${list.map(p=>`<div class="card"><div class="row"><div><div class="code">${safe(p.code)}</div><div class="name">${safe(p.name||'')}</div></div><div class="qty">Qty ${Number(p.qty||1)}</div></div><div class="measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="small">Material: ${safe(mat(p))}</div><div class="small">Edging: ${edge(p.edgeLong,'long')} · ${edge(p.edgeShort,'short')}</div>${p.notes?`<div class="small">Notes: ${safe(p.notes)}</div>`:''}</div>`).join('')}</section>`;const stickers=`<section style="break-before:page;page-break-before:always"><h1>Supplier QR Stickers</h1><p>${safe(pr?.name||'Project')} · ${safe(cabinet()?.name||'Unit')}</p><div class="stickers">${list.map(p=>{const q=qrData(phoneQrText(p));return `<div class="sticker"><div><div class="row"><div class="code">${safe(p.code)}</div><div class="qty">Qty ${Number(p.qty||1)}</div></div><div class="name">${safe(p.name||'')}</div><div class="measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="small">Material: ${safe(mat(p))}</div><div class="small">${safe(ref)} · ${safe(pr?.name||'')}</div></div>${q?`<img src="${q}">`:''}</div>`}).join('')}</div></section>`;const sheetSection=(typeof window.a181SheetOptimPrintHtml==='function')?window.a181SheetOptimPrintHtml():'';if(openPrint(t("studio.drawing.supplierPackTitle"),cutting+sheetSection+stickers))setStatus('✓ Supplier pack ready to print')}catch(e){console.error(e);setStatus('Supplier pack could not be created.','err')}finally{if(btn)setTimeout(()=>btn.disabled=false,400)}}
  document.getElementById('exportSupplierCsvBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();exportCsv()},true);document.getElementById('printSupplierPackBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();printSupplierPack()},true);renderSupplierPage();
 })();
 </script>
@@ -4550,28 +4552,28 @@ body.guide-only .a131-back-studio{display:block}
   const back=document.getElementById('a131BackStudio');if(back)back.onclick=()=>{document.body.classList.remove('guide-only');location.hash='';show('qr')};
   const overlay=document.getElementById('a131PrintOverlay'),frame=document.getElementById('a131PrintFrame');
   window.a131OpenPrintPreview=function(title,bodyHtml){
-    stableSave(false);document.querySelector('#a131PrintHead strong').textContent=title||'Print preview';
+    stableSave(false);document.querySelector('#a131PrintHead strong').textContent=title||t("studio.drawing.printPreviewFallback");
     const doc='<!doctype html><html><head><meta charset="utf-8"><title>'+String(title||'Print')+'</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#223449;margin:18px}h1{font-family:Inter,sans-serif}.card{border:2px solid #d8d6e1;border-left:8px solid #0051ff;border-radius:14px;padding:14px;margin-bottom:10px;break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #1f2329;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;break-inside:avoid}.sticker img{width:90px;height:90px}</style></head><body>'+bodyHtml+'</body></html>';
     frame.srcdoc=doc;overlay.style.display='block';overlay.setAttribute('aria-hidden','false');
   };
   document.getElementById('a131ClosePrint').onclick=()=>{overlay.style.display='none';overlay.setAttribute('aria-hidden','true');frame.srcdoc=''};
-  document.getElementById('a131PrintNow').onclick=()=>{try{frame.contentWindow.focus();frame.contentWindow.print()}catch(e){alert('The print preview could not open. Please try again.')}};
+  document.getElementById('a131PrintNow').onclick=()=>{try{frame.contentWindow.focus();frame.contentWindow.print()}catch(e){alert(t("studio.drawing.printPreviewCouldNotOpen"))}};
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.style.display==='block')document.getElementById('a131ClosePrint').click()});
   // Replace popup based supplier printing with the in app preview.
   document.addEventListener('click',function(e){
     const btn=e.target.closest('#printSupplierPackBtn');if(!btn)return;
     e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
     stableSave(false);
-    const list=(typeof supplierParts==='function'?supplierParts():[]).filter(Boolean);if(!list.length){alert('No complete panels are ready to print.');return}
+    const list=(typeof supplierParts==='function'?supplierParts():[]).filter(Boolean);if(!list.length){alert(t("studio.drawing.noCompletePanelsReadyToPrint"));return}
     const pr=project(),unit=cabinet(),mat=p=>typeof materialForPanel==='function'?(materialForPanel(p)||'Not set'):(p.material||'Not set');
     const esc=x=>safe(x==null?'':x),edge=(v,n)=>Number(v||0)+' '+n+' edge'+(Number(v||0)===1?'':'s');
     const cutting='<section><h1>Supplier Cutting List</h1><p>'+esc(pr?.name||'Project')+' · '+esc(unit?.name||'Unit')+'</p>'+list.map(p=>'<div class="card"><div class="row"><div><div class="code">'+esc(p.code)+'</div><div class="name">'+esc(p.name||'')+'</div></div><strong>Qty '+Number(p.qty||1)+'</strong></div><div class="measure">'+esc(p.thickness)+' mm · '+esc(p.length)+' × '+esc(p.width)+' mm</div><div class="small">Material: '+esc(mat(p))+'</div><div class="small">Edging: '+edge(p.edgeLong,'long')+' · '+edge(p.edgeShort,'short')+'</div>'+(p.notes?'<div class="small">Notes: '+esc(p.notes)+'</div>':'')+'</div>').join('')+'</section>';
     const stickers='<section style="page-break-before:always"><h1>Supplier QR Stickers</h1><div class="stickers">'+list.map(p=>{let q='';try{q=typeof qrData==='function'?qrData(phoneQrText(p)):''}catch(err){}return '<div class="sticker"><div><div class="row"><div class="code">'+esc(p.code)+'</div><strong>Qty '+Number(p.qty||1)+'</strong></div><div class="name">'+esc(p.name||'')+'</div><div class="measure">'+esc(p.thickness)+' mm · '+esc(p.length)+' × '+esc(p.width)+' mm</div><div class="small">Material: '+esc(mat(p))+'</div></div>'+(q?'<img src="'+q+'">':'')+'</div>'}).join('')+'</div></section>';
     const sheetSection=(typeof window.a181SheetOptimPrintHtml==='function')?window.a181SheetOptimPrintHtml():'';
-    window.a131OpenPrintPreview('Supplier Pack',cutting+sheetSection+stickers);
+    window.a131OpenPrintPreview(t("studio.drawing.supplierPackTitle"),cutting+sheetSection+stickers);
   },true);
   // QR label print also stays inside Studio.
-  document.addEventListener('click',function(e){const btn=e.target.closest('#printQrBtn');if(!btn)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();stableSave(false);if(typeof renderQr==='function')renderQr();setTimeout(()=>{const grid=document.getElementById('qrGrid');if(!grid||!grid.children.length){alert('Generate QR codes first.');return}window.a131OpenPrintPreview('QR Labels','<div class="stickers">'+grid.innerHTML+'</div>')},80)},true);
+  document.addEventListener('click',function(e){const btn=e.target.closest('#printQrBtn');if(!btn)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();stableSave(false);if(typeof renderQr==='function')renderQr();setTimeout(()=>{const grid=document.getElementById('qrGrid');if(!grid||!grid.children.length){alert(t("studio.drawing.generateQrCodesFirst"));return}window.a131OpenPrintPreview(t("studio.drawing.qrLabelsTitle"),'<div class="stickers">'+grid.innerHTML+'</div>')},80)},true);
 })();
 </script>
 
@@ -4821,7 +4823,7 @@ body.guide-only .a131-back-studio{display:block}
       if(e.target.closest('.pin')) return;
       const c=typeof cabinet==='function'?cabinet():null;
       if(!c||!c.drawing) return;
-      if(c.drawingType==='pdf') return alert('For marking panels, use a PNG or JPG screenshot of the PDF.');
+      if(c.drawingType==='pdf') return alert(t("studio.drawing.pdfUseScreenshotForMarking"));
       const r=canvas.getBoundingClientRect();
       if(!r.width||!r.height) return;
       const x=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100));
@@ -4920,7 +4922,7 @@ body.guide-only .a131-back-studio{display:block}
   function reliableCycle(kind,e){
     if(e){e.preventDefault();e.stopPropagation();}
     const p=typeof part==='function'?part():null;
-    if(!p)return alert('Mark or select a panel first.');
+    if(!p)return alert(t("studio.drawing.markOrSelectPanelFirst"));
     const key=kind==='length'?'edgeLong':'edgeShort';
     p[key]=(Number(p[key]||0)+1)%3;
     if(typeof save==='function')save();
