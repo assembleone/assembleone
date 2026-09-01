@@ -1277,11 +1277,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="app">
 <aside class="sidebar">
 
-<button class="nav-btn active" data-screen="jobs" title="Project" aria-label="Project"><span class="nav-colour-icon">🏠</span></button>
-<button class="nav-btn" data-screen="mark" title="Drawing" aria-label="Drawing"><span class="nav-colour-icon">✏️</span></button>
-<button class="nav-btn" data-screen="parts" title="Panel Check" aria-label="Panel Check"><span class="nav-colour-icon">🧩</span></button>
-<button class="nav-btn" data-screen="cutting" title="Cutting List" aria-label="Cutting List"><span class="nav-colour-icon">📋</span></button>
-<button class="nav-btn" data-screen="qr" title="QR and Scan" aria-label="QR and Scan"><span class="nav-colour-icon">📲</span></button>
+<button class="nav-btn active" data-screen="jobs" title="Project" aria-label="Project" data-i18n-title="proj.projectFallback" data-i18n-aria="proj.projectFallback"><span class="nav-colour-icon">🏠</span></button>
+<button class="nav-btn" data-screen="mark" title="Drawing" aria-label="Drawing" data-i18n-title="studio.nav.drawingTab" data-i18n-aria="studio.nav.drawingTab"><span class="nav-colour-icon">✏️</span></button>
+<button class="nav-btn" data-screen="parts" title="Panel Check" aria-label="Panel Check" data-i18n-title="studio.panelCheck.screenTitle" data-i18n-aria="studio.panelCheck.screenTitle"><span class="nav-colour-icon">🧩</span></button>
+<button class="nav-btn" data-screen="cutting" title="Cutting List" aria-label="Cutting List" data-i18n-title="detail.cuttingList" data-i18n-aria="detail.cuttingList"><span class="nav-colour-icon">📋</span></button>
+<button class="nav-btn" data-screen="qr" title="QR and Scan" aria-label="QR and Scan" data-i18n-title="studio.nav.qrAndScanTab" data-i18n-aria="studio.nav.qrAndScanTab"><span class="nav-colour-icon">📲</span></button>
 <small>Studio</small>
 </aside>
 <main class="main">
@@ -2539,7 +2539,7 @@ function buildJobBom(p){
 function renderJobBom(){
  const box=$("#jobBom"),p=project();
  if(!box)return;
- if(!p){box.innerHTML='<div class="empty">Open a job first.</div>';return}
+ if(!p){box.innerHTML=`<div class="empty">${t("studio.finishJob.openJobFirstEmpty")}</div>`;return}
  p.bom=buildJobBom(p);const b=p.bom;
  const cabinets=p.cabinets||[],all=cabinets.flatMap(c=>c.parts||[]);
  const activeRoomId=state.currentRoom||p.rooms?.[0]?.id||"";
@@ -2553,31 +2553,31 @@ function renderJobBom(){
  const card=(cls,icon,title,target)=>`<button type="button" class="finish-status-card ${cls?'complete':'missing'}" data-finish-target="${target}"><span class="finish-status-mark">${cls?'✓':'!'}</span><span class="finish-status-icon">${icon}</span><strong>${title}</strong></button>`;
  const orderedRooms=[...b.rooms].sort((a,b)=>a.id===activeRoomId?-1:b.id===activeRoomId?1:0);
  const roomHtml=orderedRooms.map(r=>{
-   const unitText=r.units.length===1?'1 unit':`${r.units.length} units`;
+   const unitText=r.units.length===1?t("studio.finishJob.unitSingular"):t("studio.finishJob.unitPluralTemplate",[r.units.length]);
    const pieceCount=r.units.reduce((n,u)=>n+u.pieces,0);
    const selected=r.id===activeRoomId;
-   return `<div class="finish-room-card ${selected?'selected-room':''}"><span class="finish-room-icon">${safe(r.icon||"🏠")}</span><div class="finish-room-copy"><strong>${safe(r.name)}</strong><span>${selected?'Selected room · ':''}${unitText} · ${pieceCount} pieces</span></div><span class="finish-room-tick">✓</span></div>`
+   return `<div class="finish-room-card ${selected?'selected-room':''}"><span class="finish-room-icon">${safe(r.icon||"🏠")}</span><div class="finish-room-copy"><strong>${safe(r.name)}</strong><span>${selected?t("studio.finishJob.selectedRoomLabel")+' · ':''}${unitText} · ${pieceCount} ${t("studio.finishJob.piecesSuffixWord")}</span></div><span class="finish-room-tick">✓</span></div>`
  }).join("");
  const allReady=roomsReady&&drawingReady&&panelReady&&qrReady&&notesReady;
  box.innerHTML=`
    <div class="finish-job-card">
      <span class="finish-job-icon">📁</span>
-     <div class="finish-job-copy"><strong>${safe(p.name||"Untitled job")}</strong><span>👤 ${safe(p.customer||"No customer name")}</span></div>
+     <div class="finish-job-copy"><strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong><span>👤 ${safe(p.customer||t("studio.jobOverview.noCustomerName"))}</span></div>
      <span class="finish-job-tick">✓</span>
    </div>
    <div class="finish-status-grid finish-status-grid-five">
-     ${card(roomsReady,activeRoom?.icon||'🏠',activeRoom?.name||'Choose Room','jobs')}
-     ${card(drawingReady,'📐','Drawing','mark')}
-     ${card(panelReady,'☑️','Panel Check','parts')}
-     ${card(qrReady,'▦','QR Panels','qr')}
-     ${card(notesReady,'📝','Project Notes','project-notes')}
+     ${card(roomsReady,activeRoom?.icon||'🏠',activeRoom?.name||t("studio.finishJob.chooseRoomCard"),'jobs')}
+     ${card(drawingReady,'📐',t("studio.nav.drawingTab"),'mark')}
+     ${card(panelReady,'☑️',t("studio.panelCheck.screenTitle"),'parts')}
+     ${card(qrReady,'▦',t("detail.qrPanels"),'qr')}
+     ${card(notesReady,'📝',t("studio.finishJob.projectNotesCard"),'project-notes')}
    </div>
-   <h3 class="finish-section-title">Rooms</h3>
-   <div class="finish-room-list">${roomHtml||'<div class="empty">No rooms yet.</div>'}</div>
-   <div class="finish-compact-summary"><span>${b.counts.rooms} rooms</span><span>${b.counts.units} units</span><span>${b.counts.panels} panels</span><span>${b.counts.pieces} pieces</span><span>${Object.keys(b.materials).length} materials</span></div>
-   <div class="finish-ready-banner ${allReady?'ready':''}"><span class="ready-icon">${allReady?'✓':'!'}</span><span>${allReady?'Everything ready':'Check the red cards before sending'}</span></div>`;
+   <h3 class="finish-section-title">${t("bom.rooms")}</h3>
+   <div class="finish-room-list">${roomHtml||`<div class="empty">${t("bom.noRoomsYet")}</div>`}</div>
+   <div class="finish-compact-summary"><span>${b.counts.rooms} ${t("studio.finishJob.roomsSuffixWord")}</span><span>${t("studio.finishJob.unitPluralTemplate",[b.counts.units])}</span><span>${b.counts.panels} ${t("studio.finishJob.panelsSuffixWord")}</span><span>${b.counts.pieces} ${t("studio.finishJob.piecesSuffixWord")}</span><span>${Object.keys(b.materials).length} ${t("studio.finishJob.materialsSuffixWord")}</span></div>
+   <div class="finish-ready-banner ${allReady?'ready':''}"><span class="ready-icon">${allReady?'✓':'!'}</span><span>${allReady?t("studio.finishJob.everythingReadyBanner"):t("studio.finishJob.checkRedCardsBanner")}</span></div>`;
  document.querySelectorAll('[data-finish-target]').forEach(btn=>btn.onclick=()=>{const target=btn.dataset.finishTarget;if(target==='project-notes'){openProjectNotesEditor();return}show(target)});
- const send=document.getElementById('exportMobileBtn');if(send){send.disabled=!allReady;send.title=allReady?'Send the complete project':'Finish the red sections first'}
+ const send=document.getElementById('exportMobileBtn');if(send){send.disabled=!allReady;send.title=allReady?t("studio.finishJob.sendCompleteProjectTitle"):t("studio.finishJob.finishRedSectionsFirstTitle")}
  save()
 }
 function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();renderCustomers();updateUnitAddWording();show(state.screen||"jobs")}
@@ -3581,8 +3581,8 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
   function guardedExport(){
     const ready=readiness();
     if(!ready.slice(0,5).every(Boolean)){
-      const names=['Start','Drawing','Panels','Cutting list','QR labels'];
-      alert('The project is not ready to send yet. Complete: '+names.filter((_,i)=>!ready[i]).join(', ')+'.');
+      const names=[t("studio.finishJob.stageStart"),t("studio.nav.drawingTab"),t("studio.finishJob.stagePanels"),t("studio.finishJob.stageCuttingList"),t("studio.finishJob.stageQrLabels")];
+      alert(t("studio.finishJob.notReadyToSendAlertTemplate",[names.filter((_,i)=>!ready[i]).join(', ')]));
       updateWorkflowProgress(state.screen||'jobs');
       return;
     }
@@ -5153,7 +5153,7 @@ body.guide-only .a131-back-studio{display:block}
   try{renderParts=window.renderParts}catch(e){}
   function renamePanelLabels(){
     document.querySelectorAll('[data-step-screen="parts"]').forEach(el=>{el.childNodes.forEach(n=>{if(n.nodeType===3&&n.textContent.includes('Panels'))n.textContent=n.textContent.replace('Panels','Panel Check')});el.title='Open Panel Check'});
-    document.querySelectorAll('.nav-btn[data-screen="parts"]').forEach(el=>el.title='Panel Check');
+    document.querySelectorAll('.nav-btn[data-screen="parts"]').forEach(el=>el.title=t("studio.panelCheck.screenTitle"));
   }
   document.addEventListener('click',e=>{
     if(e.target.closest('#checkAllPanelsBtn')){e.preventDefault();const mi=document.getElementById('materialCustomInput');if(mi&&mi.value.trim())mi.dispatchEvent(new Event('blur'));if(typeof save==='function')save();if(typeof renderParts==='function')renderParts();show('parts');renamePanelLabels()}
@@ -5483,7 +5483,7 @@ body.guide-only .a131-back-studio{display:block}
   window.openProjectNotesEditor=function(){
     const p=typeof project==='function'?project():null;if(!p)return;
     const overlay=document.createElement('div');overlay.className='project-notes-overlay';
-    overlay.innerHTML='<div class="project-notes-sheet" role="dialog" aria-modal="true" aria-labelledby="projectNotesTitle"><div class="project-notes-head"><span class="notes-big-icon">📝</span><h2 id="projectNotesTitle">Project Notes</h2></div><p class="project-notes-help">Add the main information the installer should remember.</p><textarea id="projectNotesEditor" placeholder="Access, order of work, special instructions, lights or anything important"></textarea><div class="project-notes-actions"><button type="button" class="btn" data-close-project-notes>Cancel</button><button type="button" class="btn primary" data-save-project-notes>✓ Save notes</button></div></div>';
+    overlay.innerHTML='<div class="project-notes-sheet" role="dialog" aria-modal="true" aria-labelledby="projectNotesTitle"><div class="project-notes-head"><span class="notes-big-icon">📝</span><h2 id="projectNotesTitle">'+t("studio.finishJob.projectNotesCard")+'</h2></div><p class="project-notes-help">'+t("studio.finishJob.projectNotesHelpText")+'</p><textarea id="projectNotesEditor" placeholder="'+t("studio.finishJob.projectNotesPlaceholder")+'"></textarea><div class="project-notes-actions"><button type="button" class="btn" data-close-project-notes>'+t("studio.customerLibrary.cancelBtn")+'</button><button type="button" class="btn primary" data-save-project-notes>'+t("studio.finishJob.saveNotesBtn")+'</button></div></div>';
     document.body.appendChild(overlay);
     const input=overlay.querySelector('#projectNotesEditor');input.value=p.notes||'';
     const close=()=>overlay.remove();overlay.addEventListener('click',e=>{if(e.target===overlay)close()});overlay.querySelector('[data-close-project-notes]').onclick=close;
@@ -7843,54 +7843,54 @@ body.fiq-locked .app{display:none!important}
   // The eleven stages of the whole Studio workflow -- reused for the
   // welcome/finish screens (the full chain) and as the tappable Help menu.
   const FLOW=[
-    {icon:'👤',label:'Customer'},{icon:'📐',label:'Measure'},{icon:'✏️',label:'Design'},
-    {icon:'🪚',label:'Panels'},{icon:'✅',label:'Check'},{icon:'🖨',label:'Cut'},
-    {icon:'🔲',label:'QR'},{icon:'👥',label:'Fitter'},{icon:'🔍',label:'Scan'},
-    {icon:'🔧',label:'Fit'},{icon:'🏁',label:'Complete'}
+    {icon:'👤',key:'studio.onboarding.flowCustomer'},{icon:'📐',key:'studio.onboarding.flowMeasure'},{icon:'✏️',key:'studio.onboarding.flowDesign'},
+    {icon:'🪚',key:'studio.onboarding.flowPanels'},{icon:'✅',key:'studio.onboarding.flowCheck'},{icon:'🖨',key:'studio.onboarding.flowCut'},
+    {icon:'🔲',key:'studio.onboarding.flowQr'},{icon:'👥',key:'studio.onboarding.flowFitter'},{icon:'🔍',key:'studio.onboarding.flowScan'},
+    {icon:'🔧',key:'studio.onboarding.flowFit'},{icon:'🏁',key:'studio.onboarding.flowComplete'}
   ];
   function flowHtml(highlight){
     const hl=highlight||[];
     return '<div class="fiq-onboard-flow">'+FLOW.map((s,i)=>{
       const cur=hl.length?hl.includes(i):true;
-      return (i>0?'<span class="arrow">→</span>':'')+'<div class="stage'+(cur?' current':'')+'"><b>'+s.icon+'</b>'+s.label+'</div>';
+      return (i>0?'<span class="arrow">→</span>':'')+'<div class="stage'+(cur?' current':'')+'"><b>'+s.icon+'</b>'+t(s.key)+'</div>';
     }).join('')+'</div>';
   }
 
   const STEPS=[
-    { heading:'Welcome to FittersIQ Studio',
-      body:'<p>Turn a customer\'s job into a fitted result — measure, design, panel, cut, scan and fit, all under one job.</p>'+flowHtml([]) },
-    { no:'Step 1', heading:'Customer & Job', icon:'👤',
-      body:'<p>Create or open a customer, then create a job for them.<br>One job can hold many rooms — TV Wall, Wardrobe, Office, Utility Room...<br>Measurements sent from Mobile land here already organised by room.</p>' },
-    { no:'Step 2', heading:'Open a Room', icon:'🚪',
-      body:'<p>Choose the room to work on.<br>Its Mobile photos, measurements and notes are already there waiting.<br>Every room stays under the same customer and job.</p>' },
-    { no:'Step 3', heading:'Create the Design', icon:'✏️',
-      body:'<p>Design in your own CAD software as usual — FittersIQ is not a CAD program, it works alongside it.<br>Bring the finished drawing (or a screenshot) into the job to start the panel workflow.</p>' },
-    { no:'Step 4', heading:'Create the Panels', icon:'🪚',
-      body:'<p>Add each panel: name, measurements, material, edging, grain direction.<br>Duplicate repeated panels — like shelves — instead of typing them all again.</p>' },
-    { no:'Step 5', heading:'Panel Check', icon:'✅',
-      body:'<p>Before sending anything on, check the job is complete.<br>See what\'s missing, and the estimated sheets needed — before you order material.</p>' },
-    { no:'Step 6', heading:'Cutting List & QR Codes', icon:'🖨',
-      body:'<p>Create the cutting list and send it to your supplier or workshop.<br>Every panel gets its own QR code, linking it to the right customer, job, room and panel.</p>' },
-    { no:'Step 7', heading:'Assign the Fitter', icon:'👥',
-      body:'<p>Choose who\'s installing this job.<br>Only that fitter can open it on Mobile — scanning its QR codes never gives another fitter access.</p>' },
-    { no:'Step 8', heading:'Send to Mobile', icon:'📱',
-      body:'<p>Send the finished job to the assigned fitter.<br>They see exactly the rooms and information they need for installation — nothing else from Studio.</p>' },
-    { no:'Step 9', heading:'Panel Check on Site', icon:'🔍',
-      body:'<p>The fitter scans each panel\'s QR code.<br>FittersIQ identifies it and its room, and flags anything missing or damaged.</p>' },
-    { no:'Step 10', heading:'Installation Progress', icon:'🔧',
-      body:'<p>As panels are fitted on Mobile, Studio updates live — for example <b>8 / 24 panels fitted</b>.<br>You always know how far a job has progressed, without contacting the fitter.</p>' },
-    { no:'Step 11', heading:'Complete the Job', icon:'🏁',
-      body:'<p>Mark the job complete once every room is installed.<br>Its full history — drawings, panels, photos, measurements, installs — stays under the customer for later.</p>'+
-           flowHtml([])+'<div class="fiq-onboard-tagline">Find it. Scan it. Fit it.</div>' }
+    { headingKey:'studio.onboarding.introHeading',
+      body:()=>'<p>'+t('studio.onboarding.introBody')+'</p>'+flowHtml([]) },
+    { stepNum:1, headingKey:'studio.onboarding.headingCustomerJob', icon:'👤',
+      body:()=>'<p>'+t('studio.onboarding.body1')+'</p>' },
+    { stepNum:2, headingKey:'studio.onboarding.headingOpenRoom', icon:'🚪',
+      body:()=>'<p>'+t('studio.onboarding.body2')+'</p>' },
+    { stepNum:3, headingKey:'studio.onboarding.headingCreateDesign', icon:'✏️',
+      body:()=>'<p>'+t('studio.onboarding.body3')+'</p>' },
+    { stepNum:4, headingKey:'studio.onboarding.headingCreatePanels', icon:'🪚',
+      body:()=>'<p>'+t('studio.onboarding.body4')+'</p>' },
+    { stepNum:5, headingKey:'studio.onboarding.headingPanelCheck', icon:'✅',
+      body:()=>'<p>'+t('studio.onboarding.body5')+'</p>' },
+    { stepNum:6, headingKey:'studio.onboarding.headingCuttingListQrCodes', icon:'🖨',
+      body:()=>'<p>'+t('studio.onboarding.body6')+'</p>' },
+    { stepNum:7, headingKey:'studio.onboarding.headingAssignFitter', icon:'👥',
+      body:()=>'<p>'+t('studio.onboarding.body7')+'</p>' },
+    { stepNum:8, headingKey:'studio.onboarding.headingSendToMobile', icon:'📱',
+      body:()=>'<p>'+t('studio.onboarding.body8')+'</p>' },
+    { stepNum:9, headingKey:'studio.onboarding.headingPanelCheckOnSite', icon:'🔍',
+      body:()=>'<p>'+t('studio.onboarding.body9')+'</p>' },
+    { stepNum:10, headingKey:'studio.onboarding.headingInstallationProgress', icon:'🔧',
+      body:()=>'<p>'+t('studio.onboarding.body10')+'</p>' },
+    { stepNum:11, headingKey:'studio.onboarding.headingCompleteJob', icon:'🏁',
+      body:()=>'<p>'+t('studio.onboarding.body11')+'</p>'+
+           flowHtml([])+'<div class="fiq-onboard-tagline">'+t('studio.onboarding.tagline')+'</div>' }
   ];
 
   const MENU=[
-    {label:'Customer & Job',icon:'👤',step:1},{label:'Open a Room',icon:'🚪',step:2},
-    {label:'Create the Design',icon:'✏️',step:3},{label:'Create the Panels',icon:'🪚',step:4},
-    {label:'Panel Check',icon:'✅',step:5},{label:'Cutting List & QR',icon:'🖨',step:6},
-    {label:'Assign the Fitter',icon:'👥',step:7},{label:'Send to Mobile',icon:'📱',step:8},
-    {label:'Panel Check on Site',icon:'🔍',step:9},{label:'Installation Progress',icon:'🔧',step:10},
-    {label:'Complete the Job',icon:'🏁',step:11}
+    {labelKey:'studio.onboarding.headingCustomerJob',icon:'👤',step:1},{labelKey:'studio.onboarding.headingOpenRoom',icon:'🚪',step:2},
+    {labelKey:'studio.onboarding.headingCreateDesign',icon:'✏️',step:3},{labelKey:'studio.onboarding.headingCreatePanels',icon:'🪚',step:4},
+    {labelKey:'studio.onboarding.headingPanelCheck',icon:'✅',step:5},{labelKey:'studio.onboarding.menuCuttingListQr',icon:'🖨',step:6},
+    {labelKey:'studio.onboarding.headingAssignFitter',icon:'👥',step:7},{labelKey:'studio.onboarding.headingSendToMobile',icon:'📱',step:8},
+    {labelKey:'studio.onboarding.headingPanelCheckOnSite',icon:'🔍',step:9},{labelKey:'studio.onboarding.headingInstallationProgress',icon:'🔧',step:10},
+    {labelKey:'studio.onboarding.headingCompleteJob',icon:'🏁',step:11}
   ];
 
   let mode='intro',idx=0;
@@ -7898,13 +7898,13 @@ body.fiq-locked .app{display:none!important}
   function cardEl(){return document.getElementById('fiqStudioOnboardCard')}
   function openOverlay(){overlayEl().classList.add('open')}
   function closeOverlay(){overlayEl().classList.remove('open')}
-  function closeBtnHtml(){return '<button type="button" class="fiq-onboard-close" id="fiqStudioOnboardCloseBtn" aria-label="Close">×</button>'}
+  function closeBtnHtml(){return '<button type="button" class="fiq-onboard-close" id="fiqStudioOnboardCloseBtn" aria-label="'+t('studio.onboarding.closeAria')+'">×</button>'}
   function wireCloseBtn(){const btn=document.getElementById('fiqStudioOnboardCloseBtn');if(btn)btn.onclick=()=>{markSeen();closeOverlay()}}
 
   function renderMenu(){
     mode='menu';
-    cardEl().innerHTML=closeBtnHtml()+'<h1>How Studio works</h1>'+flowHtml([])+
-      '<div class="fiq-onboard-menu-list">'+MENU.map(m=>'<button type="button" class="fiq-onboard-menu-item" data-onboard-jump="'+m.step+'"><span>'+m.icon+'</span>'+safe(m.label)+'</button>').join('')+'</div>';
+    cardEl().innerHTML=closeBtnHtml()+'<h1>'+t('studio.onboarding.helpMenuHeading')+'</h1>'+flowHtml([])+
+      '<div class="fiq-onboard-menu-list">'+MENU.map(m=>'<button type="button" class="fiq-onboard-menu-item" data-onboard-jump="'+m.step+'"><span>'+m.icon+'</span>'+safe(t(m.labelKey))+'</button>').join('')+'</div>';
     wireCloseBtn();
     cardEl().querySelectorAll('[data-onboard-jump]').forEach(btn=>{
       btn.onclick=()=>{idx=Number(btn.dataset.onboardJump);mode='single';renderStep()};
@@ -7917,16 +7917,16 @@ body.fiq-locked .app{display:none!important}
     const dots=mode==='intro'?'<div class="fiq-onboard-dots">'+STEPS.map((_,i)=>'<span class="'+(i===idx?'active':'')+'"></span>').join('')+'</div>':'';
     let controls;
     if(mode==='single'){
-      controls='<div class="fiq-onboard-controls"><button type="button" class="fiq-onboard-back" id="fiqStudioOnboardMenuBack">← Back to menu</button></div>';
+      controls='<div class="fiq-onboard-controls"><button type="button" class="fiq-onboard-back" id="fiqStudioOnboardMenuBack">'+t('studio.onboarding.backToMenuBtn')+'</button></div>';
     }else{
       controls='<div class="fiq-onboard-controls">'+
-        (idx>0?'<button type="button" class="fiq-onboard-back" id="fiqStudioOnboardBack">Back</button>':'')+
-        '<button type="button" class="fiq-onboard-next" id="fiqStudioOnboardNext">'+(isLast?'Start using Studio':'Next')+'</button>'+
-      '</div>'+(isLast?'':'<button type="button" class="fiq-onboard-skip" id="fiqStudioOnboardSkip">Skip</button>');
+        (idx>0?'<button type="button" class="fiq-onboard-back" id="fiqStudioOnboardBack">'+t('studio.onboarding.backBtn')+'</button>':'')+
+        '<button type="button" class="fiq-onboard-next" id="fiqStudioOnboardNext">'+(isLast?t('studio.onboarding.startUsingStudioBtn'):t('studio.onboarding.nextBtn'))+'</button>'+
+      '</div>'+(isLast?'':'<button type="button" class="fiq-onboard-skip" id="fiqStudioOnboardSkip">'+t('studio.onboarding.skipBtn')+'</button>');
     }
     const icon=step.icon?'<div class="fiq-onboard-icon">'+step.icon+'</div>':'';
-    const stepNo=step.no?'<div class="fiq-onboard-step-no">'+step.no+'</div>':'';
-    card.innerHTML=closeBtnHtml()+stepNo+icon+'<h1>'+safe(step.heading)+'</h1>'+step.body+dots+controls;
+    const stepNo=step.stepNum?'<div class="fiq-onboard-step-no">'+t('studio.onboarding.stepNoTemplate',[step.stepNum])+'</div>':'';
+    card.innerHTML=closeBtnHtml()+stepNo+icon+'<h1>'+safe(t(step.headingKey))+'</h1>'+step.body()+dots+controls;
     wireCloseBtn();
     if(mode==='single'){
       document.getElementById('fiqStudioOnboardMenuBack').onclick=()=>renderMenu();
