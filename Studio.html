@@ -1569,22 +1569,22 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div id="partsSummary"></div>
 </section>
 <section class="screen supplier-redesign" id="screen-cutting">
-<div class="supplier-hero"><div><h2>Supplier</h2><div class="muted">Final cutting information and matching QR stickers.</div></div><div class="supplier-ready" id="supplierReadyBadge">Checking panels…</div></div>
+<div class="supplier-hero"><div><h2 data-i18n="studio.supplier.screenTitle">Supplier</h2><div class="muted" data-i18n="studio.supplier.screenSubtitle">Final cutting information and matching QR stickers.</div></div><div class="supplier-ready" id="supplierReadyBadge" data-i18n="studio.supplier.checkingPanelsPlaceholder">Checking panels…</div></div>
 <button class="btn primary sheet-optim-toggle-btn" type="button" id="sheetOptimiserToggleBtn">📐 Sheet Optimiser — see how many sheets this job needs</button>
 <div class="notice" id="cuttingValidation" style="display:none;margin-bottom:12px"></div>
 <div class="supplier-summary" id="supplierSummary"></div>
-<div class="supplier-materials-card"><h3>Materials</h3><div id="supplierMaterialSummary"></div></div>
-<div class="supplier-materials-card sheet-optim-card" id="sheetOptimiserCard" hidden><h3>Sheet Optimiser</h3><div class="muted">Full sheets required, cutting layout and offcut for each material — check this before ordering.</div><div id="sheetOptimiserBody"></div></div>
+<div class="supplier-materials-card"><h3 data-i18n="bom.materials">Materials</h3><div id="supplierMaterialSummary"></div></div>
+<div class="supplier-materials-card sheet-optim-card" id="sheetOptimiserCard" hidden><h3 data-i18n="studio.supplier.sheetOptimiserHeading">Sheet Optimiser</h3><div class="muted" data-i18n="studio.supplier.sheetOptimiserSubtitle">Full sheets required, cutting layout and offcut for each material — check this before ordering.</div><div id="sheetOptimiserBody"></div></div>
 <div class="supplier-actions supplier-actions-simple">
-<button class="supplier-action export" id="exportSupplierCsvBtn" type="button"><span class="supplier-action-icon">⇩</span><strong>Download CSV</strong><small>Excel and CNC suppliers</small></button>
-<button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong>Print Supplier Pack</strong><small>Cutting list + matching QR stickers</small></button>
-<button class="supplier-action" id="sendCuttingToPhoneBtn" type="button" style="border-color:#4ca618;background:#f4fcef"><span class="supplier-action-icon">📱</span><strong>Send Cutting List to Phone</strong><small>Panels, quantities and QR scan checklist</small></button>
+<button class="supplier-action export" id="exportSupplierCsvBtn" type="button"><span class="supplier-action-icon">⇩</span><strong data-i18n="studio.supplier.downloadCsvBtnLabel">Download CSV</strong><small data-i18n="studio.supplier.downloadCsvBtnSub">Excel and CNC suppliers</small></button>
+<button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong data-i18n="studio.supplier.printSupplierPackBtnLabel">Print Supplier Pack</strong><small data-i18n="studio.supplier.printSupplierPackBtnSub">Cutting list + matching QR stickers</small></button>
+<button class="supplier-action" id="sendCuttingToPhoneBtn" type="button" style="border-color:#4ca618;background:#f4fcef"><span class="supplier-action-icon">📱</span><strong data-i18n="studio.supplier.sendCuttingToPhoneBtnLabel">Send Cutting List to Phone</strong><small data-i18n="studio.supplier.sendCuttingToPhoneBtnSub">Panels, quantities and QR scan checklist</small></button>
 </div>
 <div class="supplier-feedback" id="supplierActionStatus" aria-live="polite"></div>
-<h3 class="supplier-section-title">Panels</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
+<h3 class="supplier-section-title" data-i18n="studio.finishJob.stagePanels">Panels</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
 <div hidden><table><tbody id="cuttingBody"></tbody></table><button id="downloadCsvBtn"></button><button id="printCuttingBtn"></button></div>
-<div class="supplier-sticker-settings"><div><h3>QR sticker size</h3><div class="muted">Choose a common size or enter your own measurements.</div></div><div class="sticker-size-grid"><label>Width mm<input id="stickerWidth" inputmode="decimal" max="300" min="20" step="1" type="number" value="70"/></label><label>Height mm<input id="stickerHeight" inputmode="decimal" max="300" min="20" step="1" type="number" value="50"/></label></div><div aria-label="Quick sticker sizes" class="size-presets"><button class="btn sticker-preset" data-h="30" data-w="50" type="button">50 × 30</button><button class="btn sticker-preset" data-h="50" data-w="70" type="button">70 × 50</button><button class="btn sticker-preset" data-h="75" data-w="100" type="button">100 × 75</button></div></div>
-<h3 class="supplier-section-title">Sticker preview</h3><div class="supplier-labels" id="supplierLabels"></div>
+<div class="supplier-sticker-settings"><div><h3 data-i18n="studio.supplier.stickerSizeHeading">QR sticker size</h3><div class="muted" data-i18n="studio.supplier.stickerSizeSubtitle">Choose a common size or enter your own measurements.</div></div><div class="sticker-size-grid"><label><span data-i18n="studio.supplier.widthMmLabel">Width mm</span><input id="stickerWidth" inputmode="decimal" max="300" min="20" step="1" type="number" value="70"/></label><label><span data-i18n="studio.supplier.heightMmLabel">Height mm</span><input id="stickerHeight" inputmode="decimal" max="300" min="20" step="1" type="number" value="50"/></label></div><div aria-label="Quick sticker sizes" data-i18n-aria="studio.supplier.quickStickerSizesAria" class="size-presets"><button class="btn sticker-preset" data-h="30" data-w="50" type="button">50 × 30</button><button class="btn sticker-preset" data-h="50" data-w="70" type="button">70 × 50</button><button class="btn sticker-preset" data-h="75" data-w="100" type="button">100 × 75</button></div></div>
+<h3 class="supplier-section-title" data-i18n="studio.supplier.stickerPreviewHeading">Sticker preview</h3><div class="supplier-labels" id="supplierLabels"></div>
 </section>
 <section class="screen" id="screen-qr">
 <div class="title-row"><div><h2>QR labels — selected wardrobe only</h2><div class="muted">QR codes from other jobs and wardrobes are kept separate.</div></div></div>
@@ -2372,7 +2372,7 @@ function renderCutting(){
  allRows.forEach(p=>{const m=materialForPanel(p);if(m&&!p.material)p.material=m});
  const rows=supplierParts(),missing=allRows.length-rows.length;
  const warning=$("#cuttingValidation");
- if(warning){warning.style.display=missing?"block":"none";warning.innerHTML=missing?`⚠️ ${missing} incomplete part${missing===1?"":"s"} hidden. Add a name, thickness, length and width before sending to the supplier.`:"";}
+ if(warning){warning.style.display=missing?"block":"none";warning.innerHTML=missing?"⚠️ "+(missing===1?t("studio.supplier.incompletePartsWarningSingular",[missing]):t("studio.supplier.incompletePartsWarningPlural",[missing])):"";}
  $("#cuttingBody").innerHTML=rows.length?rows.map(p=>`<tr>
    <td><strong>${p.code}</strong></td>
    <td>${panelDetailsHtml(p)}</td>
@@ -2384,12 +2384,12 @@ function renderCutting(){
    <div>
      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
        <h3 style="margin:0">${p.code}</h3>
-       <strong style="white-space:nowrap">Qty ${p.qty||1}</strong>
+       <strong style="white-space:nowrap">${t("studio.supplier.qtyPrefixLabel")} ${p.qty||1}</strong>
      </div>
      ${panelDetailsHtml(p)}
    </div>
    <div id="supplierqr-${p.id}" class="qrbox"></div>
- </article>`).join(""):'<div class="empty">No stickers to print.</div>';
+ </article>`).join(""):`<div class="empty">${t("studio.supplier.noStickersToPrintEmpty")}</div>`;
 
  setTimeout(()=>rows.forEach(p=>{
    makeQr(document.getElementById("cutqr-"+p.id),phoneQrText(p),68);
@@ -4413,10 +4413,10 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
  function setStatus(text,kind='ok'){const el=statusEl();if(el){el.textContent=text;el.className='supplier-feedback '+kind}}
  function mat(p){return String(materialForPanel(p)||'Not set').trim()||'Not set'}
  function rows(){return supplierParts()}
- function edge(n,label){n=Number(n||0);return n===0?`No ${label} edging`:n===1?`1 ${label} edge`:`2 ${label} edges`}
- function renderSupplierPage(){const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?`${missing} panel${missing===1?'':'s'} need checking`:'Ready to manufacture';b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>Complete panels</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>Total pieces</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>Materials</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q} piece${q===1?'':'s'}</span></div>`).join('')}</div>`:'<div class="muted">No complete materials yet.</div>';const cards=document.getElementById('supplierPanelCards');if(cards)cards.innerHTML=list.length?list.map(p=>`<article class="supplier-panel-card"><div class="supplier-panel-code">${safe(p.code)}</div><div><div class="supplier-panel-name">${safe(p.name||'Unnamed part')}</div><div class="supplier-measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="supplier-material-badge">${safe(mat(p))}</div><div class="supplier-edge-lines"><span class="supplier-edge-chip">${edge(p.edgeLong,'long')}</span><span class="supplier-edge-chip">${edge(p.edgeShort,'short')}</span></div></div><div class="supplier-qty"><span>Quantity</span>${Number(p.qty||1)}</div></article>`).join(''):'<div class="empty">No complete panels ready for the supplier.</div>'}
+ function edge(n,kind){n=Number(n||0);const k=kind==='long'?{zero:'studio.supplier.noLongEdging',one:'studio.supplier.oneLongEdge',many:'studio.supplier.twoLongEdges'}:{zero:'studio.supplier.noShortEdging',one:'studio.supplier.oneShortEdge',many:'studio.supplier.twoShortEdges'};return n===0?t(k.zero):n===1?t(k.one):t(k.many)}
+ function renderSupplierPage(){const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?(missing===1?t("studio.supplier.needsCheckingSingular",[missing]):t("studio.supplier.needsCheckingPlural",[missing])):t("studio.supplier.readyToManufacture");b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>${t("studio.supplier.completePanelsStatLabel")}</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>${t("studio.supplier.totalPiecesStatLabel")}</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>${t("bom.materials")}</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q===1?t("studio.supplier.pieceCountSingular",[q]):t("studio.supplier.pieceCountPlural",[q])}</span></div>`).join('')}</div>`:`<div class="muted">${t("studio.supplier.noCompleteMaterialsYet")}</div>`;const cards=document.getElementById('supplierPanelCards');if(cards)cards.innerHTML=list.length?list.map(p=>`<article class="supplier-panel-card"><div class="supplier-panel-code">${safe(p.code)}</div><div><div class="supplier-panel-name">${safe(p.name||t("studio.drawing.unnamedPart"))}</div><div class="supplier-measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="supplier-material-badge">${safe(mat(p))}</div><div class="supplier-edge-lines"><span class="supplier-edge-chip">${edge(p.edgeLong,'long')}</span><span class="supplier-edge-chip">${edge(p.edgeShort,'short')}</span></div></div><div class="supplier-qty"><span>${t("studio.drawing.quantityLabel")}</span>${Number(p.qty||1)}</div></article>`).join(''):`<div class="empty">${t("studio.supplier.noCompletePanelsReadyForSupplier")}</div>`}
  const baseRender=window.renderCutting;window.renderCutting=function(){if(typeof baseRender==='function')baseRender();renderSupplierPage()};
- function exportCsv(){const list=rows();if(!list.length){setStatus('No complete panels are ready to export.','err');return}const btn=document.getElementById('exportSupplierCsvBtn');btn.disabled=true;setStatus('Creating CSV…');try{const data=[['Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes'],...list.map(p=>[p.code,p.name||'',p.thickness,p.length,p.width,Number(p.edgeLong||0),Number(p.edgeShort||0),Number(p.qty||1),mat(p),p.notes||''])];const csv='\ufeff'+data.map(r=>r.map(escCsv).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=((project()?.name||'Job')+'_'+(cabinet()?.name||'Unit')+'_cutting_list.csv').replace(/[^a-z0-9_-]+/gi,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus('✓ CSV exported')}catch(e){console.error(e);setStatus('CSV export failed.','err')}finally{setTimeout(()=>btn.disabled=false,400)}}
+ function exportCsv(){const list=rows();if(!list.length){setStatus(t("studio.supplier.csvNoCompletePanelsErr"),'err');return}const btn=document.getElementById('exportSupplierCsvBtn');btn.disabled=true;setStatus(t("studio.supplier.csvCreating"));try{const data=[['Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes'],...list.map(p=>[p.code,p.name||'',p.thickness,p.length,p.width,Number(p.edgeLong||0),Number(p.edgeShort||0),Number(p.qty||1),mat(p),p.notes||''])];const csv='\ufeff'+data.map(r=>r.map(escCsv).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=((project()?.name||'Job')+'_'+(cabinet()?.name||'Unit')+'_cutting_list.csv').replace(/[^a-z0-9_-]+/gi,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus(t("studio.supplier.csvExportedSuccess"))}catch(e){console.error(e);setStatus(t("studio.supplier.csvExportFailed"),'err')}finally{setTimeout(()=>btn.disabled=false,400)}}
  function openPrint(title,html){const w=window.open('','_blank');if(!w){setStatus('Print window was blocked. Allow popups for this file.','err');return false}w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safe(title)}</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#223449}h1{font-family:Inter,sans-serif}.card{border:2px solid #d8d6e1;border-left:8px solid #0051ff;border-radius:14px;padding:14px;margin-bottom:10px;page-break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #1f2329;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;page-break-inside:avoid}.sticker img{width:90px;height:90px}.qty{font-weight:900}</style>
 
 
@@ -6107,28 +6107,29 @@ body.fiq-locked .app{display:none!important}
     // different problems instead of one. unplacedSummaryText groups by code and shows the
     // actual size once, so the real cause (an oversized panel, or a typo'd quantity) is
     // obvious at a glance.
-    var warn=g.unplaced.length?'<div class="sheet-optim-warn-list">⚠️ '+g.unplaced.length+' panel'+(g.unplaced.length===1?'':'s')+' larger than the sheet size and could not be placed: '+unplacedSummaryText(g.unplaced)+'. Check the panel\'s size and quantity are correct, or increase the sheet size for this material.</div>':'';
+    var warn=g.unplaced.length?'<div class="sheet-optim-warn-list">⚠️ '+(g.unplaced.length===1?t("studio.supplier.unplacedWarningSingular",[g.unplaced.length,unplacedSummaryText(g.unplaced)]):t("studio.supplier.unplacedWarningPlural",[g.unplaced.length,unplacedSummaryText(g.unplaced)]))+'</div>':'';
     var sheetsHtml=g.sheets.map(function(s,i){
       var used=0;s.placements.forEach(function(p){used+=p.w*p.h});
       var wp=fmt(100*(1-used/(cfg.w*cfg.h)));
-      return '<div class="sheet-optim-sheet">'+sheetSvg(s,cfg)+'<div class="sheet-caption">Sheet '+(i+1)+' of '+g.sheets.length+' · '+s.placements.length+' panel'+(s.placements.length===1?'':'s')+' · '+wp+'% waste</div></div>';
+      var caption=s.placements.length===1?t("studio.supplier.sheetCaptionSingular",[i+1,g.sheets.length,s.placements.length,wp]):t("studio.supplier.sheetCaptionPlural",[i+1,g.sheets.length,s.placements.length,wp]);
+      return '<div class="sheet-optim-sheet">'+sheetSvg(s,cfg)+'<div class="sheet-caption">'+caption+'</div></div>';
     }).join('');
     var usedM2=fmt(g.usedArea/1e6),totalM2=fmt(g.sheets.length*cfg.w*cfg.h/1e6),wasteM2=fmt(Math.max(0,totalM2-usedM2));
     var groupColor=colorForGroup(idx);
     return '<div class="sheet-optim-group" data-sheet-group="'+idx+'" style="border-left-color:'+groupColor+'">'+
       '<div class="sheet-optim-head"><h4><span class="sheet-optim-swatch" style="background:'+groupColor+'"></span>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</h4></div>'+
       '<div class="sheet-optim-settings">'+
-        '<label>Sheet length (mm)<br><small>grain direction, shown vertically</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
-        '<label>Sheet width (mm)<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label>'+
-        '<label>Saw kerf (mm)<input type="number" min="0" max="15" step="0.5" data-sheet-kerf="'+idx+'" value="'+cfg.kerf+'"></label>'+
-        '<label>Trim allowance (mm)<input type="number" min="0" max="50" step="1" data-sheet-trim="'+idx+'" value="'+cfg.trim+'"></label>'+
-        '<label class="sheet-optim-grain"><input type="checkbox" data-sheet-grain="'+idx+'" '+(cfg.grain?'checked':'')+'> Has grain direction (don’t rotate panels)</label>'+
+        '<label>'+t("studio.supplier.sheetLengthLabel")+'<br><small>'+t("studio.supplier.grainDirectionHint")+'</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
+        '<label>'+t("studio.supplier.sheetWidthLabel")+'<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label>'+
+        '<label>'+t("studio.supplier.sawKerfLabel")+'<input type="number" min="0" max="15" step="0.5" data-sheet-kerf="'+idx+'" value="'+cfg.kerf+'"></label>'+
+        '<label>'+t("studio.supplier.trimAllowanceLabel")+'<input type="number" min="0" max="50" step="1" data-sheet-trim="'+idx+'" value="'+cfg.trim+'"></label>'+
+        '<label class="sheet-optim-grain"><input type="checkbox" data-sheet-grain="'+idx+'" '+(cfg.grain?'checked':'')+'> '+t("studio.supplier.hasGrainDirectionCheckbox")+'</label>'+
       '</div>'+
       '<div class="sheet-optim-stats">'+
-        '<span class="sheet-optim-stat">Sheets required: '+g.sheets.length+'</span>'+
-        '<span class="sheet-optim-stat">Used area: '+usedM2+' m²</span>'+
-        '<span class="sheet-optim-stat'+(g.wastePct>25?' warn':'')+'">Waste: '+wasteM2+' m² ('+g.wastePct+'%)</span>'+
-        '<span class="sheet-optim-stat">Sheet size: '+cfg.w+' × '+cfg.h+'mm</span>'+
+        '<span class="sheet-optim-stat">'+t("studio.supplier.sheetsRequiredLabel",[g.sheets.length])+'</span>'+
+        '<span class="sheet-optim-stat">'+t("studio.supplier.usedAreaLabel",[usedM2])+'</span>'+
+        '<span class="sheet-optim-stat'+(g.wastePct>25?' warn':'')+'">'+t("studio.supplier.wasteAreaLabel",[wasteM2,g.wastePct])+'</span>'+
+        '<span class="sheet-optim-stat">'+t("studio.supplier.sheetSizeLabel",[cfg.w,cfg.h])+'</span>'+
       '</div>'+warn+
       '<div class="sheet-optim-sheets">'+sheetsHtml+'</div>'+
     '</div>';
@@ -6166,7 +6167,7 @@ body.fiq-locked .app{display:none!important}
   // never drift into two different implementations of the same feature.
   function renderInto(box,parts,emptyMsg){
     if(!box)return [];
-    if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">'+(emptyMsg||'Add complete panels first — the sheet optimiser calculates once panels are ready.')+'</div>';return []}
+    if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">'+(emptyMsg||t("studio.supplier.sheetOptimEmptyGeneric"))+'</div>';return []}
     var groups=computeGroups(parts);
     box.innerHTML=groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
     box.querySelectorAll('[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
@@ -6189,7 +6190,7 @@ body.fiq-locked .app{display:none!important}
   function render(){
     var box=document.getElementById('sheetOptimiserBody');if(!box)return;
     var parts=(typeof supplierParts==='function')?supplierParts():[];
-    lastGroups=renderInto(box,parts,'Add complete panels first — the sheet optimiser calculates once panels are ready for the supplier.');
+    lastGroups=renderInto(box,parts,t("studio.supplier.sheetOptimEmptySupplier"));
     if(!parts.length){window.a181SheetOptimPrintHtml=function(){return ''};return}
     var pr=(typeof project==='function')?project():null,unit=(typeof cabinet==='function')?cabinet():null;
     window.a181SheetOptimPrintHtml=function(){
@@ -6197,18 +6198,28 @@ body.fiq-locked .app{display:none!important}
     };
   }
 
-  var prevRenderCutting=window.renderCutting;
-  window.renderCutting=function(){if(typeof prevRenderCutting==='function')prevRenderCutting();render()};
-  try{render()}catch(e){}
-
   var toggleBtn=document.getElementById('sheetOptimiserToggleBtn'),card=document.getElementById('sheetOptimiserCard');
+  // The toggle button's text depends on open/closed state, not just language, so it can't
+  // use a static data-i18n attribute (applyI18n() would always reset it to the closed-state
+  // text on every language switch, even while the card is open). Refreshing it here, on
+  // every render, keeps it correct for both state changes and language switches.
+  function refreshToggleText(){
+    if(!toggleBtn||!card)return;
+    toggleBtn.textContent=card.hasAttribute('hidden')?t("studio.supplier.sheetOptimToggleClosedBtn"):t("studio.supplier.sheetOptimToggleOpenBtn");
+  }
+
+  var prevRenderCutting=window.renderCutting;
+  window.renderCutting=function(){if(typeof prevRenderCutting==='function')prevRenderCutting();render();refreshToggleText()};
+  try{render()}catch(e){}
+  refreshToggleText();
+
   if(toggleBtn&&card){
     toggleBtn.addEventListener('click',function(){
       var opening=card.hasAttribute('hidden');
       if(opening){card.removeAttribute('hidden');render();card.scrollIntoView({behavior:'smooth',block:'start'})}
       else{card.setAttribute('hidden','')}
       toggleBtn.classList.toggle('open',opening);
-      toggleBtn.textContent=opening?'📐 Hide Sheet Optimiser':'📐 Sheet Optimiser — see how many sheets this job needs';
+      refreshToggleText();
     });
   }
   window.a181Pack=pack;window.a181CfgFor=cfgFor;window.a181LoadSettings=loadSettings;window.a181RenderInto=renderInto;
