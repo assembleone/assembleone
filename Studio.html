@@ -1560,7 +1560,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </div>
 </section>
 <section class="screen" id="screen-parts">
-<div class="title-row"><div><h2>Panel Check</h2><div class="muted">Check every panel before making the cutting list.</div></div></div>
+<div class="title-row"><div><h2 data-i18n="studio.panelCheck.screenTitle">Panel Check</h2><div class="muted" data-i18n="studio.panelCheck.screenSubtitle">Check every panel before making the cutting list.</div></div></div>
 <div id="customerSheetEstimateCard"></div>
 <div id="panelCheckStatusBanner"></div>
 <div id="installProgressCard"></div>
@@ -5336,12 +5336,12 @@ body.guide-only .a131-back-studio{display:block}
   }
   function baseMissing(p){
     const m=[];
-    if(!String(p&&p.name||'').trim())m.push('Part name');
-    if(!(Number(p&&p.length)>0))m.push('Length');
-    if(!(Number(p&&p.width)>0))m.push('Width');
-    if(!(Number(p&&p.thickness)>0))m.push('Thickness');
-    if(!(Number(p&&p.qty)>0))m.push('Quantity');
-    if(!String((typeof materialForPanel==='function'?materialForPanel(p):p&&p.material)||'').trim())m.push('Material');
+    if(!String(p&&p.name||'').trim())m.push(t("studio.drawing.partNameSrLabel"));
+    if(!(Number(p&&p.length)>0))m.push(t("studio.drawing.lengthLabel"));
+    if(!(Number(p&&p.width)>0))m.push(t("studio.drawing.widthLabel"));
+    if(!(Number(p&&p.thickness)>0))m.push(t("studio.drawing.thicknessLabel"));
+    if(!(Number(p&&p.qty)>0))m.push(t("studio.drawing.quantityLabel"));
+    if(!String((typeof materialForPanel==='function'?materialForPanel(p):p&&p.material)||'').trim())m.push(t("studio.drawing.materialFieldLabel"));
     return m;
   }
   function reviewed(p){return !!(p&&p.reviewSignature&&p.reviewSignature===sig(p));}
@@ -5366,23 +5366,25 @@ body.guide-only .a131-back-studio{display:block}
     const missing=rows.length-complete;
     if(warning){
       warning.style.display=missing?'block':'none';
-      warning.innerHTML=missing?`⚠ ${missing} panel${missing===1?' needs':'s need'} a final check before the cutting list.`:'';
+      warning.innerHTML=missing?'⚠ '+(missing===1?t("studio.panelCheck.needsCheckSingular",[missing]):t("studio.panelCheck.needsCheckPlural",[missing])):'';
     }
-    if(!rows.length){box.innerHTML='<div class="empty">No panels yet. Return to Drawing and mark the first panel.</div>';return;}
-    box.innerHTML=`<div class="panel-check-summary">${complete} of ${rows.length} panels checked and ready</div><div class="panel-review-instruction">Double-click the large warning on every panel after checking the measurements, material, quantity and edging. Every panel needs a green tick before it can enter the cutting list.</div><div class="panel-check-grid">`+rows.map(p=>{
+    if(!rows.length){box.innerHTML=`<div class="empty">${t("studio.panelCheck.noPanelsYetEmpty")}</div>`;return;}
+    box.innerHTML=`<div class="panel-check-summary">${t("studio.panelCheck.summaryTemplate",[complete,rows.length])}</div><div class="panel-review-instruction">${t("studio.panelCheck.reviewInstruction")}</div><div class="panel-check-grid">`+rows.map(p=>{
       const missingFields=baseMissing(p);
       const isReviewed=reviewed(p);
       const ok=missingFields.length===0&&isReviewed;
       const measurements=`${p.length||'—'} × ${p.width||'—'} × ${p.thickness||'—'} mm · Qty ${p.qty||'—'}`;
-      const edge=`${Number(p.edgeLong||0)} long edge${Number(p.edgeLong||0)===1?'':'s'} · ${Number(p.edgeShort||0)} short edge${Number(p.edgeShort||0)===1?'':'s'}`;
-      const statusLabel=({ready:'Ready',installed:'Installed',missing:'Missing',damaged:'Damaged'})[p.status]||p.status||'Ready';
+      const longEdgeCount=Number(p.edgeLong||0),shortEdgeCount=Number(p.edgeShort||0);
+      const edge=`${longEdgeCount===1?t("studio.panelCheck.longEdgeSingular",[longEdgeCount]):t("studio.panelCheck.longEdgePlural",[longEdgeCount])} · ${shortEdgeCount===1?t("studio.panelCheck.shortEdgeSingular",[shortEdgeCount]):t("studio.panelCheck.shortEdgePlural",[shortEdgeCount])}`;
+      const statusKeyMap={ready:"studio.panelCheck.statusReady",installed:"studio.panelCheck.statusInstalled",missing:"studio.panelCheck.statusMissing",damaged:"studio.panelCheck.statusDamaged"};
+      const statusLabel=statusKeyMap[p.status]?t(statusKeyMap[p.status]):(p.status||t("studio.panelCheck.statusReady"));
       const notes=String(p.notes||'').trim();
-      const reviewMissing=missingFields.length?missingFields:['Edging and all details need confirmation'];
+      const reviewMissing=missingFields.length?missingFields:[t("studio.panelCheck.missingConfirmationFallback")];
       const chips=!ok?`<div class="panel-missing-list">${reviewMissing.map(x=>`<span class="panel-missing-chip">⚠ ${safe(x)}</span>`).join('')}</div>`:'';
       const reviewBox=ok
-        ? `<div class="panel-review-ok"><span class="review-icon">✓</span><span class="review-title">Panel checked</span></div>`
-        : `<div class="panel-review-warning" data-review-panel="${p.id}" title="Double-click to approve this panel"><span class="review-icon">⚠</span><span class="review-title">Panel not checked</span><span class="review-help">Double-click after checking this panel</span></div>`;
-      return `<div class="panel-check-card ${ok?'complete':'incomplete'}"><div class="panel-check-code">${safe(p.code||'')}</div><div class="panel-check-content"><div class="panel-check-name">${safe(p.name||'Unnamed part')}</div><div class="panel-check-meta"><strong>Measurements:</strong> ${measurements}<br><strong>Material:</strong> ${safe((typeof materialForPanel==='function'?materialForPanel(p):p.material)||'Not set')}<br><strong>Edging:</strong> ${edge}<br><strong>Status:</strong> ${safe(statusLabel)}${notes?`<br><strong>Notes:</strong> ${safe(notes)}`:''}</div>${chips}</div><div class="panel-check-actions">${reviewBox}<button class="btn" data-edit-panel="${p.id}">Edit panel</button></div></div>`;
+        ? `<div class="panel-review-ok"><span class="review-icon">✓</span><span class="review-title">${t("studio.panelCheck.panelCheckedLabel")}</span></div>`
+        : `<div class="panel-review-warning" data-review-panel="${p.id}" title="${t("studio.panelCheck.doubleClickToApproveTitle")}"><span class="review-icon">⚠</span><span class="review-title">${t("studio.panelCheck.panelNotCheckedLabel")}</span><span class="review-help">${t("studio.panelCheck.doubleClickAfterChecking")}</span></div>`;
+      return `<div class="panel-check-card ${ok?'complete':'incomplete'}"><div class="panel-check-code">${safe(p.code||'')}</div><div class="panel-check-content"><div class="panel-check-name">${safe(p.name||t("studio.drawing.unnamedPart"))}</div><div class="panel-check-meta"><strong>${t("studio.panelCheck.measurementsLabel")}:</strong> ${measurements}<br><strong>${t("studio.drawing.materialFieldLabel")}:</strong> ${safe((typeof materialForPanel==='function'?materialForPanel(p):p.material)||t("studio.panelCheck.notSetFallback"))}<br><strong>${t("studio.panelCheck.edgingLabel")}:</strong> ${edge}<br><strong>${t("studio.sitePlanner.statusFieldLabel")}:</strong> ${safe(statusLabel)}${notes?`<br><strong>${t("intake.notes")}:</strong> ${safe(notes)}`:''}</div>${chips}</div><div class="panel-check-actions">${reviewBox}<button class="btn" data-edit-panel="${p.id}">${t("studio.panelCheck.editPanelBtn")}</button></div></div>`;
     }).join('')+'</div>';
 
     box.querySelectorAll('[data-edit-panel]').forEach(b=>b.addEventListener('click',()=>{
@@ -5396,7 +5398,7 @@ body.guide-only .a131-back-studio{display:block}
       if(miss.length){
         state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=true;
         if(typeof save==='function')save();if(typeof renderAll==='function')renderAll();if(typeof show==='function')show('mark');
-        setTimeout(()=>alert('Please add: '+miss.join(', ')),50);
+        setTimeout(()=>alert(t("studio.drawing.pleaseAddFieldsTemplate",[miss.join(', ')])),50);
         return;
       }
       p.reviewSignature=sig(p);
@@ -5419,7 +5421,7 @@ body.guide-only .a131-back-studio{display:block}
       if(miss.length){
         state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=true;
         save();renderAll();show('mark');
-        setTimeout(()=>alert('Please add: '+miss.join(', ')),50);
+        setTimeout(()=>alert(t("studio.drawing.pleaseAddFieldsTemplate",[miss.join(', ')])),50);
         return;
       }
       if(typeof sig==='function')p.reviewSignature=sig(p);
