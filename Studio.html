@@ -4543,11 +4543,18 @@ body.guide-only .a131-back-studio{display:block}
       // that this tab doesn't know about before writing over it -- only
       // adds projects this tab is missing entirely, never touches ones it
       // already has.
+      // A project this tab just deleted (deleteProjectRecord) is *also*
+      // "missing" from state.projects -- without excluding tombstoned ids
+      // here, this exact rescue step would silently undo every delete on the
+      // very next autosave (every 4s), which is the real bug a deleted job
+      // reappearing after a refresh was actually caused by. Never rescue an
+      // id this tab has deliberately deleted.
       try{
         const stored=JSON.parse(localStorage.getItem(STORE)||'null');
         const storedProjects=stored&&Array.isArray(stored.projects)?stored.projects:[];
         const knownIds=new Set((state.projects||[]).map(p=>p.id));
-        const missing=storedProjects.filter(p=>p&&p.id&&!knownIds.has(p.id));
+        const deletedIds=new Set(state.deletedProjectIds||[]);
+        const missing=storedProjects.filter(p=>p&&p.id&&!knownIds.has(p.id)&&!deletedIds.has(p.id));
         if(missing.length){state.projects=state.projects||[];missing.forEach(p=>state.projects.push(p))}
       }catch(e){}
       const light=cloneLight();
@@ -4574,6 +4581,12 @@ body.guide-only .a131-back-studio{display:block}
     if(currentHasJobs)return false;
     const rec=await getProjectState();
     if(!rec?.state||!Array.isArray(rec.state.projects)||!rec.state.projects.length)return false;
+    // This IndexedDB snapshot can be older than the last thing this tab knew about --
+    // same tombstone rule as stableSave's own rescue step, so a job deleted after this
+    // particular backup was written can't come back through this fallback path either.
+    const deletedIds=new Set([...(state.deletedProjectIds||[]),...(rec.state.deletedProjectIds||[])]);
+    rec.state.projects=rec.state.projects.filter(p=>!p||!deletedIds.has(p.id));
+    rec.state.deletedProjectIds=[...deletedIds];
     state=rec.state;
     if(typeof migrateCustomers==='function')migrateCustomers();
     try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}
