@@ -1581,7 +1581,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="supplier-actions supplier-actions-simple">
 <button class="supplier-action export" id="exportSupplierCsvBtn" type="button"><span class="supplier-action-icon">⇩</span><strong data-i18n="studio.supplier.downloadCsvBtnLabel">Download CSV</strong><small data-i18n="studio.supplier.downloadCsvBtnSub">Excel and CNC suppliers</small></button>
 <button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong data-i18n="studio.supplier.printSupplierPackBtnLabel">Print Supplier Pack</strong><small data-i18n="studio.supplier.printSupplierPackBtnSub">Cutting list + matching QR stickers</small></button>
-<button class="supplier-action" id="sendCuttingToPhoneBtn" type="button" style="border-color:#4ca618;background:#f4fcef"><span class="supplier-action-icon">📱</span><strong data-i18n="studio.supplier.sendCuttingToPhoneBtnLabel">Send Cutting List to Phone</strong><small data-i18n="studio.supplier.sendCuttingToPhoneBtnSub">Panels, quantities and QR scan checklist</small></button>
 </div>
 <div class="supplier-feedback" id="supplierActionStatus" aria-live="polite"></div>
 <h3 class="supplier-section-title" data-i18n="studio.finishJob.stagePanels">Panels</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
@@ -2931,13 +2930,14 @@ setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox();if(typeo
 setTimeout(paintSiteInbox,200);
 
 async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);switchToProject(incoming.id,incoming.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
-// #exportMobileBtn (Finish and Send, removed) called exportProjectToMobile() directly --
-// that function (assignment resolution, BOM/cutting-list snapshot, the actual send) is
-// still fully live via #sendCuttingToPhoneBtn on the Supplier screen below, and via the
+// #exportMobileBtn (Finish and Send, removed) called exportProjectToMobile() directly.
+// The Supplier screen's own "Send Cutting List to Phone" button (#sendCuttingToPhoneBtn)
+// called the exact same function and has since been removed too -- Job Overview's
+// select-jobs-then-Assign & Send is now the one obvious dispatch point, plus the
 // automatic send that already fires the moment a fitter is first assigned to a job from
-// Job Overview (see the assignedFitter change handler). Nothing to move, just one fewer
-// button calling the same shared function.
-if($("#sendCuttingToPhoneBtn"))$("#sendCuttingToPhoneBtn").onclick=()=>exportProjectToMobile();if($("#bomExportBtn"))$("#bomExportBtn").onclick=()=>exportProjectToMobile();if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
+// there (see the assignedFitter change handler). exportProjectToMobile() itself is
+// unchanged and still the single shared send path either way.
+if($("#bomExportBtn"))$("#bomExportBtn").onclick=()=>exportProjectToMobile();if($("#reviewBomBtn"))$("#reviewBomBtn").onclick=()=>show("bom");$("#refreshBomBtn").onclick=()=>{renderAll();renderJobBom();};
 $("#importMobileInput").onchange=e=>{const f=e.target.files[0];const badge=document.getElementById('siteUpdateBadge');if(f&&badge)badge.textContent='Importing…';importMobileUpdates(f);setTimeout(()=>{if(badge)badge.textContent='Site updates imported ✓'},300);e.target.value=""};
 $("#openProjectInput").onchange=e=>{openProjectPackage(e.target.files[0]);e.target.value=""};
 // Delete Job (Finish and Send, removed) used to operate on whatever project() happened to
