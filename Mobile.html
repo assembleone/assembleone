@@ -1497,12 +1497,14 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </nav>
 <script>
 const KEY="assembleone_mobile_v2";
-let state={projects:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,screen:"projects",activeProjectIds:[]};
+let state={projects:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,screen:"projects",activeCardKeys:[]};
 let jobConfirmedThisSession=false;
-// Build 2, Jobs list multi-select (§5): a one-off, in-the-moment selection of Studio
-// installation job cards, mirroring Studio Build 1's own jorSelectedCardKeys pattern -- a
-// plain in-memory Set, never persisted to state, cleared once "Open N jobs together" runs.
-let mobileSelectedJobIds=new Set();
+// Build 2, Jobs list multi-select (§5) -- extended for full per-room dispatch: a one-off,
+// in-the-moment selection of Studio installation job CARDS (a room, or a whole no-rooms/
+// General card -- see cardKey() below), mirroring Studio Build 1's own jorSelectedCardKeys
+// pattern -- a plain in-memory Set, never persisted to state, cleared once "Open N jobs
+// together" runs. Was mobileSelectedJobIds (plain project ids) before per-room dispatch.
+let mobileSelectedCardKeys=new Set();
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const safe=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -1699,7 +1701,57 @@ function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):(
 // for anything assigned before pairing existed. A job with neither list
 // populated isn't restricted to anyone yet, so it stays visible to everyone
 // rather than disappearing for the one fitter who should see it.
-function canSeeJob(p){
+// Full per-room dispatch: ports Studio Build 1's own room-vs-no-rooms card model
+// verbatim (same logic, same key shape -- projectId, or projectId::roomId /
+// projectId::__general__) so both apps share the same mental model for "which room, or
+// whole job, is this" even though the code itself isn't literally shared between the two
+// files. A project with no NAMED rooms collapses to a single null-room card, identical in
+// shape and behaviour to how the whole Jobs list worked before this feature -- the one
+// case that must stay byte-identical throughout.
+function cardsForProject(p){
+ const rooms=(p.rooms||[]).filter(r=>r&&r.name);
+ if(!rooms.length)return [{project:p,room:null}];
+ const cards=rooms.map(r=>({project:p,room:r}));
+ const roomIds=new Set(rooms.map(r=>r.id));
+ if((p.cabinets||[]).some(c=>!c.roomId||!roomIds.has(c.roomId)))cards.push({project:p,room:'__general__'});
+ return cards;
+}
+function cardCabinets(card){
+ const p=card.project;
+ if(card.room===null)return p.cabinets||[];
+ if(card.room==='__general__'){
+  const roomIds=new Set((p.rooms||[]).filter(r=>r&&r.name).map(r=>r.id));
+  return (p.cabinets||[]).filter(c=>!c.roomId||!roomIds.has(c.roomId));
+ }
+ return (p.cabinets||[]).filter(c=>c.roomId===card.room.id);
+}
+function cardKey(card){
+ if(card.room===null)return card.project.id;
+ return card.project.id+'::'+(card.room==='__general__'?'__general__':card.room.id);
+}
+function parseCardKey(key){
+ const i=String(key).indexOf('::');
+ return i===-1?{projectId:key,roomKey:null}:{projectId:key.slice(0,i),roomKey:key.slice(i+2)};
+}
+function resolveCard(key){
+ const {projectId,roomKey}=parseCardKey(key);
+ const p=state.projects.find(x=>x.id===projectId);if(!p)return null;
+ let room=null;
+ if(roomKey==='__general__')room='__general__';
+ else if(roomKey)room=(p.rooms||[]).find(r=>r.id===roomKey)||null;
+ return {project:p,room};
+}
+// Checked by permanent fitterId first (set once a phone pairs, see a214/a215 -- a paired
+// fitter has no real email at all, so this is the only check that actually works for
+// them); the older email check stays as a fallback for anything assigned before pairing
+// existed. A job/room with neither list populated isn't restricted to anyone yet, so it
+// stays visible to everyone rather than disappearing for the one fitter who should see it.
+// room is optional (every pre-existing caller omits it) -- a real room's own
+// assignedFitterIds/assignedEmails win when it HAS any (Studio computes them fresh on
+// every send, see exportProjectToMobile), otherwise this falls back to the project's own
+// pair exactly as before per-room assignment existed, so a no-rooms project and any
+// room nobody has individually assigned yet are both completely unaffected.
+function canSeeJob(p,room){
  const me=window.fittersiqUser||{};
  // FittersIQ's own platform admin (support access) is a different concern from the
  // company's own access rules and stays exempt.
@@ -1714,8 +1766,11 @@ function canSeeJob(p){
  // lets one fitter see a job, so one fitter can never see another's assigned job just
  // for sharing a company.
  if(me.role==='company_owner')return true;
- const ids=(p&&Array.isArray(p.assignedFitterIds))?p.assignedFitterIds:[];
- const emails=(p&&Array.isArray(p.assignedEmails))?p.assignedEmails:[];
+ const roomObj=(room&&room!=='__general__')?room:null;
+ const roomIds=roomObj&&Array.isArray(roomObj.assignedFitterIds)?roomObj.assignedFitterIds:null;
+ const roomEmails=roomObj&&Array.isArray(roomObj.assignedEmails)?roomObj.assignedEmails:null;
+ const ids=(roomIds&&roomIds.length)?roomIds:((p&&Array.isArray(p.assignedFitterIds))?p.assignedFitterIds:[]);
+ const emails=(roomEmails&&roomEmails.length)?roomEmails:((p&&Array.isArray(p.assignedEmails))?p.assignedEmails:[]);
  if(!ids.length&&!emails.length)return true;
  if(me.fitterId&&ids.includes(me.fitterId))return true;
  if(me.email&&emails.includes(String(me.email).trim().toLowerCase()))return true;
@@ -1734,8 +1789,11 @@ function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=
  // The QR/manual identification only ever tells you the exact panel once you're already
  // allowed to see the job it belongs to -- a scan hitting someone else's job must not leak
  // the drawing, customer name or anything else about it, just the same generic message
- // regardless of what was actually scanned.
- if(!canSeeJob(p)){const box=document.querySelector('#scanResult');if(box)box.textContent=jobAccessDeniedMessage(p);return false}
+ // regardless of what was actually scanned. Resolves the panel's own room (by roomId, same
+ // as state.currentRoom is set to just below) so a room individually assigned to a
+ // different fitter is correctly denied even when the project itself has no restriction.
+ const routeRoom=c.roomId?(p.rooms||[]).find(x=>x.id===c.roomId)||null:null;
+ if(!canSeeJob(p,routeRoom)){const box=document.querySelector('#scanResult');if(box)box.textContent=jobAccessDeniedMessage(p);return false}
  // Screen navigation is the caller's decision, not this function's -- Panel Check
  // resolves a scan to a panel without ever leaving the Panel Check screen, so this must
  // not silently overwrite state.screen out from under it. Callers that do want to
@@ -1756,7 +1814,7 @@ function applyPanelRoute(route){
 // load. Without this, load() below only ever runs once at startup and the new
 // #panel=... in the URL would be silently ignored.
 window.addEventListener("hashchange",()=>{const route=parsePanelHash();if(route)applyPanelRoute(route)});
-async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};if(!Array.isArray(state.activeProjectIds))state.activeProjectIds=state.currentProject?[state.currentProject]:[];try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{renderAll();applyI18n();paintLangButtons()}if(typeof applyScanModeUI==='function')applyScanModeUI()}
+async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};if(!Array.isArray(state.activeCardKeys))state.activeCardKeys=state.currentProject?[state.currentProject]:[];try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{renderAll();applyI18n();paintLangButtons()}if(typeof applyScanModeUI==='function')applyScanModeUI()}
 function show(name){
  if((name==='measure'||name==='drawings')&&!jobConfirmedThisSession&&state.currentProject){
   const rp=state.projects.find(x=>x.id===state.currentProject);
@@ -1870,30 +1928,73 @@ function renderProjects(){
  const FLOOR_KEYS={'Basement':'intake.floorBasement','Ground':'intake.floorGround','1st floor':'intake.floor1st','2nd floor':'intake.floor2nd','3rd floor':'intake.floor3rd'};
  const floorLabel=f=>{const k=FLOOR_KEYS[f];return k?t(k):f};
  const allRoomsFinished=p=>(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished);
- function jobCard(p){
-  const display=projectRoomDisplay(p);const rooms=(p.rooms||[]).length;const units=(p.cabinets||[]).length;const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);const ready=isInstallationJob(p);const finished=allRoomsFinished(p);const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>`:'';const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';const newBadge=(ready&&p.mobileSeen===false)?`<span class="job-status-badge new">● NEW</span>`:'';const pcHtml=ready?panelCheckStatusHtml(p):'';
+ // Full per-room dispatch: card is {project,room} (see cardsForProject/cardKey above),
+ // exactly Studio Build 1's own shape -- a real room, the '__general__' stray-cabinets
+ // catch-all, or null for a no-rooms project's single implicit card. Only ever expanded
+ // into more than one card for a real installation job (see cardsForProject's own caller
+ // below) -- a Site Measure visit still renders as one card per project, unchanged.
+ function jobCard(card){
+  const p=card.project;
+  const ready=isInstallationJob(p);
+  const cabinets=ready?cardCabinets(card):(p.cabinets||[]);
+  const key=cardKey(card);
+  const realRoom=(card.room&&card.room!=='__general__')?card.room:null;
+  // A room-card's own icon/name once a job has more than one named room -- falls back to
+  // projectRoomDisplay(p)'s existing "first room, or first cabinet's own room label"
+  // behaviour exactly as before for a no-rooms card, so that shape stays byte-identical.
+  const display=realRoom?{icon:realRoom.icon||roomIconFromName(realRoom.name,realRoom.type),name:realRoom.name||realRoom.type||t('proj.roomFallback')}
+   :(card.room==='__general__'?{icon:'🏠',name:t('proj.roomFallback')}:projectRoomDisplay(p));
+  const rooms=(p.rooms||[]).length;const units=(p.cabinets||[]).length;
+  // titleName still names the whole job (customer/job) -- identical on every sibling
+  // room-card of one project, mirroring Studio's own Job Overview card grouping; only the
+  // room subtitle and every stat/total below differ per card.
+  const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);
+  const finished=realRoom?!!realRoom.finished:allRoomsFinished(p);
+  const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);
+  const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
+  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>`:'';
+  const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);
+  const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';
+  // NEW badge reads the room's own mobileSeen where a real room exists (set the moment
+  // this specific card is opened, see the open-card handler below and mergeStudioProject's
+  // per-room merge), else the project's -- same fallback shape as everywhere else in this
+  // feature, so a no-rooms job's badge is unaffected.
+  const roomSeen=realRoom?realRoom.mobileSeen:p.mobileSeen;
+  const newBadge=(ready&&roomSeen===false)?`<span class="job-status-badge new">● NEW</span>`:'';
+  const pcHtml=ready&&typeof panelCheckStatusHtmlForCabinets==='function'?panelCheckStatusHtmlForCabinets(cabinets):'';
   // Build 2, §4: a design-preview thumbnail (first cabinet with a real drawing, falling
   // back to a room's own synced Studio drawing image -- the same "pick first available
   // drawing" pattern Studio's own dashboard thumbnail already uses) replaces the generic
   // emoji icon for a real Studio installation job; Site Measure cards keep the emoji room
-  // icon exactly as before since they have no cutting-list drawing yet.
-  const previewImg=ready?((p.cabinets||[]).find(c=>c.drawing&&c.drawingType!=='pdf')?.drawing||(p.rooms||[]).flatMap(r=>r.designImages||[]).map(d=>d.data).find(Boolean)):null;
+  // icon exactly as before since they have no cutting-list drawing yet. Scoped to THIS
+  // card's own cabinets/room so Kitchen's thumbnail never shows TV Wall's drawing.
+  const previewImg=ready?(cabinets.find(c=>c.drawing&&c.drawingType!=='pdf')?.drawing||(realRoom?(realRoom.designImages||[]):(p.rooms||[]).flatMap(r=>r.designImages||[])).map(d=>d.data).find(Boolean)):null;
   const thumbHtml=previewImg?`<div class="mobile-job-thumb"><img src="${previewImg}" alt=""></div>`:`<div class="mobile-job-icon">${display.icon}</div>`;
-  // A standalone, prominent "N PANELS" figure -- reuses scanTotals()'s already qty-aware
-  // total (Math.max(1,qty) per row) instead of a second counting pass.
-  const panelTotal=ready?scanTotals(p).total:0;
+  // A standalone, prominent "N PANELS" figure -- reuses scanTotalsForCabinets()'s already
+  // qty-aware total (Math.max(1,qty) per row), scoped to just this card's own cabinets.
+  const panelTotal=ready&&typeof scanTotalsForCabinets==='function'?scanTotalsForCabinets(cabinets).total:0;
   const panelsFigureHtml=panelTotal?`<div class="mobile-job-panels-figure"><b>${panelTotal}</b><span>${panelTotal===1?t('mobile.panelSingular'):t('mobile.panelPlural')}</span></div>`:'';
   // §5: a checkbox on real installation jobs only, mirroring Studio Build 1's own
-  // card-selection shape, feeding the "Open N jobs together" bulk toolbar below. Kept
-  // INSIDE the same grid cell as the icon/thumbnail (not a separate top-level child) so
-  // it doesn't shift #jobList .job's own fixed 3-column grid (icon | content | actions).
-  const selectHtml=ready?`<label class="mobile-job-select" title="${safe(t('mobile.selectJobAria'))}"><input type="checkbox" class="mobile-job-select-checkbox" data-select-job="${p.id}" ${mobileSelectedJobIds.has(p.id)?'checked':''}></label>`:'';
-  return `<div class="job"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${badge}${syncBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-id="${p.id}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`;
+  // card-selection shape, feeding the "Open N jobs together" bulk toolbar below. Keyed by
+  // this card's own key (not just the project id) so two room-cards of the same job can be
+  // selected independently. Kept INSIDE the same grid cell as the icon/thumbnail (not a
+  // separate top-level child) so it doesn't shift #jobList .job's own fixed 3-column grid
+  // (icon | content | actions).
+  const selectHtml=ready?`<label class="mobile-job-select" title="${safe(t('mobile.selectJobAria'))}"><input type="checkbox" class="mobile-job-select-checkbox" data-select-card="${safe(key)}" ${mobileSelectedCardKeys.has(key)?'checked':''}></label>`:'';
+  return `<div class="job"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${badge}${syncBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`;
  }
  // A job assigned to someone else's email never appears on this phone at all -- not
  // greyed out, not visible-but-locked, just not in the list, the same way it would look
- // if this phone had never heard of it.
- const visibleProjects=state.projects.filter(p=>typeof canSeeJob!=='function'||canSeeJob(p));
+ // if this phone had never heard of it. Site Measure jobs (never split into room-cards)
+ // stay filtered at the whole-project level, exactly as before. Installation jobs are
+ // filtered per CARD -- cardsForProject() splits a real job into its own room-cards first,
+ // then each card's own canSeeJob(p,room) decides whether that specific room is visible,
+ // so a job with one room assigned to fitter A and another to fitter B correctly shows
+ // only the room each of them is actually assigned to, instead of the whole job either
+ // fully appearing or fully disappearing.
+ const visibleSiteProjects=state.projects.filter(p=>!isInstallationJob(p)&&(typeof canSeeJob!=='function'||canSeeJob(p,null)));
+ const installCards=state.projects.filter(isInstallationJob).flatMap(cardsForProject)
+  .filter(card=>typeof canSeeJob!=='function'||canSeeJob(card.project,card.room==='__general__'?null:card.room));
  // Site Measure and Studio installation work are two different jobs to a fitter even when
  // the underlying array is one shared state.projects -- mixing them in one list was the
  // actual clutter being reported, not just a display preference. isInstallationJob() is
@@ -1906,32 +2007,47 @@ function renderProjects(){
  // finished and confirmed-synced) are never deleted -- retention policy is still an open
  // question -- they just move out of the two active groups into their own collapsed
  // <details> section so they stop crowding the working list while staying one tap away.
- const active=visibleProjects.filter(p=>!p.mobileArchived);
- const archived=visibleProjects.filter(p=>p.mobileArchived);
- const siteJobs=active.filter(p=>!isInstallationJob(p));
- const installJobs=[...active.filter(isInstallationJob)].sort((a,b)=>{
-   const fa=allRoomsFinished(a)?1:0,fb=allRoomsFinished(b)?1:0;
-   return fa-fb;
- });
- const archivedSite=archived.filter(p=>!isInstallationJob(p));
- const archivedInstall=archived.filter(isInstallationJob);
- const siteHtml=siteJobs.length?siteJobs.map(jobCard).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
- const installHtml=installJobs.length?`<div class="mobile-projects-title">Studio Installation Jobs</div><div class="mobile-projects-help">Sent from Studio for Panel Check and Find Panel.</div><div class="mobile-bulk-toolbar hidden" id="mobileBulkToolbar"><span id="mobileBulkCount"></span><button type="button" class="btn primary" id="mobileBulkOpenBtn"></button></div>`+installJobs.map(jobCard).join(""):"";
- const archivedSiteHtml=archivedSite.length?`<details class="mobile-archived-jobs"><summary>✓ Sent to Studio (${archivedSite.length}) ›</summary>${archivedSite.map(jobCard).join("")}</details>`:"";
- const archivedInstallHtml=archivedInstall.length?`<details class="mobile-archived-jobs"><summary>✓ Finished Installations (${archivedInstall.length}) ›</summary>${archivedInstall.map(jobCard).join("")}</details>`:"";
+ // Archiving itself is still a whole-project decision (archiveIfFinishedInstallation
+ // requires every room finished), so every one of a project's cards moves together.
+ const siteJobs=visibleSiteProjects.filter(p=>!p.mobileArchived);
+ const archivedSite=visibleSiteProjects.filter(p=>p.mobileArchived);
+ const installCardsActive=installCards.filter(c=>!c.project.mobileArchived)
+  .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?!!a.room.finished:allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?!!b.room.finished:allRoomsFinished(b.project))?1:0;return fa-fb});
+ const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived);
+ const siteHtml=siteJobs.length?siteJobs.map(p=>jobCard({project:p,room:null})).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
+ const installHtml=installCardsActive.length?`<div class="mobile-projects-title">Studio Installation Jobs</div><div class="mobile-projects-help">Sent from Studio for Panel Check and Find Panel.</div><div class="mobile-bulk-toolbar hidden" id="mobileBulkToolbar"><span id="mobileBulkCount"></span><button type="button" class="btn primary" id="mobileBulkOpenBtn"></button></div>`+installCardsActive.map(jobCard).join(""):"";
+ const archivedSiteHtml=archivedSite.length?`<details class="mobile-archived-jobs"><summary>✓ Sent to Studio (${archivedSite.length}) ›</summary>${archivedSite.map(p=>jobCard({project:p,room:null})).join("")}</details>`:"";
+ const archivedInstallHtml=archivedInstallCards.length?`<details class="mobile-archived-jobs"><summary>✓ Finished Installations (${archivedInstallCards.length}) ›</summary>${archivedInstallCards.map(jobCard).join("")}</details>`:"";
  box.innerHTML=siteHtml+archivedSiteHtml+installHtml+archivedInstallHtml;
- // §5: opening a single job stays byte-identical to before -- activeProjectIds just
- // becomes the one-item array that keeps every combined-mode check (activeProjectIds.
- // length>1) naturally false in the ordinary, overwhelmingly common case. B: the
- // consolidated room-detail screen (renderRoomDetail via "drawings") is now the single
- // open/active job screen for any job that actually has rooms to show; the old flat
- // "install" BOM screen stays only as a fallback for the rare job with cabinets/parts but
- // no rooms array yet, and as the internal target QR/manual panel-route resolution already
- // uses elsewhere in this file (openPanelRoute, findPanelByNumber) -- unchanged.
- $$(".open-job").forEach(b=>b.onclick=()=>{state.currentProject=b.dataset.id;const p=project();state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;state.activeProjectIds=[p.id];jobConfirmedThisSession=true;p.mobileSeen=true;save();show(isInstallationJob(p)&&!(p.rooms&&p.rooms.length)?"install":"drawings")});
- $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);mobileSelectedJobIds.delete(p.id);if(Array.isArray(state.activeProjectIds))state.activeProjectIds=state.activeProjectIds.filter(id=>id!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
+ // §5, extended for per-room dispatch: opening a single card stays byte-identical to
+ // before for a no-rooms job -- activeCardKeys just becomes the one-item array that keeps
+ // every combined-mode check (activeCardKeys.length>1) naturally false in the ordinary,
+ // overwhelmingly common case. B: the consolidated room-detail screen (renderRoomDetail
+ // via "drawings") is now the single open/active job screen for any job that actually has
+ // rooms to show; the old flat "install" BOM screen stays only as a fallback for the rare
+ // job with cabinets/parts but no rooms array yet, and as the internal target QR/manual
+ // panel-route resolution already uses elsewhere in this file (openPanelRoute,
+ // findPanelByNumber) -- unchanged. Destination logic itself is untouched (still keyed off
+ // the whole project's own p.rooms.length, exactly as before this feature existed) --
+ // only WHICH room becomes state.currentRoom/currentCabinet is now card-specific.
+ $$(".open-job").forEach(b=>b.onclick=()=>{
+  const key=b.dataset.cardKey;const card=resolveCard(key);if(!card)return;
+  const p=card.project,room=(card.room&&card.room!=='__general__')?card.room:null;
+  state.currentProject=p.id;
+  state.currentRoom=room?room.id:null;
+  const cabinets=cardCabinets(card);
+  state.currentCabinet=cabinets[0]?.id||null;
+  state.currentPart=null;
+  state.activeCardKeys=[key];
+  jobConfirmedThisSession=true;
+  p.mobileSeen=true;
+  if(room)room.mobileSeen=true;
+  save();
+  show(isInstallationJob(p)&&!(p.rooms&&p.rooms.length)?"install":"drawings");
+ });
+ $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);[...mobileSelectedCardKeys].forEach(k=>{if(parseCardKey(k).projectId===p.id)mobileSelectedCardKeys.delete(k)});if(Array.isArray(state.activeCardKeys))state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
  $$(".mobile-job-select-checkbox").forEach(cb=>cb.onchange=()=>{
-  if(cb.checked)mobileSelectedJobIds.add(cb.dataset.selectJob);else mobileSelectedJobIds.delete(cb.dataset.selectJob);
+  if(cb.checked)mobileSelectedCardKeys.add(cb.dataset.selectCard);else mobileSelectedCardKeys.delete(cb.dataset.selectCard);
   updateMobileBulkToolbar();
  });
  updateMobileBulkToolbar();
@@ -1939,35 +2055,38 @@ function renderProjects(){
 }
 // §5: shows/hides and labels the "Open N jobs together" bar under the installation jobs
 // list -- only meaningful once 2+ are picked (a single selection is already one tap away
-// via that card's own Open button), and drops any id that fell out of the list since the
-// last render (deleted, or no longer an installation job).
+// via that card's own Open button), and drops any key that fell out of the list since the
+// last render (deleted, finished off the list, or no longer an installation job).
 function updateMobileBulkToolbar(){
  const bar=$('#mobileBulkToolbar');if(!bar)return;
- const validIds=new Set(state.projects.filter(isInstallationJob).map(p=>p.id));
- [...mobileSelectedJobIds].forEach(id=>{if(!validIds.has(id))mobileSelectedJobIds.delete(id)});
- const n=mobileSelectedJobIds.size;
+ const validKeys=new Set(state.projects.filter(isInstallationJob).flatMap(cardsForProject).map(cardKey));
+ [...mobileSelectedCardKeys].forEach(k=>{if(!validKeys.has(k))mobileSelectedCardKeys.delete(k)});
+ const n=mobileSelectedCardKeys.size;
  bar.classList.toggle('hidden',n<2);
  if(n<2)return;
  const countEl=$('#mobileBulkCount');if(countEl)countEl.textContent=t('mobile.openTogetherPlural',[n]);
  const openBtn=$('#mobileBulkOpenBtn');if(openBtn)openBtn.textContent=t('mobile.openTogetherPlural',[n]);
- if(openBtn)openBtn.onclick=()=>openJobsTogether([...mobileSelectedJobIds]);
+ if(openBtn)openBtn.onclick=()=>openJobsTogether([...mobileSelectedCardKeys]);
 }
-// §5: the multi-job "active set" this whole combined Panel Check feature is built on --
+// §5: the multi-card "active set" this whole combined Panel Check feature is built on --
 // additive alongside the existing single-pointer state.currentProject/currentCabinet/
-// currentPart (still "whichever job's detail screen is on screen right now"). Every panel
-// write still lands on its own real project/cabinet/part; this array only changes which
-// jobs' totals get summed and shown together.
-function openJobsTogether(ids){
- const valid=ids.filter(id=>state.projects.some(p=>p.id===id));
+// currentPart/currentRoom (still "whichever room's detail screen is on screen right now").
+// Every panel write still lands on its own real project/cabinet/part; this array only
+// changes which cards' totals get summed and shown together. Holds card keys now (see
+// cardKey() above), not plain project ids, so Kitchen and TV Wall from the SAME job can be
+// opened together as two independently-tracked entries.
+function openJobsTogether(keys){
+ const valid=keys.map(resolveCard).filter(c=>c&&c.project);
  if(valid.length<2)return;
- state.activeProjectIds=valid;
- state.currentProject=valid[0];
- const first=state.projects.find(p=>p.id===valid[0]);
- state.currentCabinet=first?.cabinets?.[0]?.id||null;state.currentPart=null;
- state.currentRoom=(first?.rooms&&first.rooms[0])?first.rooms[0].id:null;
- valid.forEach(id=>{const p=state.projects.find(x=>x.id===id);if(p)p.mobileSeen=true});
+ state.activeCardKeys=valid.map(cardKey);
+ const first=valid[0];
+ state.currentProject=first.project.id;
+ const firstCabinets=cardCabinets(first);
+ state.currentCabinet=firstCabinets[0]?.id||null;state.currentPart=null;
+ state.currentRoom=(first.room&&first.room!=='__general__')?first.room.id:((first.project.rooms&&first.project.rooms[0])?first.project.rooms[0].id:null);
+ valid.forEach(c=>{c.project.mobileSeen=true;if(c.room&&c.room!=='__general__')c.room.mobileSeen=true});
  jobConfirmedThisSession=true;
- mobileSelectedJobIds.clear();
+ mobileSelectedCardKeys.clear();
  save();
  show('drawings');
 }
@@ -2814,7 +2933,7 @@ function renderRoomDetail(r){
  const damagedCount=roomParts.filter(pt=>partStatusCategory(pt)==='damaged').length;
  const filteredParts=roomPanelFilter==='all'?roomParts:roomParts.filter(pt=>partStatusCategory(pt)===roomPanelFilter);
  const pct=roomUnitTotal?Math.round(checkedCount/roomUnitTotal*100):0;
- const combined=Array.isArray(state.activeProjectIds)&&state.activeProjectIds.length>1;
+ const combined=Array.isArray(state.activeCardKeys)&&state.activeCardKeys.length>1;
  const combinedStripHtml=combined?renderCombinedCheckStripHtml():'';
  const jobTitle=safe(p?.customer)||safe(p?.name)||t('detail.currentProject');
  const addr=(p?.address||'').trim();
@@ -2925,11 +3044,19 @@ function renderRoomDetail(r){
  // workload doesn't touch its siblings. Nothing is deleted: Studio keeps the full record,
  // this only stops the room cluttering the fitter's own active list on the phone. Moved
  // into the "..." menu (§10) -- same confirm/finish/archive behaviour, just relocated.
+ // Full per-room dispatch: drops just THIS room's own card key from activeCardKeys,
+ // regardless of whether sibling rooms are finished yet -- finishing Kitchen must leave a
+ // still-open TV Wall's own card key untouched, exactly as its own Panel Check progress
+ // already stays untouched. (Whole-project archiving off the Jobs list is a separate,
+ // still-whole-project decision -- see archiveIfFinishedInstallation -- unaffected here.)
  $('#finishJobBtn')?.addEventListener('click',()=>{
   if(!requireLeadFitter(p,'finish this job'))return;
   if(!confirm(t('mobile.confirmFinishJob',[r.name||'this room'])))return;
   r.finished=true;r.finishedAt=new Date().toISOString();
-  if(Array.isArray(state.activeProjectIds)&&allRoomsFinishedForProject(p))state.activeProjectIds=state.activeProjectIds.filter(id=>id!==p.id);
+  if(Array.isArray(state.activeCardKeys)){
+   const thisKey=cardKey({project:p,room:r});
+   state.activeCardKeys=state.activeCardKeys.filter(k=>k!==thisKey);
+  }
   save();exportJob(p.id);show('projects');
  });
 }
@@ -2937,10 +3064,6 @@ function renderRoomDetail(r){
 // "all" whenever a different room is opened, but survives this same room's own re-renders
 // (finishing Panel Check, toggling Missing/Damaged) so the fitter's chip choice sticks.
 let roomPanelFilterRoomId=null,roomPanelFilter='all';
-// Mirrors the Jobs list's own allRoomsFinished(p) check (renderProjects) without requiring
-// that closure -- used only to decide whether a fully-finished project should also drop
-// out of activeProjectIds when its last room is finished.
-function allRoomsFinishedForProject(p){return !!(p&&(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished))}
 
 function addRoomPhoto(file,kind){const r=currentRoom();if(!r||!file)return;compressImage(file,data=>{const item={id:uid(),data,name:file.name||''};if(kind==='before')r.beforePhotos.push(item);else r.designImages.push(item);save();renderRoomDetail(r)},()=>alert(t('msg.photoLoadFailed')))}
 $('#addRoomBtn').onclick=openRoomCreator;$('#roomBeforeCamera').onchange=e=>{addRoomPhoto(e.target.files[0],'before');e.target.value=''};$('#roomBeforeGallery').onchange=e=>{addRoomPhoto(e.target.files[0],'before');e.target.value=''};$('#roomDesignGallery').onchange=e=>{[...e.target.files].forEach(f=>addRoomPhoto(f,'design'));e.target.value=''};
@@ -3049,7 +3172,11 @@ function mergeStudioProject(incoming){
   const oldRooms=old.rooms||[],incomingRooms=incoming.rooms||[];
   const mergedRooms=incomingRooms.map(ir=>{
    const or=oldRooms.find(x=>x.id===ir.id);
-   if(!or)return ir;
+   // A room genuinely new to this phone (added in Studio since the last sync) is unseen
+   // by definition -- mirrors the whole-project incoming.mobileSeen=false fallback below
+   // for a brand-new project, so a room added to an already-known job correctly still
+   // shows its own NEW badge on the Jobs list instead of silently inheriting "seen".
+   if(!or){ir.mobileSeen=ir.mobileSeen!==undefined?ir.mobileSeen:false;return ir}
    return {...ir,
     beforePhotos:(or.beforePhotos&&or.beforePhotos.length)?or.beforePhotos:ir.beforePhotos,
     designImages:(ir.designImages&&ir.designImages.length)?ir.designImages:or.designImages,
@@ -3062,7 +3189,19 @@ function mergeStudioProject(incoming){
     panelCheckFinished:or.panelCheckFinished||ir.panelCheckFinished||false,
     panelCheckFinishedAt:or.panelCheckFinishedAt||ir.panelCheckFinishedAt||null,
     finished:or.finished||ir.finished||false,
-    finishedAt:or.finishedAt||ir.finishedAt||null};
+    finishedAt:or.finishedAt||ir.finishedAt||null,
+    // Full per-room dispatch: Studio computes assignedFitter/assignedFitterIds/
+    // assignedEmails fresh on every send (see exportProjectToMobile), so its incoming
+    // value wins whenever it's actually present -- same "Studio is the source of truth"
+    // rule already applied to address/phone/notes just below this room merge. mobileSeen
+    // is the one field that goes the other way: carried forward from this phone's own
+    // copy (or.mobileSeen) so a resync never resets a room the fitter has already opened
+    // back to "NEW" -- exactly mirroring the whole-project mobileSeen fallback below.
+    assignedFitter:ir.assignedFitter!==undefined?ir.assignedFitter:or.assignedFitter,
+    assignedFitterIds:Array.isArray(ir.assignedFitterIds)?ir.assignedFitterIds:or.assignedFitterIds,
+    assignedEmails:Array.isArray(ir.assignedEmails)?ir.assignedEmails:or.assignedEmails,
+    lastMobileSync:ir.lastMobileSync||or.lastMobileSync||null,
+    mobileSeen:or.mobileSeen!==undefined?or.mobileSeen:true};
   });
   oldRooms.forEach(or=>{if(!mergedRooms.some(mr=>mr.id===or.id))mergedRooms.push(or)});
   incoming.rooms=mergedRooms;
@@ -3367,26 +3506,46 @@ function scanTotals(p=project()){
  rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;scanned+=Math.min(q,Math.max(0,Number(pt.scannedQty)||0));damaged+=Math.min(q,Math.max(0,Number(pt.damagedQty)||0))});
  return {total,scanned,remaining:Math.max(0,total-scanned),damaged,pct:total?Math.round(scanned/total*100):0,rows};
 }
-// Build 2 (§E): the multi-job counterpart to scanTotals() -- sums the exact same
-// qty-aware totals across every project in state.activeProjectIds instead of just the
-// single "current" one, e.g. 10+10+10=30. Each project's own scanTotals() is untouched
-// and still the one source of truth per job; this only adds them together and keeps a
-// per-project breakdown alongside the combined figure.
+// Full per-room dispatch: the cabinet-scoped sibling of scanTotals(p)/allProjectParts(p)
+// above -- mirrors how Studio's own Build 1 split jobPanelCheckTotals(p) into its own
+// *ForCabinets(cabinets) helper. scanTotals/allProjectParts themselves are untouched
+// (installTotals, the old flat "install" BOM screen, still uses the whole-project version
+// exactly as before) -- this is purely additive, used only by the Jobs list's own
+// per-card panel total/PANEL CHECK pill (jobCard, see renderProjects) so a room-card's
+// figure reflects only its own cabinets, never its siblings'.
+function scanTotalsForCabinets(cabinets){
+ const rows=(cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({pt,c})));
+ let total=0,scanned=0,damaged=0;
+ rows.forEach(({pt})=>{const q=Math.max(1,Number(pt.qty)||1);total+=q;scanned+=Math.min(q,Math.max(0,Number(pt.scannedQty)||0));damaged+=Math.min(q,Math.max(0,Number(pt.damagedQty)||0))});
+ return {total,scanned,remaining:Math.max(0,total-scanned),damaged,pct:total?Math.round(scanned/total*100):0,rows};
+}
+// Build 2 (§E) -- extended for per-room dispatch: the multi-card counterpart to
+// scanTotals() -- sums the exact same qty-aware totals across every CARD in
+// state.activeCardKeys instead of just the single "current" one, e.g. 10+10+10=30. Each
+// card's own cabinets are resolved via cardCabinets() (cardsForProject/cardKey above), so
+// two rooms of the SAME job opened together are tracked as two independent entries, not
+// silently merged into one "job" total. Each project's own scanTotals() is untouched and
+// still the one source of truth for the old flat/no-rooms case; this only adds the active
+// cards' own totals together and keeps a per-card breakdown alongside the combined figure.
 function combinedScanTotals(){
- const ids=Array.isArray(state.activeProjectIds)?state.activeProjectIds:[];
- const projects=ids.map(id=>state.projects.find(x=>x.id===id)).filter(Boolean);
+ const keys=Array.isArray(state.activeCardKeys)?state.activeCardKeys:[];
+ const cards=keys.map(resolveCard).filter(c=>c&&c.project);
  let total=0,scanned=0,damaged=0,rows=[];
- const perProject=projects.map(pr=>{const t2=scanTotals(pr);total+=t2.total;scanned+=t2.scanned;damaged+=t2.damaged;rows=rows.concat(t2.rows);return {project:pr,totals:t2}});
+ const perProject=cards.map(c=>{const t2=scanTotalsForCabinets(cardCabinets(c));total+=t2.total;scanned+=t2.scanned;damaged+=t2.damaged;rows=rows.concat(t2.rows);return {project:c.project,room:c.room,totals:t2}});
  return {total,scanned,damaged,rows,remaining:Math.max(0,total-scanned),pct:total?Math.round(scanned/total*100):0,perProject};
 }
 // The compact status strip on the consolidated room-detail screen (renderRoomDetail),
-// shown only when 2+ jobs are open together -- each job's own name and progress plus the
-// combined total, matching the brief's own "10+10+10=30, plus each job's own progress"
-// example.
+// shown only when 2+ cards are open together -- each card's own name and progress plus
+// the combined total, matching the brief's own "10+10+10=30, plus each job's own
+// progress" example. The room name is appended whenever a card has one, so Kitchen and TV
+// Wall from the SAME job read as two distinct rows instead of two identical-looking ones.
 function renderCombinedCheckStripHtml(){
  const c=combinedScanTotals();
  if(!c.perProject.length)return '';
- const jobsList=c.perProject.map(({project:pr,totals:t2})=>`<div class="room-combined-job"><span>${safe(pr.customer||pr.name||t('proj.projectFallback'))}</span><b>${t2.scanned}/${t2.total}</b></div>`).join('');
+ const jobsList=c.perProject.map(({project:pr,room:rm,totals:t2})=>{
+  const roomSuffix=(rm&&rm!=='__general__'&&rm.name)?' · '+safe(rm.name):'';
+  return `<div class="room-combined-job"><span>${safe(pr.customer||pr.name||t('proj.projectFallback'))}${roomSuffix}</span><b>${t2.scanned}/${t2.total}</b></div>`;
+ }).join('');
  return `<div class="room-combined-strip"><div class="room-combined-head"><b>${t('mobile.combinedHeading')}</b><span>${t('mobile.combinedCheckedOf',[c.scanned,c.total,c.perProject.length])}</span></div><div class="room-combined-jobs">${jobsList}</div></div>`;
 }
 // Panel Check's own counter (scanTotals, quantity-aware) is the one source of truth for
@@ -3399,20 +3558,29 @@ function panelCheckStatusHtml(p){
  const done=t2.scanned>=t2.total;
  return `<div class="job-panelcheck${done?' done':''}"><b>${done?'PANEL CHECK ✓':'PANEL CHECK'}</b><span>${t2.scanned} / ${t2.total} checked</span><div class="job-panelcheck-bar"><i style="width:${t2.pct}%"></i></div></div>`;
 }
+// The cabinet-scoped sibling of panelCheckStatusHtml(p) above, mirroring
+// scanTotalsForCabinets() -- used only by the Jobs list's own per-card PANEL CHECK pill
+// (jobCard) so a room-card shows only its own progress, never its siblings'.
+function panelCheckStatusHtmlForCabinets(cabinets){
+ const t2=scanTotalsForCabinets(cabinets);
+ if(!t2.total)return '';
+ const done=t2.scanned>=t2.total;
+ return `<div class="job-panelcheck${done?' done':''}"><b>${done?'PANEL CHECK ✓':'PANEL CHECK'}</b><span>${t2.scanned} / ${t2.total} checked</span><div class="job-panelcheck-bar"><i style="width:${t2.pct}%"></i></div></div>`;
+}
 // Scanning only finds and highlights the panel now -- it must never silently decide
 // Panel Check or Fitted on the fitter's behalf. Both are deliberate choices made
 // afterwards via the Mark Panel menu, the same way Missing/Damaged already work.
 // lastScannedAt is just "this was opened/viewed", used for the recent-activity list.
 function markCurrentPanelScanned(){const pt=part();if(!pt)return;pt.lastScannedAt=new Date().toISOString();pt.lastScannedByFitterId=currentActorFitterId();save();renderScanDashboard()}
-// Build 2 (§E): "combined" here means an actual multi-job Panel Check session (2+ jobs in
-// state.activeProjectIds) AND the scanner currently in Panel Check mode -- Find Panel
-// always shows its own single scanned job, unchanged, regardless of how many jobs happen
-// to be open together.
-function combinedCheckActive(){return state.scanMode==='check'&&Array.isArray(state.activeProjectIds)&&state.activeProjectIds.length>1}
+// Build 2 (§E) -- extended for per-room dispatch: "combined" here means an actual
+// multi-CARD Panel Check session (2+ cards in state.activeCardKeys) AND the scanner
+// currently in Panel Check mode -- Find Panel always shows its own single scanned job,
+// unchanged, regardless of how many cards happen to be open together.
+function combinedCheckActive(){return state.scanMode==='check'&&Array.isArray(state.activeCardKeys)&&state.activeCardKeys.length>1}
 function renderScanDashboard(){
  const combined=combinedCheckActive();
  const total=combined?combinedScanTotals():scanTotals();
- const pr=project();const cj=$("#scanCurrentJob");if(cj)cj.textContent=combined?t('mobile.combinedCurrentJob',[state.activeProjectIds.length]):(pr?`${pr.name||t('msg.projectFallback')}${pr.code?' · '+pr.code:''}`:t('scan.noProjectOpen'));
+ const pr=project();const cj=$("#scanCurrentJob");if(cj)cj.textContent=combined?t('mobile.combinedCurrentJob',[state.activeCardKeys.length]):(pr?`${pr.name||t('msg.projectFallback')}${pr.code?' · '+pr.code:''}`:t('scan.noProjectOpen'));
  const recent=$("#recentScans");if(recent){const items=total.rows.filter(({pt})=>pt.lastScannedAt||Number(pt.damagedQty)>0).sort((a,b)=>new Date(b.pt.lastScannedAt||0)-new Date(a.pt.lastScannedAt||0)).slice(0,6);recent.innerHTML=items.length?items.map(({pt,c})=>{const dmg=Number(pt.damagedQty)>0;const when=pt.lastScannedAt?new Date(pt.lastScannedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';return `<div class="scan55-recent-row ${dmg?'damaged':''}"><div class="state">${dmg?'!':'✓'}</div><div><strong>${safe(pt.code||t('msg.panelFallback'))}</strong><small>${safe(pt.name||c.name||t('msg.panelFallback'))}</small></div><time>${when}</time></div>`}).join(''):`<div class="scan55-empty">${t('scan.noPanelsScanned')}</div>`}
  if(typeof renderPanelCheckCounter==='function')renderPanelCheckCounter();
 }
@@ -3420,7 +3588,7 @@ function renderPanelCheckCounter(){
  const el=$('#panelCheckCounter');if(!el)return;
  const combined=combinedCheckActive();
  const t2=combined?combinedScanTotals():scanTotals();
- el.textContent=combined?t('mobile.combinedCounterShort',[t2.scanned,t2.total,state.activeProjectIds.length]):`${t2.scanned} / ${t2.total} checked`;
+ el.textContent=combined?t('mobile.combinedCounterShort',[t2.scanned,t2.total,state.activeCardKeys.length]):`${t2.scanned} / ${t2.total} checked`;
  const badge=$('#pcMissingBadge');if(badge)badge.textContent=t2.remaining;
 }
 function partStatusCategory(pt){
@@ -3570,13 +3738,13 @@ positionScanModeSwitch();
 function openScannedText(text){
  let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
  if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
- // Build 2 (§E): a combined Panel Check session (2+ jobs in state.activeProjectIds) must
- // never let a scan silently swap which job/room the fitter is looking at -- only Find
- // Panel needs that switch, and it keeps doing so completely unchanged (scanMode!=='check'
- // never takes this branch). Snapshot the viewing pointer before resolving the panel below,
- // then restore it right after the write. In the ordinary single-job case (activeProjectIds.
- // length<=1) keepPointer is null and every line below is a no-op, so that path is
- // byte-identical to before.
+ // Build 2 (§E) -- extended for per-room dispatch: a combined Panel Check session (2+
+ // cards in state.activeCardKeys) must never let a scan silently swap which job/room the
+ // fitter is looking at -- only Find Panel needs that switch, and it keeps doing so
+ // completely unchanged (scanMode!=='check' never takes this branch). Snapshot the
+ // viewing pointer before resolving the panel below, then restore it right after the
+ // write. In the ordinary single-card case (activeCardKeys.length<=1) keepPointer is null
+ // and every line below is a no-op, so that path is byte-identical to before.
  const combined=combinedCheckActive();
  const keepPointer=combined?{p:state.currentProject,c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom,cp:state.selectedCopy}:null;
  const restorePointerIfCombined=()=>{
@@ -3942,11 +4110,12 @@ function renderPanelCheckSummary(){
 $('#pcSummaryBtn').onclick=()=>{renderPanelCheckSummary();$('#pcSummaryOverlay').classList.remove('hidden')};
 $('#pcSummaryClose').onclick=()=>$('#pcSummaryOverlay').classList.add('hidden');
 $('#pcSummaryOverlay').addEventListener('click',e=>{if(e.target.id==='pcSummaryOverlay')$('#pcSummaryOverlay').classList.add('hidden')});
-// Combined session: send every active job's own update, not just whichever one is
-// "current" -- each exportJob(id) call is the exact same existing single-job send,
-// just looped.
+// Combined session: send every active card's own PARENT PROJECT update, not just
+// whichever one is "current" -- exportJob(id) sends a whole project (never just a room),
+// exactly as every other send path does, so two active cards of the same job (Kitchen +
+// TV Wall) still resolve to one distinct project id here, not two redundant sends.
 $('#pcSendSummary').onclick=()=>{
- const ids=combinedCheckActive()?state.activeProjectIds:[state.currentProject];
+ const ids=combinedCheckActive()?[...new Set(state.activeCardKeys.map(k=>parseCardKey(k).projectId))]:[state.currentProject];
  ids.filter(Boolean).forEach(id=>{if(typeof exportJob==='function')exportJob(id)});
  alert('Summary sent to Studio.');
 };
@@ -5323,7 +5492,17 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
         if(!incoming||!incoming.id||!Array.isArray(incoming.cabinets))return;
         if((state.projects||[]).some(function(x){return x.id===incoming.id}))return;
         if((state.deletedProjectIds||[]).includes(incoming.id))return;
-        if(typeof canSeeJob==='function'&&!canSeeJob(incoming))return;
+        // Full per-room dispatch: a project can now be visible for one room and not
+        // another (Kitchen assigned to fitter A, TV Wall to fitter B) -- gate entry into
+        // local storage on "can this account see AT LEAST ONE room" rather than only the
+        // whole-project fields, or a job entirely reassigned away from this fitter room-
+        // by-room would incorrectly still recover here. The Jobs list's own per-card
+        // canSeeJob(p,room) filter (renderProjects) is still what actually decides which
+        // individual room-cards get shown once the data is local.
+        if(typeof canSeeJob==='function'){
+          const roomsToCheck=(incoming.rooms||[]).length?incoming.rooms:[null];
+          if(!roomsToCheck.some(function(rm){return canSeeJob(incoming,rm)}))return;
+        }
         if(data.exportedAt)incoming._packetExportedAt=data.exportedAt;
         if(typeof mergeStudioProject==='function'){mergeStudioProject(incoming);changed=true}
       });
