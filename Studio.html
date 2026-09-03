@@ -6967,8 +6967,24 @@ body.fiq-locked .app{display:none!important}
       '<option value="__owner__">'+t("studio.fitters.ownerSuffixTemplate",[safe(ownerName)])+'</option>'+
       state.fitters.map(f=>'<option value="'+safe(f.name)+'">'+safe(f.name)+'</option>').join('');
   }
+  // The toolbar's <select> is only built once, inside renderHomeDashboard()'s "create
+  // #homeDashboard if it doesn't exist yet" branch -- so a fitter added via Manage
+  // Fitters *after* Job Overview first rendered this session (a very normal thing to do:
+  // realize you need a new fitter, add them, come straight back here) would never appear
+  // in this dropdown until a full page reload, and picking anything else either does
+  // nothing (blank) or sends to the wrong person (Owner). Rebuilding the option list here
+  // -- called on every renderHomeDashboard() pass via updateBulkToolbar() below, unlike
+  // the one-time HTML template -- is the actual fix; this is the root cause of "selecting
+  // both jobs and sending" silently not working.
+  function refreshBulkFitterOptions(){
+    const sel=document.getElementById('jorBulkFitterSelect');if(!sel)return;
+    const current=sel.value;
+    sel.innerHTML=bulkFitterOptionsHtml();
+    if([...sel.options].some(o=>o.value===current))sel.value=current;
+  }
   function updateBulkToolbar(){
     const bar=document.getElementById('jorBulkToolbar');if(!bar)return;
+    refreshBulkFitterOptions();
     const cards=selectedCardObjects(),projects=distinctSelectedProjects();
     bar.classList.toggle('show',cards.length>0);
     if(!cards.length)return;
