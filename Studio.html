@@ -1854,8 +1854,7 @@ function renderJobs(){
    if(!p)return;
    const ok=confirm(t("studio.jobOverview.deleteJobConfirm",[p.name]));
    if(!ok)return;
-   state.projects=state.projects.filter(x=>x.id!==p.id);
-   if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
+   deleteProjectRecord(p.id);
    save();renderAll();show("jobs");
  });
 }
@@ -2214,18 +2213,40 @@ function openJobNotesDialog(projectId){
    o.querySelector('#studioJobNotePreview').innerHTML='';
  };
 }
+// The single place that actually removes a job record from state.projects -- every
+// delete entry point (Customer Library, the legacy Jobs grid, Job Overview's bulk
+// delete) calls this after its own confirm(), instead of three near-identical copies
+// of the same filter+save logic drifting apart. Records the id in
+// state.deletedProjectIds (a permanent local tombstone list) as well as filtering it
+// out -- without that, a job that originally arrived as a Mobile site-job packet could
+// reappear: applyOneSitePacket() only marks a packet "received" in Firestore AFTER a
+// successful merge, that cloud write can silently fail (see its own try/catch), and
+// autoImportSitePackets() re-checks still-"waiting" packets every 30s plus on every
+// sign-in. If this job's packet is ever still "waiting" at that moment, the merge in
+// mergeMobileProject() would otherwise find no existing project and treat it as brand
+// new again -- resurrecting a job the user just deleted, sometimes within seconds.
+// mergeMobileProject() checks this same list before ever re-adding a project.
+function deleteProjectRecord(id){
+ const p=state.projects.find(x=>x.id===id);
+ if(!p)return false;
+ state.projects=state.projects.filter(x=>x.id!==id);
+ state.deletedProjectIds=state.deletedProjectIds||[];
+ if(!state.deletedProjectIds.includes(id))state.deletedProjectIds.push(id);
+ if(state.currentProject===id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
+ return true;
+}
 // The deliberate place to delete an old job -- takes an explicit job id (never
 // project(), never "whatever's open") so it can only ever remove the one job the owner
 // picked here, exactly like the existing per-card delete already on the Jobs screen
-// (renderJobs' data-delete-job-card, same filter/save/renderAll pattern). Deleting a job
-// never touches the customer record itself or any of that customer's other jobs --
-// customerProjects() will simply no longer include this id once it's gone.
+// (renderJobs' data-delete-job-card, same confirm/deleteProjectRecord/save/renderAll
+// pattern). Deleting a job never touches the customer record itself or any of that
+// customer's other jobs -- customerProjects() will simply no longer include this id
+// once it's gone.
 function deleteCustomerLibraryJob(id){
  const p=state.projects.find(x=>x.id===id);
  if(!p)return;
  if(!confirm(t("studio.customerLibrary.deleteJobConfirm",[p.name||t("studio.customerLibrary.untitledJob"),p.customer||t("studio.customerLibrary.thisCustomer")])))return;
- state.projects=state.projects.filter(x=>x.id!==p.id);
- if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
+ deleteProjectRecord(id);
  save();
  renderAll();
 }
@@ -2758,7 +2779,15 @@ function mergePanelFields(bp,ip){
   }
   mergePanelStatus(bp,ip);
 }
-function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
+function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
+// A job explicitly deleted from Studio must stay deleted even if its originating
+// site-job packet is still (or once again) sitting in the sync queue -- see
+// deleteProjectRecord()'s comment for exactly how a stale "waiting" packet could
+// otherwise resurrect it. Returning null here (instead of re-adding) is the one
+// real fix; every caller of mergeMobileProject() must treat a null result as
+// "this project was deleted, discard the packet" rather than a project to use.
+if((state.deletedProjectIds||[]).includes(incoming.id))return null;
+let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
 ["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng","siteNotes","siteNotePhotos"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
@@ -2774,7 +2803,7 @@ const isStalePacket=!isNaN(packetAt)&&base._lastRoomsSyncAt&&packetAt<base._last
 base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}if(isStalePacket)return;Object.assign(br,JSON.parse(JSON.stringify(ir)))});
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
 incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}mergePanelFields(bp,ip)})});return base}
-async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
+async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);if(!merged){alert("This job was deleted from Studio and can't be restored from a backup file.");return}switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
 function studioSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open(DIRECT_SYNC_DB,1);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
@@ -2799,6 +2828,11 @@ async function applyOneSitePacket(pack){
  const incoming=ensureSharedProject(pack.project||pack);
  if(pack.exportedAt)incoming._packetExportedAt=pack.exportedAt;
  const merged=mergeMobileProject(incoming);
+ // A null merged means this exact job was already deleted from Studio (see
+ // mergeMobileProject's tombstone check) -- discard the packet's data, but still mark
+ // it received so this same stale "waiting" packet stops being offered up by every
+ // future sync cycle instead of being silently retried forever.
+ if(!merged){await removeInboxPacket(pack.syncId||pack.exportedAt);return null}
  // Persist this merge locally BEFORE telling Firestore the packet is
  // received. Marking it 'received' permanently excludes it from every
  // future fetchCloudSitePackets() query (status=='waiting' only, and there
@@ -2818,7 +2852,7 @@ async function applyOneSitePacket(pack){
  if(ref.image){c.drawing=ref.image;c.drawingType='image';c.drawingName=(room?.name||merged.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=ref.image;c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null}
  return {merged,cabinet:c};
 }
-async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert(t('studio.siteJobsInbox.jobNoLongerWaiting'));const {merged,cabinet:c}=await applyOneSitePacket(pack);switchToProject(merged.id,c.id);renderAll();save();await paintSiteInbox();show('mark');toast(t('studio.siteJobsInbox.siteJobOpenedToast'))}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
+async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert(t('studio.siteJobsInbox.jobNoLongerWaiting'));const result=await applyOneSitePacket(pack);if(!result){await paintSiteInbox();return alert(t('studio.siteJobsInbox.jobNoLongerWaiting'))}const {merged,cabinet:c}=result;switchToProject(merged.id,c.id);renderAll();save();await paintSiteInbox();show('mark');toast(t('studio.siteJobsInbox.siteJobOpenedToast'))}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
 // A site job no longer waits in a manual "inbox" list for someone to click Open --
 // it lands straight in the Customer Library (existing or auto-created customer),
 // tagged isNewFromSite so it surfaces there with a notification instead.
@@ -6931,6 +6965,8 @@ body.fiq-locked .app{display:none!important}
     if(assignBtn)assignBtn.textContent=t(projects.length===1?"studio.jobOverview.assignSendSingular":"studio.jobOverview.assignSendPlural",[projects.length]);
     const checkBtn=document.getElementById('jorBulkCheckBtn');
     if(checkBtn)checkBtn.textContent=t(cards.length===1?"studio.jobOverview.checkTogetherSingular":"studio.jobOverview.checkTogetherPlural",[cards.length]);
+    const deleteBtn=document.getElementById('jorBulkDeleteBtn');
+    if(deleteBtn)deleteBtn.textContent=t(projects.length===1?"studio.jobOverview.deleteSelectedSingular":"studio.jobOverview.deleteSelectedPlural",[projects.length]);
     const noteEl=document.getElementById('jorBulkNote');
     if(noteEl){
       // Selecting more than one card from the same project is the only way a bulk-assign
@@ -6957,7 +6993,7 @@ body.fiq-locked .app{display:none!important}
         '<button type="button" class="job-stat-card" data-stat="completed"><span class="job-stat-icon stat-completed">📋</span><span class="job-stat-num" id="statCompletedNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.completedLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.thisMonthLabel")+'</span></button>'+
         '</div></div>'+
         '<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobOverviewHeading")+'</h3><button type="button" class="home-section-viewall" id="jobOverviewViewAll">'+t("studio.jobOverview.viewAllLabel")+'</button></div>'+
-        '<div class="jor-bulk-toolbar" id="jorBulkToolbar"><span class="jor-bulk-count" id="jorBulkCount"></span><div class="jor-bulk-note" id="jorBulkNote" hidden></div><select class="jor-bulk-fitter-select" id="jorBulkFitterSelect">'+bulkFitterOptionsHtml()+'</select><button type="button" class="btn primary" id="jorBulkAssignBtn"></button><button type="button" class="btn" id="jorBulkCheckBtn"></button></div>'+
+        '<div class="jor-bulk-toolbar" id="jorBulkToolbar"><span class="jor-bulk-count" id="jorBulkCount"></span><div class="jor-bulk-note" id="jorBulkNote" hidden></div><select class="jor-bulk-fitter-select" id="jorBulkFitterSelect">'+bulkFitterOptionsHtml()+'</select><button type="button" class="btn primary" id="jorBulkAssignBtn"></button><button type="button" class="btn" id="jorBulkCheckBtn"></button><button type="button" class="btn danger" id="jorBulkDeleteBtn"></button></div>'+
         '<div class="job-overview-grid" id="jobOverviewGrid"></div></div>';
       actions.parentNode.insertBefore(dash,actions.nextSibling);
       dash.querySelectorAll('[data-stat]').forEach(btn=>{
@@ -7006,6 +7042,35 @@ body.fiq-locked .app{display:none!important}
         window.__jorCombinedCheck={active:true,cards:cards.map(c=>({projectId:c.project.id,roomKey:c.room==='__general__'?'__general__':(c.room?c.room.id:null)}))};
         if(typeof renderAll==='function')renderAll();
         show('parts');
+      };
+      // Bulk delete: same "resolve every selected card to its distinct parent project"
+      // step distinctSelectedProjects() already does for bulk-assign, so ticking all of
+      // a multi-room job's own room-cards can never delete that one parent more than
+      // once. This removes the whole job (all its rooms), never just the room(s) that
+      // happened to be ticked and never the customer record -- the confirm text says so
+      // explicitly rather than relying on the assign-worded multiRoomNote above.
+      // deleteProjectRecord() (shared with Customer Library's own delete) is what
+      // actually makes the deletion stick past a refresh -- see its own comment.
+      dash.querySelector('#jorBulkDeleteBtn').onclick=()=>{
+        const projects=distinctSelectedProjects();
+        if(!projects.length)return;
+        const spansMultiRoom=projects.some(p=>(p.rooms||[]).length>1);
+        let msg;
+        if(projects.length===1){
+          const p=projects[0],name=p.customer||p.name||t("studio.customerLibrary.untitledJob");
+          msg=(p.rooms||[]).length>1
+            ?t("studio.jobOverview.deleteConfirmSingleMultiRoom",[name,p.rooms.length])
+            :t("studio.jobOverview.deleteConfirmSingle",[name]);
+        }else{
+          msg=spansMultiRoom
+            ?t("studio.jobOverview.deleteConfirmMultipleMultiRoom",[projects.length])
+            :t("studio.jobOverview.deleteConfirmMultiple",[projects.length]);
+        }
+        if(!confirm(msg))return;
+        projects.forEach(p=>deleteProjectRecord(p.id));
+        save();
+        jorSelectedCardKeys.clear();
+        renderAll();
       };
     }
     const setNum=(id,n)=>{const el=document.getElementById(id);if(el)el.textContent=n};
