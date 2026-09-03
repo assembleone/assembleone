@@ -7125,14 +7125,14 @@ body.fiq-locked .app{display:none!important}
   window.a211FitterDisplayName=fitterDisplayName;
   function digitsOnly(s){return String(s||'').replace(/[^0-9]/g,'')}
   function promptNewFitter(){
-    const name=prompt('Fitter name:');
+    const name=prompt(t("studio.fitters.fitterNamePromptLabel"));
     if(!name||!name.trim())return null;
-    const phone=prompt('Their WhatsApp/mobile number (with country code, e.g. +44 7700 900123):');
+    const phone=prompt(t("studio.fitters.phoneNumberPromptLabel"));
     // Optional, and separate from the WhatsApp number: only set this once the fitter has
     // their own Mobile login (see Manage Fitters), so a job assigned to them can say whose
     // phone it's for. Leave it blank for a fitter who doesn't have a Mobile account yet --
     // the job just won't be restricted to anyone until it's filled in.
-    const email=prompt("Their Mobile login email (optional -- leave blank if they don't have a FittersIQ Mobile account yet):");
+    const email=prompt(t("studio.fitters.mobileLoginEmailPromptLabel"));
     const fitter={id:uid(),name:name.trim(),phone:(phone||'').trim(),email:(email||'').trim().toLowerCase()};
     ensureFitters().push(fitter);
     save();
@@ -7143,12 +7143,12 @@ body.fiq-locked .app{display:none!important}
   // silently go stale and lose its WhatsApp number.
   function promptEditFitter(fitter){
     if(!fitter)return;
-    const name=prompt('Fitter name:',fitter.name);
+    const name=prompt(t("studio.fitters.fitterNamePromptLabel"),fitter.name);
     if(name===null)return;
-    if(!name.trim()){alert('Name cannot be empty — use Remove instead to delete a fitter.');return}
-    const phone=prompt('Their WhatsApp/mobile number (with country code, e.g. +44 7700 900123):',fitter.phone||'');
+    if(!name.trim()){alert(t("studio.fitters.nameCannotBeEmpty"));return}
+    const phone=prompt(t("studio.fitters.phoneNumberPromptLabel"),fitter.phone||'');
     if(phone===null)return;
-    const email=prompt("Their Mobile login email (optional -- leave blank if they don't have a FittersIQ Mobile account yet):",fitter.email||'');
+    const email=prompt(t("studio.fitters.mobileLoginEmailPromptLabel"),fitter.email||'');
     if(email===null)return;
     const oldNameLower=fitter.name.trim().toLowerCase();
     fitter.name=name.trim();
@@ -7162,7 +7162,7 @@ body.fiq-locked .app{display:none!important}
   }
   function deleteFitterConfirm(fitter){
     if(!fitter)return;
-    if(!confirm('Remove '+fitter.name+' from the fitter list? Jobs currently assigned to them will show as unassigned.'))return;
+    if(!confirm(t("studio.fitters.removeFitterConfirmTemplate",[fitter.name])))return;
     const nameLower=fitter.name.trim().toLowerCase();
     state.fitters=ensureFitters().filter(f=>f.id!==fitter.id);
     state.projects.forEach(p=>{if((p.assignedFitter||'').trim().toLowerCase()===nameLower)p.assignedFitter=''});
@@ -7174,8 +7174,8 @@ body.fiq-locked .app{display:none!important}
   // this list. "__owner__" is a reserved assignedFitter/otherFitters value handled
   // specially everywhere a plain fitter name would otherwise be looked up.
   function ownerOptionLabel(){
-    const name=(window.fittersiqUser&&(window.fittersiqUser.ownerName||window.fittersiqUser.email))||'Owner';
-    return name+' — Owner';
+    const name=(window.fittersiqUser&&(window.fittersiqUser.ownerName||window.fittersiqUser.email))||t("studio.fitters.ownerLabel");
+    return t("studio.fitters.ownerSuffixTemplate",[name]);
   }
   // Anywhere assignedFitter/otherFitters might be shown as plain text rather than looked
   // up through the picker (e.g. a "who reported this" fallback) needs this instead of the
@@ -7187,15 +7187,15 @@ body.fiq-locked .app{display:none!important}
     const fitters=ensureFitters();
     const current=p.assignedFitter||'';
     const currentFitter=fitterByName(current);
-    const options=['<option value="">— Assign fitter —</option>']
+    const options=['<option value="">'+t("studio.fitters.assignFitterOption")+'</option>']
       .concat(['<option value="__owner__" '+(current==='__owner__'?'selected':'')+'>'+safe(ownerOptionLabel())+'</option>'])
       .concat(fitters.map(f=>'<option value="'+safe(f.name)+'" '+(f.name===current?'selected':'')+'>'+safe(f.name)+'</option>'))
-      .concat(['<option value="__add__">+ Add new fitter</option>'])
-      .concat(currentFitter?['<option value="__edit__">✏️ Edit '+safe(currentFitter.name)+'’s details</option>','<option value="__delete__">🗑 Remove '+safe(currentFitter.name)+'</option>']:[]);
+      .concat(['<option value="__add__">'+t("studio.fitters.addNewFitterOption")+'</option>'])
+      .concat(currentFitter?['<option value="__edit__">'+t("studio.fitters.editFitterDetailsTemplate",[safe(currentFitter.name)])+'</option>','<option value="__delete__">'+t("studio.fitters.removeFitterOptionTemplate",[safe(currentFitter.name)])+'</option>']:[]);
     const hasPhone=!!(currentFitter&&currentFitter.phone);
     return '<div class="fitter-row" data-fitter-row="'+idx+'">'+
       '<select class="fitter-select" data-fitter-select="'+safe(p.id)+'">'+options.join('')+'</select>'+
-      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(p.id)+'" title="Message on WhatsApp" '+(hasPhone?'':'disabled')+'>💬</button>'+
+      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(p.id)+'" title="'+t("studio.fitters.messageWhatsappTitle")+'" '+(hasPhone?'':'disabled')+'>💬</button>'+
     '</div>';
   }
   // A job can have more than one fitter on it (people working together) -- one of them is
@@ -7215,14 +7215,14 @@ body.fiq-locked .app{display:none!important}
       const f=isOwner?null:fitterByName(name);
       const hasPhone=!!(f&&f.phone);
       return '<div class="fitter-chip"><span>'+safe(label)+'</span>'+
-        '<button type="button" class="fitter-chip-whatsapp" data-other-whatsapp="'+i+'" data-team-project="'+safe(p.id)+'" title="Message on WhatsApp" '+(hasPhone?'':'disabled')+'>💬</button>'+
-        '<button type="button" class="fitter-chip-remove" data-other-remove="'+i+'" data-team-project="'+safe(p.id)+'" title="Remove from this job">✕</button>'+
+        '<button type="button" class="fitter-chip-whatsapp" data-other-whatsapp="'+i+'" data-team-project="'+safe(p.id)+'" title="'+t("studio.fitters.messageWhatsappTitle")+'" '+(hasPhone?'':'disabled')+'>💬</button>'+
+        '<button type="button" class="fitter-chip-remove" data-other-remove="'+i+'" data-team-project="'+safe(p.id)+'" title="'+t("studio.fitters.removeFromJobTitle")+'">✕</button>'+
       '</div>';
     }).join('');
-    const addOptions=['<option value="">+ Add another fitter</option>']
+    const addOptions=['<option value="">'+t("studio.fitters.addAnotherFitterOption")+'</option>']
       .concat(ownerAlreadyOnJob?[]:['<option value="__owner__">'+safe(ownerOptionLabel())+'</option>'])
       .concat(available.map(f=>'<option value="'+safe(f.name)+'">'+safe(f.name)+'</option>'))
-      .concat(['<option value="__add__">+ New fitter…</option>']);
+      .concat(['<option value="__add__">'+t("studio.fitters.newFitterOption")+'</option>']);
     return '<div class="fitter-team-others">'+chips+
       '<select class="fitter-add-other" data-add-other="'+safe(p.id)+'">'+addOptions.join('')+'</select>'+
     '</div>';
@@ -7274,7 +7274,7 @@ body.fiq-locked .app{display:none!important}
         const p=getProject(btn.dataset.fitterWhatsapp);if(!p)return;
         const fitter=fitterByName(p.assignedFitter);
         const phone=digitsOnly(fitter&&fitter.phone);
-        if(!phone){alert('Add a WhatsApp number for '+(p.assignedFitter||'this fitter')+' first (choose them from the fitter list to add one).');return}
+        if(!phone){alert(t("studio.fitters.addWhatsappNumberFirstLongTemplate",[p.assignedFitter||t("studio.fitters.thisFitterFallback")]));return}
         window.open('https://wa.me/'+phone,'_blank');
       };
     });
@@ -7309,7 +7309,7 @@ body.fiq-locked .app{display:none!important}
         const name=(p.otherFitters||[])[Number(btn.dataset.otherWhatsapp)];
         const fitter=fitterByName(name);
         const phone=digitsOnly(fitter&&fitter.phone);
-        if(!phone){alert('Add a WhatsApp number for '+(name||'this fitter')+' first.');return}
+        if(!phone){alert(t("studio.fitters.addWhatsappNumberFirstShortTemplate",[name||t("studio.fitters.thisFitterFallback")]));return}
         window.open('https://wa.me/'+phone,'_blank');
       };
     });
@@ -7372,7 +7372,7 @@ body.fiq-locked .app{display:none!important}
 </style>
 <div class="attention-modal" id="fitterAccountsModal" aria-hidden="true">
  <div class="attention-dialog" role="dialog" aria-modal="true" aria-labelledby="fitterAccountsModalTitle">
-  <div class="attention-head"><h2 id="fitterAccountsModalTitle">👥 Fitter Accounts</h2><button class="attention-close" id="fitterAccountsModalClose" type="button" aria-label="Close">×</button></div>
+  <div class="attention-head"><h2 id="fitterAccountsModalTitle" data-i18n="studio.fitters.accountsModalTitle">👥 Fitter Accounts</h2><button class="attention-close" id="fitterAccountsModalClose" type="button" data-i18n-aria="studio.common.close" aria-label="Close">×</button></div>
   <div id="fitterAccountsBody" class="fitter-accounts-body"></div>
  </div>
 </div>
@@ -7400,13 +7400,13 @@ body.fiq-locked .app{display:none!important}
 </style>
 <div class="attention-modal" id="fittersModal" aria-hidden="true">
  <div class="attention-dialog" role="dialog" aria-modal="true" aria-labelledby="fittersModalTitle">
-  <div class="attention-head"><h2 id="fittersModalTitle">👥 Fitters</h2><button class="attention-close" id="fittersModalClose" type="button" aria-label="Close">×</button></div>
+  <div class="attention-head"><h2 id="fittersModalTitle" data-i18n="studio.fitters.fittersModalTitle">👥 Fitters</h2><button class="attention-close" id="fittersModalClose" type="button" data-i18n-aria="studio.common.close" aria-label="Close">×</button></div>
   <div id="fittersModalBody"></div>
  </div>
 </div>
 <div class="attention-modal" id="fitterPairingModal" aria-hidden="true">
  <div class="attention-dialog" role="dialog" aria-modal="true" aria-labelledby="fitterPairingModalTitle">
-  <div class="attention-head"><h2 id="fitterPairingModalTitle">Connect Mobile</h2><button class="attention-close" id="fitterPairingModalClose" type="button" aria-label="Close">×</button></div>
+  <div class="attention-head"><h2 id="fitterPairingModalTitle" data-i18n="studio.fitters.connectMobileText">Connect Mobile</h2><button class="attention-close" id="fitterPairingModalClose" type="button" data-i18n-aria="studio.common.close" aria-label="Close">×</button></div>
   <div id="fitterPairingBody" class="fitter-pairing-panel"></div>
  </div>
 </div>
@@ -7466,21 +7466,21 @@ body.fiq-locked .app{display:none!important}
       // -- both were previously blocked the moment status flipped to active.
       return '<div class="fitters-pairing-row">'+
         '<div class="fp-name">'+safe(f.name)+'</div>'+
-        '<div class="fp-phone">'+safe(f.phone||'No phone number')+'</div>'+
-        '<div class="fp-status '+(active?'active':'not-connected')+'">Mobile access: '+(active?'Active':'Not connected')+'</div>'+
-        '<button type="button" class="fp-connect-btn" data-connect-fitter="'+safe(f.id)+'">'+(active?'Send new code':'Connect Mobile')+'</button>'+
-        (active?'<button type="button" class="fp-deactivate-btn" data-deactivate-fitter="'+safe(f.id)+'">Disconnect</button>':'')+
-        '<button type="button" class="fp-delete-btn" data-delete-fitter="'+safe(f.id)+'" title="Delete '+safe(f.name)+'" aria-label="Delete '+safe(f.name)+'">🗑</button>'+
+        '<div class="fp-phone">'+safe(f.phone||t("studio.fitters.noPhoneNumber"))+'</div>'+
+        '<div class="fp-status '+(active?'active':'not-connected')+'">'+(active?t("studio.fitters.mobileAccessActive"):t("studio.fitters.mobileAccessNotConnected"))+'</div>'+
+        '<button type="button" class="fp-connect-btn" data-connect-fitter="'+safe(f.id)+'">'+(active?t("studio.fitters.sendNewCodeBtn"):t("studio.fitters.connectMobileText"))+'</button>'+
+        (active?'<button type="button" class="fp-deactivate-btn" data-deactivate-fitter="'+safe(f.id)+'">'+t("studio.fitters.disconnectBtn")+'</button>':'')+
+        '<button type="button" class="fp-delete-btn" data-delete-fitter="'+safe(f.id)+'" title="'+t("studio.fitters.deleteNameTemplate",[safe(f.name)])+'" aria-label="'+t("studio.fitters.deleteNameTemplate",[safe(f.name)])+'">🗑</button>'+
       '</div>';
-    }).join('')||'<p class="muted">No fitters yet — add one below.</p>';
+    }).join('')||'<p class="muted">'+t("studio.fitters.noFittersYetEmpty")+'</p>';
     body.innerHTML=rows+
       '<div class="fitters-add-form" id="fittersAddForm">'+
-        '<label>Name<input id="newFitterName" type="text" placeholder="e.g. Jo Smith"></label>'+
-        '<label>Mobile number (for WhatsApp)<input id="newFitterPhone" type="tel" placeholder="+44 7700 900123"></label>'+
-        '<label>Email (optional)<input id="newFitterEmail" type="email" placeholder="Only if they already have one"></label>'+
-        '<button type="button" class="btn primary" id="saveNewFitterBtn">Save fitter</button>'+
+        '<label>'+t("studio.fitters.nameLabel")+'<input id="newFitterName" type="text" placeholder="'+t("studio.fitters.namePlaceholder")+'"></label>'+
+        '<label>'+t("studio.fitters.mobileNumberLabel")+'<input id="newFitterPhone" type="tel" placeholder="'+t("studio.fitters.mobileNumberPlaceholder")+'"></label>'+
+        '<label>'+t("studio.fitters.emailOptionalLabel")+'<input id="newFitterEmail" type="email" placeholder="'+t("studio.fitters.emailOptionalPlaceholder")+'"></label>'+
+        '<button type="button" class="btn primary" id="saveNewFitterBtn">'+t("studio.fitters.saveFitterBtn")+'</button>'+
       '</div>'+
-      (fitters.length?'<button type="button" class="fitters-clear-test-btn" id="clearTestFittersBtn">Clear test fitters (development/testing only)</button>':'');
+      (fitters.length?'<button type="button" class="fitters-clear-test-btn" id="clearTestFittersBtn">'+t("studio.fitters.clearTestFittersBtn")+'</button>':'');
     body.querySelectorAll('[data-connect-fitter]').forEach(btn=>{
       btn.onclick=()=>openPairingFor(btn.dataset.connectFitter);
     });
@@ -7493,7 +7493,7 @@ body.fiq-locked .app{display:none!important}
     document.getElementById('clearTestFittersBtn')?.addEventListener('click',clearAllTestFitters);
     document.getElementById('saveNewFitterBtn').onclick=async()=>{
       const name=(document.getElementById('newFitterName').value||'').trim();
-      if(!name){alert('Enter a name for the fitter.');return}
+      if(!name){alert(t("studio.fitters.enterNameForFitter"));return}
       const phone=(document.getElementById('newFitterPhone').value||'').trim();
       const email=(document.getElementById('newFitterEmail').value||'').trim().toLowerCase();
       // Deliberately does not touch any job's assignedFitter -- adding a fitter
@@ -7532,7 +7532,7 @@ body.fiq-locked .app{display:none!important}
   // current status.
   async function deactivateFitter(fitterId){
     const fitter=ensureFitters().find(f=>f.id===fitterId);if(!fitter)return;
-    if(!confirm("Disconnect "+fitter.name+"'s phone and free up their Mobile seat?\n\nTheir jobs, history and photos are kept. You (or a replacement) can reconnect at any time with a new code."))return;
+    if(!confirm(t("studio.fitters.disconnectConfirmTemplate",[fitter.name])))return;
     try{
       const uid='fitter_'+fitterId;
       const setStatus=fs().httpsCallable(window.fiqFunctions,'setMemberStatus');
@@ -7541,7 +7541,7 @@ body.fiq-locked .app{display:none!important}
       await refreshCloudStatus();
       renderFittersModal();
     }catch(e){
-      alert((e&&e.message)||'Could not disconnect this fitter. Please try again.');
+      alert((e&&e.message)||t("studio.fitters.couldNotDisconnectFitter"));
     }
   }
 
@@ -7572,7 +7572,7 @@ body.fiq-locked .app{display:none!important}
   }
   async function deleteFitterPermanently(fitterId){
     const fitter=ensureFitters().find(f=>f.id===fitterId);if(!fitter)return;
-    if(!confirm('Delete '+fitter.name+'? This will remove this fitter and their Mobile connection.'))return;
+    if(!confirm(t("studio.fitters.deleteFitterConfirmTemplate",[fitter.name])))return;
     try{
       await revokeFitterCloudAccess(fitterId);
       state.fitters=ensureFitters().filter(f=>f.id!==fitterId);
@@ -7581,7 +7581,7 @@ body.fiq-locked .app{display:none!important}
       if(typeof renderAll==='function')renderAll();
       renderFittersModal();
     }catch(e){
-      alert((e&&e.message)||'Could not delete this fitter. Please try again.');
+      alert((e&&e.message)||t("studio.fitters.couldNotDeleteFitter"));
     }
   }
   // Development/testing utility only -- wipes the whole roster in one go so
@@ -7591,7 +7591,7 @@ body.fiq-locked .app{display:none!important}
   async function clearAllTestFitters(){
     const fitters=ensureFitters();
     if(!fitters.length)return;
-    if(!confirm('Remove all '+fitters.length+' fitter'+(fitters.length===1?'':'s')+' from this company and disconnect any Mobile access they have?\n\nThis is for clearing test data before a clean test -- it cannot be undone from here.'))return;
+    if(!confirm(t(fitters.length===1?"studio.fitters.clearAllConfirmSingular":"studio.fitters.clearAllConfirmPlural",[fitters.length])))return;
     for(const fitter of fitters.slice()){
       try{ await revokeFitterCloudAccess(fitter.id); }
       catch(e){ console.error('Could not fully clear fitter',fitter.name,e); }
@@ -7608,7 +7608,7 @@ body.fiq-locked .app{display:none!important}
     closeFittersModal();
     const m=document.getElementById('fitterPairingModal'),body=document.getElementById('fitterPairingBody');
     if(!m||!body)return;
-    body.innerHTML='<p class="fiq-auth-lead">Creating a code…</p>';
+    body.innerHTML='<p class="fiq-auth-lead">'+t("studio.fitters.creatingCodeLoading")+'</p>';
     m.classList.add('open');m.setAttribute('aria-hidden','false');
     try{
       await syncFitterToCloud(fitter);
@@ -7621,30 +7621,30 @@ body.fiq-locked .app{display:none!important}
       const base=(typeof mobileAppBase==='function'&&mobileAppBase())||'https://assembleone.github.io/assembleone/Mobile.html';
       const joinUrl=base+(base.includes('?')?'&':'?')+'join='+code;
       body.innerHTML=
-        '<p class="fiq-auth-lead">Open FittersIQ Mobile on '+safe(fitter.name)+"'s phone and enter this code, or scan the QR code.</p>"+
+        '<p class="fiq-auth-lead">'+t("studio.fitters.openMobileEnterCodeTemplate",[safe(fitter.name)])+'</p>'+
         '<div class="fitter-pairing-code">'+code+'</div>'+
         '<div class="fitter-pairing-qr" id="fitterPairingQr"></div>'+
         '<div class="fitter-pairing-expiry" id="fitterPairingExpiry"></div>'+
-        (digitsOnly(fitter.phone)?'<button type="button" class="btn primary" id="fitterPairingWhatsappBtn">💬 Send code on WhatsApp</button>':'')+
-        '<button type="button" class="btn" id="fitterPairingNewCodeBtn" style="margin-top:8px">Generate new code</button>';
+        (digitsOnly(fitter.phone)?'<button type="button" class="btn primary" id="fitterPairingWhatsappBtn">'+t("studio.fitters.sendCodeWhatsappBtn")+'</button>':'')+
+        '<button type="button" class="btn" id="fitterPairingNewCodeBtn" style="margin-top:8px">'+t("studio.fitters.generateNewCodeBtn")+'</button>';
       if(typeof makeQr==='function')makeQr(document.getElementById('fitterPairingQr'),joinUrl,180);
       const expiryEl=document.getElementById('fitterPairingExpiry');
       if(pairingCountdown)clearInterval(pairingCountdown);
       const tick=()=>{
         const secs=Math.max(0,Math.round((expiresAt-Date.now())/1000));
         const m2=String(Math.floor(secs/60)),s2=String(secs%60).padStart(2,'0');
-        expiryEl.textContent=secs>0?('Expires in '+m2+':'+s2):'This code has expired — generate a new one.';
+        expiryEl.textContent=secs>0?t("studio.fitters.expiresInTemplate",[m2,s2]):t("studio.fitters.codeExpiredMessage");
         if(secs<=0&&pairingCountdown){clearInterval(pairingCountdown);pairingCountdown=null}
       };
       tick();pairingCountdown=setInterval(tick,1000);
       const wa=document.getElementById('fitterPairingWhatsappBtn');
       if(wa)wa.onclick=()=>{
-        const text="Hi "+fitter.name+", open FittersIQ Mobile and tap \"Join your company\", then enter this code: "+code+" (or open this link on the phone: "+joinUrl+")";
+        const text=t("studio.fitters.whatsappShareMessageTemplate",[fitter.name,code,joinUrl]);
         window.open('https://wa.me/'+digitsOnly(fitter.phone)+'?text='+encodeURIComponent(text),'_blank');
       };
       document.getElementById('fitterPairingNewCodeBtn').onclick=()=>openPairingFor(fitterId);
     }catch(e){
-      body.innerHTML='<p class="fiq-auth-msg show error">'+safe((e&&e.message)||'Could not create a pairing code. Please try again.')+'</p><button type="button" class="btn" id="fitterPairingRetryBtn">Try again</button>';
+      body.innerHTML='<p class="fiq-auth-msg show error">'+safe((e&&e.message)||t("studio.fitters.couldNotCreatePairingCode"))+'</p><button type="button" class="btn" id="fitterPairingRetryBtn">'+t("studio.fitters.tryAgainBtn")+'</button>';
       const retry=document.getElementById('fitterPairingRetryBtn');if(retry)retry.onclick=()=>openPairingFor(fitterId);
     }
   }
@@ -7710,36 +7710,36 @@ body.fiq-locked .app{display:none!important}
   async function render(){
     const box=document.getElementById('fitterAccountsBody');if(!box)return;
     const user=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;
-    if(!user||!user.companyId){box.innerHTML='<div class="empty">Not connected to a company.</div>';return}
-    box.innerHTML='<div class="empty">Loading…</div>';
+    if(!user||!user.companyId){box.innerHTML='<div class="empty">'+t("studio.fitters.notConnectedToCompany")+'</div>';return}
+    box.innerHTML='<div class="empty">'+t("msg.loadingStatus")+'</div>';
     const [company,members,invitations]=await Promise.all([loadCompany(),loadMembers(),loadInvitations()]);
     const isOwner=user.role==='company_owner';
     const activeFitters=members.filter(m=>m.role==='fitter'&&m.status==='active');
     const maxUsers=company&&company.maxUsers;
     const deviceApprovalOn=!!(company&&company.deviceApprovalEnabled);
-    const seatsLine=maxUsers?('<div class="fitter-accounts-seats">'+activeFitters.length+' of '+maxUsers+' Mobile seat'+(maxUsers===1?'':'s')+' used</div>'):'';
-    const deviceToggle=isOwner?('<label class="fitter-device-toggle"><input type="checkbox" id="fitterDeviceApprovalToggle" '+(deviceApprovalOn?'checked':'')+'> Require new phones to be approved before they can see company jobs</label>'):'';
+    const seatsLine=maxUsers?('<div class="fitter-accounts-seats">'+t(maxUsers===1?"studio.fitters.seatsUsedSingular":"studio.fitters.seatsUsedPlural",[activeFitters.length,maxUsers])+'</div>'):'';
+    const deviceToggle=isOwner?('<label class="fitter-device-toggle"><input type="checkbox" id="fitterDeviceApprovalToggle" '+(deviceApprovalOn?'checked':'')+'> '+t("studio.fitters.deviceApprovalLabel")+'</label>'):'';
     const pendingInvites=invitations.filter(i=>i.status==='pending');
     const fitterMembers=members.filter(m=>m.role==='fitter');
     const devicesByMember=deviceApprovalOn?Object.fromEntries(await Promise.all(fitterMembers.map(async m=>[m.uid,await loadDevices(m.uid)]))):{};
     function deviceRowsFor(m){
       if(!deviceApprovalOn)return'';
       const devices=devicesByMember[m.uid]||[];
-      if(!devices.length)return'<div class="fitter-device-row"><small>No devices yet.</small></div>';
-      return devices.map(d=>'<div class="fitter-device-row"><small>'+safe(d.label||d.id)+'</small><span class="fitter-account-status '+(d.approved?'active':'pending')+'">'+(d.approved?'Approved':'Waiting')+'</span>'+(isOwner?('<button type="button" class="btn '+(d.approved?'danger':'primary')+'" data-toggle-device="'+safe(m.uid)+'|'+safe(d.id)+'" data-device-approved="'+(d.approved?'1':'0')+'">'+(d.approved?'Revoke':'Approve')+'</button>'):'')+'</div>').join('');
+      if(!devices.length)return'<div class="fitter-device-row"><small>'+t("studio.fitters.noDevicesYet")+'</small></div>';
+      return devices.map(d=>'<div class="fitter-device-row"><small>'+safe(d.label||d.id)+'</small><span class="fitter-account-status '+(d.approved?'active':'pending')+'">'+(d.approved?t("studio.fitters.deviceApproved"):t("studio.fitters.deviceWaiting"))+'</span>'+(isOwner?('<button type="button" class="btn '+(d.approved?'danger':'primary')+'" data-toggle-device="'+safe(m.uid)+'|'+safe(d.id)+'" data-device-approved="'+(d.approved?'1':'0')+'">'+(d.approved?t("studio.fitters.revokeBtn"):t("studio.fitters.approveBtn"))+'</button>'):'')+'</div>').join('');
     }
     box.innerHTML=
       seatsLine+deviceToggle+
-      (isOwner?'<div class="fitter-invite-row"><input type="email" id="fitterInviteEmail" placeholder="fitter@example.com"><button type="button" class="btn primary" id="fitterInviteBtn">+ Invite fitter</button></div>':'')+
-      (pendingInvites.length?'<div class="fitter-accounts-section-head">Pending invitations</div>'+pendingInvites.map(i=>'<div class="fitter-account-row"><span>'+safe(i.email)+'</span><span class="fitter-account-status pending">Pending</span></div>').join(''):'')+
-      '<div class="fitter-accounts-section-head">Team</div>'+
+      (isOwner?'<div class="fitter-invite-row"><input type="email" id="fitterInviteEmail" placeholder="'+t("studio.fitters.inviteEmailPlaceholder")+'"><button type="button" class="btn primary" id="fitterInviteBtn">'+t("studio.fitters.inviteBtn")+'</button></div>':'')+
+      (pendingInvites.length?'<div class="fitter-accounts-section-head">'+t("studio.fitters.pendingInvitationsHeading")+'</div>'+pendingInvites.map(i=>'<div class="fitter-account-row"><span>'+safe(i.email)+'</span><span class="fitter-account-status pending">'+t("studio.fitters.pendingStatus")+'</span></div>').join(''):'')+
+      '<div class="fitter-accounts-section-head">'+t("studio.fitters.teamHeading")+'</div>'+
       (members.length?members.map(m=>{
         const isSelf=m.uid===user.uid;
-        const label=m.role==='company_owner'?'Owner':'Fitter';
+        const label=m.role==='company_owner'?t("studio.fitters.ownerLabel"):t("studio.fitters.fitterRoleLabel");
         const statusCls=m.status==='active'?'active':'suspended';
-        const toggleBtn=(isOwner&&!isSelf&&m.role!=='company_owner')?('<button type="button" class="btn '+(m.status==='active'?'danger':'')+'" data-toggle-member="'+safe(m.uid)+'" data-current-status="'+safe(m.status)+'">'+(m.status==='active'?'Suspend':'Reactivate')+'</button>'):'';
+        const toggleBtn=(isOwner&&!isSelf&&m.role!=='company_owner')?('<button type="button" class="btn '+(m.status==='active'?'danger':'')+'" data-toggle-member="'+safe(m.uid)+'" data-current-status="'+safe(m.status)+'">'+(m.status==='active'?t("studio.fitters.suspendBtn"):t("studio.fitters.reactivateBtn"))+'</button>'):'';
         return '<div class="fitter-account-row"><span>'+safe(m.email||m.uid)+' <small>('+label+')</small></span><span class="fitter-account-status '+statusCls+'">'+safe(m.status)+'</span>'+toggleBtn+'</div>'+(m.role==='fitter'?deviceRowsFor(m):'');
-      }).join(''):'<div class="empty">No team members yet.</div>');
+      }).join(''):'<div class="empty">'+t("studio.fitters.noTeamMembersYet")+'</div>');
 
     const deviceToggleEl=document.getElementById('fitterDeviceApprovalToggle');
     if(deviceToggleEl)deviceToggleEl.onchange=async()=>{
@@ -7748,7 +7748,7 @@ body.fiq-locked .app{display:none!important}
         await fs.updateDoc(fs.doc(db,'companies',user.companyId),{deviceApprovalEnabled:deviceToggleEl.checked});
         render();
       }catch(e){
-        alert(e&&e.message||'Could not update this setting.');
+        alert(e&&e.message||t("studio.fitters.couldNotUpdateSetting"));
         deviceToggleEl.disabled=false;deviceToggleEl.checked=!deviceToggleEl.checked;
       }
     };
@@ -7761,7 +7761,7 @@ body.fiq-locked .app{display:none!important}
           await fs.updateDoc(fs.doc(db,'companies',user.companyId,'members',memberUid,'devices',deviceId),{approved:nextApproved,lastSeenAt:new Date().toISOString()});
           render();
         }catch(e){
-          alert(e&&e.message||'Could not update this device.');
+          alert(e&&e.message||t("studio.fitters.couldNotUpdateDevice"));
           btn.disabled=false;
         }
       };
@@ -7770,29 +7770,29 @@ body.fiq-locked .app{display:none!important}
     if(inviteBtn)inviteBtn.onclick=async()=>{
       const input=document.getElementById('fitterInviteEmail');
       const email=(input.value||'').trim();
-      if(!email||!email.includes('@')){alert('Enter a valid email address.');return}
-      inviteBtn.disabled=true;inviteBtn.textContent='Sending…';
+      if(!email||!email.includes('@')){alert(t("studio.fitters.enterValidEmail"));return}
+      inviteBtn.disabled=true;inviteBtn.textContent=t("studio.fitters.sendingBtn");
       try{
         await callFn('inviteFitter',{email});
-        alert('Invitation sent to '+email+'. They can sign up in Mobile with this email to join your company.');
+        alert(t("studio.fitters.invitationSentTemplate",[email]));
         render();
       }catch(e){
-        alert(e&&e.message||'Could not send the invitation.');
-        inviteBtn.disabled=false;inviteBtn.textContent='+ Invite fitter';
+        alert(e&&e.message||t("studio.fitters.couldNotSendInvitation"));
+        inviteBtn.disabled=false;inviteBtn.textContent=t("studio.fitters.inviteBtn");
       }
     };
     box.querySelectorAll('[data-toggle-member]').forEach(btn=>{
       btn.onclick=async()=>{
         const uid=btn.dataset.toggleMember;
         const next=btn.dataset.currentStatus==='active'?'suspended':'active';
-        const verb=next==='suspended'?'Suspend':'Reactivate';
-        if(!confirm(verb+" this fitter's access to the company?"))return;
+        const verb=t(next==='suspended'?"studio.fitters.suspendBtn":"studio.fitters.reactivateBtn");
+        if(!confirm(t("studio.fitters.toggleAccessConfirmTemplate",[verb])))return;
         btn.disabled=true;
         try{
           await callFn('setMemberStatus',{companyId:user.companyId,uid,status:next});
           render();
         }catch(e){
-          alert(e&&e.message||'Could not update this fitter.');
+          alert(e&&e.message||t("studio.fitters.couldNotUpdateFitter"));
           btn.disabled=false;
         }
       };
