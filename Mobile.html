@@ -1182,7 +1182,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 /* Build 2, §10: "..." menu, mirrors Studio's own .studio-tools/.tools-toggle/.tools-menu
    interaction pattern (same shape app-wide) since Mobile has its own separate stylesheet. */
 .mobile-tools{position:relative;flex:none}
-.mobile-tools .tools-toggle{width:40px;height:40px;padding:0;border-radius:12px;font-size:20px;flex:none}
+/* A bare "⋯" on the default button background read as a stray character, not a control
+   with useful job actions behind it (Finish Job, Cutting List) -- a light tinted fill +
+   matching border (same "this button does something" language already used elsewhere,
+   e.g. #openCuttingList's own blue tint below) makes it read as a real button at a glance
+   without growing it or adding a label, so it stays exactly as compact as before. */
+.mobile-tools .tools-toggle{width:40px;height:40px;padding:0;border-radius:12px;font-size:20px;flex:none;background:#eef1ff;border:2px solid #c7cdfa;color:#3a3f8f}
 .mobile-tools .tools-menu{display:none;position:absolute;right:0;top:46px;z-index:60;background:#fff;border:2px solid #dedce6;border-radius:16px;padding:8px;box-shadow:0 12px 32px rgba(31,27,52,.18);min-width:190px}
 .mobile-tools .tools-menu.open{display:block}
 .mobile-tools .tools-menu .btn{width:100%;margin-top:6px}
@@ -1409,7 +1414,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </div>
 
 <section id="bom" class="screen">
- <div class="card"><h2 data-i18n="bom.projectSummary">Project Summary</h2><div class="muted" data-i18n="bom.subtitle">The complete project in one simple room by room overview.</div><div id="mobileJobBom" style="margin-top:12px"></div></div>
+ <div class="card">
+  <div class="room-compact-header"><button type="button" class="btn room-back-btn" id="bomBackBtn" aria-label="Back">‹</button><div class="room-compact-title"><b id="bomHeading"></b><small id="bomSubtitle"></small></div></div>
+  <div id="mobileJobBom" style="margin-top:12px"></div>
+ </div>
 </section>
 </main>
 
@@ -4319,10 +4327,40 @@ $("#shareDamageWhatsapp").onclick=async()=>{
 function renderRoomScanContext(){const screen=$("#scan");if(!screen)return;let box=$("#roomScanContext");if(!box){box=document.createElement("div");box.id="roomScanContext";box.className="room-scan-context";const main=screen.querySelector("main")||screen;main.insertBefore(box,main.firstChild)}const r=currentRoom();const units=r?(project()?.cabinets?.filter(c=>c.roomId===r.id)||[]):[];box.innerHTML=r?`${t('scan.scanningFor')} ${safe(r.name)} · ${units.length} ${units.length===1?t('proj.unit'):t('proj.units')}`:t('scan.scanningWholeProject');
 }
 
-function buildMobileBom(p){
- if(!p)return null;const all=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(x=>({...x,cabinetName:c.name,roomId:c.roomId||""})));const materials={};all.forEach(x=>{const k=(x.material||t('install.materialNotSet')).trim()||t('install.materialNotSet');materials[k]=(materials[k]||0)+(Number(x.qty)||1)});const rooms=(p.rooms||[]).map(r=>({name:r.name,notes:r.notes||"",units:(p.cabinets||[]).filter(c=>c.roomId===r.id).map(c=>({name:c.name,panels:(c.parts||[]).length,pieces:(c.parts||[]).reduce((n,x)=>n+(Number(x.qty)||1),0)}))}));return {counts:{rooms:(p.rooms||[]).length,units:(p.cabinets||[]).length,panels:all.length,pieces:all.reduce((n,x)=>n+(Number(x.qty)||1),0),installed:all.filter(x=>x.status==="installed").length,missing:all.filter(x=>x.status==="missing").length},materials,rooms};
+// Cutting List (§3): a real per-panel list, not a summary -- built straight from the live
+// c.parts[] records already used by Panel Check/Install/Find Panel (same fields, no second
+// data model). Room-scoped by state.currentRoom, the same pointer the rest of the per-room
+// dispatch feature already keeps correct for whichever room screen is on screen -- Kitchen
+// and TV Wall each resolve to only their own cabinets, and this is independent of
+// state.activeCardKeys, so a combined Panel Check session never bleeds one room's list into
+// another's just because they're open together. A no-rooms project (state.currentRoom
+// unset, or the room can't be found) falls back to every cabinet on the project, unchanged
+// from how the old summary behaved for that shape.
+function buildMobileCuttingList(p){
+ if(!p)return null;
+ const room=(p.rooms||[]).find(r=>r.id===state.currentRoom)||null;
+ const cabinets=room?(p.cabinets||[]).filter(c=>c.roomId===room.id):(p.cabinets||[]);
+ const rows=cabinets.flatMap(c=>(c.parts||[]).map(pt=>({pt,cabinetName:c.name})));
+ return {room,rows};
 }
-function renderMobileBom(){const box=$("#mobileJobBom"),p=project();if(!box)return;if(!p){box.innerHTML=`<div class="muted">${t('bom.openProjectFirst')}</div>`;return}const b=buildMobileBom(p);box.innerHTML=`<div class="mobile-bom-grid"><div class="mobile-bom-stat">${t('bom.rooms')}<b>${b.counts.rooms}</b></div><div class="mobile-bom-stat">${t('bom.units')}<b>${b.counts.units}</b></div><div class="mobile-bom-stat">${t('bom.panels')}<b>${b.counts.panels}</b></div><div class="mobile-bom-stat">${t('bom.pieces')}<b>${b.counts.pieces}</b></div><div class="mobile-bom-stat">${t('install.installedLabel')}<b>${b.counts.installed}</b></div><div class="mobile-bom-stat">${t('install.missingLabel')}<b>${b.counts.missing}</b></div></div><h3>${t('bom.materials')}</h3><div>${Object.entries(b.materials).map(([k,v])=>`<span class="mobile-bom-material">${safe(k)} · ${v}</span>`).join("")||`<span class="muted">${t('bom.noMaterialsYet')}</span>`}</div><h3>${t('bom.roomByRoom')}</h3>${b.rooms.map(r=>`<section class="mobile-bom-room"><b>⌂ ${safe(r.name)}</b>${r.notes?`<div class="muted">${safe(r.notes)}</div>`:""}${r.units.map(u=>`<div class="mobile-bom-unit"><span>${safe(u.name)}</span><strong>${u.pieces} ${t('bom.pcs')}</strong></div>`).join("")||`<div class="muted">${t('bom.noUnitsAssigned')}</div>`}</section>`).join("")||`<div class="muted">${t('bom.noRoomsYet')}</div>`}`}
+function renderMobileBom(){
+ const box=$("#mobileJobBom"),p=project();
+ const headingEl=$("#bomHeading"),subtitleEl=$("#bomSubtitle");
+ if(headingEl)headingEl.textContent=t('detail.cuttingList');
+ if(!box)return;
+ if(!p){if(subtitleEl)subtitleEl.textContent='';box.innerHTML=`<div class="muted">${t('bom.openProjectFirst')}</div>`;return}
+ const {room,rows}=buildMobileCuttingList(p);
+ if(subtitleEl)subtitleEl.textContent=room?safe(room.name):safe(p.customer||p.name||'');
+ if(!rows.length){box.innerHTML=`<div class="muted">${t('detail.noPanelsToCheck')}</div>`;return}
+ box.innerHTML=`<div class="panel-check-list">${rows.map(({pt})=>{
+  const qty=Math.max(1,Number(pt.qty)||1);
+  const dims=`${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm`;
+  const material=safe(pt.material)||t('install.materialNotSet');
+  const edgeInfo=`${Number(pt.edgeLong||0)} ${Number(pt.edgeLong||0)===1?t('install.longEdge'):t('install.longEdges')} · ${Number(pt.edgeShort||0)} ${Number(pt.edgeShort||0)===1?t('install.shortEdge'):t('install.shortEdges')}`;
+  return `<div class="panel-check-row"><span class="panel-check-mark">${qty}×</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${dims}</div><div class="panel-check-sub">${material} · ${edgeInfo}</div></div></div>`;
+ }).join('')}</div>`;
+}
+$('#bomBackBtn')?.addEventListener('click',()=>show('drawings'));
 function renderAll(){state.projects.forEach(ensureExtras);renderHeader();renderProjects();if(state.screen==='drawings')renderRooms();if(project()){renderMeasure();renderInstall();renderMobileBom()}renderRoomScanContext();renderScanDashboard()}
 load();
 </script>
