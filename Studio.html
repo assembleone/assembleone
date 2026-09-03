@@ -74,6 +74,9 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-job-status.status-new{background:#e7f0ff;color:#1452d8}
 .customer-job-status.status-progress{background:#fff3d6;color:#8a5b00}
 .customer-job-status.status-done{background:#e6f6e1;color:#347d18}
+/* Build 1: a cutting-list-ready job is a calm, positive state, not a warning --
+   it no longer shares the amber status-progress used for "still drawing"/"installing". */
+.customer-job-status.status-ready{background:#eaf8e4;color:#2f7d16}
 .customer-job-title-line{flex:1 1 auto;order:1}
 .customer-job-rooms{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;order:2}
 .customer-job-meta{order:3}
@@ -2130,7 +2133,7 @@ function jobStatusInfo(p){
  const allRoomsFinished=(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished);
  if(allInstalled||allRoomsFinished)return{label:t("studio.customerLibrary.statusInstalled"),cls:"status-done"};
  if(someInstalled)return{label:t("studio.customerLibrary.statusInstalling"),cls:"status-progress"};
- if(parts.length)return{label:t("studio.customerLibrary.statusCuttingListReady"),cls:"status-progress"};
+ if(parts.length)return{label:t("studio.customerLibrary.statusCuttingListReady"),cls:"status-ready"};
  if(hasDrawing)return{label:t("studio.customerLibrary.statusDrawingInProgress"),cls:"status-progress"};
  if(hasSite)return{label:t("studio.customerLibrary.statusSiteMeasurementsReceived"),cls:"status-new"};
  return{label:t("studio.customerLibrary.statusNewJob"),cls:"status-new"};
@@ -6675,6 +6678,16 @@ body.fiq-locked .app{display:none!important}
 .job-overview-updated{color:var(--muted);font-size:12px;font-weight:700}
 .dashboard-filter-banner{display:flex;align-items:center;justify-content:space-between;background:#eef3ff;border:1px solid #bcd2ff;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-weight:700}
 .dashboard-filter-banner button{background:#fff;border:1px solid #bcd2ff;border-radius:8px;padding:5px 10px;font-weight:800;cursor:pointer}
+/* Build 1: per-card bulk-select checkbox, the standalone panel-total figure, and the
+   toolbar that appears once 1+ cards are checked. */
+.jor-select{flex:none;display:flex;align-items:center;cursor:pointer}
+.jor-select input{width:18px;height:18px;cursor:pointer}
+.jor-panel-total{font-size:12px;font-weight:900;color:#174E98;margin-top:1px}
+.jor-bulk-toolbar{display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#f4f7ff;border:1px solid #cfd9f7;border-radius:12px;padding:10px 14px;margin-bottom:10px}
+.jor-bulk-toolbar.show{display:flex}
+.jor-bulk-count{font-weight:900;color:var(--ink);font-size:13px}
+.jor-bulk-note{flex-basis:100%;font-size:12px;color:#8a5b00;font-weight:700;background:#fff3d6;border-radius:8px;padding:6px 10px}
+.jor-bulk-fitter-select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:700}
 </style>
 <script id="a208-home-dashboard-script">
 (function(){
@@ -6699,15 +6712,55 @@ body.fiq-locked .app{display:none!important}
   // supplier" flag, which is a different, office-only concept. Both this and Fitted are
   // qty-aware per row (installedQty/scannedQty), matching Mobile's own counting, so one
   // panel out of nine reads as 1/9 here too instead of flipping the whole row.
-  function jobPanelCheckTotals(p){
+  // Build 1: every one of these totals is really "sum this over a list of cabinets" --
+  // originally always the whole project's cabinets. Room-aware Job Overview cards (below)
+  // need the exact same math fed only one room's cabinets, so the summing itself moves into
+  // these *ForCabinets helpers and jobPanelCheckTotals/jobFittedTotals/jobDamagedTotals/
+  // jobMissingTotals/jobPanelCheckMissingCodes become thin project-level wrappers around
+  // them -- their existing signature (a project, p) and behaviour for every existing caller
+  // (a212's status banner, this file's own stat cards) is completely unchanged.
+  function panelCheckTotalsForCabinets(cabinets){
     let total=0,checked=0;
-    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+    (cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
       const q=Math.max(1,Number(part.qty)||1);
       total+=q;
       checked+=Math.min(q,Math.max(0,Number(part.scannedQty)||0));
     }));
     return {checked,total};
   }
+  function panelCheckMissingCodesForCabinets(cabinets){
+    const codes=[];
+    (cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      const q=Math.max(1,Number(part.qty)||1);
+      const scanned=Math.min(q,Math.max(0,Number(part.scannedQty)||0));
+      if(scanned<q)codes.push(part.code||'?');
+    }));
+    return codes;
+  }
+  function fittedTotalsForCabinets(cabinets){
+    let total=0,installed=0;
+    (cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      const q=Math.max(1,Number(part.qty)||1);
+      total+=q;
+      installed+=part.status==='installed'?q:Math.min(q,Math.max(0,Number(part.installedQty)||0));
+    }));
+    return {installed,total};
+  }
+  function damagedTotalForCabinets(cabinets){
+    let damaged=0;
+    (cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      damaged+=Math.min(Math.max(1,Number(part.qty)||1),Math.max(0,Number(part.damagedQty)||0));
+    }));
+    return damaged;
+  }
+  function missingTotalForCabinets(cabinets){
+    let missing=0;
+    (cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
+      if(part.status==='missing')missing+=Math.max(1,Number(part.qty)||1);
+    }));
+    return missing;
+  }
+  function jobPanelCheckTotals(p){return panelCheckTotalsForCabinets(p.cabinets||[])}
   // Panel Check is finished per room on Mobile (see Mobile.html's finishPanelCheckBtn) --
   // a job with no rooms recorded can't be "finished" by definition, and a mixed job (one
   // room finished, another still open) isn't done until every room is.
@@ -6715,24 +6768,8 @@ body.fiq-locked .app{display:none!important}
     const rooms=(p.rooms||[]).filter(Boolean);
     return rooms.length>0&&rooms.every(r=>!!r.panelCheckFinished);
   }
-  function jobPanelCheckMissingCodes(p){
-    const codes=[];
-    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
-      const q=Math.max(1,Number(part.qty)||1);
-      const scanned=Math.min(q,Math.max(0,Number(part.scannedQty)||0));
-      if(scanned<q)codes.push(part.code||'?');
-    }));
-    return codes;
-  }
-  function jobFittedTotals(p){
-    let total=0,installed=0;
-    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
-      const q=Math.max(1,Number(part.qty)||1);
-      total+=q;
-      installed+=part.status==='installed'?q:Math.min(q,Math.max(0,Number(part.installedQty)||0));
-    }));
-    return {installed,total};
-  }
+  function jobPanelCheckMissingCodes(p){return panelCheckMissingCodesForCabinets(p.cabinets||[])}
+  function jobFittedTotals(p){return fittedTotalsForCabinets(p.cabinets||[])}
   // One project can genuinely contain several rooms (a single Site Measure visit covering
   // a hallway and a TV wall is still one job) -- showing only the first room's name made a
   // multi-room job look like it was missing the rest of the work, or worse, look like each
@@ -6761,25 +6798,61 @@ body.fiq-locked .app{display:none!important}
   // Damaged and Missing reuse exactly the same per-panel fields Panel Check and Fitted
   // already read (status/damagedQty, qty-aware) -- no second issue-tracking system, just
   // two more totals off the same data.
-  function jobDamagedTotals(p){
-    let damaged=0;
-    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
-      const q=Math.max(1,Number(part.qty)||1);
-      damaged+=Math.min(q,Math.max(0,Number(part.damagedQty)||0));
-    }));
-    return damaged;
-  }
-  function jobMissingTotals(p){
-    let missing=0;
-    (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
-      if(part.status==='missing')missing+=Math.max(1,Number(part.qty)||1);
-    }));
-    return missing;
-  }
+  function jobDamagedTotals(p){return damagedTotalForCabinets(p.cabinets||[])}
+  function jobMissingTotals(p){return missingTotalForCabinets(p.cabinets||[])}
   function jobNeedsAttention(p){
     const items=(typeof window.a203NeedsAttentionItems==='function')?window.a203NeedsAttentionItems():[];
     return items.some(x=>x.projectId===p.id);
   }
+  // Build 1: the warning icon on a room-card must reflect *that room's* outstanding
+  // missing/damaged panels, not every other room's on the same job -- a203's items already
+  // carry cabinetId, so this is the same check as jobNeedsAttention scoped down to one
+  // card's own cabinet list instead of the whole project.
+  function needsAttentionForCabinets(cabinets){
+    const items=(typeof window.a203NeedsAttentionItems==='function')?window.a203NeedsAttentionItems():[];
+    const cabIds=new Set((cabinets||[]).map(c=>c.id));
+    return items.some(x=>cabIds.has(x.cabinetId));
+  }
+  // Build 1: one card per room (or one card for a whole project with no rooms). A project
+  // whose rooms don't cover every cabinet (stray cabinets with no matching roomId) gets one
+  // extra "General" catch-all card so nothing silently disappears from the count -- see the
+  // scoping note in the plan. room is: null (no-rooms project), '__general__' (the catch-all),
+  // or the real room object.
+  function cardsForProject(p){
+    const rooms=(p.rooms||[]).filter(r=>r&&r.name);
+    if(!rooms.length)return [{project:p,room:null}];
+    const cards=rooms.map(r=>({project:p,room:r}));
+    const roomIds=new Set(rooms.map(r=>r.id));
+    if((p.cabinets||[]).some(c=>!c.roomId||!roomIds.has(c.roomId)))cards.push({project:p,room:'__general__'});
+    return cards;
+  }
+  function cardCabinets(card){
+    const p=card.project;
+    if(card.room===null)return p.cabinets||[];
+    if(card.room==='__general__'){
+      const roomIds=new Set((p.rooms||[]).filter(r=>r&&r.name).map(r=>r.id));
+      return (p.cabinets||[]).filter(c=>!c.roomId||!roomIds.has(c.roomId));
+    }
+    return (p.cabinets||[]).filter(c=>c.roomId===card.room.id);
+  }
+  function cardKey(card){
+    if(card.room===null)return card.project.id;
+    return card.project.id+'::'+(card.room==='__general__'?'__general__':card.room.id);
+  }
+  function parseCardKey(key){
+    const i=String(key).indexOf('::');
+    return i===-1?{projectId:key,roomKey:null}:{projectId:key.slice(0,i),roomKey:key.slice(i+2)};
+  }
+  function cardRoomLabel(card){
+    if(card.room==='__general__')return t("studio.jobOverview.generalLabel");
+    if(card.room)return safe((card.room.icon||'⌂')+' '+card.room.name);
+    const cab=(card.project.cabinets||[])[0];
+    return cab?safe(cab.name):'';
+  }
+  window.a208CardKey=cardKey;
+  window.a208ParseCardKey=parseCardKey;
+  window.a208CardsForProject=cardsForProject;
+  window.a208CardCabinets=cardCabinets;
 
   window.__homeDashboardFilter=null;
   function applyDashboardFilter(predicate,label){
@@ -6794,7 +6867,7 @@ body.fiq-locked .app{display:none!important}
     let banner=document.getElementById('dashboardFilterBanner');
     if(f){
       if(!banner){banner=document.createElement('div');banner.id='dashboardFilterBanner';banner.className='dashboard-filter-banner';box.parentNode.insertBefore(banner,box)}
-      banner.innerHTML='Showing: <strong>'+safe(f.label)+'</strong><button type="button" id="clearDashboardFilter">Clear filter ✕</button>';
+      banner.innerHTML=t("studio.jobOverview.showingFilterTemplate",[safe(f.label)])+'<button type="button" id="clearDashboardFilter">'+t("studio.jobOverview.clearFilterBtn")+'</button>';
       document.getElementById('clearDashboardFilter').onclick=()=>{window.__homeDashboardFilter=null;filterCustomerLibraryByProject()};
     }else if(banner){banner.remove()}
     box.querySelectorAll('.customer-job-item').forEach(item=>{
@@ -6812,6 +6885,63 @@ body.fiq-locked .app{display:none!important}
   window.jobPanelCheckFinished=jobPanelCheckFinished;
   window.jobPanelCheckMissingCodes=jobPanelCheckMissingCodes;
 
+  // Build 1: a one-off, in-the-moment multi-select for Job Overview cards, mirroring
+  // supplierSelectedJobIds's existing pattern in Customer Library (a plain in-memory Set,
+  // not persisted to state -- nothing meaningful is lost on reload). Holds card keys (see
+  // cardKey/parseCardKey above), so a room-card and its sibling room-cards of the same job
+  // can be selected independently even though bulk-assign below collapses them back to one
+  // project (scoping decision 2 in the plan).
+  let jorSelectedCardKeys=new Set();
+  function selectedCardObjects(){
+    return [...jorSelectedCardKeys].map(key=>{
+      const {projectId,roomKey}=parseCardKey(key);
+      const p=state.projects.find(x=>x.id===projectId);
+      if(!p)return null;
+      let room=null;
+      if(roomKey==='__general__')room='__general__';
+      else if(roomKey)room=(p.rooms||[]).find(r=>r.id===roomKey)||null;
+      return {key,project:p,room};
+    }).filter(Boolean);
+  }
+  function distinctSelectedProjects(){
+    const map=new Map();
+    selectedCardObjects().forEach(c=>{if(!map.has(c.project.id))map.set(c.project.id,c.project)});
+    return [...map.values()];
+  }
+  // The bulk fitter picker mirrors a211's own fitter <select> options (owner + real fitters)
+  // without its edit/delete/add-new entries, which only make sense on a single job's own row.
+  // ensureFitters()/ownerOptionLabel() are private to a211's own closure -- state.fitters
+  // itself is the shared data, so reading it directly here is the same duplication this file
+  // already has between a211's and a213's own separate ensureFitters().
+  function bulkFitterOptionsHtml(){
+    state.fitters=state.fitters||[];
+    const ownerName=(window.fittersiqUser&&(window.fittersiqUser.ownerName||window.fittersiqUser.email))||t("studio.fitters.ownerLabel");
+    return '<option value="">'+t("studio.fitters.assignFitterOption")+'</option>'+
+      '<option value="__owner__">'+t("studio.fitters.ownerSuffixTemplate",[safe(ownerName)])+'</option>'+
+      state.fitters.map(f=>'<option value="'+safe(f.name)+'">'+safe(f.name)+'</option>').join('');
+  }
+  function updateBulkToolbar(){
+    const bar=document.getElementById('jorBulkToolbar');if(!bar)return;
+    const cards=selectedCardObjects(),projects=distinctSelectedProjects();
+    bar.classList.toggle('show',cards.length>0);
+    if(!cards.length)return;
+    const countEl=document.getElementById('jorBulkCount');
+    if(countEl)countEl.textContent=t(cards.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[cards.length]);
+    const assignBtn=document.getElementById('jorBulkAssignBtn');
+    if(assignBtn)assignBtn.textContent=t(projects.length===1?"studio.jobOverview.assignSendSingular":"studio.jobOverview.assignSendPlural",[projects.length]);
+    const checkBtn=document.getElementById('jorBulkCheckBtn');
+    if(checkBtn)checkBtn.textContent=t(cards.length===1?"studio.jobOverview.checkTogetherSingular":"studio.jobOverview.checkTogetherPlural",[cards.length]);
+    const noteEl=document.getElementById('jorBulkNote');
+    if(noteEl){
+      // Selecting more than one card from the same project is the only way a bulk-assign
+      // can silently touch rooms the office didn't explicitly tick -- flagging it here,
+      // not just relying on the button's own "N jobs" count, keeps that fact unmissable.
+      const spansMultiRoom=projects.some(p=>cards.filter(c=>c.project.id===p.id).length>1);
+      noteEl.hidden=!spansMultiRoom;
+      if(spansMultiRoom)noteEl.textContent=t("studio.jobOverview.multiRoomNote");
+    }
+  }
+
   function renderHomeDashboard(){
     const actions=document.querySelector('.studio-home-actions');
     if(!actions)return;
@@ -6820,13 +6950,15 @@ body.fiq-locked .app{display:none!important}
       dash=document.createElement('div');
       dash.id='homeDashboard';
       dash.className='home-dashboard';
-      dash.innerHTML='<div class="home-section"><div class="home-section-head"><h3>Job Status Overview</h3></div><div class="job-stat-grid">'+
-        '<button type="button" class="job-stat-card" data-stat="active"><span class="job-stat-icon stat-active">👥</span><span class="job-stat-num" id="statActiveNum">0</span><span class="job-stat-label">Active Jobs</span><span class="job-stat-view">View all</span></button>'+
-        '<button type="button" class="job-stat-card" data-stat="sent"><span class="job-stat-icon stat-sent">✅</span><span class="job-stat-num" id="statSentNum">0</span><span class="job-stat-label">Sent to Fitter</span><span class="job-stat-view">View all</span></button>'+
-        '<button type="button" class="job-stat-card" data-stat="attention"><span class="job-stat-icon stat-attention">⚠️</span><span class="job-stat-num" id="statAttentionNum">0</span><span class="job-stat-label">Needs Attention</span><span class="job-stat-view">View all</span></button>'+
-        '<button type="button" class="job-stat-card" data-stat="completed"><span class="job-stat-icon stat-completed">📋</span><span class="job-stat-num" id="statCompletedNum">0</span><span class="job-stat-label">Completed</span><span class="job-stat-view">This month</span></button>'+
+      dash.innerHTML='<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobStatusOverviewHeading")+'</h3></div><div class="job-stat-grid">'+
+        '<button type="button" class="job-stat-card" data-stat="active"><span class="job-stat-icon stat-active">👥</span><span class="job-stat-num" id="statActiveNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.activeJobsLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.viewAllLabel")+'</span></button>'+
+        '<button type="button" class="job-stat-card" data-stat="sent"><span class="job-stat-icon stat-sent">✅</span><span class="job-stat-num" id="statSentNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.sentToFitterLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.viewAllLabel")+'</span></button>'+
+        '<button type="button" class="job-stat-card" data-stat="attention"><span class="job-stat-icon stat-attention">⚠️</span><span class="job-stat-num" id="statAttentionNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.needsAttentionLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.viewAllLabel")+'</span></button>'+
+        '<button type="button" class="job-stat-card" data-stat="completed"><span class="job-stat-icon stat-completed">📋</span><span class="job-stat-num" id="statCompletedNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.completedLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.thisMonthLabel")+'</span></button>'+
         '</div></div>'+
-        '<div class="home-section"><div class="home-section-head"><h3>Job Overview</h3><button type="button" class="home-section-viewall" id="jobOverviewViewAll">View all</button></div><div class="job-overview-grid" id="jobOverviewGrid"></div></div>';
+        '<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobOverviewHeading")+'</h3><button type="button" class="home-section-viewall" id="jobOverviewViewAll">'+t("studio.jobOverview.viewAllLabel")+'</button></div>'+
+        '<div class="jor-bulk-toolbar" id="jorBulkToolbar"><span class="jor-bulk-count" id="jorBulkCount"></span><div class="jor-bulk-note" id="jorBulkNote" hidden></div><select class="jor-bulk-fitter-select" id="jorBulkFitterSelect">'+bulkFitterOptionsHtml()+'</select><button type="button" class="btn primary" id="jorBulkAssignBtn"></button><button type="button" class="btn" id="jorBulkCheckBtn"></button></div>'+
+        '<div class="job-overview-grid" id="jobOverviewGrid"></div></div>';
       actions.parentNode.insertBefore(dash,actions.nextSibling);
       dash.querySelectorAll('[data-stat]').forEach(btn=>{
         btn.onclick=()=>{
@@ -6836,9 +6968,9 @@ body.fiq-locked .app{display:none!important}
           // through again to find the one panel that's actually damaged.
           if(btn.dataset.stat==='attention'&&typeof window.openAttentionModal==='function'){window.openAttentionModal();return}
           const map={
-            active:[activeJobsList,'Active Jobs'],
-            sent:[sentToFitterList,'Sent to Fitter'],
-            completed:[completedThisMonthList,'Completed this month']
+            active:[activeJobsList,t("studio.jobOverview.activeJobsLabel")],
+            sent:[sentToFitterList,t("studio.jobOverview.sentToFitterLabel")],
+            completed:[completedThisMonthList,t("studio.jobOverview.completedThisMonthFilterLabel")]
           };
           const pair=map[btn.dataset.stat];if(!pair)return;
           const ids=new Set(pair[0]().map(p=>p.id));
@@ -6846,6 +6978,35 @@ body.fiq-locked .app{display:none!important}
         };
       });
       dash.querySelector('#jobOverviewViewAll').onclick=()=>{window.__homeDashboardFilter=null;show('customers');};
+      // Bulk fitter-assign-and-send (§8): resolves every selected card to its *parent
+      // project* first (a Map dedupes, so all 3 rooms of one job collapse to a single send),
+      // then reuses exportProjectToMobile verbatim -- looped once per distinct project, never
+      // once per room -- exactly like the single-row auto-send this already reuses elsewhere.
+      dash.querySelector('#jorBulkAssignBtn').onclick=()=>{
+        const sel=document.getElementById('jorBulkFitterSelect');
+        const fitterName=sel?sel.value:'';
+        if(!fitterName)return;
+        const projects=distinctSelectedProjects();
+        if(!projects.length)return;
+        projects.forEach(p=>{p.assignedFitter=fitterName});
+        save();
+        projects.forEach(p=>{if(typeof exportProjectToMobile==='function')exportProjectToMobile(p)});
+        jorSelectedCardKeys.clear();
+        if(sel)sel.value='';
+        renderAll();
+      };
+      // Combined Panel Check (§7): stores the resolved card list on a plain window flag
+      // (never persisted -- see jorSelectedCardKeys above), then reuses the existing
+      // renderAll()+show('parts') sequence Job Overview's own single-job Panel Check link
+      // already uses so the new combined renderer (appended after every other Panel Check
+      // layer) gets a chance to render before the screen becomes visible.
+      dash.querySelector('#jorBulkCheckBtn').onclick=()=>{
+        const cards=selectedCardObjects();
+        if(!cards.length)return;
+        window.__jorCombinedCheck={active:true,cards:cards.map(c=>({projectId:c.project.id,roomKey:c.room==='__general__'?'__general__':(c.room?c.room.id:null)}))};
+        if(typeof renderAll==='function')renderAll();
+        show('parts');
+      };
     }
     const setNum=(id,n)=>{const el=document.getElementById(id);if(el)el.textContent=n};
     setNum('statActiveNum',activeJobsList().length);
@@ -6861,83 +7022,106 @@ body.fiq-locked .app{display:none!important}
     // site) has answered "what am I working on now?" and moves to Customer Library's
     // list instead, which is unfiltered and keeps the job's full technical history --
     // nothing here deletes or strips anything, it's a display filter only.
-    const recentJobs=namedProjects().filter(p=>!isCompletedProject(p)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-    grid.innerHTML=recentJobs.length?recentJobs.map(p=>{
-      const drawingCab=(p.cabinets||[]).find(c=>c.drawing&&c.drawingType!=='pdf');
+    const recentProjects=namedProjects().filter(p=>!isCompletedProject(p)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    // Build 1: one card per room, or one card per whole project when it has no rooms --
+    // cardsForProject/cardCabinets/cardKey are defined above this function. A project's
+    // several room-cards stay visually grouped as "one job" via the shared jor-name
+    // (customer/job heading); only the room subtitle and every stat/total differ per card.
+    const cards=recentProjects.flatMap(cardsForProject);
+    const validKeys=new Set(cards.map(cardKey));
+    [...jorSelectedCardKeys].forEach(k=>{if(!validKeys.has(k))jorSelectedCardKeys.delete(k)});
+    grid.innerHTML=cards.length?cards.map(card=>{
+      const p=card.project,cabinets=cardCabinets(card),key=cardKey(card);
+      const drawingCab=cabinets.find(c=>c.drawing&&c.drawingType!=='pdf');
       const thumb=drawingCab?('<img src="'+drawingCab.drawing+'" alt="Drawing preview">'):'<span>📐</span>';
-      const pc=jobPanelCheckTotals(p);
-      const pcFinished=jobPanelCheckFinished(p);
-      const pcMissing=pcFinished?jobPanelCheckMissingCodes(p):[];
+      const pc=panelCheckTotalsForCabinets(cabinets);
+      // Panel Check is only ever "finished" per real room (Mobile's own per-room Finish
+      // Panel Check) -- a no-rooms project or the "General" catch-all card can never reach
+      // that state, same as jobPanelCheckFinished already required rooms.length>0 for a
+      // whole project.
+      const pcFinished=card.room&&card.room!=='__general__'?!!card.room.panelCheckFinished:false;
+      const pcMissing=pcFinished?panelCheckMissingCodesForCabinets(cabinets):[];
       const pcPct=pc.total?Math.round(pc.checked/pc.total*100):0;
-      // Once Panel Check is finished, "checked / total" stops being the useful number --
-      // what matters is whether the delivery check is done, and whether anything never
-      // turned up. Missing codes go in the full Panel Check screen, not this tight column.
-      const pcDone=pcFinished&&!pcMissing.length;
-      const pcValue=pcFinished?(pcMissing.length?'⚠ Missing ('+pcMissing.length+')':pc.total+' / '+pc.total+' ✓'):(pc.total?pc.checked+' / '+pc.total:'—');
-      const fit=jobFittedTotals(p);
+      const pcValue=pcFinished?(pcMissing.length?t("studio.jobOverview.pcMissingTemplate",[pcMissing.length]):t("studio.jobOverview.pcCompleteTemplate",[pc.total,pc.total])):(pc.total?pc.checked+' / '+pc.total:'—');
+      const fit=fittedTotalsForCabinets(cabinets);
       const showFitted=fit.installed>0;
       const fitPct=fit.total>0?Math.round(fit.installed/fit.total*100):0;
-      const damaged=jobDamagedTotals(p),missing=jobMissingTotals(p);
-      const issueHtml='<span class="jor-issue'+(damaged?' jor-issue-bad':'')+'">DAMAGED '+damaged+(damaged?' ⚠️':'')+'</span>'+
-        '<span class="jor-issue'+(missing?' jor-issue-bad':'')+'">MISSING '+missing+(missing?' ⚠️':'')+'</span>';
-      const warn=(jobNeedsAttention(p)||(pcFinished&&pcMissing.length))?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="Needs attention — tap to open Panel Check">⚠️</span>':'<span class="jor-warn"></span>';
+      const damaged=damagedTotalForCabinets(cabinets),missing=missingTotalForCabinets(cabinets);
+      const issueHtml='<span class="jor-issue'+(damaged?' jor-issue-bad':'')+'">'+t("studio.jobOverview.damagedTagTemplate",[damaged])+(damaged?' ⚠️':'')+'</span>'+
+        '<span class="jor-issue'+(missing?' jor-issue-bad':'')+'">'+t("studio.jobOverview.missingTagTemplate",[missing])+(missing?' ⚠️':'')+'</span>';
+      const warn=(needsAttentionForCabinets(cabinets)||(pcFinished&&pcMissing.length))?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.needsAttentionTooltip")+'">⚠️</span>':'<span class="jor-warn"></span>';
       // isNewFromSite is the exact same flag switchToProject() already clears the moment
       // this job is opened (see there) -- reused as-is, not a new dashboard-only marker,
       // so it also already survives a reload correctly (it's just a field on the project).
+      // Shown on every room-card of a brand new job, not just one -- they're all still
+      // unopened until switchToProject() runs, whichever card gets clicked first.
       const isNew=!!p.isNewFromSite;
-      const newBadge=isNew?'<span class="jor-new-badge">🆕 NEW SITE JOB</span>':'';
-      const roomChips=jobRoomChipsHtml(p);
-      return '<div class="job-overview-row'+(isNew?' jor-new':'')+'" data-open-job-card="'+safe(p.id)+'">'+
+      const newBadge=isNew?'<span class="jor-new-badge">'+t("studio.jobOverview.newSiteJobBadge")+'</span>':'';
+      const roomLabel=cardRoomLabel(card);
+      // The panel total is its own standalone, prominent figure next to the name -- not
+      // buried only inside the Panel Check stat column, per the brief's §3/§6.
+      const panelTotalHtml='<div class="jor-panel-total">'+t(pc.total===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[pc.total])+'</div>';
+      const roomIdAttr=card.room===null?'':(card.room==='__general__'?'__general__':safe(card.room.id));
+      return '<div class="job-overview-row'+(isNew?' jor-new':'')+'" data-open-job-card="'+safe(p.id)+'" data-card-room-id="'+roomIdAttr+'">'+
+        '<label class="jor-select" title="'+t("studio.jobOverview.selectCardTitle")+'"><input type="checkbox" class="jor-select-checkbox" data-select-card="'+safe(key)+'" '+(jorSelectedCardKeys.has(key)?'checked':'')+'></label>'+
         '<div class="jor-thumb">'+thumb+'</div>'+
-        '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||'Untitled job')+'</div><div class="jor-room jor-room-chips">'+(roomChips||safe(p.name||''))+'</div>'+
+        '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||t("studio.customerLibrary.untitledJob"))+'</div>'+(roomLabel?'<div class="jor-room">'+roomLabel+'</div>':'')+panelTotalHtml+
         '<div class="jor-issues">'+issueHtml+'</div></div>'+
         '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):'')+'</div>'+
-        '<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="Open Panel Check"><div class="jor-stat-label">Panel Check</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+pcPct+'% checked</div>':'')+'</div>'+
-        '<div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">Fitted</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
+        '<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.openPanelCheckTooltip")+'"><div class="jor-stat-label">'+t("studio.panelCheck.screenTitle")+'</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+t("studio.jobOverview.pctCheckedTemplate",[pcPct])+'</div>':'')+'</div>'+
+        '<div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">'+t("studio.jobOverview.fittedStatLabel")+'</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
         warn+
         '<span class="jor-chevron">›</span>'+
       '</div>';
-    }).join(''):'<div class="empty">No active jobs — completed jobs are in Customer Library.</div>';
+    }).join(''):'<div class="empty">'+t("studio.jobOverview.noActiveJobsEmpty")+'</div>';
+    // Each card is already exactly one room (or one whole no-rooms project) -- opening it
+    // opens precisely that room's real site content (photos/measurements/notes from Mobile)
+    // via the same room-scoped viewer Customer Library already uses, or that one room inside
+    // its own job workspace when there's nothing sent from site yet. No separate room-chip
+    // click target is needed any more now that the card itself is room-scoped.
     grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
-      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]')||e.target.closest('[data-open-jor-room]'))return;
-      switchToProject(row.dataset.openJobCard);
-      save();
-      if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
-    });
-    // A room chip opens exactly that room, never the whole job's first room -- real site
-    // content (photos/measurements/notes from Mobile) opens the same room-scoped viewer
-    // Customer Library already uses; a Studio-native room with nothing sent from site
-    // opens that one room inside its own job workspace instead.
-    grid.querySelectorAll('[data-open-jor-room]').forEach(btn=>{
-      btn.onclick=(e)=>{
-        e.stopPropagation();
-        const projectId=btn.dataset.openJorRoom,roomId=btn.dataset.jorRoomId;
+      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]')||e.target.closest('.jor-select'))return;
+      const projectId=row.dataset.openJobCard,roomId=row.dataset.cardRoomId;
+      if(roomId&&roomId!=='__general__'){
         const proj=state.projects.find(x=>x.id===projectId);
         const room=proj&&(proj.rooms||[]).find(r=>r.id===roomId);
         const hasSite=room&&(siteRoomPictures(room).length||siteRoomMeasureCount(room)||String(room.notes||'').trim());
-        if(hasSite&&typeof openSiteRoomDetails==='function'){
-          openSiteRoomDetails(projectId,roomId);
-        }else{
-          switchToProject(projectId);
-          state.currentRoom=roomId;
-          save();
-          if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
-        }
-      };
+        if(hasSite&&typeof openSiteRoomDetails==='function'){openSiteRoomDetails(projectId,roomId);return}
+        switchToProject(projectId);
+        state.currentRoom=roomId;
+        save();
+        if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
+        return;
+      }
+      switchToProject(projectId);
+      save();
+      if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
     });
     // The Panel Check stat and the "needs attention" warning icon are the actionable parts
     // of a row -- someone tapping them wants to go fix the problem, not land on the drawing
-    // (which is what the rest of the row opens, and has no way to sort a panel from).
+    // (which is what the rest of the row opens, and has no way to sort a panel from). This
+    // is always the normal single-job Panel Check (never combined mode), so it explicitly
+    // drops any combined-check selection still active from the bulk toolbar.
     grid.querySelectorAll('[data-open-panel-check]').forEach(el=>{
       el.onclick=(e)=>{
         e.stopPropagation();
+        window.__jorCombinedCheck=null;
         switchToProject(el.dataset.openPanelCheck);
         save();
         renderAll();
         show('parts');
       };
     });
+    grid.querySelectorAll('.jor-select-checkbox').forEach(cb=>{
+      cb.onclick=(e)=>e.stopPropagation();
+      cb.onchange=()=>{
+        if(cb.checked)jorSelectedCardKeys.add(cb.dataset.selectCard);
+        else jorSelectedCardKeys.delete(cb.dataset.selectCard);
+        updateBulkToolbar();
+      };
+    });
     if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(grid,id=>state.projects.find(x=>x.id===id));
+    updateBulkToolbar();
 
     if(state.screen==='customers'&&window.__homeDashboardFilter)filterCustomerLibraryByProject();
   }
@@ -7343,6 +7527,178 @@ body.fiq-locked .app{display:none!important}
   window.renderParts=function(){const r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
   try{renderParts=window.renderParts}catch(e){}
   try{render()}catch(e){}
+})();
+</script>
+<style id="a221-combined-panel-check-style">
+/* Build 1: Combined Panel Check (§7) -- a genuinely-additive alternate render of the
+   existing #partsSummary container, reusing every .panel-check-card/-code/-content/-meta/
+   -actions class a135's own single-cabinet cards already use, so a combined card looks
+   exactly like a normal one; only the wrapper/group chrome below is new. */
+.combined-panel-check-back{margin-bottom:14px}
+.combined-panel-check-summary{font-size:18px;font-weight:900;margin-bottom:16px;padding:14px 16px;background:#eef3ff;border-radius:14px;color:#174073}
+.combined-panel-check-group{margin-bottom:26px}
+.combined-panel-check-group-title{font-size:17px;font-weight:900;color:#171c46;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #e6e9f0}
+.combined-panel-check-empty{padding:16px;text-align:center;color:var(--muted)}
+</style>
+<script id="a221-combined-panel-check-script">
+(function(){
+  if(typeof window.__jorCombinedCheck==='undefined')window.__jorCombinedCheck=null;
+
+  // Turns the plain {projectId,roomKey} list the Job Overview bulk button stored into real
+  // {project,cabinets,roomLabel} groups, resolved fresh every render (never a copy) so every
+  // panel card below still reads/writes the panel's real record in its own project's
+  // c.parts[] -- nothing here is copied into a merged structure. Reuses a208's own
+  // cardCabinets (exposed as window.a208CardCabinets) so a room's cabinet list is computed
+  // exactly the same way here as it is for that room's own Job Overview card.
+  function resolveCombinedCards(){
+    const combo=window.__jorCombinedCheck;
+    if(!combo||!combo.active||!Array.isArray(combo.cards)||!combo.cards.length)return null;
+    const out=[];
+    combo.cards.forEach(entry=>{
+      const p=state.projects.find(x=>x.id===entry.projectId);
+      if(!p)return;
+      let room=null;
+      if(entry.roomKey==='__general__')room='__general__';
+      else if(entry.roomKey)room=(p.rooms||[]).find(r=>r.id===entry.roomKey)||null;
+      const cabinets=(typeof window.a208CardCabinets==='function')?window.a208CardCabinets({project:p,room}):(p.cabinets||[]);
+      const roomLabel=room==='__general__'?t("studio.jobOverview.generalLabel"):(room?safe((room.icon||'⌂')+' '+room.name):'');
+      out.push({project:p,cabinets,roomLabel});
+    });
+    return out;
+  }
+
+  // baseMissing/window.panelMissingItems (a135) internally calls the GLOBAL materialForPanel(),
+  // which falls back to whichever project/cabinet happens to be *currently open* -- exactly
+  // right for a single-cabinet screen, silently wrong once a row here belongs to a different
+  // job than the one open elsewhere in the app. exportCombinedSupplierCsv already hit this
+  // same problem and solved it the same way: inline the material fallback per row instead of
+  // calling the global. window.panelReviewSignature/panelIsReviewed are safe to reuse as-is
+  // -- their signature only ever reads fields straight off the part object, never the
+  // currently-open project/cabinet.
+  function combinedMaterialLabel(pt,p,c){
+    return String((pt&&pt.material)||(p&&p.defaultMaterial)||(c&&c.lastMaterial)||'').trim();
+  }
+  function combinedMissing(pt,p,c){
+    const m=[];
+    if(!String(pt&&pt.name||'').trim())m.push(t("studio.drawing.partNameSrLabel"));
+    if(!(Number(pt&&pt.length)>0))m.push(t("studio.drawing.lengthLabel"));
+    if(!(Number(pt&&pt.width)>0))m.push(t("studio.drawing.widthLabel"));
+    if(!(Number(pt&&pt.thickness)>0))m.push(t("studio.drawing.thicknessLabel"));
+    if(!(Number(pt&&pt.qty)>0))m.push(t("studio.drawing.quantityLabel"));
+    if(!combinedMaterialLabel(pt,p,c))m.push(t("studio.drawing.materialFieldLabel"));
+    return m;
+  }
+  function combinedOk(pt,p,c){
+    return combinedMissing(pt,p,c).length===0&&(typeof window.panelIsReviewed==='function'&&window.panelIsReviewed(pt));
+  }
+  // Deliberately its own data-combined-review/-edit attributes, never data-review-panel/
+  // data-edit-panel -- those are already read by a135's own global document-level dblclick
+  // listener (bound once, looks up the panel via whichever cabinet is *currently open*),
+  // which must never fire for a combined-mode card belonging to a different job.
+  function combinedPanelCardHtml(p,c,pt){
+    const missingFields=combinedMissing(pt,p,c);
+    const ok=missingFields.length===0&&(typeof window.panelIsReviewed==='function'&&window.panelIsReviewed(pt));
+    const measurements=(pt.length||'—')+' × '+(pt.width||'—')+' × '+(pt.thickness||'—')+' mm · Qty '+(pt.qty||'—');
+    const longEdgeCount=Number(pt.edgeLong||0),shortEdgeCount=Number(pt.edgeShort||0);
+    const edge=(longEdgeCount===1?t("studio.panelCheck.longEdgeSingular",[longEdgeCount]):t("studio.panelCheck.longEdgePlural",[longEdgeCount]))+' · '+(shortEdgeCount===1?t("studio.panelCheck.shortEdgeSingular",[shortEdgeCount]):t("studio.panelCheck.shortEdgePlural",[shortEdgeCount]));
+    const statusKeyMap={ready:"studio.panelCheck.statusReady",installed:"studio.panelCheck.statusInstalled",missing:"studio.panelCheck.statusMissing",damaged:"studio.panelCheck.statusDamaged"};
+    const statusLabel=statusKeyMap[pt.status]?t(statusKeyMap[pt.status]):(pt.status||t("studio.panelCheck.statusReady"));
+    const notes=String(pt.notes||'').trim();
+    const reviewMissing=missingFields.length?missingFields:[t("studio.panelCheck.missingConfirmationFallback")];
+    const chips=!ok?'<div class="panel-missing-list">'+reviewMissing.map(x=>'<span class="panel-missing-chip">⚠ '+safe(x)+'</span>').join('')+'</div>':'';
+    const key=safe(p.id)+'::'+safe(c.id)+'::'+safe(pt.id);
+    const reviewBox=ok
+      ? '<div class="panel-review-ok"><span class="review-icon">✓</span><span class="review-title">'+t("studio.panelCheck.panelCheckedLabel")+'</span></div>'
+      : '<div class="panel-review-warning" data-combined-review="'+key+'" title="'+t("studio.panelCheck.doubleClickToApproveTitle")+'"><span class="review-icon">⚠</span><span class="review-title">'+t("studio.panelCheck.panelNotCheckedLabel")+'</span><span class="review-help">'+t("studio.panelCheck.doubleClickAfterChecking")+'</span></div>';
+    const materialLabel=combinedMaterialLabel(pt,p,c)||t("studio.panelCheck.notSetFallback");
+    return '<div class="panel-check-card '+(ok?'complete':'incomplete')+'"><div class="panel-check-code">'+safe(pt.code||'')+'</div><div class="panel-check-content"><div class="panel-check-name">'+safe(pt.name||t("studio.drawing.unnamedPart"))+'</div><div class="panel-check-meta"><strong>'+t("studio.panelCheck.measurementsLabel")+':</strong> '+measurements+'<br><strong>'+t("studio.drawing.materialFieldLabel")+':</strong> '+safe(materialLabel)+'<br><strong>'+t("studio.panelCheck.edgingLabel")+':</strong> '+edge+'<br><strong>'+t("studio.sitePlanner.statusFieldLabel")+':</strong> '+safe(statusLabel)+(notes?'<br><strong>'+t("intake.notes")+':</strong> '+safe(notes):'')+'</div>'+chips+'</div><div class="panel-check-actions">'+reviewBox+'<button class="btn" data-combined-edit="'+key+'">'+t("studio.panelCheck.editPanelBtn")+'</button></div></div>';
+  }
+  function openPanelOnDrawing(projectId,cabinetId,partId){
+    window.__jorCombinedCheck=null;
+    switchToProject(projectId,cabinetId,partId);
+    state.selectedCopy=-1;state.focusMarker=true;
+    save();renderAll();show('mark');
+  }
+
+  function renderCombinedPanelCheck(){
+    const box=document.getElementById('partsSummary');
+    if(!box)return false;
+    const groups=resolveCombinedCards();
+    if(!groups)return false;
+    // These other Panel Check cards (checklist, install progress, material estimate, the
+    // Complete/Missing status banner) all belong to whichever ONE job is currently open --
+    // showing them next to a multi-job combined view would be misleading, so they're
+    // cleared while combined mode is active. They come back exactly as before the moment
+    // combined mode ends, the next time their own render functions run for the real open job.
+    ['componentsValidation','installProgressCard','estimatedMaterialsCard','customerSheetEstimateCard','panelCheckStatusBanner'].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.innerHTML='';
+    });
+    let totalParts=0,totalChecked=0;
+    const sections=groups.map(g=>{
+      const rows=[];
+      g.cabinets.forEach(c=>(c.parts||[]).forEach(pt=>rows.push({c,pt})));
+      rows.forEach(({c,pt})=>{
+        const q=Math.max(1,Number(pt.qty)||1);
+        totalParts+=q;
+        if(combinedOk(pt,g.project,c))totalChecked+=q;
+      });
+      const title=safe(g.project.customer||g.project.name||t("studio.customerLibrary.untitledJob"))+(g.roomLabel?' · '+g.roomLabel:'');
+      const cardsHtml=rows.length?rows.map(({c,pt})=>combinedPanelCardHtml(g.project,c,pt)).join(''):'<div class="empty">'+t("studio.panelCheck.noPanelsYetEmpty")+'</div>';
+      return '<div class="combined-panel-check-group"><div class="combined-panel-check-group-title">'+title+'</div><div class="panel-check-grid">'+cardsHtml+'</div></div>';
+    });
+    const jobCount=new Set(groups.map(g=>g.project.id)).size;
+    const backBtn='<button type="button" class="btn combined-panel-check-back" id="combinedPanelCheckBack">'+t("studio.panelCheck.combined.backBtn")+'</button>';
+    const summary='<div class="combined-panel-check-summary"><strong>'+t("studio.panelCheck.combined.heading")+'</strong><br>'+t("studio.panelCheck.combined.summaryTemplate",[totalChecked,totalParts,jobCount])+'</div>';
+    box.innerHTML=backBtn+summary+(sections.length?sections.join(''):'<div class="combined-panel-check-empty">'+t("studio.panelCheck.combined.emptyState")+'</div>');
+
+    const back=document.getElementById('combinedPanelCheckBack');
+    if(back)back.onclick=()=>{window.__jorCombinedCheck=null;if(typeof renderAll==='function')renderAll();};
+    box.querySelectorAll('[data-combined-edit]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const parts=btn.dataset.combinedEdit.split('::');
+        openPanelOnDrawing(parts[0],parts[1],parts[2]);
+      });
+    });
+    box.querySelectorAll('[data-combined-review]').forEach(el=>{
+      el.addEventListener('dblclick',()=>{
+        const ids=el.dataset.combinedReview.split('::');
+        const p=state.projects.find(x=>x.id===ids[0]);
+        const c=p&&(p.cabinets||[]).find(x=>x.id===ids[1]);
+        const pt=c&&(c.parts||[]).find(x=>x.id===ids[2]);
+        if(!p||!c||!pt)return;
+        const miss=combinedMissing(pt,p,c);
+        if(miss.length){
+          openPanelOnDrawing(ids[0],ids[1],ids[2]);
+          setTimeout(()=>alert(t("studio.drawing.pleaseAddFieldsTemplate",[miss.join(', ')])),50);
+          return;
+        }
+        if(typeof window.panelReviewSignature==='function')pt.reviewSignature=window.panelReviewSignature(pt);
+        save();
+        renderCombinedPanelCheck();
+      });
+    });
+    return true;
+  }
+
+  const prevRenderPartsCombined=window.renderParts;
+  window.renderParts=function(){
+    if(renderCombinedPanelCheck())return;
+    return prevRenderPartsCombined?prevRenderPartsCombined.apply(this,arguments):undefined;
+  };
+  try{renderParts=window.renderParts}catch(e){}
+
+  // The plain nav-bar Panel Check icon is always a request for the normal, single-job
+  // screen -- if a combined check was left active (selected but never explicitly closed
+  // via "Back"), this is the other place that stale state must be dropped before the
+  // screen is shown, same as the single-job Panel Check links on Job Overview already do.
+  document.querySelectorAll('.nav-btn[data-screen="parts"]').forEach(btn=>{
+    const prevClick=btn.onclick;
+    btn.onclick=function(e){
+      window.__jorCombinedCheck=null;
+      if(typeof prevClick==='function')return prevClick.call(this,e);
+      if(typeof show==='function')show('parts');
+    };
+  });
 })();
 </script>
 <script>window.FIQ_HELP_APP="studio";</script>
