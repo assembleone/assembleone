@@ -2736,7 +2736,18 @@ async function exportProjectToMobile(target){const p=ensureSharedProject(target|
   // next time this job goes out, not just once at first assignment.
   p.assignedEmails=(typeof window.a211AssignedEmailsFor==='function')?window.a211AssignedEmailsFor(p):[];
   p.assignedFitterIds=(typeof window.a211FitterIdsFor==='function')?window.a211FitterIdsFor(p):[];
-  save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
+  // Per-room dispatch: each room gets its own assignedEmails/assignedFitterIds computed
+  // the same way, straight from that room's own assignedFitter -- Mobile's canSeeJob(p,room)
+  // prefers these when non-empty and falls back to the project-level pair above otherwise,
+  // so a room nobody has individually assigned yet is unaffected (still governed by the
+  // whole project's own assignment exactly as before this feature existed). Recomputed
+  // unconditionally on every send so an unassign (clearing a room's own fitter) correctly
+  // clears its stale ids too, not just an assign.
+  (p.rooms||[]).forEach(function(r){
+    r.assignedEmails=(typeof window.a211AssignedEmailsFor==='function')?window.a211AssignedEmailsFor(r):[];
+    r.assignedFitterIds=(typeof window.a211FitterIdsFor==='function')?window.a211FitterIdsFor(r):[];
+  });
+  save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;(p.rooms||[]).forEach(function(r){r.lastMobileSync=pack.exportedAt});save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
 // Two fitters on two phones each hold an independent local copy of the same job -- when
 // BOTH eventually sync, whichever packet lands second used to simply overwrite every field
 // with its own (possibly stale, since it never learned about the other fitter's update)
@@ -5780,7 +5791,7 @@ body.guide-only .a131-back-studio{display:block}
         setTimeout(()=>window.renderInstallProgress(),450);
       };
     });
-    if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(box,()=>p);
+    if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(box);
   };
   const oldRenderParts2=window.renderParts;
   window.renderParts=function(){const r=oldRenderParts2?oldRenderParts2.apply(this,arguments):undefined;window.renderInstallProgress();return r};
@@ -6733,7 +6744,6 @@ body.fiq-locked .app{display:none!important}
 .jor-bulk-toolbar{display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#f4f7ff;border:1px solid #cfd9f7;border-radius:12px;padding:10px 14px;margin-bottom:10px}
 .jor-bulk-toolbar.show{display:flex}
 .jor-bulk-count{font-weight:900;color:var(--ink);font-size:13px}
-.jor-bulk-note{flex-basis:100%;font-size:12px;color:#8a5b00;font-weight:700;background:#fff3d6;border-radius:8px;padding:6px 10px}
 .jor-bulk-fitter-select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:700}
 </style>
 <script id="a208-home-dashboard-script">
@@ -6990,21 +7000,20 @@ body.fiq-locked .app{display:none!important}
     if(!cards.length)return;
     const countEl=document.getElementById('jorBulkCount');
     if(countEl)countEl.textContent=t(cards.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[cards.length]);
+    // Assign & Check-together now genuinely operate on each selected CARD (a room, or a
+    // whole no-rooms/General card) independently -- neither collapses to the parent
+    // project any more, so both count by cards.length. Delete is the one action that still
+    // resolves to the whole distinct parent project (unchanged from 682baab: deleting
+    // removes every room in a job, never just the ticked one), so it alone keeps counting
+    // by projects.length -- and its own confirm dialog (deleteConfirmSingleMultiRoom/
+    // deleteConfirmMultipleMultiRoom below) already says so explicitly at the moment it
+    // matters, which is why this toolbar no longer needs a separate standing warning note.
     const assignBtn=document.getElementById('jorBulkAssignBtn');
-    if(assignBtn)assignBtn.textContent=t(projects.length===1?"studio.jobOverview.assignSendSingular":"studio.jobOverview.assignSendPlural",[projects.length]);
+    if(assignBtn)assignBtn.textContent=t(cards.length===1?"studio.jobOverview.assignSendSingular":"studio.jobOverview.assignSendPlural",[cards.length]);
     const checkBtn=document.getElementById('jorBulkCheckBtn');
     if(checkBtn)checkBtn.textContent=t(cards.length===1?"studio.jobOverview.checkTogetherSingular":"studio.jobOverview.checkTogetherPlural",[cards.length]);
     const deleteBtn=document.getElementById('jorBulkDeleteBtn');
     if(deleteBtn)deleteBtn.textContent=t(projects.length===1?"studio.jobOverview.deleteSelectedSingular":"studio.jobOverview.deleteSelectedPlural",[projects.length]);
-    const noteEl=document.getElementById('jorBulkNote');
-    if(noteEl){
-      // Selecting more than one card from the same project is the only way a bulk-assign
-      // can silently touch rooms the office didn't explicitly tick -- flagging it here,
-      // not just relying on the button's own "N jobs" count, keeps that fact unmissable.
-      const spansMultiRoom=projects.some(p=>cards.filter(c=>c.project.id===p.id).length>1);
-      noteEl.hidden=!spansMultiRoom;
-      if(spansMultiRoom)noteEl.textContent=t("studio.jobOverview.multiRoomNote");
-    }
   }
 
   function renderHomeDashboard(){
@@ -7022,7 +7031,7 @@ body.fiq-locked .app{display:none!important}
         '<button type="button" class="job-stat-card" data-stat="completed"><span class="job-stat-icon stat-completed">📋</span><span class="job-stat-num" id="statCompletedNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.completedLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.thisMonthLabel")+'</span></button>'+
         '</div></div>'+
         '<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobOverviewHeading")+'</h3><button type="button" class="home-section-viewall" id="jobOverviewViewAll">'+t("studio.jobOverview.viewAllLabel")+'</button></div>'+
-        '<div class="jor-bulk-toolbar" id="jorBulkToolbar"><span class="jor-bulk-count" id="jorBulkCount"></span><div class="jor-bulk-note" id="jorBulkNote" hidden></div><select class="jor-bulk-fitter-select" id="jorBulkFitterSelect">'+bulkFitterOptionsHtml()+'</select><button type="button" class="btn primary" id="jorBulkAssignBtn"></button><button type="button" class="btn" id="jorBulkCheckBtn"></button><button type="button" class="btn danger" id="jorBulkDeleteBtn"></button></div>'+
+        '<div class="jor-bulk-toolbar" id="jorBulkToolbar"><span class="jor-bulk-count" id="jorBulkCount"></span><select class="jor-bulk-fitter-select" id="jorBulkFitterSelect">'+bulkFitterOptionsHtml()+'</select><button type="button" class="btn primary" id="jorBulkAssignBtn"></button><button type="button" class="btn" id="jorBulkCheckBtn"></button><button type="button" class="btn danger" id="jorBulkDeleteBtn"></button></div>'+
         '<div class="job-overview-grid" id="jobOverviewGrid"></div></div>';
       actions.parentNode.insertBefore(dash,actions.nextSibling);
       dash.querySelectorAll('[data-stat]').forEach(btn=>{
@@ -7043,18 +7052,26 @@ body.fiq-locked .app{display:none!important}
         };
       });
       dash.querySelector('#jobOverviewViewAll').onclick=()=>{window.__homeDashboardFilter=null;show('customers');};
-      // Bulk fitter-assign-and-send (§8): resolves every selected card to its *parent
-      // project* first (a Map dedupes, so all 3 rooms of one job collapse to a single send),
-      // then reuses exportProjectToMobile verbatim -- looped once per distinct project, never
-      // once per room -- exactly like the single-row auto-send this already reuses elsewhere.
+      // Full per-room dispatch: assignment now lands on each selected CARD's own target --
+      // a room, or the whole project for a no-rooms job / the General catch-all -- instead
+      // of collapsing every selection to its parent project first. Ticking Kitchen and TV
+      // Wall on one job and assigning once now sets both rooms' own assignedFitter
+      // independently. Sending is unchanged: distinctSelectedProjects() still dedupes down
+      // to one exportProjectToMobile() call per distinct PARENT project (never once per
+      // room) -- that function already serialises the whole project, including every
+      // room's own (now possibly different) assignment, in the one packet it sends.
       dash.querySelector('#jorBulkAssignBtn').onclick=()=>{
         const sel=document.getElementById('jorBulkFitterSelect');
         const fitterName=sel?sel.value:'';
         if(!fitterName)return;
-        const projects=distinctSelectedProjects();
-        if(!projects.length)return;
-        projects.forEach(p=>{p.assignedFitter=fitterName});
+        const cards=selectedCardObjects();
+        if(!cards.length)return;
+        cards.forEach(c=>{
+          const target=(c.room&&c.room!=='__general__')?c.room:c.project;
+          target.assignedFitter=fitterName;
+        });
         save();
+        const projects=distinctSelectedProjects();
         projects.forEach(p=>{if(typeof exportProjectToMobile==='function')exportProjectToMobile(p)});
         jorSelectedCardKeys.clear();
         if(sel)sel.value='';
@@ -7161,7 +7178,7 @@ body.fiq-locked .app{display:none!important}
         '<div class="jor-thumb">'+thumb+'</div>'+
         '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||t("studio.customerLibrary.untitledJob"))+'</div>'+(roomLabel?'<div class="jor-room">'+roomLabel+'</div>':'')+panelTotalHtml+
         '<div class="jor-issues">'+issueHtml+'</div></div>'+
-        '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):'')+'</div>'+
+        '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(card.room&&card.room!=='__general__'?card.room:p,0,key):'')+'</div>'+
         '<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.openPanelCheckTooltip")+'"><div class="jor-stat-label">'+t("studio.panelCheck.screenTitle")+'</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+t("studio.jobOverview.pctCheckedTemplate",[pcPct])+'</div>':'')+'</div>'+
         '<div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">'+t("studio.jobOverview.fittedStatLabel")+'</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
         warn+
@@ -7214,7 +7231,7 @@ body.fiq-locked .app{display:none!important}
         updateBulkToolbar();
       };
     });
-    if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(grid,id=>state.projects.find(x=>x.id===id));
+    if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(grid);
     updateBulkToolbar();
 
     if(state.screen==='customers'&&window.__homeDashboardFilter)filterCustomerLibraryByProject();
@@ -7371,6 +7388,22 @@ body.fiq-locked .app{display:none!important}
   // needs enough to open a WhatsApp chat; it never sends anything itself.
   function ensureFitters(){state.fitters=state.fitters||[];return state.fitters}
   function fitterByName(name){if(!name)return null;const n=name.trim().toLowerCase();return ensureFitters().find(f=>f.name.trim().toLowerCase()===n)||null}
+  // Per-room dispatch: resolves a key (a plain project id, exactly as every caller before
+  // this feature already used, or a Build-1-shaped projectId::roomId card key) to the real
+  // project AND the object assignedFitter/otherFitters actually live on -- a real room for
+  // a per-room Job Overview card, or the project itself for everything else (a no-rooms
+  // card, the General catch-all, and every existing caller like Install Progress's whole-
+  // job Lead Fitter, which keeps passing plain project ids and so keeps landing on the
+  // project exactly as it always has). window.a208ParseCardKey is Build 1's own card-key
+  // parser (cardsForProject/cardKey/parseCardKey) -- reused as-is rather than duplicated.
+  function resolveAssignTarget(key){
+    const parse=(typeof window.a208ParseCardKey==='function')?window.a208ParseCardKey:(k=>({projectId:k,roomKey:null}));
+    const {projectId,roomKey}=parse(key);
+    const proj=state.projects.find(x=>x.id===projectId);
+    if(!proj)return null;
+    const target=(!roomKey||roomKey==='__general__')?proj:((proj.rooms||[]).find(r=>r.id===roomKey)||proj);
+    return {project:proj,target};
+  }
   // The emails behind whoever is assigned to a job, for Mobile to check "is this job mine"
   // against its own signed-in email -- only fitters who actually have a Mobile login (an
   // email set on their roster entry) can be checked this way, so a fitter with no email yet
@@ -7461,9 +7494,15 @@ body.fiq-locked .app{display:none!important}
   function fitterDisplayName(name){
     return name==='__owner__'?ownerOptionLabel():(name||'');
   }
-  function fitterRowHtml(p,idx){
+  // target is whatever assignedFitter actually lives on -- a project (every existing
+  // caller) or a room (a per-room Job Overview card, see resolveAssignTarget above). key
+  // is the id wireFitterRow's own resolve(key) will be handed back on change/click; it
+  // defaults to target.id so every pre-existing caller (which never passed one) keeps
+  // generating the exact same plain-project-id markup as before this feature existed.
+  function fitterRowHtml(target,idx,key){
+    const rowKey=key!=null?key:((target&&target.id)||'');
     const fitters=ensureFitters();
-    const current=p.assignedFitter||'';
+    const current=(target&&target.assignedFitter)||'';
     const currentFitter=fitterByName(current);
     const options=['<option value="">'+t("studio.fitters.assignFitterOption")+'</option>']
       .concat(['<option value="__owner__" '+(current==='__owner__'?'selected':'')+'>'+safe(ownerOptionLabel())+'</option>'])
@@ -7472,8 +7511,8 @@ body.fiq-locked .app{display:none!important}
       .concat(currentFitter?['<option value="__edit__">'+t("studio.fitters.editFitterDetailsTemplate",[safe(currentFitter.name)])+'</option>','<option value="__delete__">'+t("studio.fitters.removeFitterOptionTemplate",[safe(currentFitter.name)])+'</option>']:[]);
     const hasPhone=!!(currentFitter&&currentFitter.phone);
     return '<div class="fitter-row" data-fitter-row="'+idx+'">'+
-      '<select class="fitter-select" data-fitter-select="'+safe(p.id)+'">'+options.join('')+'</select>'+
-      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(p.id)+'" title="'+t("studio.fitters.messageWhatsappTitle")+'" '+(hasPhone?'':'disabled')+'>💬</button>'+
+      '<select class="fitter-select" data-fitter-select="'+safe(rowKey)+'">'+options.join('')+'</select>'+
+      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(rowKey)+'" title="'+t("studio.fitters.messageWhatsappTitle")+'" '+(hasPhone?'':'disabled')+'>💬</button>'+
     '</div>';
   }
   // A job can have more than one fitter on it (people working together) -- one of them is
@@ -7505,62 +7544,76 @@ body.fiq-locked .app{display:none!important}
       '<select class="fitter-add-other" data-add-other="'+safe(p.id)+'">'+addOptions.join('')+'</select>'+
     '</div>';
   }
-  function wireFitterRow(container,getProject){
+  // resolve(key) => {project,target} (see resolveAssignTarget above). Defaults to
+  // resolveAssignTarget itself so every pre-existing caller (Install Progress, which used
+  // to pass a project-ignoring "()=>p") can now just omit the second argument entirely --
+  // a plain project id resolves to {project:p,target:p}, byte-identical to before.
+  function wireFitterRow(container,resolve){
+    resolve=resolve||resolveAssignTarget;
     container.querySelectorAll('[data-fitter-select]').forEach(sel=>{
       sel.onclick=e=>e.stopPropagation();
       sel.onchange=e=>{
         e.stopPropagation();
-        const p=getProject(sel.dataset.fitterSelect);if(!p)return;
-        // Computed before anything changes assignedFitter below -- this is "does this job
-        // have nobody on it yet, and has it never reached Mobile" at the moment the boss
-        // acts, regardless of which of the two ways (pick existing / add new) they used.
-        // Also requires at least one real panel already on the job: sending the moment a
-        // fitter is assigned -- often before the drawing is even started -- used to fire an
-        // empty cutting list that looked identical to a real send, with nothing afterwards
-        // to prompt sending the real one once it existed.
+        const ctx=resolve(sel.dataset.fitterSelect);if(!ctx||!ctx.target)return;
+        const p=ctx.project,target=ctx.target;
+        // Computed before anything changes assignedFitter below -- this is "does this
+        // card have nobody on it yet, and has this job never reached Mobile" at the
+        // moment the boss acts, regardless of which of the two ways (pick existing / add
+        // new) they used. Also requires at least one real panel already on the job:
+        // sending the moment a fitter is assigned -- often before the drawing is even
+        // started -- used to fire an empty cutting list that looked identical to a real
+        // send, with nothing afterwards to prompt sending the real one once it existed.
         const hasPanels=(p.cabinets||[]).some(c=>(c.parts||[]).length>0);
-        const wasUnassignedAndUnsent=!p.assignedFitter&&!p.lastMobileSync&&hasPanels;
+        const wasUnassignedAndUnsent=!target.assignedFitter&&!p.lastMobileSync&&hasPanels;
         if(sel.value==='__add__'){
-          // Adding a fitter to the roster and assigning them to whichever job
+          // Adding a fitter to the roster and assigning them to whichever card
           // happens to be open are two different decisions -- opening the
           // Fitters screen lets the boss add someone without it looking like
           // this job now belongs to them. Reset the dropdown back to whatever
           // it already showed so nothing changes here until they deliberately
           // pick a name.
-          sel.value=p.assignedFitter||'';
+          sel.value=target.assignedFitter||'';
           if(typeof window.openFittersModal==='function')window.openFittersModal();
           return;
         }else if(sel.value==='__edit__'){
-          promptEditFitter(fitterByName(p.assignedFitter));
+          promptEditFitter(fitterByName(target.assignedFitter));
         }else if(sel.value==='__delete__'){
-          deleteFitterConfirm(fitterByName(p.assignedFitter));
+          deleteFitterConfirm(fitterByName(target.assignedFitter));
         }else{
-          p.assignedFitter=sel.value;
+          target.assignedFitter=sel.value;
           save();
           if(typeof renderAll==='function')renderAll();
         }
         // Assigning the first fitter to a job that's never been sent is the moment the
         // boss actually means "this is ready for them" -- reuse the exact same send this
         // job would get from pressing Send to Mobile by hand, instead of adding a second,
-        // separate sync path that could drift from the one already proven to work.
-        if(wasUnassignedAndUnsent&&p.assignedFitter&&typeof exportProjectToMobile==='function')exportProjectToMobile(p);
+        // separate sync path that could drift from the one already proven to work. Always
+        // sends the whole PARENT project (never just the room/target), exactly like every
+        // other send path -- exportProjectToMobile() already carries every room's own
+        // (now possibly independent) assignment inside the one packet.
+        if(wasUnassignedAndUnsent&&target.assignedFitter&&typeof exportProjectToMobile==='function')exportProjectToMobile(p);
       };
     });
     container.querySelectorAll('[data-fitter-whatsapp]').forEach(btn=>{
       btn.onclick=e=>{
         e.stopPropagation();
-        const p=getProject(btn.dataset.fitterWhatsapp);if(!p)return;
-        const fitter=fitterByName(p.assignedFitter);
+        const ctx=resolve(btn.dataset.fitterWhatsapp);if(!ctx||!ctx.target)return;
+        const target=ctx.target;
+        const fitter=fitterByName(target.assignedFitter);
         const phone=digitsOnly(fitter&&fitter.phone);
-        if(!phone){alert(t("studio.fitters.addWhatsappNumberFirstLongTemplate",[p.assignedFitter||t("studio.fitters.thisFitterFallback")]));return}
+        if(!phone){alert(t("studio.fitters.addWhatsappNumberFirstLongTemplate",[target.assignedFitter||t("studio.fitters.thisFitterFallback")]));return}
         window.open('https://wa.me/'+phone,'_blank');
       };
     });
+    // otherFittersHtml is only ever rendered for a whole project (Install Progress's own
+    // team list, never a per-room Job Overview card), so its data-team-project attribute
+    // is always a plain project id -- resolve(...).project lands on the same project
+    // resolve(...).target would, unchanged.
     container.querySelectorAll('[data-add-other]').forEach(sel=>{
       sel.onclick=e=>e.stopPropagation();
       sel.onchange=e=>{
         e.stopPropagation();
-        const p=getProject(sel.dataset.addOther);if(!p)return;
+        const ctx=resolve(sel.dataset.addOther);const p=ctx&&ctx.project;if(!p)return;
         let name=sel.value;
         if(name==='__add__'){const fitter=promptNewFitter();name=fitter?fitter.name:''}
         if(!name){return}
@@ -7573,7 +7626,7 @@ body.fiq-locked .app{display:none!important}
     container.querySelectorAll('[data-other-remove]').forEach(btn=>{
       btn.onclick=e=>{
         e.stopPropagation();
-        const p=getProject(btn.dataset.teamProject);if(!p)return;
+        const ctx=resolve(btn.dataset.teamProject);const p=ctx&&ctx.project;if(!p)return;
         const i=Number(btn.dataset.otherRemove);
         (p.otherFitters=p.otherFitters||[]).splice(i,1);
         save();
@@ -7583,7 +7636,7 @@ body.fiq-locked .app{display:none!important}
     container.querySelectorAll('[data-other-whatsapp]').forEach(btn=>{
       btn.onclick=e=>{
         e.stopPropagation();
-        const p=getProject(btn.dataset.teamProject);if(!p)return;
+        const ctx=resolve(btn.dataset.teamProject);const p=ctx&&ctx.project;if(!p)return;
         const name=(p.otherFitters||[])[Number(btn.dataset.otherWhatsapp)];
         const fitter=fitterByName(name);
         const phone=digitsOnly(fitter&&fitter.phone);
