@@ -1550,7 +1550,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="drawing-stage" id="drawingStage" tabindex="0">
 <div class="drawing-canvas" id="drawingCanvas">
 <div class="empty" id="drawingEmpty"><strong data-i18n="studio.drawing.dropDrawingHere">Drop a drawing, screenshot or photo here</strong><br/><span data-i18n="studio.drawing.pasteDropChoosePhoto">Paste, drop, choose a file or take a photo.</span><br/><small data-i18n="studio.drawing.useButtonsAboveHint">Use the buttons above, drag a drawing into this box, or press Ctrl + V after copying a screenshot.</small></div>
-<img alt="Rooms" id="drawingImage"/><iframe id="drawingPdf" title="PDF drawing"></iframe>
+<img alt="Rooms" id="drawingImage"/><iframe id="drawingPdf" data-i18n-title="studio.drawing.pdfDrawingTitle" title="PDF drawing"></iframe>
 </div>
 </div>
 <div class="drawing-status-row">
@@ -1895,10 +1895,10 @@ function bestSiteReference(holder){
 }
 function openSiteRoomDetails(projectId,roomId){
  const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return;
- const room=p.rooms.find(r=>r.id===roomId)||p.rooms.find(r=>siteRoomPictures(r).length)||p.rooms[0]||{name:'Site room',icon:'📍'};
- const caps=siteRoomCaptures(room),measures=siteRoomMeasureCount(room),floor=room.floor||room.location||'Not selected',notes=room.notes||room.siteNotes||p.notes||'';
+ const room=p.rooms.find(r=>r.id===roomId)||p.rooms.find(r=>siteRoomPictures(r).length)||p.rooms[0]||{name:t("studio.siteRoom.siteRoomFallback"),icon:'📍'};
+ const caps=siteRoomCaptures(room),measures=siteRoomMeasureCount(room),floor=room.floor||room.location||t("studio.siteRoom.notSelectedFallback"),notes=room.notes||room.siteNotes||p.notes||'';
  const overlay=document.getElementById('siteRoomDetailsModal');if(!overlay)return;overlay.dataset.projectId=p.id;overlay.dataset.roomId=room.id||'';overlay.dataset.pictureIndex='0';
- document.getElementById('siteRoomDetailsTitle').textContent=room.name||'Site room';document.getElementById('siteRoomDetailsIcon').textContent=room.icon||'📍';document.getElementById('siteRoomDetailsMeta').textContent=`${p.name||'Project'} · ${floor}`;
+ document.getElementById('siteRoomDetailsTitle').textContent=room.name||t("studio.siteRoom.siteRoomFallback");document.getElementById('siteRoomDetailsIcon').textContent=room.icon||'📍';document.getElementById('siteRoomDetailsMeta').textContent=`${p.name||t("proj.projectFallback")} · ${floor}`;
  const frame=document.getElementById('siteRoomReferenceFrame');
  const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=caps.map((c,i)=>`<img class="site-thumb ${i===0?'active':''}" data-site-thumb="${i}" src="${c.image}" alt="Photo ${i+1}">`).join('');
  document.getElementById('siteRoomPhotoCount').textContent=caps.length;document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;document.getElementById('siteRoomNotes').textContent=notes||'No extra notes';
@@ -3356,7 +3356,7 @@ load();
 <strong>Test QR — highlighted panel</strong>
 <button class="btn primary" id="closeGuidePreview" type="button">Back to QR labels</button>
 </div>
-<iframe class="guide-preview-frame" id="guidePreviewFrame" title="Panel drawing preview"></iframe>
+<iframe class="guide-preview-frame" id="guidePreviewFrame" data-i18n-title="studio.drawing.guidePreviewFrameTitle" title="Panel drawing preview"></iframe>
 </div>
 </div>
 <div class="site-room-modal" id="siteRoomDetailsModal" aria-hidden="true">
@@ -4060,21 +4060,21 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
   function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
   function getProject(){try{return project()}catch(e){return null}}
   function roomLabel(room){
-    const t=((room&&room.type)||(room&&room.name)||'').toLowerCase();
-    if(t.includes('tv')) return 'TV wall';
-    if(t.includes('wine')) return 'wine cabinet';
-    if(t.includes('kitchen')) return 'kitchen';
-    if(t.includes('office')) return 'office unit';
-    if(t.includes('laundry')||t.includes('utility')) return 'cabinet';
-    if(t.includes('living')) return 'living room unit';
-    if(t.includes('under stairs')) return 'under stairs unit';
-    return 'wardrobe';
+    const rt=((room&&room.type)||(room&&room.name)||'').toLowerCase();
+    if(rt.includes('tv')) return window.t("studio.home.unitLabelTvWall");
+    if(rt.includes('wine')) return window.t("studio.home.roomLabelWineCabinet");
+    if(rt.includes('kitchen')) return window.t("studio.home.roomLabelKitchen");
+    if(rt.includes('office')) return window.t("studio.home.unitLabelOffice");
+    if(rt.includes('laundry')||rt.includes('utility')) return window.t("studio.home.unitLabelCabinet");
+    if(rt.includes('living')) return window.t("studio.home.roomLabelLivingRoomUnit");
+    if(rt.includes('under stairs')) return window.t("studio.home.roomLabelUnderStairsUnit");
+    return window.t("studio.home.roomLabelWardrobe");
   }
   function selectedRoom(){try{return selectedStudioRoom()}catch(e){return null}}
   function openEdit(){
     const p=getProject(); if(!p) return;
     const o=document.createElement('div'); o.className='a100-edit-dialog';
-    o.innerHTML='<div class="a100-edit-sheet"><h2>Edit job</h2><label>Job name<input id="a100JobName"></label><label>Customer<input id="a100Customer"></label><div class="a100-edit-actions"><button class="btn" id="a100Cancel">Cancel</button><button class="btn primary" id="a100Save">Save</button></div></div>';
+    o.innerHTML='<div class="a100-edit-sheet"><h2>'+t("studio.home.editJobHeading")+'</h2><label>'+t("studio.home.jobName")+'<input id="a100JobName"></label><label>'+t("studio.home.customerLabel")+'<input id="a100Customer"></label><div class="a100-edit-actions"><button class="btn" id="a100Cancel">'+t("studio.customerLibrary.cancelBtn")+'</button><button class="btn primary" id="a100Save">'+t("studio.customerLibrary.saveBtn")+'</button></div></div>';
     document.body.appendChild(o); o.querySelector('#a100JobName').value=p.name||''; o.querySelector('#a100Customer').value=p.customer||'';
     const close=()=>o.remove(); o.querySelector('#a100Cancel').onclick=close; o.onclick=e=>{if(e.target===o)close()};
     o.querySelector('#a100Save').onclick=()=>{
@@ -4109,23 +4109,23 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     let shell=document.getElementById('a100StartShell');
     if(!shell){shell=document.createElement('div');shell.id='a100StartShell';shell.className='a100-start-shell';workspace.prepend(shell)}
     const p=getProject();
-    if(!p){shell.innerHTML='<div class="a100-empty-note">Create a new job or open a saved job.</div>';return}
+    if(!p){shell.innerHTML='<div class="a100-empty-note">'+t("studio.home.startShellEmptyNote")+'</div>';return}
     const room=selectedRoom(); const units=(p.cabinets||[]).filter(c=>room&&c.roomId===room.id);
     shell.innerHTML=`
-      <div class="a100-shell-head"><span class="a100-shell-title">📂 Currently working on</span><button class="a100-close-btn" id="a100CloseShell" title="Close">✕ Close</button></div>
+      <div class="a100-shell-head"><span class="a100-shell-title">${t("studio.home.currentlyWorkingOnHeading")}</span><button class="a100-close-btn" id="a100CloseShell" title="${t("studio.common.close")}">✕ ${t("studio.common.close")}</button></div>
       <div class="a100-bottom-actions">
         <button class="a100-action-btn" id="a100EditJob">
           <span class="a100-action-icon">📁</span>
-          <span class="a100-action-copy"><div class="a100-action-title">${esc(p.name||'New Job')}</div><div class="a100-action-sub">👤 ${esc(p.customer||'Add customer')}</div></span>
+          <span class="a100-action-copy"><div class="a100-action-title">${esc(p.name||t("studio.home.newJobFallback"))}</div><div class="a100-action-sub">👤 ${esc(p.customer||t("studio.home.addCustomerFallback"))}</div></span>
         </button>
         <button class="a100-action-btn" id="a100ChooseRoom">
           <span class="a100-action-icon">${room?esc(room.icon||'🏠'):'🏠'}</span>
-          <span class="a100-action-copy"><div class="a100-action-title">${room?esc(room.name):'Choose Project'}</div><div class="a100-action-sub">${room?'Room selected':'Browse and open'}</div></span>
+          <span class="a100-action-copy"><div class="a100-action-title">${room?esc(room.name):t("studio.home.chooseProjectFallback")}</div><div class="a100-action-sub">${room?t("studio.home.roomSelectedLabel"):t("studio.home.browseAndOpenLabel")}</div></span>
           ${room?'<span class="a100-room-tick">✓</span>':''}
         </button>
       </div>
-      ${room?`<button class="a100-add-unit" id="a100AddUnit">➡ Continue to Drawing</button>`:''}
-      <div class="a100-units">${units.map(c=>`<div class="a100-unit-row"><strong>${esc(c.name)}</strong><button class="btn primary" data-a100-open-unit="${c.id}">Open drawing</button></div>`).join('')}</div>`;
+      ${room?`<button class="a100-add-unit" id="a100AddUnit">${t("studio.home.continueToDrawingBtn")}</button>`:''}
+      <div class="a100-units">${units.map(c=>`<div class="a100-unit-row"><strong>${esc(c.name)}</strong><button class="btn primary" data-a100-open-unit="${c.id}">${t("studio.home.openDrawingBtn")}</button></div>`).join('')}</div>`;
     document.getElementById('a100CloseShell').onclick=()=>{state.showStartShell=false;save();renderAll()};
     document.getElementById('a100EditJob').onclick=openEdit;
     document.getElementById('a100ChooseRoom').onclick=()=>{const b=document.getElementById('studioAddRoomBtn'); if(b)b.click(); else if(window.addStudioRoom)addStudioRoom()};
@@ -4153,7 +4153,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
   },true);
   document.addEventListener('DOMContentLoaded',()=>{
     const toolbar=document.querySelector('#screen-jobs>.toolbar');
-    if(toolbar&&!document.getElementById('a100OpenJobs')){const b=document.createElement('button');b.className='btn';b.id='a100OpenJobs';b.textContent='📂 Open Jobs';toolbar.appendChild(b);b.onclick=()=>{const grid=document.getElementById('jobGrid');grid.classList.toggle('a100-open');b.textContent=grid.classList.contains('a100-open')?'Close Jobs':'📂 Open Jobs'}}
+    if(toolbar&&!document.getElementById('a100OpenJobs')){const b=document.createElement('button');b.className='btn';b.id='a100OpenJobs';b.textContent=t("studio.home.openJobsBtn");toolbar.appendChild(b);b.onclick=()=>{const grid=document.getElementById('jobGrid');grid.classList.toggle('a100-open');b.textContent=grid.classList.contains('a100-open')?t("studio.home.closeJobsBtn"):t("studio.home.openJobsBtn")}}
     const name=document.getElementById('projectName'),cust=document.getElementById('customerName'); if(name)name.closest('section').style.display='none';
     setTimeout(renderA100Start,60);
   });
@@ -4461,7 +4461,7 @@ body.guide-only .a131-back-studio{display:block}
 </style>
 <button class="a131-back-studio" id="a131BackStudio" type="button">Back to Studio</button>
 <div id="a131RecoveryBar">Saved automatically</div>
-<div id="a131PrintOverlay" aria-hidden="true"><div id="a131PrintPanel"><div id="a131PrintHead"><strong>Supplier print preview</strong><button class="btn" id="a131PrintNow" type="button">Print</button><button class="btn primary" id="a131ClosePrint" type="button">Back to Studio</button></div><iframe id="a131PrintFrame" title="Print preview"></iframe></div></div>
+<div id="a131PrintOverlay" aria-hidden="true"><div id="a131PrintPanel"><div id="a131PrintHead"><strong>Supplier print preview</strong><button class="btn" id="a131PrintNow" type="button" data-i18n="studio.drawing.printBtn">Print</button><button class="btn primary" id="a131ClosePrint" type="button" data-i18n="studio.drawing.backToStudioBtn">Back to Studio</button></div><iframe id="a131PrintFrame" data-i18n-title="studio.drawing.printPreviewFallback" title="Print preview"></iframe></div></div>
 <script id="a131-stability-script">
 (function(){
   const DB_NAME='assembleone_stable_v1',DB_STORE='drawings',STATE_STORE='project_state';
@@ -6373,11 +6373,11 @@ body.fiq-locked .app{display:none!important}
   var searchWrap=document.createElement('div');
   searchWrap.className='fiq-search-wrap';
   searchWrap.id='fiqSearchWrap';
-  searchWrap.innerHTML='<button type="button" class="fiq-search-btn" id="fiqSearchBtn" title="Search customers and jobs" aria-label="Search">🔍</button><input type="text" id="fiqSearchInput" class="fiq-search-input" placeholder="Search customer, project or address…" autocomplete="off">';
+  searchWrap.innerHTML='<button type="button" class="fiq-search-btn" id="fiqSearchBtn" title="'+t("studio.topbar.searchTitle")+'" aria-label="'+t("studio.topbar.searchAria")+'">🔍</button><input type="text" id="fiqSearchInput" class="fiq-search-input" placeholder="'+t("studio.topbar.searchPlaceholder")+'" autocomplete="off">';
 
   var who=document.createElement('div');
   who.className='fiq-topbar-who';
-  who.innerHTML='<span class="fiq-topbar-dot"></span><span class="fiq-topbar-who-label">Signed in</span><span id="fiqTopbarWhoName"></span>';
+  who.innerHTML='<span class="fiq-topbar-dot"></span><span class="fiq-topbar-who-label">'+t("studio.topbar.signedInLabel")+'</span><span id="fiqTopbarWhoName"></span>';
 
   var langWrap=document.createElement('div');
   langWrap.className='fiq-lang-wrap';
@@ -6389,7 +6389,7 @@ body.fiq-locked .app{display:none!important}
   chip.id='fiqLangChip';
   chip.setAttribute('aria-haspopup','true');
   chip.setAttribute('aria-expanded','false');
-  chip.title='Change language';
+  chip.title=t("studio.topbar.changeLanguageTitle");
   chip.innerHTML='<span class="fiq-lang-chip-flag" id="fiqLangChipFlag"></span><span class="fiq-lang-chip-name" id="fiqLangChipName"></span><span class="fiq-lang-chip-chevron">▾</span>';
 
   var panel=document.createElement('div');
