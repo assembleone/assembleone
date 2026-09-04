@@ -127,6 +127,7 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-card-address{color:var(--muted);font-size:13px;margin-top:3px}
 .customer-card-map{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.5}
 .job-notes-dialog-sheet{max-height:85vh;overflow-y:auto}
+.job-notes-room-sub{color:var(--muted);font-weight:700;font-size:13px;margin:-8px 0 12px}
 .job-notes-list{display:grid;gap:10px;max-height:280px;overflow-y:auto;margin-bottom:12px}
 .job-notes-entry{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .job-notes-entry-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:900;color:#1452d8}
@@ -1752,20 +1753,33 @@ function migrateCustomers(){
  state.projects.forEach(p=>{if(!p.customerId||!state.customers.find(c=>c.id===p.customerId))ensureCustomerForProject(p)});
 }
 // Job Notes / Communication: one chronological log per project (messages, missing/damaged
-// part reports, general notes, photos). Both Mobile and Studio can append entries, so
-// merging two synced copies of the same job must union by entry id rather than overwrite.
+// part reports, general notes, photos), each entry now tagged with the room it belongs to
+// (roomId, null for a legacy no-rooms job or an entry that predates this field). Both
+// Mobile and Studio can append entries, so merging two synced copies of the same job must
+// union by entry id rather than overwrite -- roomId just rides along as a normal field on
+// each already-unique-by-id entry, so this union logic needed no change to support it.
 function mergeJobLog(base,incomingLog){
  if(!Array.isArray(incomingLog)||!incomingLog.length)return;
  base.jobLog=base.jobLog||[];
  incomingLog.forEach(entry=>{if(entry&&entry.id&&!base.jobLog.some(x=>x.id===entry.id))base.jobLog.push(entry)});
  base.jobLog.sort((a,b)=>(a.at||0)-(b.at||0));
 }
-function addJobLogEntry(p,text,photos){
+function addJobLogEntry(p,text,photos,roomId){
  if(!p)return null;
  p.jobLog=p.jobLog||[];
- const entry={id:uid(),author:(window.fittersiqUser&&window.fittersiqUser.email)||"Studio",at:Date.now(),text:String(text||"").trim(),photos:photos||[]};
+ const entry={id:uid(),author:(window.fittersiqUser&&window.fittersiqUser.email)||"Studio",at:Date.now(),text:String(text||"").trim(),photos:photos||[],roomId:roomId||null};
  p.jobLog.push(entry);
  return entry;
+}
+// Which entries belong to a given room's own Notes view: roomId===roomId for a real room,
+// or -- for the "General" bucket (roomId null) -- every entry with no roomId at all, PLUS
+// any entry whose roomId no longer matches a room that still exists (e.g. the room was
+// since renamed/deleted), so a synced note can never become permanently invisible.
+function jobLogEntriesForRoom(p,roomId){
+ const log=p.jobLog||[];
+ if(roomId)return log.filter(en=>en.roomId===roomId);
+ const namedRoomIds=new Set((p.rooms||[]).filter(r=>r&&r.name).map(r=>r.id));
+ return log.filter(en=>!en.roomId||!namedRoomIds.has(en.roomId));
 }
 function updateCustomerDetails(customerId,fields){
  const c=state.customers.find(x=>x.id===customerId);if(!c)return;
@@ -2317,14 +2331,20 @@ function jobLogEntryHtml(en){
  const photos=(en.photos||[]).map(src=>`<img src="${safe(src)}" alt="Note photo">`).join('');
  return `<div class="job-notes-entry"><div class="job-notes-entry-head"><span>${safe(en.author||'Studio')}</span><span class="job-notes-entry-when">${safe(when)}</span></div>${en.text?`<div class="job-notes-entry-text">${safe(en.text)}</div>`:''}${photos?`<div class="job-notes-entry-photos">${photos}</div>`:''}</div>`;
 }
-function openJobNotesDialog(projectId){
+function openJobNotesDialog(projectId,roomId){
  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+ const room=roomId?(p.rooms||[]).find(x=>x.id===roomId):null;
  const o=document.createElement('div');o.className='a100-edit-dialog';
  function renderList(){
-   const entries=(p.jobLog||[]).slice().sort((a,b)=>(a.at||0)-(b.at||0));
+   const entries=jobLogEntriesForRoom(p,roomId).slice().sort((a,b)=>(a.at||0)-(b.at||0));
    return entries.length?entries.map(jobLogEntryHtml).join(''):'<div class="job-notes-empty">No notes yet for this job.</div>';
  }
- o.innerHTML=`<div class="a100-edit-sheet job-notes-dialog-sheet"><h2>${t("studio.customerLibrary.jobNotesHeading",[safe(p.name||t("studio.customerLibrary.untitledJob"))])}</h2>
+ // Kitchen and Wardrobe are separate rooms/jobs on Mobile, so this dialog only ever shows
+ // and appends to that one room's own notes (see jobLogEntriesForRoom) -- never the whole
+ // project's combined log, which is what previously let one room's notes bleed into
+ // another's view.
+ const headingName=room?room.name:(p.name||t("studio.customerLibrary.untitledJob"));
+ o.innerHTML=`<div class="a100-edit-sheet job-notes-dialog-sheet"><h2>${t("studio.customerLibrary.jobNotesHeading",[safe(headingName)])}</h2>${room?`<div class="job-notes-room-sub">${safe(p.name||t("studio.customerLibrary.untitledJob"))}</div>`:''}
    <div class="job-notes-list" id="studioJobNotesList">${renderList()}</div>
    <label>${t("studio.customerLibrary.addNoteLabel")}<textarea id="studioJobNoteText" placeholder="${t("studio.customerLibrary.notePlaceholder")}"></textarea></label>
    <label class="btn" for="studioJobNotePhoto">${t("studio.customerLibrary.addPhotosLabel")}<input id="studioJobNotePhoto" type="file" accept="image/*" multiple hidden></label>
@@ -2346,7 +2366,7 @@ function openJobNotesDialog(projectId){
  o.querySelector('#studioJobNoteSave').onclick=()=>{
    const text=o.querySelector('#studioJobNoteText').value.trim();
    if(!text&&!pendingPhotos.length)return;
-   addJobLogEntry(p,text,pendingPhotos.slice());
+   addJobLogEntry(p,text,pendingPhotos.slice(),roomId);
    pendingPhotos=[];
    save();
    o.querySelector('#studioJobNotesList').innerHTML=renderList();
@@ -2668,11 +2688,27 @@ function renderCustomerCard(){
    `</button>`;
  }).join(""):`<div class="empty">${t("studio.customerLibrary.noSiteMeasurementsYetEmpty")}</div>`;
 
- const notesTabHtml=jobs.length?jobs.map(p=>{
-   const logCount=(p.jobLog||[]).length;
-   return `<button type="button" class="customer-tab-row" data-job-notes="${safe(p.id)}">`+
+ // One Notes row per room's own Job/Design (reusing jobRows -- the exact same rooms that
+ // have real dispatched work) so Kitchen and Wardrobe each get their own row and their own
+ // filtered note count -- never one shared project-wide log. A project's already-synced
+ // notes that predate room attribution (or whose room was since removed) still surface via
+ // one extra "General" row per project instead of silently disappearing.
+ const notesTabRows=(()=>{
+   const rows=jobRows.map(({project:p,room})=>({project:p,room}));
+   jobs.forEach(p=>{
+     const hasNamedRooms=(p.rooms||[]).some(r=>r&&r.name);
+     if(hasNamedRooms&&jobLogEntriesForRoom(p,null).length)rows.push({project:p,room:null});
+   });
+   return rows;
+ })();
+ const notesTabHtml=notesTabRows.length?notesTabRows.map(({project:p,room})=>{
+   const isGeneral=!room&&(p.rooms||[]).some(r=>r&&r.name);
+   const logCount=jobLogEntriesForRoom(p,room?room.id:null).length;
+   const name=room?room.name:(isGeneral?t("studio.jobOverview.generalLabel"):(p.name||t("studio.customerLibrary.untitledJob")));
+   const subtitle=(showSubtitle||room||isGeneral)?safe(p.name||t("studio.customerLibrary.untitledJob")):"";
+   return `<button type="button" class="customer-tab-row" data-job-notes="${safe(p.id)}" data-job-notes-room="${safe(room?room.id:"")}">`+
      `<span class="customer-tab-row-icon">📝</span>`+
-     `<span class="customer-tab-row-main"><strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong></span>`+
+     `<span class="customer-tab-row-main"><strong>${safe(name)}</strong>${subtitle?`<span class="customer-tab-row-sub">${subtitle}</span>`:""}</span>`+
      `<span class="customer-tab-row-meta">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</span>`+
      `<span class="customer-tab-row-chevron">›</span>`+
    `</button>`;
@@ -2714,7 +2750,7 @@ function renderCustomerCard(){
  // photos/measurements -- passing its real roomId means openSiteRoomDetails uses that
  // exact room instead of falling back to "whichever room has a picture".
  body.querySelectorAll("[data-open-site-room]").forEach(el=>el.onclick=()=>openSiteRoomDetails(el.dataset.openSiteRoomProject,el.dataset.openSiteRoom));
- body.querySelectorAll("[data-job-notes]").forEach(b=>b.onclick=()=>openJobNotesDialog(b.dataset.jobNotes));
+ body.querySelectorAll("[data-job-notes]").forEach(b=>b.onclick=()=>openJobNotesDialog(b.dataset.jobNotes,b.dataset.jobNotesRoom||null));
  body.querySelectorAll("[data-new-job]").forEach(b=>b.onclick=()=>newJobForCustomer(b.dataset.newJob));
  body.querySelectorAll("[data-toggle-select]").forEach(b=>b.onclick=()=>{customerCardSelectMode=!customerCardSelectMode;renderCustomerCard()});
  // Each row's own "⋮" opens only its own menu -- close any other open one first so two

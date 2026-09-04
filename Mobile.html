@@ -4075,7 +4075,7 @@ function currentActorDisplayName(){
 // both ways of flagging a panel missing behave identically and stay in sync.
 function applyMissingStatus(pr,pt){
  const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=currentActorFitterId();
- addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[]);
+ addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[],state.currentRoom||null);
  save();
  if(typeof exportJob==="function")exportJob(pr.id);
 }
@@ -4181,7 +4181,7 @@ $('#bompMarkRoomComplete').onclick=()=>{
   const cat=partStatusCategory(p);
   if(cat!=='missing'&&cat!=='damaged'){p.status='installed';p.statusUpdatedAt=Date.now();p.updatedByFitterId=currentActorFitterId()}
  });
- addJobLogEntry(pr,'✅ '+(cab.name||'Unit')+' marked complete',[]);
+ addJobLogEntry(pr,'✅ '+(cab.name||'Unit')+' marked complete',[],cab.roomId||null);
  save();
  if(typeof exportJob==='function')exportJob(pr.id);
  renderInstall();
@@ -4253,10 +4253,22 @@ $("#markPanelInstallChoice").onclick=()=>{
  renderInstall();
 };
 let jobNotePendingPhotos=[];
+// Which jobLog entries belong to whichever room is currently active (see activeDesignRoom,
+// already maintained by every scan/find/room-open action) -- Kitchen and Wardrobe are
+// separate jobs on Mobile too, so this list must never show one room's notes while another
+// room is open. Falls back to showing everything only when no room context can be resolved
+// at all (a legacy no-rooms job, where every entry already has roomId:null anyway, or the
+// rare case of opening this panel before any room/panel was ever selected this session) --
+// hiding notes entirely would be a worse failure than occasionally showing too many.
+function jobLogEntriesForActiveRoom(p){
+ const log=p?.jobLog||[];
+ const activeRoom=typeof activeDesignRoom==='function'?activeDesignRoom():null;
+ return activeRoom?log.filter(en=>en.roomId===activeRoom.id):log;
+}
 function renderJobNotesList(){
  const list=$("#jobNotesList");if(!list)return;
  const p=project();
- const entries=(p?.jobLog||[]).slice().sort((a,b)=>(a.at||0)-(b.at||0));
+ const entries=jobLogEntriesForActiveRoom(p).slice().sort((a,b)=>(a.at||0)-(b.at||0));
  if(!entries.length){list.innerHTML='<div class="job-notes-empty">No notes yet for this job.</div>';return}
  list.innerHTML=entries.map(en=>{
   const when=new Date(en.at||Date.now()).toLocaleString();
@@ -4287,7 +4299,7 @@ $("#saveJobNote").onclick=()=>{
  if(!p){alert(t('msg.jobFallback')||'Open a job first.');return}
  const text=$("#jobNoteText").value.trim();
  if(!text&&!jobNotePendingPhotos.length){$("#jobNoteText").focus();return}
- addJobLogEntry(p,text,jobNotePendingPhotos.slice());
+ addJobLogEntry(p,text,jobNotePendingPhotos.slice(),(typeof activeDesignRoom==='function'&&activeDesignRoom())?activeDesignRoom().id:null);
  jobNotePendingPhotos=[];
  $("#jobNoteText").value="";
  renderJobNotePhotoPreview();
@@ -4305,10 +4317,10 @@ function renderDesignGuidePanel(){
  panel.innerHTML=images.length?`<div class="room-photo-grid">${images.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||'View'}</div></div>`).join('')}</div>`:'<div class="room-empty">No design views sent yet.</div>';
 }
 $("#openDesignGuideScan").onclick=()=>{$("#designGuidePanel").classList.toggle("hidden");if(!$("#designGuidePanel").classList.contains("hidden"))renderDesignGuidePanel()};
-function addJobLogEntry(p,text,photos){
+function addJobLogEntry(p,text,photos,roomId){
  if(!p)return null;
  p.jobLog=p.jobLog||[];
- const entry={id:uid(),author:currentActorDisplayName(),at:Date.now(),text:String(text||"").trim(),photos:photos||[]};
+ const entry={id:uid(),author:currentActorDisplayName(),at:Date.now(),text:String(text||"").trim(),photos:photos||[],roomId:roomId||null};
  p.jobLog.push(entry);
  return entry;
 }
@@ -4325,7 +4337,7 @@ $("#saveDamage").onclick=()=>{
  found.pt.updatedByFitterId=currentActorFitterId();
  found.pt.damageNote=$("#damageNote").value.trim();
  if(damagePhotoData){found.pt.panelPhotos=found.pt.panelPhotos||[];found.pt.panelPhotos.push({id:uid(),data:damagePhotoData})}
- addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[]);
+ addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[],found.cab.roomId||null);
  save();
  if(typeof exportJob==='function')exportJob(found.pr.id);
  lastDamageShare={code:found.pt.code,name:found.pt.name||"",note:found.pt.damageNote,job:found.pr.name||t('msg.jobFallback'),photo:damagePhotoData};
