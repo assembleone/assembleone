@@ -129,6 +129,11 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .name-btn:hover{background:#c5d2ef}
 .drawing-wrap{background:#d8deec;border:1px solid #97a8cd;border-radius:12px;overflow:hidden}
 .drawing-toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:9px;background:#e7ecf8;border-bottom:1px solid var(--line)}
+.drawing-site-reference{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;background:#FFF7E6;border-bottom:1px solid #F0C36D;font-size:12px}
+.drawing-site-reference[hidden]{display:none}
+.drawing-site-reference-text{flex:1 1 auto;color:#6b4b06;font-weight:700;line-height:1.5}
+.drawing-site-reference-text b{font-weight:900}
+.drawing-site-reference #drawingViewSiteMeasurementBtn{flex-shrink:0;padding:5px 10px;font-size:11px;min-height:0}
 .drawing-stage{position:relative;height:clamp(420px,68vh,700px);min-height:420px;overflow:auto;display:grid;place-items:center;background:#d7dde9;padding:14px;box-sizing:border-box}
 .drawing-stage.expanded{height:calc(100vh - 150px);max-height:none}
 .drawing-stage:after{content:"Double-click to expand";position:sticky;left:10px;bottom:10px;justify-self:start;align-self:end;background:rgba(46,41,78,.84);color:#fff;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;pointer-events:none;opacity:.72}
@@ -1575,6 +1580,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <button class="btn" id="zoomFitBtn" data-i18n-title="studio.drawing.fitDrawingTitle" title="Fit drawing" type="button" data-i18n="studio.drawing.fitBtn">Fit</button>
 </div>
 </div>
+<div class="drawing-site-reference" id="drawingSiteReference" hidden>
+<div class="drawing-site-reference-text" id="drawingSiteReferenceText"></div>
+<button class="btn" type="button" id="drawingViewSiteMeasurementBtn" data-i18n="studio.drawing.viewOriginalSiteMeasurementBtn">View original Site Measurement</button>
+</div>
 <div class="drawing-stage" id="drawingStage" tabindex="0">
 <div class="drawing-canvas" id="drawingCanvas">
 <div class="empty" id="drawingEmpty"><strong data-i18n="studio.drawing.dropDrawingHere">Drop a drawing, screenshot or photo here</strong><br/><span data-i18n="studio.drawing.pasteDropChoosePhoto">Paste, drop, choose a file or take a photo.</span><br/><small data-i18n="studio.drawing.useButtonsAboveHint">Use the buttons above, drag a drawing into this box, or press Ctrl + V after copying a screenshot.</small></div>
@@ -1936,12 +1945,19 @@ function openSiteRoomDetails(projectId,roomId){
  // (a cabinet already existing for this room is the one real sign it became a Job) --
  // shown here too so it's obvious the instant this room's own detail is open, not just
  // from its chip.
+ const roomCabinet=(p.cabinets||[]).find(c=>c.roomId===room.id);
+ const isJob=!!roomCabinet;
  const kindBadge=document.getElementById('siteRoomDetailsKindBadge');
  if(kindBadge){
-   const isJob=(p.cabinets||[]).some(c=>c.roomId===room.id);
    kindBadge.textContent=isJob?t("studio.siteRoom.badgeJobDesign"):t("studio.siteRoom.badgeSiteMeasurement");
    kindBadge.className='site-room-kind-badge'+(isJob?' kind-job':' kind-site');
  }
+ // Start Design is the exact same button whether or not a Job already exists for this
+ // room -- startDesignFromSiteRoom() itself decides create-vs-open safely -- but the
+ // label should say plainly which one is about to happen, so pressing it again is never
+ // a surprise.
+ const startDesignBtn=document.getElementById('siteStartDesignBtn');
+ if(startDesignBtn)startDesignBtn.textContent=(roomCabinet&&roomCabinet.drawing)?t("studio.siteRoom.openDesignBtn"):t("studio.siteRoom.startDesignBtn");
  const frame=document.getElementById('siteRoomReferenceFrame');
  const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=caps.map((c,i)=>`<img class="site-thumb ${i===0?'active':''}" data-site-thumb="${i}" src="${c.image}" alt="Photo ${i+1}">`).join('');
  document.getElementById('siteRoomPhotoCount').textContent=caps.length;document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;document.getElementById('siteRoomNotes').textContent=notes||'No extra notes';
@@ -1963,10 +1979,39 @@ function openSiteRoomDetails(projectId,roomId){
  overlay.classList.add('open');overlay.setAttribute('aria-hidden','false')
 }
 function closeSiteRoomDetails(){const m=document.getElementById('siteRoomDetailsModal');m?.classList.remove('open');m?.setAttribute('aria-hidden','true')}
-function sendSitePhotoToDrawing(){
- const m=document.getElementById('siteRoomDetailsModal'),p=ensureSharedProject(state.projects.find(x=>x.id===m?.dataset.projectId));if(!p)return;const room=p.rooms.find(r=>r.id===m.dataset.roomId)||p.rooms[0];const caps=siteRoomCaptures(room);const cap=caps[+(m.dataset.pictureIndex||0)];if(!cap)return alert(t("studio.siteRoom.noSitePictureAvailable"));
- let c=p.cabinets.find(x=>x.roomId===room?.id);if(!c){c={id:uid(),name:(room?.name||'Site room')+' design',roomId:room?.id||'',drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
- c.drawing=cap.image;c.drawingType='image';c.drawingName=(room?.name||'Site room')+' measurement photo';c.siteMarkup=cap.marks?.length?{image:cap.image,w:cap.w,h:cap.h,marks:JSON.parse(JSON.stringify(cap.marks))}:null;switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');alert(t("studio.siteRoom.sitePhotoBesideDrawingToast"))
+// The bridge from a permanent Site Measurement to a real Job/Design. Reuses exactly the
+// same room resolution the modal itself already used to open (m.dataset.roomId, no
+// fallback to "any room" -- that fallback belongs only to the older, project-level
+// openCustomerSiteJobInDrawing/applyOneSitePacket, which predate rooms having their own
+// independent site records and must stay as they are for that no-room case), the same
+// bestSiteReference() helper already used by every other "hand a photo to the drawing
+// tool" path, and the exact one-cabinet-per-room link Job Overview's own cards already
+// rely on -- so "does a Job already exist for this room" is answered the same way
+// everywhere in the app, not by a new field.
+//
+// Pressing this a second time must never duplicate or silently overwrite an
+// already-started design: if a cabinet already exists for this room AND it already has
+// its own drawing, this only opens it -- nothing on it is touched. It only ever
+// populates drawing/siteMarkup on a genuinely new cabinet, or one that exists but was
+// never actually given a drawing yet. The room's own sitePhotos/measureCaptures/
+// siteMarkup are only ever read here, never written -- the permanent record this Job
+// was started from is untouched by this or anything the office later does to the Job's
+// own drawing.
+function startDesignFromSiteRoom(projectId,roomId){
+ const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return;
+ const room=p.rooms.find(r=>r.id===roomId);if(!room)return alert(t("studio.siteRoom.jobNotFound"));
+ let c=p.cabinets.find(x=>x.roomId===room.id);
+ const alreadyHasDrawing=!!(c&&c.drawing);
+ if(!c){c={id:uid(),name:room.name+' design',roomId:room.id,drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
+ if(!alreadyHasDrawing){
+   const ref=bestSiteReference(room);
+   if(ref.image){
+     c.drawing=ref.image;c.drawingType='image';c.drawingName=room.name+' site measurements';c.siteReference=true;c.beforePicture=ref.image;
+     c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null;
+   }
+ }
+ switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');
+ toast(t(alreadyHasDrawing?"studio.siteRoom.designOpenedToast":"studio.siteRoom.designStartedToast"));
 }
 function openCustomerSiteJobInDrawing(projectId){
  const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert(t("studio.siteRoom.jobNotFound"));
@@ -2022,6 +2067,27 @@ function renderRooms(){
  function sizeCanvas(){const pad=28,availableW=Math.max(260,stage.clientWidth-pad),availableH=Math.max(320,stage.clientHeight-pad);if(c?.drawingType==="pdf"){canvas.style.width=Math.round(availableW*zoom)+"px";canvas.style.height=Math.round(availableH*zoom)+"px";return}const nw=img.naturalWidth||availableW,nh=img.naturalHeight||availableH,fit=Math.min(availableW/nw,availableH/nh,1);canvas.style.width=Math.max(180,Math.round(nw*fit*zoom))+"px";canvas.style.height=Math.max(180,Math.round(nh*fit*zoom))+"px"}
  sizeCanvas();
  canvas.querySelectorAll(".pin").forEach(x=>x.remove());canvas.querySelectorAll(".site-measure-overlay").forEach(x=>x.remove());img.style.display=pdf.style.display="none";empty.style.display="block";$("#drawingName").textContent=c?.drawingName||c?.name||t("studio.drawing.noDrawingFallback");
+ // A cabinet started from a Site Measurement (startDesignFromSiteRoom) carries no
+ // duplicated customer/address/room copy of its own -- everything shown here is read
+ // live from the project and the room it's still linked to via c.roomId, the same
+ // single source of truth Site Measurements already uses, so an edited customer name
+ // or address is never stale here.
+ const refStrip=$("#drawingSiteReference");
+ if(refStrip){
+   const refRoom=c?.siteReference?(project()?.rooms||[]).find(r=>r.id===c.roomId):null;
+   if(refRoom){
+     const pr=project();
+     const bits=[`${safe(refRoom.icon||"⌂")} <b>${safe(refRoom.name)}</b>`,safe(pr?.customer||"")];
+     if(pr?.address)bits.push(safe(pr.address));
+     const notes=refRoom.notes||refRoom.siteNotes||"";
+     $("#drawingSiteReferenceText").innerHTML=t("studio.drawing.siteReferenceLabel")+" — "+bits.filter(Boolean).join(" · ")+(notes?`<br>📝 ${safe(notes)}`:"");
+     refStrip.hidden=false;
+     const viewBtn=$("#drawingViewSiteMeasurementBtn");
+     if(viewBtn)viewBtn.onclick=()=>openSiteRoomDetails(pr.id,refRoom.id);
+   }else{
+     refStrip.hidden=true;
+   }
+ }
  if(!c?.drawing)return;empty.style.display="none";
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
@@ -2402,7 +2468,7 @@ function customerJobItemHtml(p){
  // Site/Job tag -- reusing the room's own icon+name untouched, just adding which kind of
  // record this particular room currently is. A cabinet existing for a room is the one
  // real, deliberate signal that a Site Measurement became a Job (see
- // openCustomerSiteJobInDrawing/sendSitePhotoToDrawing) -- nothing here creates one.
+ // openCustomerSiteJobInDrawing/startDesignFromSiteRoom) -- nothing here creates one.
  const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>{
    const isJob=(p.cabinets||[]).some(c=>c.roomId===r.id);
    const isSite=!isJob&&siteRoomPictures(r).length>0;
@@ -3060,7 +3126,7 @@ document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveS
 document.addEventListener('click',e=>{
  if(e.target.closest('#siteRoomDetailsClose')){closeSiteRoomDetails();return}
  if(e.target.id==='siteRoomDetailsModal'){closeSiteRoomDetails();return}
- if(e.target.closest('#sitePhotoToDrawing')){sendSitePhotoToDrawing();return}
+ if(e.target.closest('#siteStartDesignBtn')){const m=document.getElementById('siteRoomDetailsModal');if(m)startDesignFromSiteRoom(m.dataset.projectId,m.dataset.roomId);return}
  if(e.target.closest('#siteOpenProject')){const m=document.getElementById('siteRoomDetailsModal');if(!m)return;const np=state.projects.find(x=>x.id===m.dataset.projectId);switchToProject(m.dataset.projectId,np?.cabinets?.[0]?.id||null);closeSiteRoomDetails();renderAll();save();show('jobs')}
 });
 
@@ -3548,7 +3614,7 @@ load();
   <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p><span class="site-room-kind-badge" id="siteRoomDetailsKindBadge"></span></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
   <div class="site-room-body">
    <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-photo-measure-label" id="siteRoomPhotoMeasureLabel"></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
-   <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomPhotoCount">0</b><span>Photos</span></div><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div><div class="site-fact"><b>Ready</b><span>Site package</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div></div><div class="site-drawing-placeholder">Room Drawing</div><div class="site-detail-actions"><button class="btn primary" id="sitePhotoToDrawing" type="button">Use in Drawing</button><button class="btn" id="siteOpenProject" type="button">Open project details</button></div></section>
+   <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomPhotoCount">0</b><span>Photos</span></div><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div><div class="site-fact"><b>Ready</b><span>Site package</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div></div><div class="site-drawing-placeholder">Room Drawing</div><div class="site-detail-actions"><button class="btn primary" id="siteStartDesignBtn" type="button">Start Design</button><button class="btn" id="siteOpenProject" type="button">Open project details</button></div></section>
   </div>
  </div>
 </div>
