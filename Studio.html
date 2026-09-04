@@ -52,24 +52,21 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .folder-card{background:white;border:1px solid var(--line);border-radius:13px;padding:15px;box-shadow:0 5px 14px rgba(60,38,18,.05)}
 .customer-card{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 2px 6px rgba(20,30,50,.05)}
-#customersList .customer-card:nth-child(even){background:#eef8ec}
-.customer-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px}
+.customer-card-columns{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.customer-card-main{flex:1 1 260px;min-width:0}
+.customer-card-map-box{flex:0 0 140px;background:#F7F9FC;border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+.customer-card-map-icon{font-size:26px}
+.customer-card-top{display:flex;align-items:flex-start;gap:12px}
+.customer-avatar{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,var(--bronze2),var(--bronze));color:#fff;font-size:22px;font-weight:900;flex:none}
+.customer-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;flex:1 1 auto;min-width:0}
 .customer-card-head strong{font-size:19px}
-.customer-card-contact{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.5}
+.customer-card-contact{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.5}
 .customer-map-link{color:#0051ff;font-weight:800;text-decoration:none;margin-left:6px;white-space:nowrap}
 .customer-map-link:hover{text-decoration:underline}
 .customer-card-updated{color:var(--muted);font-size:11px;margin-top:4px;font-style:italic}
-.customer-job-count{background:#F3EEFE;color:#6b3fbf;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
 .customer-card-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .customer-edit-btn{padding:5px 10px;font-size:12px;font-weight:800;min-height:0;border-radius:8px}
 .customer-new-tag{display:inline-block;background:#ffe3e3;color:#c81e1e;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:900;margin:0 6px 4px 0;vertical-align:middle}
-.customer-job-list{display:flex;flex-direction:column;gap:6px}
-.customer-job-item{display:flex;flex-direction:column;gap:6px;position:relative}
-.customer-job-select{position:absolute;top:10px;right:10px;z-index:2;cursor:pointer}
-.customer-job-select input{width:20px;height:20px;cursor:pointer}
-.customer-job-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;border:1px solid var(--line);background:#fafcff;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;width:100%;text-align:left}
-.customer-job-row:hover{border-color:#8B5CF6;background:#F8F5FF}
-.customer-job-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:700}
 .customer-job-status{border-radius:999px;padding:4px 9px;font-size:11px;font-weight:900}
 .customer-job-status.status-new{background:#e7f0ff;color:#1452d8}
 .customer-job-status.status-progress{background:#fff3d6;color:#8a5b00}
@@ -77,15 +74,44 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 /* Build 1: a cutting-list-ready job is a calm, positive state, not a warning --
    it no longer shares the amber status-progress used for "still drawing"/"installing". */
 .customer-job-status.status-ready{background:#eaf8e4;color:#2f7d16}
-.customer-job-title-line{flex:1 1 auto;order:1}
-.customer-job-rooms{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px}
-.customer-job-rooms-wrap{flex-basis:100%;display:flex;flex-direction:column;gap:6px;order:2}
-.customer-job-rooms-block{display:flex;flex-direction:column;gap:4px}
-.customer-job-rooms-label{font-size:10px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
-.customer-job-meta{order:3}
-.room-chip{display:inline-flex;align-items:center;gap:3px;background:#EEF2FF;color:var(--ink);border:1px solid #DCE3FA;border-radius:999px;padding:3px 9px 3px 7px;font-size:12px;font-weight:700;cursor:pointer}
-.room-chip:hover{background:#DCE7FF;border-color:#8B5CF6}
-.room-chip-job{background:#EAF8E4;border-color:#8FCB77}
+/* Customer Card visual correction: Jobs/Designs, Site Measurements, Notes, Photos and
+   Documents are five tabs under one clean header, not one big room-chip-laden card per
+   project -- see renderCustomerCard(). Every tab's rows share this one flat row style. */
+.customer-card-tabs{display:flex;gap:4px;overflow-x:auto;margin:14px 0 12px;border-bottom:2px solid var(--line)}
+.customer-tab{flex:none;background:none;border:0;border-bottom:3px solid transparent;padding:9px 12px;font-weight:800;font-size:13px;color:var(--muted);white-space:nowrap}
+.customer-tab.active{color:var(--bronze);border-bottom-color:var(--bronze)}
+.customer-tab-panel[hidden]{display:none}
+.customer-tab-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:white;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px;cursor:pointer}
+.customer-tab-row:hover{border-color:#8B5CF6;background:#F8F5FF}
+.customer-tab-row-icon{font-size:22px;flex:none;width:30px;text-align:center}
+.customer-tab-row-main{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0}
+.customer-tab-row-main strong{font-size:15px}
+.customer-tab-row-sub{color:var(--muted);font-size:12px}
+.customer-tab-row-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:none;font-size:12px;color:var(--muted);font-weight:700}
+.customer-tab-row-updated{font-style:italic;font-weight:600}
+.customer-tab-row-chevron{font-size:20px;color:var(--muted);flex:none}
+/* Jobs/Designs tab toolbar (+ New Job, Select) and the reinstated-but-discreet Delete
+   Job / supplier-CSV multi-select -- see the long comment above jobsToolbarHtml in
+   renderCustomerCard(). */
+.customer-jobs-toolbar{display:flex;gap:8px;margin-bottom:10px}
+.customer-new-job-btn{background:var(--green);border-color:#5aa32e;color:#fff}
+.customer-select-toggle-btn{margin-left:auto}
+.customer-tab-row-wrap{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.customer-tab-row-wrap .customer-tab-row{margin-bottom:0;flex:1 1 auto}
+.customer-job-select{flex:none;cursor:pointer}
+.customer-job-select input{width:20px;height:20px;cursor:pointer}
+.customer-row-overflow{position:relative;flex:none}
+.customer-row-overflow-btn{background:none;border:1px solid var(--line);border-radius:8px;width:34px;height:34px;font-size:18px;font-weight:900;line-height:1;color:var(--muted);cursor:pointer}
+.customer-row-overflow-btn:hover{background:#F8F5FF;border-color:#8B5CF6}
+.customer-row-overflow-menu{position:absolute;right:0;top:40px;z-index:5;background:white;border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 16px rgba(20,30,50,.12);min-width:140px;overflow:hidden}
+.customer-row-overflow-menu[hidden]{display:none}
+.customer-row-overflow-item{display:block;width:100%;text-align:left;padding:10px 12px;background:none;border:0;color:#bf1f29;font-weight:700;cursor:pointer}
+.customer-row-overflow-item:hover{background:#fff1f1}
+.customer-supplier-send-btn{width:100%;margin-top:6px}
+.customer-photo-group{margin-bottom:14px}
+.customer-photo-group-head{font-weight:800;font-size:13px;margin-bottom:6px;cursor:pointer}
+.customer-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+.customer-photo-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
 .customer-search-wrap{margin-bottom:14px}
 .customer-search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--line);border-radius:12px;font-weight:600}
 .customer-search-input:focus{outline:none;border-color:#0051ff;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
@@ -100,12 +126,6 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-card-detail .customer-card-head{margin-bottom:6px}
 .customer-card-address{color:var(--muted);font-size:13px;margin-top:3px}
 .customer-card-map{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.5}
-.customer-site-to-drawing{width:100%;text-align:center}
-.customer-job-row-actions{display:flex;gap:8px;flex-wrap:wrap}
-.customer-job-row-actions>*{flex:1;min-width:160px}
-.customer-job-delete-btn{border:none;background:none;color:#a4a0ad;font-size:16px;padding:6px 10px;border-radius:8px;cursor:pointer}
-.customer-job-delete-btn:hover{background:#fff1f1;color:#bf1f29}
-.customer-job-notes-btn{background:#f0f5ff;border-color:#8fb0f0;color:#1452d8;font-weight:800}
 .job-notes-dialog-sheet{max-height:85vh;overflow-y:auto}
 .job-notes-list{display:grid;gap:10px;max-height:280px;overflow-y:auto;margin-bottom:12px}
 .job-notes-entry{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
@@ -1644,7 +1664,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 
 <section class="screen" id="screen-customerCard">
 <button type="button" class="btn customer-card-back" id="customerCardBackBtn" data-i18n="studio.customerLibrary.backToLibrary">← Back to Customer Library</button>
-<button type="button" class="btn primary hidden" id="sendSelectedSupplierBtn" style="width:100%;margin:10px 0">📤 Send 0 jobs to supplier</button>
 <div id="customerCardBody"></div>
 </section>
 
@@ -1981,8 +2000,8 @@ function closeSiteRoomDetails(){const m=document.getElementById('siteRoomDetails
 // The bridge from a permanent Site Measurement to a real Job/Design. Reuses exactly the
 // same room resolution the modal itself already used to open (m.dataset.roomId, no
 // fallback to "any room" -- that fallback belongs only to the older, project-level
-// openCustomerSiteJobInDrawing/applyOneSitePacket, which predate rooms having their own
-// independent site records and must stay as they are for that no-room case), the same
+// applyOneSitePacket (Mobile-to-Studio ingest), which predates rooms having their own
+// independent site records and must stay as it is for that no-room case), the same
 // bestSiteReference() helper already used by every other "hand a photo to the drawing
 // tool" path, and the exact one-cabinet-per-room link Job Overview's own cards already
 // rely on -- so "does a Job already exist for this room" is answered the same way
@@ -2012,33 +2031,18 @@ function startDesignFromSiteRoom(projectId,roomId){
  switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');
  toast(t(alreadyHasDrawing?"studio.siteRoom.designOpenedToast":"studio.siteRoom.designStartedToast"));
 }
-// The Job/Design chip's own click target -- deliberately the plain "open" half of what
-// startDesignFromSiteRoom does, with none of its create-if-missing logic. This chip only
-// ever renders (see customerJobItemHtml) when a cabinet already exists for the room, so
+// The Job/Design row's own click target -- deliberately the plain "open" half of what
+// startDesignFromSiteRoom does, with none of its create-if-missing logic. This row only
+// ever renders (see customerJobDesignRows) when a cabinet already exists for the room, so
 // there is nothing to create here; if that ever weren't true, silently doing nothing is
 // safer than a Job/Design entry that could create a second cabinet for the same room.
+// roomId is optional -- a legacy no-rooms job's own single cabinet stands in for "the
+// job's own design" the same way it already does everywhere else in the Customer Card.
 function openJobDesignForRoom(projectId,roomId){
  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
- const c=(p.cabinets||[]).find(x=>x.roomId===roomId);if(!c)return;
+ const c=roomId?(p.cabinets||[]).find(x=>x.roomId===roomId):(p.cabinets||[])[0];
+ if(!c)return;
  switchToProject(p.id,c.id);renderAll();save();show('mark');
-}
-function openCustomerSiteJobInDrawing(projectId){
- const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert(t("studio.siteRoom.jobNotFound"));
- // Photos can live on a specific room (the multi-room "Room Guide" flow) or directly on
- // the project itself (the simpler "New Site Job" flow attaches sitePhotos/siteMarkup
- // to the project, never creating a room at all) -- check both, or the picture from a
- // job captured the simple way would be silently missed here.
- const room=p.rooms.find(r=>bestSiteReference(r).image);
- const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(p);
- if(!ref.image)return alert(t("studio.siteRoom.noSiteMeasurementsAttached"));
- const roomId=room?.id||'';
- let c=p.cabinets.find(x=>x.roomId===roomId);
- if(!c){c={id:uid(),name:(room?.name||p.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
- c.drawing=ref.image;c.drawingType='image';c.drawingName=(room?.name||p.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=ref.image;
- c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null;
- switchToProject(p.id,c.id);
- renderAll();save();show('mark');
- toast(t("studio.siteRoom.siteMeasurementsOpenedToast"));
 }
 function renderProject(){
  const p=project();$("#projectName").value=p?.name||"";$("#customerName").value=p?.customer||"";
@@ -2388,13 +2392,32 @@ function updateSendSelectedSupplierButton(){
 // as its fallback, which would silently pick up the wrong job's default material while
 // iterating a different one here -- so the same fallback is inlined per job/cabinet
 // instead of reusing that function directly.
-function exportCombinedSupplierCsv(projectIds){
- if(!projectIds||!projectIds.length)return;
+// cardKeys: each entry is a Job/Design card's own identity, the same projectId /
+// projectId::roomId format cardKey()/parseCardKey() use in the a208 script (Job
+// Overview) -- computed and parsed inline here rather than calling those directly, since
+// this can run before that later script block has assigned them to window. A plain
+// projectId (no "::") is a legacy no-room job and still exports its whole project exactly
+// as before; a projectId::roomId key exports only that room's own cabinets, matching
+// cardCabinets()'s own room-card filtering (c.roomId===roomId). seenCabinetIds guards
+// against a cabinet ever being written twice into the same CSV, even though two selected
+// keys for the same project can never actually overlap in practice (each room's cabinets
+// are disjoint by construction).
+function exportCombinedSupplierCsv(cardKeys){
+ if(!cardKeys||!cardKeys.length)return;
  const escCsv=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const rows=[['Job','Room','Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes']];
- projectIds.forEach(id=>{
-  const p=state.projects.find(x=>x.id===id);if(!p)return;
-  (p.cabinets||[]).forEach(c=>{
+ const seenCabinetIds=new Set();
+ let firstProject=null;
+ cardKeys.forEach(key=>{
+  const sep=String(key).indexOf('::');
+  const projectId=sep===-1?key:key.slice(0,sep);
+  const roomId=sep===-1?null:key.slice(sep+2);
+  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+  if(!firstProject)firstProject=p;
+  const cabinets=roomId?(p.cabinets||[]).filter(c=>c.roomId===roomId):(p.cabinets||[]);
+  cabinets.forEach(c=>{
+   if(seenCabinetIds.has(c.id))return;
+   seenCabinetIds.add(c.id);
    const room=(p.rooms||[]).find(r=>r.id===c.roomId);
    (c.parts||[]).filter(isCompleteSupplierPart).forEach(pt=>{
     const mat=String(pt.material||p.defaultMaterial||c.lastMaterial||'').trim()||'Not set';
@@ -2406,8 +2429,7 @@ function exportCombinedSupplierCsv(projectIds){
  const csv='﻿'+rows.map(r=>r.map(escCsv).join(',')).join('\r\n');
  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
  const a=document.createElement('a');a.href=url;
- const first=state.projects.find(x=>x.id===projectIds[0]);
- a.download=((first?.customer||'Customer')+'_supplier_send_'+projectIds.length+'_jobs').replace(/[^a-z0-9_-]+/gi,'_')+'.csv';
+ a.download=((firstProject?.customer||'Customer')+'_supplier_send_'+cardKeys.length+'_jobs').replace(/[^a-z0-9_-]+/gi,'_')+'.csv';
  document.body.appendChild(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
@@ -2467,37 +2489,85 @@ function renderCustomers(){
 // updated time, open-in-drawing/notes/delete actions, supplier-send checkbox) inside
 // the new Customer Card, with one addition: a panel-count figure per §"panel count
 // where available", read from the same jobPanelCheckTotals() Job Overview already uses.
-function customerJobItemHtml(p){
- const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
- const status=jobStatusInfo(p);
- // Site Measurement and Job/Design are two different clickable things for the same
- // room, never one chip carrying both meanings. A Site Measurement chip always opens
- // the permanent original record (openSiteRoomDetails) -- even once a Job exists for
- // that same room, clicking it must never jump to the drawing. A Job/Design chip only
- // ever appears once a cabinet actually exists for that room (Start Design was used --
- // see startDesignFromSiteRoom) and opens the drawing workspace directly
- // (openJobDesignForRoom), never the Site Measurement modal. Same room, same icon+name,
- // two separate rows so which is which is never in doubt.
- const namedRooms=(p.rooms||[]).filter(r=>r.name);
- const siteChips=namedRooms.map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
- const jobChips=namedRooms.filter(r=>(p.cabinets||[]).some(c=>c.roomId===r.id)).map(r=>`<span class="room-chip room-chip-job" role="button" tabindex="0" data-open-job-design="${safe(r.id)}" data-open-job-design-project="${safe(p.id)}" title="${t("studio.customerLibrary.openJobDesignTitle",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
- const roomsBlockHtml=(siteChips||jobChips)?`<span class="customer-job-rooms-wrap">`+
-   (siteChips?`<span class="customer-job-rooms-block"><span class="customer-job-rooms-label">${t("studio.customerLibrary.siteMeasurementsLabel")}</span><span class="customer-job-rooms">${siteChips}</span></span>`:"")+
-   (jobChips?`<span class="customer-job-rooms-block"><span class="customer-job-rooms-label">${t("studio.customerLibrary.jobsDesignsLabel")}</span><span class="customer-job-rooms">${jobChips}</span></span>`:"")+
-   `</span>`:"";
- const logCount=(p.jobLog||[]).length;
- const roomCount=(p.rooms||[]).length;
- // Computed inline (not via window.jobPanelCheckTotals) because this can render during
- // the very first load() -- before the later a208 script block assigns that function to
- // window -- and a qty-aware panel count is only a couple of lines anyway.
- const panelTotal=(p.cabinets||[]).reduce((n,c)=>n+(c.parts||[]).reduce((m,pt)=>m+Math.max(1,Number(pt.qty)||1),0),0);
- const panelHtml=panelTotal?`<span class="muted">${t(panelTotal===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[panelTotal])}</span>`:"";
- return `<div class="customer-job-item"><label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(p.id)}" ${supplierSelectedJobIds.has(p.id)?'checked':''}></label><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span> `:''}<strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong></span>${roomsBlockHtml}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${t(roomCount===1?"studio.customerLibrary.roomCountSingular":"studio.customerLibrary.roomCountPlural",[roomCount])}</span>${panelHtml}${p.updatedAt?`<span class="muted">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">${t("studio.customerLibrary.openSiteMeasurementsInDrawing")}</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="${t("studio.customerLibrary.deleteThisJobTitle")}" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
-}
+// Which of the five Customer Card tabs is showing -- a plain in-memory value like
+// supplierSelectedJobIds elsewhere in this file, not persisted to state: nothing
+// meaningful is lost if a reload lands back on the Jobs/Designs tab.
+let customerCardActiveTab="jobs";
+// A discreet multi-select mode for the Jobs/Designs tab only (never Site Measurements --
+// there is nothing to send to a supplier from a room that's still just a photo) so the
+// existing supplierSelectedJobIds/exportCombinedSupplierCsv combined-CSV feature stays
+// reachable without a checkbox sitting on every row all the time. Plain in-memory state,
+// same as customerCardActiveTab -- nothing meaningful lost on reload.
+let customerCardSelectMode=false;
 function openCustomerCard(customerId){
  state.currentCustomerCard=customerId;
+ customerCardSelectMode=false;
  renderCustomerCard();
  show('customerCard');
+}
+// "+ New Job" on the Customer Card -- mirrors newJob()'s own "create blank, open the Edit
+// Job dialog" flow exactly, but attaches straight to this already-known customer (id, not
+// just name) so it can never create a second customer record the way name-matching could.
+function newJobForCustomer(customerId){
+ const c=state.customers.find(x=>x.id===customerId);if(!c)return;
+ if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('project_created');
+ const p={id:uid(),name:"",customer:c.name,customerId:c.id,address:c.address||"",phone:c.phone||"",rooms:[],cabinets:[],updatedAt:Date.now()};
+ state.projects.unshift(p);
+ state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;state.showStartShell=true;
+ // Same fix newJob() itself already needs and applies: save() is aliased to stableSave,
+ // which copies whatever #projectName/#customerName currently show back onto the active
+ // project on every call -- without repainting them first, the stale text still sitting
+ // in those inputs (from whichever job was on screen before) would immediately overwrite
+ // this brand-new blank job's name and this customer's own name.
+ const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
+ if(n)n.value="";if(cust)cust.value=c.name;
+ save();renderAll();show("jobs");
+ setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn)editBtn.click()},90);
+}
+function customerCardAvatarInitial(name){
+ const s=String(name||"").trim();
+ return s?s[0].toUpperCase():"?";
+}
+// The per-cabinet sibling of jobStatusInfo(p) -- that one describes a whole project, but
+// each Job/Design row here is one specific cabinet (a room's own design, or a legacy
+// no-rooms job's single cabinet), so its status has to be read at that same granularity.
+// Same label vocabulary/icons as jobStatusInfo, just scoped down to one cabinet's own parts.
+function customerCabinetStatusInfo(cabinet){
+ const parts=(cabinet&&cabinet.parts)||[];
+ const allInstalled=parts.length>0&&parts.every(x=>x.status==="installed");
+ const someInstalled=parts.some(x=>x.status==="installed");
+ if(allInstalled)return{label:t("studio.customerLibrary.statusInstalled"),cls:"status-done"};
+ if(someInstalled)return{label:t("studio.customerLibrary.statusInstalling"),cls:"status-progress"};
+ if(parts.length)return{label:t("studio.customerLibrary.statusCuttingListReady"),cls:"status-ready"};
+ if(cabinet&&cabinet.drawing)return{label:t("studio.customerLibrary.statusDrawingInProgress"),cls:"status-progress"};
+ return{label:t("studio.customerLibrary.statusNewJob"),cls:"status-new"};
+}
+// One row per Job/Design across every one of this customer's jobs: a named room with its
+// own cabinet (Start Design was used for it), or -- for a legacy job that predates rooms --
+// the project's own single cabinet standing in for the whole job. Never grouped back into
+// one big per-project card; every row is already unambiguous on its own.
+function customerJobDesignRows(jobs){
+ const rows=[];
+ jobs.forEach(p=>{
+   const namedRooms=(p.rooms||[]).filter(r=>r.name);
+   if(namedRooms.length){
+     namedRooms.forEach(r=>{
+       const cabinet=(p.cabinets||[]).find(c=>c.roomId===r.id);
+       if(cabinet)rows.push({project:p,room:r,cabinet});
+     });
+   }else if((p.cabinets||[]).length){
+     rows.push({project:p,room:null,cabinet:p.cabinets[0]});
+   }
+ });
+ return rows;
+}
+// One row per Site Measurement: every named room across every one of this customer's
+// jobs, regardless of whether it also has a Job/Design -- the permanent record always
+// stays listed here too (see openSiteRoomDetails).
+function customerSiteMeasurementRows(jobs){
+ const rows=[];
+ jobs.forEach(p=>(p.rooms||[]).filter(r=>r.name).forEach(r=>rows.push({project:p,room:r})));
+ return rows;
 }
 function renderCustomerCard(){
  const body=$("#customerCardBody");if(!body)return;
@@ -2507,15 +2577,16 @@ function renderCustomerCard(){
  const newCount=jobs.filter(p=>p.isNewFromSite).length;
  // A GPS pin dropped on site (Mobile's "Use current location") is the exact property
  // location -- prefer it over a text search on the address, and say so explicitly so
- // it's obvious the pin actually made it through the sync. Same map logic as before,
- // just now its own clearly-labelled area on the Customer Card instead of buried in a
- // contact-bits list.
+ // it's obvious the pin actually made it through the sync.
+ // Map moved into its own calm box on the right of the header (the approved rendering),
+ // reusing the exact same pinned-vs-address link logic as before -- just its own visual
+ // area now instead of a line under the contact details.
  const pinnedJob=jobs.find(p=>p.geoLat!=null&&p.geoLng!=null);
- let mapHtml="";
+ let mapBoxHtml="";
  if(pinnedJob){
-   mapHtml=`<div class="customer-card-map"><strong>📍 Exact location pinned</strong> <a href="https://www.google.com/maps/search/?api=1&query=${pinnedJob.geoLat},${pinnedJob.geoLng}" target="_blank" rel="noopener" class="customer-map-link">View pinned map ↗</a></div>`;
+   mapBoxHtml=`<div class="customer-card-map-box"><div class="customer-card-map-icon">📍</div><strong>${t("studio.customerLibrary.exactLocationPinned")}</strong><a href="https://www.google.com/maps/search/?api=1&query=${pinnedJob.geoLat},${pinnedJob.geoLng}" target="_blank" rel="noopener" class="customer-map-link">${t("studio.customerLibrary.viewPinnedMapLink")}</a></div>`;
  }else if(c.address){
-   mapHtml=`<div class="customer-card-map"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="customer-map-link">📍 View map ↗</a></div>`;
+   mapBoxHtml=`<div class="customer-card-map-box"><div class="customer-card-map-icon">📍</div><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="customer-map-link">${t("studio.customerLibrary.viewMapLink")}</a></div>`;
  }
  const addressHtml=c.address?`<div class="customer-card-address">📍 ${safe(c.address)}</div>`:"";
  const contactBits=[];
@@ -2523,32 +2594,135 @@ function renderCustomerCard(){
  if(c.email)contactBits.push(`✉️ ${safe(c.email)}`);
  const contactHtml=contactBits.length?`<div class="customer-card-contact">${contactBits.join("<br>")}</div>`:"";
  const lastUpdated=Math.max(c.updatedAt||0,...jobs.map(p=>p.updatedAt||0),0);
- body.innerHTML=`<div class="customer-card customer-card-detail"><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}${addressHtml}${lastUpdated?`<div class="customer-card-updated">${t("studio.customerLibrary.lastUpdated",[timeAgo(lastUpdated)])}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="${t("studio.customerLibrary.editCustomerDetailsTitle")}">${t("studio.customerLibrary.editBtn")}</button><span class="customer-job-count">${t(jobs.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[jobs.length])}</span></span></div>${contactHtml}${mapHtml}</div>`+
-   `<div class="customer-job-list">${jobs.map(customerJobItemHtml).join("")||`<div class="empty">${t("studio.customerLibrary.noJobsYetEmpty")}</div>`}</div>`;
- body.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
- body.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openCustomerSiteJobInDrawing(b.dataset.siteToDrawing)});
- // Each room chip opens ONLY that room's own photo/measurements -- passing its
- // real roomId means openSiteRoomDetails uses that exact room instead of falling
- // back to "whichever room has a picture" (which always meant the newest one).
- body.querySelectorAll('[data-open-site-room]').forEach(el=>el.onclick=(e)=>{e.stopPropagation();openSiteRoomDetails(el.dataset.openSiteRoomProject,el.dataset.openSiteRoom)});
- // A Job/Design chip goes straight to that room's own drawing -- never through the Site
+ const headerHtml=`<div class="customer-card customer-card-detail"><div class="customer-card-columns"><div class="customer-card-main"><div class="customer-card-top"><span class="customer-avatar">${safe(customerCardAvatarInitial(c.name))}</span><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}${addressHtml}${lastUpdated?`<div class="customer-card-updated">${t("studio.customerLibrary.lastUpdated",[timeAgo(lastUpdated)])}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="${t("studio.customerLibrary.editCustomerDetailsTitle")}">${t("studio.customerLibrary.editBtn")}</button></span></div></div>${contactHtml}</div>${mapBoxHtml}</div></div>`;
+
+ const jobRows=customerJobDesignRows(jobs);
+ const siteRows=customerSiteMeasurementRows(jobs);
+ const showSubtitle=jobs.length>1;
+
+ // Delete Job and the multi-select supplier CSV export are both real, kept features --
+ // just relocated out of every row's own face. Delete sits behind a small per-row "⋮"
+ // overflow menu (a sibling button next to the row, never nested inside it -- a <button>
+ // can't validly contain another interactive <button>); the supplier send is a discreet
+ // "Select" toggle for the whole tab, reusing the exact same supplierSelectedJobIds Set
+ // and exportCombinedSupplierCsv() as before -- but keyed per Job/Design row now, not per
+ // project. Each row's own key is the identical projectId / projectId::roomId identity
+ // Job Overview's own cards already use (cardKey/parseCardKey in the a208 script,
+ // computed inline here instead of calling those directly for the same load-order reason
+ // customerJobDesignRows' own panel count is inline -- this can render before that later
+ // script block has assigned them to window). Kitchen and Walk-in Wardrobe are two
+ // different keys now, so selecting one never selects the other; exportCombinedSupplierCsv
+ // resolves each key back to that room's own cabinets (or the whole project for a legacy
+ // no-room key), exactly as cardCabinets() does it.
+ const jobsToolbarHtml=`<div class="customer-jobs-toolbar">`+
+   `<button type="button" class="btn primary customer-new-job-btn" data-new-job="${safe(c.id)}">${t("studio.customerLibrary.newJobBtn")}</button>`+
+   `<button type="button" class="btn customer-select-toggle-btn" data-toggle-select>${customerCardSelectMode?t("studio.customerLibrary.cancelBtn"):t("studio.customerLibrary.selectBtn")}</button>`+
+ `</div>`;
+ const jobsTabRowsHtml=jobRows.length?jobRows.map(({project:p,room,cabinet})=>{
+   const icon=room?(room.icon||"⌂"):"⌂";
+   const name=room?room.name:(p.name||t("studio.customerLibrary.untitledJob"));
+   const subtitle=showSubtitle||!room?safe(p.name||t("studio.customerLibrary.untitledJob")):"";
+   const status=customerCabinetStatusInfo(cabinet);
+   const panelTotal=(cabinet.parts||[]).reduce((n,pt)=>n+Math.max(1,Number(pt.qty)||1),0);
+   const panelHtml=panelTotal?`<span>${t(panelTotal===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[panelTotal])}</span>`:"";
+   const updatedHtml=p.updatedAt?`<span class="customer-tab-row-updated">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:"";
+   const rowCardKey=room?p.id+"::"+room.id:p.id;
+   const checkboxHtml=customerCardSelectMode?`<label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}" onclick="event.stopPropagation()"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(rowCardKey)}" ${supplierSelectedJobIds.has(rowCardKey)?"checked":""}></label>`:"";
+   const rowBtn=`<button type="button" class="customer-tab-row" data-open-job-design="${safe(room?room.id:"")}" data-open-job-design-project="${safe(p.id)}">`+
+     `<span class="customer-tab-row-icon">${safe(icon)}</span>`+
+     `<span class="customer-tab-row-main"><strong>${safe(name)}</strong>${subtitle?`<span class="customer-tab-row-sub">${subtitle}</span>`:""}</span>`+
+     `<span class="customer-tab-row-meta"><span class="customer-job-status ${status.cls}">${status.label}</span>${panelHtml}${updatedHtml}</span>`+
+     `<span class="customer-tab-row-chevron">›</span>`+
+   `</button>`;
+   const overflowHtml=`<div class="customer-row-overflow"><button type="button" class="customer-row-overflow-btn" data-overflow-toggle title="${t("studio.customerLibrary.jobOptionsMenuTitle")}">⋮</button><div class="customer-row-overflow-menu" hidden><button type="button" class="customer-row-overflow-item" data-delete-customer-job="${safe(p.id)}">🗑 ${t("detail.delete")}</button></div></div>`;
+   return `<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${overflowHtml}</div>`;
+ }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsDesignsYetEmpty")}</div>`;
+ const supplierSendHtml=(customerCardSelectMode&&supplierSelectedJobIds.size>0)?`<button type="button" class="btn primary customer-supplier-send-btn" data-send-selected-supplier>${t(supplierSelectedJobIds.size===1?"studio.customerLibrary.sendToSupplierSingular":"studio.customerLibrary.sendToSupplierPlural",[supplierSelectedJobIds.size])}</button>`:"";
+ const jobsTabHtml=jobsToolbarHtml+jobsTabRowsHtml+supplierSendHtml;
+
+ const siteTabHtml=siteRows.length?siteRows.map(({project:p,room})=>{
+   const subtitle=showSubtitle?safe(p.name||t("studio.customerLibrary.untitledJob")):"";
+   return `<button type="button" class="customer-tab-row" data-open-site-room="${safe(room.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(room.name)])}">`+
+     `<span class="customer-tab-row-icon">${safe(room.icon||"⌂")}</span>`+
+     `<span class="customer-tab-row-main"><strong>${safe(room.name)}</strong>${subtitle?`<span class="customer-tab-row-sub">${subtitle}</span>`:""}</span>`+
+     `<span class="customer-tab-row-chevron">›</span>`+
+   `</button>`;
+ }).join(""):`<div class="empty">${t("studio.customerLibrary.noSiteMeasurementsYetEmpty")}</div>`;
+
+ const notesTabHtml=jobs.length?jobs.map(p=>{
+   const logCount=(p.jobLog||[]).length;
+   return `<button type="button" class="customer-tab-row" data-job-notes="${safe(p.id)}">`+
+     `<span class="customer-tab-row-icon">📝</span>`+
+     `<span class="customer-tab-row-main"><strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong></span>`+
+     `<span class="customer-tab-row-meta">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</span>`+
+     `<span class="customer-tab-row-chevron">›</span>`+
+   `</button>`;
+ }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsYetEmpty")}</div>`;
+
+ // Read-only browsing of the same permanent site photos Site Measurements already owns --
+ // grouped by room, reusing siteRoomPictures(room) exactly as the modal does, and opening
+ // that same modal (not a second photo viewer) when a group or photo is tapped.
+ const photoGroups=siteRows.map(({project:p,room})=>{
+   const pics=siteRoomPictures(room);
+   if(!pics.length)return "";
+   const openAttrs=`data-open-site-room="${safe(room.id)}" data-open-site-room-project="${safe(p.id)}"`;
+   return `<div class="customer-photo-group"><div class="customer-photo-group-head" ${openAttrs}>${safe(room.icon||"⌂")} ${safe(room.name)}</div><div class="customer-photo-grid">${pics.slice(0,8).map(src=>`<img src="${safe(src)}" alt="" ${openAttrs}>`).join("")}</div></div>`;
+ }).filter(Boolean).join("");
+ const photosTabHtml=photoGroups||`<div class="empty">${t("studio.customerLibrary.noPhotosYetEmpty")}</div>`;
+
+ const documentsTabHtml=`<div class="empty">${t("studio.customerLibrary.noDocumentsYetEmpty")}</div>`;
+
+ const tabs=[
+   {key:"jobs",label:t("studio.customerLibrary.tabJobsDesigns"),html:jobsTabHtml},
+   {key:"site",label:t("studio.customerLibrary.tabSiteMeasurements"),html:siteTabHtml},
+   {key:"notes",label:t("studio.customerLibrary.tabNotes"),html:notesTabHtml},
+   {key:"photos",label:t("studio.customerLibrary.tabPhotos"),html:photosTabHtml},
+   {key:"documents",label:t("studio.customerLibrary.tabDocuments"),html:documentsTabHtml}
+ ];
+ if(!tabs.some(tb=>tb.key===customerCardActiveTab))customerCardActiveTab="jobs";
+ const tabsBarHtml=`<div class="customer-card-tabs" role="tablist">${tabs.map(tb=>`<button type="button" class="customer-tab${tb.key===customerCardActiveTab?" active":""}" data-tab="${tb.key}" role="tab" aria-selected="${tb.key===customerCardActiveTab}">${tb.label}</button>`).join("")}</div>`;
+ const panelsHtml=tabs.map(tb=>`<div class="customer-tab-panel" data-tab-panel="${tb.key}" ${tb.key===customerCardActiveTab?"":"hidden"}>${tb.html}</div>`).join("");
+
+ body.innerHTML=headerHtml+tabsBarHtml+panelsHtml;
+
+ body.querySelectorAll("[data-tab]").forEach(btn=>btn.onclick=()=>{customerCardActiveTab=btn.dataset.tab;renderCustomerCard()});
+ body.querySelectorAll("[data-edit-customer]").forEach(b=>b.onclick=()=>openEditCustomerDialog(b.dataset.editCustomer));
+ // A Job/Design row goes straight to that room's own drawing -- never through the Site
  // Measurement modal -- so an existing Design is never mistaken for its permanent
  // original record, or the other way round.
- body.querySelectorAll('[data-open-job-design]').forEach(el=>el.onclick=(e)=>{e.stopPropagation();openJobDesignForRoom(el.dataset.openJobDesignProject,el.dataset.openJobDesign)});
- body.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
- body.querySelectorAll('[data-job-notes]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openJobNotesDialog(b.dataset.jobNotes)});
- body.querySelectorAll('[data-delete-customer-job]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteCustomerLibraryJob(b.dataset.deleteCustomerJob)});
- body.querySelectorAll('.job-select-checkbox').forEach(cb=>{
+ body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=()=>openJobDesignForRoom(el.dataset.openJobDesignProject,el.dataset.openJobDesign));
+ // Each Site Measurement row (and every photo/photo-group) opens ONLY that room's own
+ // photos/measurements -- passing its real roomId means openSiteRoomDetails uses that
+ // exact room instead of falling back to "whichever room has a picture".
+ body.querySelectorAll("[data-open-site-room]").forEach(el=>el.onclick=()=>openSiteRoomDetails(el.dataset.openSiteRoomProject,el.dataset.openSiteRoom));
+ body.querySelectorAll("[data-job-notes]").forEach(b=>b.onclick=()=>openJobNotesDialog(b.dataset.jobNotes));
+ body.querySelectorAll("[data-new-job]").forEach(b=>b.onclick=()=>newJobForCustomer(b.dataset.newJob));
+ body.querySelectorAll("[data-toggle-select]").forEach(b=>b.onclick=()=>{customerCardSelectMode=!customerCardSelectMode;renderCustomerCard()});
+ // Each row's own "⋮" opens only its own menu -- close any other open one first so two
+ // never sit open at once, and stop the click reaching the row button underneath.
+ body.querySelectorAll("[data-overflow-toggle]").forEach(btn=>btn.onclick=(e)=>{
+   e.stopPropagation();
+   const menu=btn.nextElementSibling;
+   const wasHidden=menu.hidden;
+   body.querySelectorAll(".customer-row-overflow-menu").forEach(m=>m.hidden=true);
+   menu.hidden=!wasHidden;
+ });
+ body.querySelectorAll("[data-delete-customer-job]").forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteCustomerLibraryJob(b.dataset.deleteCustomerJob)});
+ body.querySelectorAll(".job-select-checkbox").forEach(cb=>{
   cb.onclick=(e)=>e.stopPropagation();
   cb.onchange=()=>{
    if(cb.checked)supplierSelectedJobIds.add(cb.dataset.selectJob);
    else supplierSelectedJobIds.delete(cb.dataset.selectJob);
-   updateSendSelectedSupplierButton();
+   renderCustomerCard();
   };
  });
- updateSendSelectedSupplierButton();
+ body.querySelectorAll("[data-send-selected-supplier]").forEach(b=>b.onclick=()=>exportCombinedSupplierCsv([...supplierSelectedJobIds]));
 }
 document.getElementById('customerCardBackBtn')?.addEventListener('click',()=>{state.currentCustomerCard=null;show('customers')});
+// Wired once, not per-render: any click outside an open "⋮" menu closes it. The menu's
+// own toggle button already stops its click from reaching here (see data-overflow-toggle
+// above), so this only ever fires for a genuine "clicked elsewhere" tap.
+document.addEventListener('click',()=>{document.querySelectorAll('#customerCardBody .customer-row-overflow-menu').forEach(m=>m.hidden=true)});
 function renderParts(){
  const allParts=cabinetParts(),parts=allParts.filter(isCompleteSupplierPart),missing=allParts.length-parts.length,box=$("#partsSummary"),warning=$("#componentsValidation");
  if(warning){warning.style.display=missing?"block":"none";warning.innerHTML=missing?`⚠️ ${missing} unfinished panel${missing===1?" is":"s are"} still on the drawing. Add the part name, thickness, length and width before it can appear in Panel Status or the Cutting List.`:""}
@@ -4594,7 +4768,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     t.textContent=message;t.style.background=isError?'#fff1f1':'#eef8e9';t.style.borderColor=isError?'#e34a4a':'#79b855';t.style.color=isError?'#9b1c1c':'#2e7008';t.classList.add('show');
     clearTimeout(window.__a125ToastTimer);window.__a125ToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
   }
-  // toast() is called by receiveSitePacket and openCustomerSiteJobInDrawing, which are
+  // toast() is called by receiveSitePacket and startDesignFromSiteRoom, which are
   // declared outside this IIFE — it must be reachable globally or those calls throw
   // (silently swallowed by their own try/catch as a false "sync unavailable" error).
   window.toast=toast;
