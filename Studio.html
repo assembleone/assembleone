@@ -664,6 +664,14 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 .measure-box .measure-wrap input:focus{outline:2px solid rgba(183,121,60,.28);outline-offset:1px;border-radius:4px}
 .measure-box .measure-wrap>span{font-size:11px;font-weight:700;color:var(--muted);padding:0}
 .measure-box .unit-qty input{max-width:56px}
+/* Quantity protection: once a panel is reviewed, #fQty locks (native disabled -- blocks
+   typing, arrow keys and mouse wheel uniformly, no JS needed beyond setting the
+   attribute) and a small unlock button takes its place in the same row. Scoped to
+   .unit-qty only so Length/Width/Thickness's own two-column layout is untouched. */
+.measure-wrap.unit-qty,.measure-box .measure-wrap.unit-qty{grid-template-columns:minmax(0,1fr) auto auto}
+#fQty:disabled{background:#eaf8e4;color:#2f7d16;-webkit-text-fill-color:#2f7d16;opacity:1;cursor:not-allowed;font-weight:800}
+.qty-unlock-btn{padding:3px 7px;font-size:10px;font-weight:900;border-radius:8px;background:#fff7e6;border:1px solid #F0C36D;color:#6b4b06;cursor:pointer;white-space:nowrap;line-height:1.4}
+.qty-unlock-btn:hover{background:#F0C36D;color:#3d2c02}
 .measure-box .measure-wrap.edge-one::after,.measure-box .measure-wrap.edge-two::before,.measure-box .measure-wrap.edge-two::after{left:0;right:27px;bottom:2px}
 .measure-box .measure-wrap.edge-two::before{bottom:6px}
 @media(max-width:760px){.measure-box{grid-template-columns:.75fr 1.15fr 1.15fr .55fr}.measure-field{padding:6px}.measure-box .measure-wrap input{font-size:16px}.measure-box .unit-qty input{max-width:44px}}
@@ -1421,7 +1429,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <label class="measure-field"><span data-i18n="studio.drawing.widthLabel">Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" data-i18n-title="studio.drawing.doubleClickEdgeBanding" title="Double-click to add edge banding" type="number" data-i18n-placeholder="studio.drawing.insertWidthPlaceholder" placeholder="Insert width"/><span id="widthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
 </div>
 <div class="quantity-card">
-<label class="measure-field"><span data-i18n="studio.drawing.quantityLabel">Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" type="number" value="1" data-i18n-placeholder="studio.drawing.insertQuantityPlaceholder" placeholder="Insert quantity"/><span>pcs</span></div></label>
+<label class="measure-field"><span data-i18n="studio.drawing.quantityLabel">Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" max="500" type="number" value="1" data-i18n-placeholder="studio.drawing.insertQuantityPlaceholder" placeholder="Insert quantity"/><span>pcs</span><button type="button" id="fQtyUnlockBtn" class="qty-unlock-btn" hidden data-i18n="studio.drawing.editQuantityBtn" data-i18n-title="studio.drawing.editQuantityTitle" title="Quantity is protected because this panel has been reviewed. Tap to edit it.">🔓 Edit</button></div></label>
 </div>
 </div>
 <div class="edge-help" data-i18n="studio.drawing.edgeBandingHelp">Double-click the length or width number to add edge banding: no line → one line → double line.</div>
@@ -2227,6 +2235,17 @@ function renderForm(){
  const map={fLength:"length",fWidth:"width",fThickness:"thickness",fQty:"qty",fMaterial:"material",fNotes:"notes"};
  Object.entries(map).forEach(([id,key])=>{const v=p?.[key]??"";$("#"+id).value=["length","width","thickness"].includes(key)?(typeof aoMmToUnit==='function'?aoMmToUnit(v):v):v});
  if(typeof aoRenderUnitLabels==='function')aoRenderUnitLabels();
+ // Quantity locks once the panel is reviewed (Option C: reuse the existing review
+ // signature, no new state) -- disabled blocks typing/arrows/wheel uniformly while still
+ // showing the stored value. Guarded for load order since panelIsReviewed is exported by
+ // a later script block.
+ const qtyInput=$("#fQty"),qtyUnlockBtn=$("#fQtyUnlockBtn");
+ if(qtyInput&&qtyUnlockBtn){
+  const qtyLocked=!!p&&typeof window.panelIsReviewed==='function'&&window.panelIsReviewed(p);
+  qtyInput.disabled=qtyLocked;
+  qtyUnlockBtn.hidden=!qtyLocked;
+  qtyUnlockBtn.onclick=()=>{const cur=part();if(!cur)return;cur.reviewSignature='';save();renderAll();const el=$("#fQty");if(el){el.focus();el.select()}};
+ }
  renderMaterialPicker();
  renderNotesPicker();
  const picker=$("#partNamePicker"),chosenSummary=$("#chosenPartSummary");
@@ -2967,13 +2986,30 @@ function renderJobBom(){
 }
 function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();renderCustomers();renderCustomerCard();updateUnitAddWording();show(state.screen||"jobs")}
 
+// Quantity must land in 1-500 once a real value is entered; blank stays blank (a
+// brand-new, not-yet-quantified panel -- see createPartAt). Pure clamp, no alert -- the
+// one place a correction is actually surfaced to the user is bindField's own oninput
+// below; commitVisible's autosave DOM-sync and Save & Next both reuse this same function
+// as a silent backstop re-affirming a value oninput has typically already fixed, so an
+// unexpected alert never pops up mid-autosave or on a deliberate Save & Next click.
+function clampPanelQty(raw){
+ if(raw===""||raw==null)return "";
+ const n=Number(raw);
+ if(!Number.isFinite(n))return "";
+ return Math.min(500,Math.max(1,n));
+}
 function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;const raw=$("#"+id).value;const isMeasure=["length","width","thickness"].includes(key);
   // A typo or stray paste in Quantity (an extra digit, e.g. 2275 instead of 22) used to go
   // straight through with no limit -- every downstream count (Estimated Sheets, Fitted,
   // Panel Check) would then try to work with thousands of a single panel. One real panel
-  // is never going to legitimately need more than a few hundred identical pieces.
-  if(key==="qty"&&raw!==""&&+raw>500){alert(t("studio.drawing.quantityCappedAlert",[raw]));$("#"+id).value=500}
-  p[key]=isMeasure?(raw===""?"":(typeof aoUnitToMm==='function'?aoUnitToMm(+raw):+raw)):(key==="qty"?(raw===""?"":Math.min(500,+raw)):raw);if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key]}save();renderPartList();renderCutting();renderPhone()}}
+  // is never going to legitimately need more than a few hundred identical pieces. Zero and
+  // negative values are rejected the same way -- a real panel is never needed 0 or -N times.
+  if(key==="qty"&&raw!==""){
+    const n=+raw;
+    if(n>500){alert(t("studio.drawing.quantityCappedAlert",[raw]));$("#"+id).value=500}
+    else if(n<1){alert(t("studio.drawing.quantityMinAlert",[raw]));$("#"+id).value=1}
+  }
+  p[key]=isMeasure?(raw===""?"":(typeof aoUnitToMm==='function'?aoUnitToMm(+raw):+raw)):(key==="qty"?clampPanelQty(raw):raw);if(key==="thickness"&&p[key]!==""){const c=cabinet();if(c)c.lastThickness=p[key]}save();renderPartList();renderCutting();renderPhone()}}
 // Placeholders for fThickness/fLength/fWidth/fQty now come from the static
 // data-i18n-placeholder attributes above (applyI18n() keeps them correct on
 // every language switch, not just once at load like this used to).
@@ -3656,8 +3692,16 @@ $$('[data-quick-menu]').forEach(b=>b.onclick=e=>{e.stopPropagation();const menu=
 $$('[data-quick-name]').forEach(b=>b.onclick=e=>{e.stopPropagation();setPartName(b.dataset.quickName);$$('.quick-pop').forEach(x=>x.classList.remove('open'));const lib=b.closest('.common-part-library');if(lib)lib.open=false;const chosen=document.querySelector('.chosen-parts');if(chosen)chosen.open=false;});
 document.addEventListener('click',()=>$$('.quick-pop').forEach(x=>x.classList.remove('open')));
 $$("[data-template]").forEach(b=>b.onclick=()=>{const p=part();if(!p)return alert(t("studio.drawing.markPanelFirst"));p.name=b.dataset.template;if($("#partNamePicker")) $("#partNamePicker").value=b.dataset.template;save();renderAll()});
-$("#addSameMarkerBtn").onclick=()=>{const p=part();if(!p)return alert(t("studio.drawing.choosePanelFirst"));p.copies=p.copies||[];p.copies.push({x:Math.min(94,(p.x||50)+5),y:Math.min(94,(p.y||50)+5)});p.qty=Math.max(Number(p.qty||1),1+p.copies.length);state.selectedCopy=p.copies.length-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false;alert(t("studio.drawing.samePartNumberAddedAgain"))};
-$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert(t("studio.drawing.selectRepeatedMarkerFirst"));const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;save();renderAll();const d=document.querySelector(".panel-options");if(d)d.open=false};
+$("#addSameMarkerBtn").onclick=()=>{const p=part();if(!p)return alert(t("studio.drawing.choosePanelFirst"));p.copies=p.copies||[];p.copies.push({x:Math.min(94,(p.x||50)+5),y:Math.min(94,(p.y||50)+5)});p.qty=Math.max(Number(p.qty||1),1+p.copies.length);state.selectedCopy=p.copies.length-1;
+  // renderAll() must repaint #fQty with the just-bumped qty BEFORE save() runs --
+  // commitVisible() (inside save/stableSave) re-syncs the part from #fQty's live DOM
+  // value, so calling save() first would read the stale pre-bump number and clobber
+  // this very update straight back out.
+  renderAll();save();const d=document.querySelector(".panel-options");if(d)d.open=false;alert(t("studio.drawing.samePartNumberAddedAgain"))};
+$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert(t("studio.drawing.selectRepeatedMarkerFirst"));const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;
+  // Same ordering fix as addSameMarkerBtn -- render before save so commitVisible reads
+  // the new copy's own qty (1) from #fQty, not the parent panel's stale pre-split value.
+  renderAll();save();const d=document.querySelector(".panel-options");if(d)d.open=false};
 
 
 function buildCuttingPrint(){
@@ -4930,7 +4974,7 @@ body.guide-only .a131-back-studio{display:block}
       if(p){if(n&&n.value.trim())p.name=n.value.trim();if(cust&&cust.value.trim())p.customer=cust.value.trim();p.updatedAt=Date.now()}
       if(partNow){
         const map={fThickness:'thickness',fLength:'length',fWidth:'width',fQty:'qty',fMaterial:'material',fNotes:'notes'};
-        Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width'].includes(k))v=v===''?'':(typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v));else if(k==='qty')v=v===''?'':Number(v);if(v!==''||k==='notes'||k==='material')partNow[k]=v});
+        Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width'].includes(k))v=v===''?'':(typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v));else if(k==='qty')v=clampPanelQty(v);if(v!==''||k==='notes'||k==='material')partNow[k]=v});
       }
       const stage=document.getElementById('drawingStage');if(c&&stage){c.viewState=c.viewState||{};c.viewState.scrollLeft=stage.scrollLeft;c.viewState.scrollTop=stage.scrollTop;c.viewState.zoom=Number(state.drawingZoom||1)}
     }catch(e){console.warn('Live form commit failed',e)}
@@ -5106,7 +5150,7 @@ body.guide-only .a131-back-studio{display:block}
     p.thickness=thickness===''?'':toMm(Number(thickness));
     p.length=length===''?'':toMm(Number(length));
     p.width=width===''?'':toMm(Number(width));
-    p.qty=qty===''?'':Number(qty);
+    p.qty=clampPanelQty(qty);
     p.notes=notes;
 
     const materialInput=field('materialCustomInput');
