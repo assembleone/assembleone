@@ -78,7 +78,10 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
    it no longer shares the amber status-progress used for "still drawing"/"installing". */
 .customer-job-status.status-ready{background:#eaf8e4;color:#2f7d16}
 .customer-job-title-line{flex:1 1 auto;order:1}
-.customer-job-rooms{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;order:2}
+.customer-job-rooms{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px}
+.customer-job-rooms-wrap{flex-basis:100%;display:flex;flex-direction:column;gap:6px;order:2}
+.customer-job-rooms-block{display:flex;flex-direction:column;gap:4px}
+.customer-job-rooms-label{font-size:10px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
 .customer-job-meta{order:3}
 .room-chip{display:inline-flex;align-items:center;gap:3px;background:#EEF2FF;color:var(--ink);border:1px solid #DCE3FA;border-radius:999px;padding:3px 9px 3px 7px;font-size:12px;font-weight:700;cursor:pointer}
 .room-chip:hover{background:#DCE7FF;border-color:#8B5CF6}
@@ -2013,6 +2016,16 @@ function startDesignFromSiteRoom(projectId,roomId){
  switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');
  toast(t(alreadyHasDrawing?"studio.siteRoom.designOpenedToast":"studio.siteRoom.designStartedToast"));
 }
+// The Job/Design chip's own click target -- deliberately the plain "open" half of what
+// startDesignFromSiteRoom does, with none of its create-if-missing logic. This chip only
+// ever renders (see customerJobItemHtml) when a cabinet already exists for the room, so
+// there is nothing to create here; if that ever weren't true, silently doing nothing is
+// safer than a Job/Design entry that could create a second cabinet for the same room.
+function openJobDesignForRoom(projectId,roomId){
+ const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+ const c=(p.cabinets||[]).find(x=>x.roomId===roomId);if(!c)return;
+ switchToProject(p.id,c.id);renderAll();save();show('mark');
+}
 function openCustomerSiteJobInDrawing(projectId){
  const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return alert(t("studio.siteRoom.jobNotFound"));
  // Photos can live on a specific room (the multi-room "Room Guide" flow) or directly on
@@ -2461,21 +2474,21 @@ function renderCustomers(){
 function customerJobItemHtml(p){
  const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
  const status=jobStatusInfo(p);
- // A project's own room list can be a genuine mix -- one room already turned into a real
- // Job/Design (it has its own cabinet), another still sitting exactly as Mobile measured
- // it (site photos/measurements, no cabinet yet). The single job-level status pill above
- // can only show one state for the whole job, so each room's own chip carries its own
- // Site/Job tag -- reusing the room's own icon+name untouched, just adding which kind of
- // record this particular room currently is. A cabinet existing for a room is the one
- // real, deliberate signal that a Site Measurement became a Job (see
- // openCustomerSiteJobInDrawing/startDesignFromSiteRoom) -- nothing here creates one.
- const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>{
-   const isJob=(p.cabinets||[]).some(c=>c.roomId===r.id);
-   const isSite=!isJob&&siteRoomPictures(r).length>0;
-   const kindTag=isJob?`<b class="room-chip-tag room-chip-tag-job">${t("studio.siteRoom.chipTagJob")}</b>`:isSite?`<b class="room-chip-tag room-chip-tag-site">${t("studio.siteRoom.chipTagSite")}</b>`:"";
-   const kindClass=isJob?" room-chip-job":isSite?" room-chip-site":"";
-   return `<span class="room-chip${kindClass}" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}${kindTag}</span>`;
- }).join("");
+ // Site Measurement and Job/Design are two different clickable things for the same
+ // room, never one chip carrying both meanings. A Site Measurement chip always opens
+ // the permanent original record (openSiteRoomDetails) -- even once a Job exists for
+ // that same room, clicking it must never jump to the drawing. A Job/Design chip only
+ // ever appears once a cabinet actually exists for that room (Start Design was used --
+ // see startDesignFromSiteRoom) and opens the drawing workspace directly
+ // (openJobDesignForRoom), never the Site Measurement modal. Same room, same icon+name,
+ // two separate rows so which is which is never in doubt.
+ const namedRooms=(p.rooms||[]).filter(r=>r.name);
+ const siteChips=namedRooms.map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
+ const jobChips=namedRooms.filter(r=>(p.cabinets||[]).some(c=>c.roomId===r.id)).map(r=>`<span class="room-chip room-chip-job" role="button" tabindex="0" data-open-job-design="${safe(r.id)}" data-open-job-design-project="${safe(p.id)}" title="${t("studio.customerLibrary.openJobDesignTitle",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
+ const roomsBlockHtml=(siteChips||jobChips)?`<span class="customer-job-rooms-wrap">`+
+   (siteChips?`<span class="customer-job-rooms-block"><span class="customer-job-rooms-label">${t("studio.customerLibrary.siteMeasurementsLabel")}</span><span class="customer-job-rooms">${siteChips}</span></span>`:"")+
+   (jobChips?`<span class="customer-job-rooms-block"><span class="customer-job-rooms-label">${t("studio.customerLibrary.jobsDesignsLabel")}</span><span class="customer-job-rooms">${jobChips}</span></span>`:"")+
+   `</span>`:"";
  const logCount=(p.jobLog||[]).length;
  const roomCount=(p.rooms||[]).length;
  // Computed inline (not via window.jobPanelCheckTotals) because this can render during
@@ -2483,7 +2496,7 @@ function customerJobItemHtml(p){
  // window -- and a qty-aware panel count is only a couple of lines anyway.
  const panelTotal=(p.cabinets||[]).reduce((n,c)=>n+(c.parts||[]).reduce((m,pt)=>m+Math.max(1,Number(pt.qty)||1),0),0);
  const panelHtml=panelTotal?`<span class="muted">${t(panelTotal===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[panelTotal])}</span>`:"";
- return `<div class="customer-job-item"><label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(p.id)}" ${supplierSelectedJobIds.has(p.id)?'checked':''}></label><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span> `:''}<strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${t(roomCount===1?"studio.customerLibrary.roomCountSingular":"studio.customerLibrary.roomCountPlural",[roomCount])}</span>${panelHtml}${p.updatedAt?`<span class="muted">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">${t("studio.customerLibrary.openSiteMeasurementsInDrawing")}</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="${t("studio.customerLibrary.deleteThisJobTitle")}" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
+ return `<div class="customer-job-item"><label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(p.id)}" ${supplierSelectedJobIds.has(p.id)?'checked':''}></label><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span> `:''}<strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong></span>${roomsBlockHtml}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${t(roomCount===1?"studio.customerLibrary.roomCountSingular":"studio.customerLibrary.roomCountPlural",[roomCount])}</span>${panelHtml}${p.updatedAt?`<span class="muted">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">${t("studio.customerLibrary.openSiteMeasurementsInDrawing")}</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="${t("studio.customerLibrary.deleteThisJobTitle")}" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
 }
 function openCustomerCard(customerId){
  state.currentCustomerCard=customerId;
@@ -2522,6 +2535,10 @@ function renderCustomerCard(){
  // real roomId means openSiteRoomDetails uses that exact room instead of falling
  // back to "whichever room has a picture" (which always meant the newest one).
  body.querySelectorAll('[data-open-site-room]').forEach(el=>el.onclick=(e)=>{e.stopPropagation();openSiteRoomDetails(el.dataset.openSiteRoomProject,el.dataset.openSiteRoom)});
+ // A Job/Design chip goes straight to that room's own drawing -- never through the Site
+ // Measurement modal -- so an existing Design is never mistaken for its permanent
+ // original record, or the other way round.
+ body.querySelectorAll('[data-open-job-design]').forEach(el=>el.onclick=(e)=>{e.stopPropagation();openJobDesignForRoom(el.dataset.openJobDesignProject,el.dataset.openJobDesign)});
  body.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
  body.querySelectorAll('[data-job-notes]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openJobNotesDialog(b.dataset.jobNotes)});
  body.querySelectorAll('[data-delete-customer-job]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteCustomerLibraryJob(b.dataset.deleteCustomerJob)});
