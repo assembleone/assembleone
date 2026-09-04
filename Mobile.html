@@ -892,13 +892,20 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <button class="lang-current-btn" id="langCurrentBtn" type="button"><span class="lang-current-flag" id="langCurrentFlag"></span> <span id="langCurrentLabel">English</span></button>
  </div>
  <div class="card">
-  <div class="mobile-home-actions">
+  <!-- Site Measure (Mobile-created work) vs Jobs (Studio-sent work) are two different
+       directions to a fitter -- see renderProjects()'s projectsListMode branch, which
+       shows/hides these two rows and picks which half of the list to draw. Both rows keep
+       their real ids (#newJob/#importStudio/#syncAllJobsBtn) so their existing, unchanged
+       click handlers still just work -- only visibility toggles. -->
+  <div class="mobile-home-actions hidden" id="siteMeasureCreateRow">
    <button class="btn primary mobile-new-site" id="newJob" type="button">＋ <span data-i18n="proj.newSiteJob">New Site Job</span></button>
+  </div>
+  <div class="mobile-home-actions" id="jobsImportRow">
    <label class="btn mobile-import-project" style="grid-column:1/-1">📥 <span data-i18n="proj.addStudioProject">Add Studio Project</span><input id="importStudio" type="file" accept=".zip,application/zip" hidden></label>
   </div>
-  <div class="mobile-projects-title" data-i18n="proj.myProjects">My Projects</div>
-  <div class="mobile-projects-help" data-i18n="proj.tapToContinue">Tap one project to continue.</div>
-  <button class="btn primary" id="syncAllJobsBtn" type="button" style="width:100%;margin-bottom:10px">🔄 Sync All Jobs to Studio</button>
+  <div class="mobile-projects-title hidden" id="siteMeasureListTitle" data-i18n="nav.roomGuide">Site Measure</div>
+  <div class="mobile-projects-help hidden" id="siteMeasureListHelp" data-i18n="proj.tapToContinue">Tap one project to continue.</div>
+  <button class="btn primary hidden" id="syncAllJobsBtn" type="button" style="width:100%;margin-bottom:10px">🔄 Sync All Jobs to Studio</button>
   <div id="jobList"></div>
  </div>
 </section>
@@ -1513,6 +1520,12 @@ let jobConfirmedThisSession=false;
 // pattern -- a plain in-memory Set, never persisted to state, cleared once "Open N jobs
 // together" runs. Was mobileSelectedJobIds (plain project ids) before per-room dispatch.
 let mobileSelectedCardKeys=new Set();
+// Site Measure (Mobile-created work) and Jobs (Studio-sent work) are two different
+// directions to a fitter, so they never share a list -- 'site' shows only this fitter's
+// own not-yet-sent/not-yet-confirmed Site Measure jobs (+ the create action), 'jobs' shows
+// only work actually received from Studio. In-memory only (not persisted) -- a reload
+// lands back on 'jobs', the more permanent of the two lists. See renderProjects().
+let projectsListMode='jobs';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const safe=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -1833,7 +1846,7 @@ function show(name){
   }
  }
  if(name!=='scan'&&typeof scanRunning!=='undefined'&&scanRunning&&typeof stopCamera==='function')stopCamera();state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=(name==='measure'||name==='newSiteJob'||name==='siteVisitSummary'||name==='sentToStudio')?'siteMeasureFlow':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons();if(typeof applyScanModeUI==='function')applyScanModeUI()}
-$$(".nav").forEach(b=>b.onclick=()=>{if(b.dataset.screen==='siteMeasureFlow'){startSiteMeasureFlow();return}show(b.dataset.screen)});
+$$(".nav").forEach(b=>b.onclick=()=>{if(b.dataset.screen==='siteMeasureFlow'){startSiteMeasureFlow();return}if(b.dataset.screen==='projects')projectsListMode='jobs';show(b.dataset.screen)});
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
 // A job counts as a Studio installation project once Studio has actually added
@@ -1896,7 +1909,15 @@ function startSiteMeasureFlow(){
    return;
   }
  }
- newJob();
+ // Nothing of THIS fitter's own Site Measure work is open to resume right now (the
+ // currently open job, if any, is a Studio one). If there's genuinely nothing pending
+ // either, jump straight into a brand-new one -- the common first-time path, unchanged.
+ // Otherwise show the Site Measure list instead of silently creating yet another job on
+ // top of ones already waiting -- see projectsListMode in renderProjects().
+ const hasPendingSiteJobs=state.projects.some(x=>!isStudioJob(x)&&!x.mobileArchived&&(typeof canSeeJob!=='function'||canSeeJob(x,null)));
+ if(!hasPendingSiteJobs){newJob();return}
+ projectsListMode='site';
+ show("projects");
 }
 // "+ New Site Job" is an explicit, unambiguous request to start fresh -- unlike the nav
 // tab above, it must never resume an in-progress visit, a previous customer, or whatever
@@ -1938,6 +1959,19 @@ function projectRoomDisplay(p){
 }
 function renderProjects(){
  const box=$("#jobList");
+ // Show/hide the two rows of actions and the two static list headings to match whichever
+ // direction this screen is currently showing (see projectsListMode) -- the actual list
+ // content itself is picked further down, once siteHtml/installHtml are built.
+ const isJobsMode=projectsListMode==='jobs';
+ // .hidden (not the bare `hidden` attribute) -- .mobile-home-actions/.btn/etc already set
+ // their own display via CSS, which would otherwise silently outrank the attribute's
+ // default UA styling; .hidden carries !important specifically to still win regardless.
+ const siteCreateRow=$('#siteMeasureCreateRow'),jobsImportRow=$('#jobsImportRow'),syncBtn=$('#syncAllJobsBtn'),siteTitle=$('#siteMeasureListTitle'),siteHelp=$('#siteMeasureListHelp');
+ if(siteCreateRow)siteCreateRow.classList.toggle('hidden',isJobsMode);
+ if(jobsImportRow)jobsImportRow.classList.toggle('hidden',!isJobsMode);
+ if(syncBtn)syncBtn.classList.toggle('hidden',isJobsMode);
+ if(siteTitle)siteTitle.classList.toggle('hidden',isJobsMode);
+ if(siteHelp)siteHelp.classList.toggle('hidden',isJobsMode);
  // Clean up any blank "New Site Job" duplicates already sitting from before newJob()
  // started reusing one -- each has zero customer/room/cabinet data, so there is nothing
  // to lose by collapsing them down to the single most recent one.
@@ -2038,9 +2072,16 @@ function renderProjects(){
  const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived);
  const siteHtml=siteJobs.length?siteJobs.map(p=>jobCard({project:p,room:null})).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
  const installHtml=installCardsActive.length?`<div class="mobile-projects-title">Studio Installation Jobs</div><div class="mobile-projects-help">Sent from Studio for Panel Check and Find Panel.</div><div class="mobile-bulk-toolbar hidden" id="mobileBulkToolbar"><span id="mobileBulkCount"></span><button type="button" class="btn primary" id="mobileBulkOpenBtn"></button></div>`+installCardsActive.map(jobCard).join(""):"";
+ // Only shown when there is truly nothing in Jobs yet (no active AND no archived install
+ // cards) -- installHtml already carries its own "Studio Installation Jobs" heading when
+ // there's real content, so this never doubles up with it.
+ const jobsEmptyHtml=installCards.length?"":`<div class="mobile-empty-projects">${t('proj.noStudioJobsYetEmpty')}</div>`;
  const archivedSiteHtml=archivedSite.length?`<details class="mobile-archived-jobs"><summary>✓ Sent to Studio (${archivedSite.length}) ›</summary>${archivedSite.map(p=>jobCard({project:p,room:null})).join("")}</details>`:"";
  const archivedInstallHtml=archivedInstallCards.length?`<details class="mobile-archived-jobs"><summary>✓ Finished Installations (${archivedInstallCards.length}) ›</summary>${archivedInstallCards.map(jobCard).join("")}</details>`:"";
- box.innerHTML=siteHtml+archivedSiteHtml+installHtml+archivedInstallHtml;
+ // Site Measure (Mobile-created) and Jobs (Studio-sent) never share a list -- only one
+ // half is ever drawn into #jobList at a time, matching whichever half of the header/
+ // actions above was just shown.
+ box.innerHTML=isJobsMode?(installHtml+archivedInstallHtml+jobsEmptyHtml):(siteHtml+archivedSiteHtml);
  // §5, extended for per-room dispatch: opening a single card stays byte-identical to
  // before for a no-rooms job -- activeCardKeys just becomes the one-item array that keeps
  // every combined-mode check (activeCardKeys.length>1) naturally false in the ordinary,
@@ -3475,7 +3516,7 @@ async function syncAllJobs(){
   renderProjects();
   const blocked=jobs.filter(p=>p.studioSyncBlocked).length;
   const total=jobs.length;
-  alert(blocked?((total-blocked)+' of '+total+' jobs synced to Studio. '+blocked+' need attention (too many photos) -- check the Jobs list.'):('All '+total+' job'+(total===1?'':'s')+' synced to Studio.'));
+  alert(blocked?((total-blocked)+' of '+total+' jobs synced to Studio. '+blocked+' need attention (too many photos) -- check the Site Measure list.'):('All '+total+' job'+(total===1?'':'s')+' synced to Studio.'));
 }
 // Panel Check and Fitted taps can happen many times in a few seconds (a
 // fitter working through a whole room) -- exportJob re-uploads the whole
