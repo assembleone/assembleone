@@ -82,6 +82,11 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-job-meta{order:3}
 .room-chip{display:inline-flex;align-items:center;gap:3px;background:#EEF2FF;color:var(--ink);border:1px solid #DCE3FA;border-radius:999px;padding:3px 9px 3px 7px;font-size:12px;font-weight:700;cursor:pointer}
 .room-chip:hover{background:#DCE7FF;border-color:#8B5CF6}
+.room-chip-tag{font-size:9px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:2px 6px;margin-left:2px}
+.room-chip-site{background:#FFF7E6;border-color:#F0C36D}
+.room-chip-site .room-chip-tag{background:#F0C36D;color:#6b4b06}
+.room-chip-job{background:#EAF8E4;border-color:#8FCB77}
+.room-chip-job .room-chip-tag{background:#8FCB77;color:#0f4d1c}
 .customer-search-wrap{margin-bottom:14px}
 .customer-search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--line);border-radius:12px;font-weight:600}
 .customer-search-input:focus{outline:none;border-color:#0051ff;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
@@ -1030,7 +1035,10 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 </style>
 
 <style id="siteRoomDetailsStyles">
-.site-room-modal{position:fixed;inset:0;background:rgba(24,20,45,.72);z-index:10050;display:none;align-items:center;justify-content:center;padding:18px}.site-room-modal.open{display:flex}.site-room-dialog{width:min(1180px,96vw);max-height:92vh;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 28px 80px rgba(20,17,42,.35);display:flex;flex-direction:column}.site-room-head{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:2px solid #eaf2f1}.site-room-head .room-badge{font-size:42px}.site-room-head h2{margin:0;font-size:30px}.site-room-head p{margin:4px 0 0;color:#6d687d;font-weight:700}.site-room-close{margin-left:auto;width:50px;height:50px;border-radius:15px;border:2px solid #d9e8e6;background:#fff;font-size:30px;cursor:pointer}.site-room-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.9fr);min-height:560px;overflow:auto}.site-reference-pane{padding:18px;border-right:2px solid #eaf2f1;background:#f8f9fc}.site-reference-frame{background:#e9ecf1;border-radius:20px;height:420px;max-height:62vh;overflow:hidden;position:relative}.site-reference-frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.site-photo-measure-label{font-size:12px;font-weight:800;color:#4b4664;padding:8px 2px 0}.site-reference-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;color:#777286;text-align:center;padding:30px}.site-thumb-row{display:flex;gap:10px;overflow:auto;padding-top:12px}.site-thumb{width:86px;height:68px;border:3px solid transparent;border-radius:12px;object-fit:cover;cursor:pointer;background:#eee}.site-thumb.active{border-color:#004cf1}.site-design-pane{padding:22px;display:flex;flex-direction:column;gap:15px}.site-facts{display:grid;grid-template-columns:1fr 1fr;gap:12px}.site-fact{border:2px solid #e1ebea;border-radius:18px;padding:14px;background:#fff}.site-fact b{display:block;font-size:25px;color:#283c54}.site-fact span{color:#6c677d;font-weight:750}.site-notes-box{border:2px solid #e1ebea;border-radius:18px;padding:15px;min-height:90px}.site-notes-box h3{margin:0 0 8px;font-size:19px}.site-detail-actions{display:grid;gap:12px;margin-top:auto}.site-detail-actions .btn{min-height:60px;font-size:19px;border-radius:16px}.site-detail-actions .primary{background:#0051ff;color:#23374f;border-color:#0046dd}.site-drawing-placeholder{border:3px dashed #cfcbd9;border-radius:22px;min-height:190px;display:flex;align-items:center;justify-content:center;text-align:center;color:#716c80;font-weight:800;font-size:20px;padding:25px}.site-job-tag{display:inline-flex;align-items:center;gap:8px;background:#eff8ea;color:#377812;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;margin-top:7px}.folder-card.site-received{border-color:#5ca631;background:#f7fbf4}.folder-card .site-details-btn{border-color:#456dc4;background:#f3f7ff}
+.site-room-modal{position:fixed;inset:0;background:rgba(24,20,45,.72);z-index:10050;display:none;align-items:center;justify-content:center;padding:18px}.site-room-modal.open{display:flex}.site-room-dialog{width:min(1180px,96vw);max-height:92vh;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 28px 80px rgba(20,17,42,.35);display:flex;flex-direction:column}.site-room-head{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:2px solid #eaf2f1}.site-room-head .room-badge{font-size:42px}.site-room-head h2{margin:0;font-size:30px}.site-room-head p{margin:4px 0 0;color:#6d687d;font-weight:700}
+.site-room-kind-badge{display:inline-block;margin-top:6px;font-size:11px;font-weight:900;letter-spacing:.02em;border-radius:999px;padding:3px 10px}
+.site-room-kind-badge.kind-site{background:#FFF7E6;color:#6b4b06;border:1px solid #F0C36D}
+.site-room-kind-badge.kind-job{background:#EAF8E4;color:#0f4d1c;border:1px solid #8FCB77}.site-room-close{margin-left:auto;width:50px;height:50px;border-radius:15px;border:2px solid #d9e8e6;background:#fff;font-size:30px;cursor:pointer}.site-room-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.9fr);min-height:560px;overflow:auto}.site-reference-pane{padding:18px;border-right:2px solid #eaf2f1;background:#f8f9fc}.site-reference-frame{background:#e9ecf1;border-radius:20px;height:420px;max-height:62vh;overflow:hidden;position:relative}.site-reference-frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.site-photo-measure-label{font-size:12px;font-weight:800;color:#4b4664;padding:8px 2px 0}.site-reference-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;color:#777286;text-align:center;padding:30px}.site-thumb-row{display:flex;gap:10px;overflow:auto;padding-top:12px}.site-thumb{width:86px;height:68px;border:3px solid transparent;border-radius:12px;object-fit:cover;cursor:pointer;background:#eee}.site-thumb.active{border-color:#004cf1}.site-design-pane{padding:22px;display:flex;flex-direction:column;gap:15px}.site-facts{display:grid;grid-template-columns:1fr 1fr;gap:12px}.site-fact{border:2px solid #e1ebea;border-radius:18px;padding:14px;background:#fff}.site-fact b{display:block;font-size:25px;color:#283c54}.site-fact span{color:#6c677d;font-weight:750}.site-notes-box{border:2px solid #e1ebea;border-radius:18px;padding:15px;min-height:90px}.site-notes-box h3{margin:0 0 8px;font-size:19px}.site-detail-actions{display:grid;gap:12px;margin-top:auto}.site-detail-actions .btn{min-height:60px;font-size:19px;border-radius:16px}.site-detail-actions .primary{background:#0051ff;color:#23374f;border-color:#0046dd}.site-drawing-placeholder{border:3px dashed #cfcbd9;border-radius:22px;min-height:190px;display:flex;align-items:center;justify-content:center;text-align:center;color:#716c80;font-weight:800;font-size:20px;padding:25px}.site-job-tag{display:inline-flex;align-items:center;gap:8px;background:#eff8ea;color:#377812;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;margin-top:7px}.folder-card.site-received{border-color:#5ca631;background:#f7fbf4}.folder-card .site-details-btn{border-color:#456dc4;background:#f3f7ff}
 .attention-modal{position:fixed;inset:0;background:rgba(24,20,45,.6);z-index:10050;display:none;align-items:center;justify-content:center;padding:18px}
 .attention-modal.open{display:flex}
 .attention-dialog{width:min(720px,96vw);max-height:88vh;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 24px 70px rgba(20,17,42,.32);display:flex;flex-direction:column}
@@ -1924,6 +1932,16 @@ function openSiteRoomDetails(projectId,roomId){
  const caps=siteRoomCaptures(room),measures=siteRoomMeasureCount(room),floor=room.floor||room.location||t("studio.siteRoom.notSelectedFallback"),notes=room.notes||room.siteNotes||p.notes||'';
  const overlay=document.getElementById('siteRoomDetailsModal');if(!overlay)return;overlay.dataset.projectId=p.id;overlay.dataset.roomId=room.id||'';overlay.dataset.pictureIndex='0';
  document.getElementById('siteRoomDetailsTitle').textContent=room.name||t("studio.siteRoom.siteRoomFallback");document.getElementById('siteRoomDetailsIcon').textContent=room.icon||'📍';document.getElementById('siteRoomDetailsMeta').textContent=`${p.name||t("proj.projectFallback")} · ${floor}`;
+ // Same Site Measurement vs Job/Design signal as the room chip in the Customer Card
+ // (a cabinet already existing for this room is the one real sign it became a Job) --
+ // shown here too so it's obvious the instant this room's own detail is open, not just
+ // from its chip.
+ const kindBadge=document.getElementById('siteRoomDetailsKindBadge');
+ if(kindBadge){
+   const isJob=(p.cabinets||[]).some(c=>c.roomId===room.id);
+   kindBadge.textContent=isJob?t("studio.siteRoom.badgeJobDesign"):t("studio.siteRoom.badgeSiteMeasurement");
+   kindBadge.className='site-room-kind-badge'+(isJob?' kind-job':' kind-site');
+ }
  const frame=document.getElementById('siteRoomReferenceFrame');
  const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=caps.map((c,i)=>`<img class="site-thumb ${i===0?'active':''}" data-site-thumb="${i}" src="${c.image}" alt="Photo ${i+1}">`).join('');
  document.getElementById('siteRoomPhotoCount').textContent=caps.length;document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;document.getElementById('siteRoomNotes').textContent=notes||'No extra notes';
@@ -2377,7 +2395,21 @@ function renderCustomers(){
 function customerJobItemHtml(p){
  const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
  const status=jobStatusInfo(p);
- const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
+ // A project's own room list can be a genuine mix -- one room already turned into a real
+ // Job/Design (it has its own cabinet), another still sitting exactly as Mobile measured
+ // it (site photos/measurements, no cabinet yet). The single job-level status pill above
+ // can only show one state for the whole job, so each room's own chip carries its own
+ // Site/Job tag -- reusing the room's own icon+name untouched, just adding which kind of
+ // record this particular room currently is. A cabinet existing for a room is the one
+ // real, deliberate signal that a Site Measurement became a Job (see
+ // openCustomerSiteJobInDrawing/sendSitePhotoToDrawing) -- nothing here creates one.
+ const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>{
+   const isJob=(p.cabinets||[]).some(c=>c.roomId===r.id);
+   const isSite=!isJob&&siteRoomPictures(r).length>0;
+   const kindTag=isJob?`<b class="room-chip-tag room-chip-tag-job">${t("studio.siteRoom.chipTagJob")}</b>`:isSite?`<b class="room-chip-tag room-chip-tag-site">${t("studio.siteRoom.chipTagSite")}</b>`:"";
+   const kindClass=isJob?" room-chip-job":isSite?" room-chip-site":"";
+   return `<span class="room-chip${kindClass}" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}${kindTag}</span>`;
+ }).join("");
  const logCount=(p.jobLog||[]).length;
  const roomCount=(p.rooms||[]).length;
  // Computed inline (not via window.jobPanelCheckTotals) because this can render during
@@ -2887,7 +2919,34 @@ base.updatedAt=Date.now();
 // since that can't clobber anything.
 const packetAt=Date.parse(incoming._packetExportedAt||"");
 const isStalePacket=!isNaN(packetAt)&&base._lastRoomsSyncAt&&packetAt<base._lastRoomsSyncAt;
-base.rooms=base.rooms||[];(incoming.rooms||[]).forEach(ir=>{let br=base.rooms.find(x=>x.id===ir.id);if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}if(isStalePacket)return;Object.assign(br,JSON.parse(JSON.stringify(ir)))});
+base.rooms=base.rooms||[];
+// A room's own Site Measurement -- its photos and the measurements drawn on them -- is
+// a permanent record once captured, and must survive every later sync untouched (see
+// siteRoomCaptures for exactly which fields make up "the photo"). Mobile's own
+// stripHeavyMediaForSync (used only as a size-limited retry when the full packet is too
+// big for Firestore's ~1MiB cap) deliberately blanks siteMarkup.image on the documented
+// assumption "Studio already has the earlier photos from previous sends" -- so a later,
+// smaller sync must never let that blank value actually erase what's on file here. The
+// capture arrays get the same treatment as a general safety net, in case any packet
+// ever sends an empty array instead of simply omitting the key (which the plain
+// Object.assign below already handles safely on its own).
+const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","measureCaptures","notePhotos"];
+(incoming.rooms||[]).forEach(ir=>{
+  let br=base.rooms.find(x=>x.id===ir.id);
+  if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}
+  if(isStalePacket)return;
+  const clonedIr=JSON.parse(JSON.stringify(ir));
+  SITE_RECORD_ARRAY_FIELDS.forEach(k=>{if((!clonedIr[k]||!clonedIr[k].length)&&br[k]&&br[k].length)clonedIr[k]=br[k]});
+  if(br.siteMarkup?.image&&(!clonedIr.siteMarkup||!clonedIr.siteMarkup.image)){
+    clonedIr.siteMarkup=Object.assign({},clonedIr.siteMarkup,{
+      image:br.siteMarkup.image,
+      w:(clonedIr.siteMarkup&&clonedIr.siteMarkup.w)||br.siteMarkup.w,
+      h:(clonedIr.siteMarkup&&clonedIr.siteMarkup.h)||br.siteMarkup.h,
+      marks:(clonedIr.siteMarkup&&clonedIr.siteMarkup.marks&&clonedIr.siteMarkup.marks.length)?clonedIr.siteMarkup.marks:br.siteMarkup.marks
+    });
+  }
+  Object.assign(br,clonedIr);
+});
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
 incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}mergePanelFields(bp,ip)})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);if(!merged){alert("This job was deleted from Studio and can't be restored from a backup file.");return}switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
@@ -3486,7 +3545,7 @@ load();
 </div>
 <div class="site-room-modal" id="siteRoomDetailsModal" aria-hidden="true">
  <div class="site-room-dialog" role="dialog" aria-modal="true" aria-labelledby="siteRoomDetailsTitle">
-  <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
+  <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p><span class="site-room-kind-badge" id="siteRoomDetailsKindBadge"></span></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
   <div class="site-room-body">
    <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-photo-measure-label" id="siteRoomPhotoMeasureLabel"></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
    <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomPhotoCount">0</b><span>Photos</span></div><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div><div class="site-fact"><b>Ready</b><span>Site package</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div></div><div class="site-drawing-placeholder">Room Drawing</div><div class="site-detail-actions"><button class="btn primary" id="sitePhotoToDrawing" type="button">Use in Drawing</button><button class="btn" id="siteOpenProject" type="button">Open project details</button></div></section>
