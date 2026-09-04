@@ -1838,10 +1838,19 @@ function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
 // A job counts as a Studio installation project once Studio has actually added
 // cutting-list panels to it -- that data only ever arrives from Studio (Mobile's own
-// Site Measure flow only ever produces rooms/photos/measurements, never cabinets/parts),
-// so this is a reliable signal for "this came from Studio" without a new field that could
-// drift out of sync with what's actually in the project.
+// Site Measure flow only ever produces rooms/photos/measurements, never cabinets/parts).
+// Used everywhere "ready to install" actually means having real panels: the Ready/Still
+// Drawing badge, the design thumbnail, the panel-count figure, and the Panel Check
+// bulk-select checkbox all still key off this exactly as before.
 function isInstallationJob(p){return !!(p&&(p.cabinets||[]).some(c=>(c.parts||[]).length>0))}
+// Whether a job is Studio's own work at all -- broader than isInstallationJob(p), which
+// used to double as this signal but misses a Studio job sent before it has any panels
+// yet (e.g. a cabinet just created via Start Design in Studio: drawing only, no parts).
+// mergeStudioProject sets studioOrigin=true on every packet it ever merges, independent
+// of parts existing, so this is the one used for "which list does this job belong to"
+// and the NEW badge -- isInstallationJob(p) alone stays the fallback for any job already
+// on a phone from before this field existed.
+function isStudioJob(p){return !!(p&&(p.studioOrigin||isInstallationJob(p)))}
 // A small numbered badge on the Install nav icon instead of another popup -- mobileSeen
 // is set false only the first time mergeStudioProject() ever sees a given job id (see
 // there), and flips true the moment the fitter actually opens it (see the open-job
@@ -1849,7 +1858,7 @@ function isInstallationJob(p){return !!(p&&(p.cabinets||[]).some(c=>(c.parts||[]
 // read straight from the persisted project, not any session-only flag.
 function updateInstallNewBadge(){
  const badge=document.getElementById('installNewBadge');if(!badge)return;
- const count=state.projects.filter(p=>isInstallationJob(p)&&!p.mobileArchived&&p.mobileSeen===false&&(typeof canSeeJob!=='function'||canSeeJob(p))).length;
+ const count=state.projects.filter(p=>isStudioJob(p)&&!p.mobileArchived&&p.mobileSeen===false&&(typeof canSeeJob!=='function'||canSeeJob(p))).length;
  badge.textContent=String(count);
  badge.classList.toggle('hidden',count<=0);
 }
@@ -1869,12 +1878,13 @@ function newJob(){
 // before any customer info was entered) goes to the New Site Job screen. This must never
 // resume a Studio installation project just because it happened to be the last thing
 // open elsewhere in the app -- state.currentProject is shared globally, so without the
-// isInstallationJob() guard, leaving a Studio job open in Panel Check/Install and then
+// isStudioJob() guard, leaving a Studio job open in Panel Check/Install and then
 // tapping Site Measure would "continue" that Studio job instead of the fitter's own
-// measuring work.
+// measuring work. isStudioJob (not isInstallationJob alone) so this still holds for a
+// Studio job sent before it has any panels yet.
 function startSiteMeasureFlow(){
  const p=project();
- if(p&&!isInstallationJob(p)){
+ if(p&&!isStudioJob(p)){
   // Still inside the customer/site/room wizard (see renderNewSiteJobScreen) -- resume it
   // at the exact question the fitter left, even if it already created a pending room in
   // the Room step, rather than dropping them into Site Visit Summary before the wizard
@@ -1966,9 +1976,11 @@ function renderProjects(){
   // NEW badge reads the room's own mobileSeen where a real room exists (set the moment
   // this specific card is opened, see the open-card handler below and mergeStudioProject's
   // per-room merge), else the project's -- same fallback shape as everywhere else in this
-  // feature, so a no-rooms job's badge is unaffected.
+  // feature, so a no-rooms job's badge is unaffected. Gated on isStudioJob(p), not ready,
+  // so a Studio job sent before it has any panels yet still gets its NEW badge instead of
+  // silently having none (it's real incoming Studio work either way).
   const roomSeen=realRoom?realRoom.mobileSeen:p.mobileSeen;
-  const newBadge=(ready&&roomSeen===false)?`<span class="job-status-badge new">● NEW</span>`:'';
+  const newBadge=(isStudioJob(p)&&roomSeen===false)?`<span class="job-status-badge new">● NEW</span>`:'';
   const pcHtml=ready&&typeof panelCheckStatusHtmlForCabinets==='function'?panelCheckStatusHtmlForCabinets(cabinets):'';
   // Build 2, §4: a design-preview thumbnail (first cabinet with a real drawing, falling
   // back to a room's own synced Studio drawing image -- the same "pick first available
@@ -2000,14 +2012,16 @@ function renderProjects(){
  // so a job with one room assigned to fitter A and another to fitter B correctly shows
  // only the room each of them is actually assigned to, instead of the whole job either
  // fully appearing or fully disappearing.
- const visibleSiteProjects=state.projects.filter(p=>!isInstallationJob(p)&&(typeof canSeeJob!=='function'||canSeeJob(p,null)));
- const installCards=state.projects.filter(isInstallationJob).flatMap(cardsForProject)
+ const visibleSiteProjects=state.projects.filter(p=>!isStudioJob(p)&&(typeof canSeeJob!=='function'||canSeeJob(p,null)));
+ const installCards=state.projects.filter(isStudioJob).flatMap(cardsForProject)
   .filter(card=>typeof canSeeJob!=='function'||canSeeJob(card.project,card.room==='__general__'?null:card.room));
  // Site Measure and Studio installation work are two different jobs to a fitter even when
  // the underlying array is one shared state.projects -- mixing them in one list was the
- // actual clutter being reported, not just a display preference. isInstallationJob() is
- // the same signal already used for the "ready to install" badge, just also used here to
- // split the list instead of merely sorting it. Jobs never disappear from either group
+ // actual clutter being reported, not just a display preference. isStudioJob() (mostly
+ // isInstallationJob(), the same signal already used for the "ready to install" badge,
+ // widened by mergeStudioProject's own studioOrigin flag) is used here to split the list
+ // instead of merely sorting it, so a Studio job sent before it has any panels yet still
+ // lands in the right group. Jobs never disappear from either group
  // just by being opened -- Studio stays the master copy and a genuinely completed Site
  // Measure visit removes itself once sendAllRoomsToStudio() confirms Studio has it (see
  // that function), not by hiding it here.
@@ -3244,8 +3258,26 @@ function mergeStudioProject(incoming){
  // been finished and archived on this phone (Studio reassigning/reopening a finished job
  // is exactly the case where the fitter needs to see it again).
  incoming.mobileArchived=false;
- if(!old)incoming.mobileSeen=false;
+ // The one reliable "this came from Studio" signal, set on every packet this function
+ // ever merges (new project or a resync of one already known). isInstallationJob(p) (has
+ // a cabinet with real parts) used to be the only way renderProjects() told a Site
+ // Measure from Studio's own work apart, which misclassified a Studio job sent before it
+ // has any panels yet (e.g. a cabinet just created via Studio's Start Design, drawing
+ // only, no parts) as a Site Measure -- it would show in the Measuring list, the exact
+ // mixing this ownership rule forbids. This flag never depends on parts existing.
+ incoming.studioOrigin=true;
  incoming.rooms=incoming.rooms||[];
+ if(!old){
+  // A genuinely brand-new project's own rooms never went through the per-room merge
+  // above (that only runs when old exists), so without this they'd keep whatever
+  // mobileSeen Studio happened to send (usually none at all) instead of starting unseen
+  // like the project itself just below -- and the Jobs list's NEW badge reads a room's
+  // own mobileSeen first (see jobCard), so a multi-room job's cards would silently never
+  // show NEW. Mirrors the identical default the per-room merge above already gives a
+  // room that's new to an existing job.
+  incoming.rooms.forEach(r=>{if(r.mobileSeen===undefined)r.mobileSeen=false});
+  incoming.mobileSeen=false;
+ }
  (incoming.cabinets||[]).forEach(ic=>{
   if(!ic.drawing||ic.drawingType==="pdf")return;
   let room=incoming.rooms.find(r=>r.id===ic.roomId);
@@ -3437,7 +3469,7 @@ function studioSyncStatus(p){
 // the next time this runs. So this can only ever resync still-active, unsent (or
 // genuinely failed/queued) Site Measure work.
 async function syncAllJobs(){
-  const jobs=state.projects.filter(p=>(p.rooms||[]).length&&!isInstallationJob(p)&&!p.mobileArchived);
+  const jobs=state.projects.filter(p=>(p.rooms||[]).length&&!isStudioJob(p)&&!p.mobileArchived);
   if(!jobs.length){alert('No measured jobs to sync yet -- add a room first.');return}
   for(const p of jobs){try{await exportJob(p.id,true)}catch(e){}}
   renderProjects();
