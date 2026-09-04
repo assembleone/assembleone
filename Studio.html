@@ -85,6 +85,17 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-search-wrap{margin-bottom:14px}
 .customer-search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--line);border-radius:12px;font-weight:600}
 .customer-search-input:focus{outline:none;border-color:#0051ff;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+.customer-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:white;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 6px rgba(20,30,50,.05);cursor:pointer}
+.customer-row:hover{border-color:#8B5CF6;background:#F8F5FF}
+.customer-row-main{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0}
+.customer-row-main strong{font-size:17px}
+.customer-row-location{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.customer-row-count{background:#F3EEFE;color:#6b3fbf;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800;flex-shrink:0;white-space:nowrap}
+.customer-row-chevron{font-size:22px;color:var(--muted);flex-shrink:0}
+.customer-card-back{margin-bottom:12px}
+.customer-card-detail .customer-card-head{margin-bottom:6px}
+.customer-card-address{color:var(--muted);font-size:13px;margin-top:3px}
+.customer-card-map{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.5}
 .customer-site-to-drawing{width:100%;text-align:center}
 .customer-job-row-actions{display:flex;gap:8px;flex-wrap:wrap}
 .customer-job-row-actions>*{flex:1;min-width:160px}
@@ -1612,8 +1623,13 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section class="screen" id="screen-customers">
 <div class="title-row"><div><h2 data-i18n="studio.home.customerLibrary">Customer Library</h2><div class="muted" data-i18n="studio.customerLibrary.subtitleHelp">Every customer with a job on file, pulled from your saved projects.</div></div></div>
 <div class="customer-search-wrap"><input type="text" id="customerSearchInput" class="customer-search-input" data-i18n-placeholder="studio.customerLibrary.searchPlaceholder" placeholder="🔍 Search by customer, project or address…" autocomplete="off"></div>
-<button type="button" class="btn primary hidden" id="sendSelectedSupplierBtn" style="width:100%;margin-bottom:10px">📤 Send 0 jobs to supplier</button>
 <div id="customersList"></div>
+</section>
+
+<section class="screen" id="screen-customerCard">
+<button type="button" class="btn customer-card-back" id="customerCardBackBtn" data-i18n="studio.customerLibrary.backToLibrary">← Back to Customer Library</button>
+<button type="button" class="btn primary hidden" id="sendSelectedSupplierBtn" style="width:100%;margin:10px 0">📤 Send 0 jobs to supplier</button>
+<div id="customerCardBody"></div>
 </section>
 
 </main>
@@ -1656,7 +1672,7 @@ function applyAppLanguage(lang){
 
 const STORE="buildSOS_v12";
 const statuses=[["ready","Ready"],["installed","Installed"],["missing","Missing"]];
-let state={projects:[],customers:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,lastChosenPartName:"",numbering:false,screen:"jobs"};
+let state={projects:[],customers:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,currentCustomerCard:null,lastChosenPartName:"",numbering:false,screen:"jobs"};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const safe=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -1713,11 +1729,13 @@ function updateCustomerDetails(customerId,fields){
  if(fields.name!==undefined)c.name=String(fields.name||"").trim()||c.name;
  if(fields.address!==undefined)c.address=String(fields.address||"").trim();
  if(fields.phone!==undefined)c.phone=String(fields.phone||"").trim();
+ if(fields.email!==undefined)c.email=String(fields.email||"").trim();
  c.updatedAt=Date.now();
  customerProjects(customerId).forEach(p=>{
    p.customer=c.name;
    if(fields.address!==undefined)p.address=c.address;
    if(fields.phone!==undefined)p.phone=c.phone;
+   if(fields.email!==undefined)p.email=c.email;
  });
 }
 // Switching the active job must resync #projectName/#customerName immediately, before
@@ -2155,11 +2173,12 @@ function timeAgo(ts){
 function openEditCustomerDialog(customerId){
  const c=state.customers.find(x=>x.id===customerId);if(!c)return;
  const o=document.createElement('div');o.className='a100-edit-dialog';
- o.innerHTML=`<div class="a100-edit-sheet"><h2>${t("studio.customerLibrary.editCustomerHeading")}</h2><label>${t("intake.customerName")}<input id="editCustName"></label><label>${t("intake.address")}<input id="editCustAddress"></label><label>${t("studio.customerLibrary.phoneLabel")}<input id="editCustPhone"></label><div class="a100-edit-actions"><button class="btn" id="editCustCancel">${t("studio.customerLibrary.cancelBtn")}</button><button class="btn primary" id="editCustSave">${t("studio.customerLibrary.saveBtn")}</button></div></div>`;
+ o.innerHTML=`<div class="a100-edit-sheet"><h2>${t("studio.customerLibrary.editCustomerHeading")}</h2><label>${t("intake.customerName")}<input id="editCustName"></label><label>${t("intake.address")}<input id="editCustAddress"></label><label>${t("studio.customerLibrary.phoneLabel")}<input id="editCustPhone" type="tel"></label><label>${t("studio.customerLibrary.emailLabel")}<input id="editCustEmail" type="email"></label><div class="a100-edit-actions"><button class="btn" id="editCustCancel">${t("studio.customerLibrary.cancelBtn")}</button><button class="btn primary" id="editCustSave">${t("studio.customerLibrary.saveBtn")}</button></div></div>`;
  document.body.appendChild(o);
  o.querySelector('#editCustName').value=c.name||"";
  o.querySelector('#editCustAddress').value=c.address||"";
  o.querySelector('#editCustPhone').value=c.phone||"";
+ o.querySelector('#editCustEmail').value=c.email||"";
  const close=()=>o.remove();
  o.querySelector('#editCustCancel').onclick=close;
  o.onclick=e=>{if(e.target===o)close()};
@@ -2167,7 +2186,8 @@ function openEditCustomerDialog(customerId){
    updateCustomerDetails(customerId,{
      name:o.querySelector('#editCustName').value,
      address:o.querySelector('#editCustAddress').value,
-     phone:o.querySelector('#editCustPhone').value
+     phone:o.querySelector('#editCustPhone').value,
+     email:o.querySelector('#editCustEmail').value
    });
    // renderAll() (via renderProject()) must repaint #customerName/#projectName from the
    // just-updated data *before* save() runs -- save() commits whatever those fields
@@ -2301,6 +2321,12 @@ function exportCombinedSupplierCsv(projectIds){
 document.getElementById('sendSelectedSupplierBtn')?.addEventListener('click',()=>{
  exportCombinedSupplierCsv([...supplierSelectedJobIds]);
 });
+// Build 3 (Customer Library / Customer Card split): the main list now shows one simple
+// row per customer -- name, location, job count, chevron -- with no room/measurement/
+// photo/job detail inline. Clicking a row opens that customer's full Customer Card
+// (renderCustomerCard, below), which is where the job list this used to render inline
+// now lives. Nothing about the underlying state.customers/state.projects/rooms data
+// changes here -- this is a pure presentation/navigation split.
 function renderCustomers(){
  const box=$("#customersList");if(!box)return;
  // Clean up any blank, never-started projects already sitting from before newJob()
@@ -2322,42 +2348,86 @@ function renderCustomers(){
    return bLast-aLast;
  });
  box.innerHTML=groups.length?groups.map(g=>{
-   const c=g.customer;
-   const jobs=g.jobs.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+   const c=g.customer,jobs=g.jobs;
    const newCount=jobs.filter(p=>p.isNewFromSite).length;
-   const contactBits=[];
-   // A GPS pin dropped on site (Mobile's "Use current location") is the exact property
-   // location -- prefer it over a text search on the address, and say so explicitly so
-   // it's obvious the pin actually made it through the sync.
-   const pinnedJob=jobs.find(p=>p.geoLat!=null&&p.geoLng!=null);
-   if(pinnedJob){
-     contactBits.push(`📍 ${c.address?safe(c.address)+' — ':''}<strong>Exact location pinned</strong> <a href="https://www.google.com/maps/search/?api=1&query=${pinnedJob.geoLat},${pinnedJob.geoLng}" target="_blank" rel="noopener" class="customer-map-link" onclick="event.stopPropagation()">View pinned map ↗</a>`);
-   }else if(c.address){
-     contactBits.push(`📍 ${safe(c.address)} <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="customer-map-link" onclick="event.stopPropagation()">View map ↗</a>`);
-   }
-   if(c.phone)contactBits.push(`📞 ${safe(c.phone)}`);
-   const contactHtml=contactBits.length?`<div class="customer-card-contact">${contactBits.join("<br>")}</div>`:"";
-   const lastUpdated=Math.max(c.updatedAt||0,...jobs.map(p=>p.updatedAt||0),0);
    const searchText=[c.name,c.address,...jobs.map(p=>p.name)].filter(Boolean).join(" ").toLowerCase();
-   return `<div class="customer-card" data-search="${safe(searchText)}"><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}${contactHtml}${lastUpdated?`<div class="customer-card-updated">${t("studio.customerLibrary.lastUpdated",[timeAgo(lastUpdated)])}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="${t("studio.customerLibrary.editCustomerDetailsTitle")}">${t("studio.customerLibrary.editBtn")}</button><span class="customer-job-count">${t(jobs.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[jobs.length])}</span></span></div><div class="customer-job-list">${jobs.map(p=>{
-     const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
-     const status=jobStatusInfo(p);
-     const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
-     const logCount=(p.jobLog||[]).length;
-     const roomCount=(p.rooms||[]).length;
-     return `<div class="customer-job-item"><label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(p.id)}" ${supplierSelectedJobIds.has(p.id)?'checked':''}></label><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span> `:''}<strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${t(roomCount===1?"studio.customerLibrary.roomCountSingular":"studio.customerLibrary.roomCountPlural",[roomCount])}</span>${p.updatedAt?`<span class="muted">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">${t("studio.customerLibrary.openSiteMeasurementsInDrawing")}</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="${t("studio.customerLibrary.deleteThisJobTitle")}" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
-   }).join("")}</div></div>`;
+   return `<button type="button" class="customer-row" data-open-customer="${safe(c.id)}" data-search="${safe(searchText)}">`+
+     `<span class="customer-row-main"><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}${c.address?`<span class="customer-row-location">📍 ${safe(c.address)}</span>`:""}</span>`+
+     `<span class="customer-row-count">${t(jobs.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[jobs.length])}</span>`+
+     `<span class="customer-row-chevron">›</span>`+
+   `</button>`;
  }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsYetEmpty")}</div>`;
- box.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
- box.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openCustomerSiteJobInDrawing(b.dataset.siteToDrawing)});
+ box.querySelectorAll('[data-open-customer]').forEach(b=>b.onclick=()=>openCustomerCard(b.dataset.openCustomer));
+ const search=$("#customerSearchInput");
+ if(search&&!search.dataset.wired){
+   search.dataset.wired="1";
+   search.addEventListener("input",()=>{
+     const q=search.value.trim().toLowerCase();
+     $$("#customersList .customer-row").forEach(row=>{
+       row.style.display=(!q||(row.dataset.search||"").includes(q))?"":"none";
+     });
+   });
+ }
+}
+// The exact per-job row markup the old flat Customer Library used to render inline --
+// reused verbatim (room chips with their existing icons, status pill, room count,
+// updated time, open-in-drawing/notes/delete actions, supplier-send checkbox) inside
+// the new Customer Card, with one addition: a panel-count figure per §"panel count
+// where available", read from the same jobPanelCheckTotals() Job Overview already uses.
+function customerJobItemHtml(p){
+ const hasSiteJob=(p.rooms||[]).some(r=>siteRoomPictures(r).length)||siteRoomPictures(p).length>0;
+ const status=jobStatusInfo(p);
+ const roomChips=(p.rooms||[]).filter(r=>r.name).map(r=>`<span class="room-chip" role="button" tabindex="0" data-open-site-room="${safe(r.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(r.name)])}">${safe(r.icon||"⌂")} ${safe(r.name)}</span>`).join("");
+ const logCount=(p.jobLog||[]).length;
+ const roomCount=(p.rooms||[]).length;
+ // Computed inline (not via window.jobPanelCheckTotals) because this can render during
+ // the very first load() -- before the later a208 script block assigns that function to
+ // window -- and a qty-aware panel count is only a couple of lines anyway.
+ const panelTotal=(p.cabinets||[]).reduce((n,c)=>n+(c.parts||[]).reduce((m,pt)=>m+Math.max(1,Number(pt.qty)||1),0),0);
+ const panelHtml=panelTotal?`<span class="muted">${t(panelTotal===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[panelTotal])}</span>`:"";
+ return `<div class="customer-job-item"><label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(p.id)}" ${supplierSelectedJobIds.has(p.id)?'checked':''}></label><button class="customer-job-row" type="button" data-open-job="${safe(p.id)}"><span class="customer-job-title-line">${p.isNewFromSite?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span> `:''}<strong>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</strong></span>${roomChips?`<span class="customer-job-rooms">${roomChips}</span>`:""}<span class="customer-job-meta"><span class="customer-job-status ${status.cls}">${status.label}</span><span class="muted">${t(roomCount===1?"studio.customerLibrary.roomCountSingular":"studio.customerLibrary.roomCountPlural",[roomCount])}</span>${panelHtml}${p.updatedAt?`<span class="muted">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:""}</span></button><div class="customer-job-row-actions">${hasSiteJob?`<button class="btn primary customer-site-to-drawing" type="button" data-site-to-drawing="${safe(p.id)}">${t("studio.customerLibrary.openSiteMeasurementsInDrawing")}</button>`:""}<button class="btn customer-job-notes-btn" type="button" data-job-notes="${safe(p.id)}">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</button><button class="customer-job-delete-btn" type="button" data-delete-customer-job="${safe(p.id)}" title="${t("studio.customerLibrary.deleteThisJobTitle")}" style="flex:0 0 auto;min-width:0">🗑</button></div></div>`;
+}
+function openCustomerCard(customerId){
+ state.currentCustomerCard=customerId;
+ renderCustomerCard();
+ show('customerCard');
+}
+function renderCustomerCard(){
+ const body=$("#customerCardBody");if(!body)return;
+ const c=state.customers.find(x=>x.id===state.currentCustomerCard);
+ if(!c){body.innerHTML="";return}
+ const jobs=customerProjects(c.id).slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+ const newCount=jobs.filter(p=>p.isNewFromSite).length;
+ // A GPS pin dropped on site (Mobile's "Use current location") is the exact property
+ // location -- prefer it over a text search on the address, and say so explicitly so
+ // it's obvious the pin actually made it through the sync. Same map logic as before,
+ // just now its own clearly-labelled area on the Customer Card instead of buried in a
+ // contact-bits list.
+ const pinnedJob=jobs.find(p=>p.geoLat!=null&&p.geoLng!=null);
+ let mapHtml="";
+ if(pinnedJob){
+   mapHtml=`<div class="customer-card-map"><strong>📍 Exact location pinned</strong> <a href="https://www.google.com/maps/search/?api=1&query=${pinnedJob.geoLat},${pinnedJob.geoLng}" target="_blank" rel="noopener" class="customer-map-link">View pinned map ↗</a></div>`;
+ }else if(c.address){
+   mapHtml=`<div class="customer-card-map"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="customer-map-link">📍 View map ↗</a></div>`;
+ }
+ const addressHtml=c.address?`<div class="customer-card-address">📍 ${safe(c.address)}</div>`:"";
+ const contactBits=[];
+ if(c.phone)contactBits.push(`📞 ${safe(c.phone)}`);
+ if(c.email)contactBits.push(`✉️ ${safe(c.email)}`);
+ const contactHtml=contactBits.length?`<div class="customer-card-contact">${contactBits.join("<br>")}</div>`:"";
+ const lastUpdated=Math.max(c.updatedAt||0,...jobs.map(p=>p.updatedAt||0),0);
+ body.innerHTML=`<div class="customer-card customer-card-detail"><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}${addressHtml}${lastUpdated?`<div class="customer-card-updated">${t("studio.customerLibrary.lastUpdated",[timeAgo(lastUpdated)])}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="${t("studio.customerLibrary.editCustomerDetailsTitle")}">${t("studio.customerLibrary.editBtn")}</button><span class="customer-job-count">${t(jobs.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[jobs.length])}</span></span></div>${contactHtml}${mapHtml}</div>`+
+   `<div class="customer-job-list">${jobs.map(customerJobItemHtml).join("")||`<div class="empty">${t("studio.customerLibrary.noJobsYetEmpty")}</div>`}</div>`;
+ body.querySelectorAll('[data-open-job]').forEach(b=>b.onclick=()=>{switchToProject(b.dataset.openJob);save();if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();else{renderAll();show("jobs")}});
+ body.querySelectorAll('[data-site-to-drawing]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openCustomerSiteJobInDrawing(b.dataset.siteToDrawing)});
  // Each room chip opens ONLY that room's own photo/measurements -- passing its
  // real roomId means openSiteRoomDetails uses that exact room instead of falling
  // back to "whichever room has a picture" (which always meant the newest one).
- box.querySelectorAll('[data-open-site-room]').forEach(el=>el.onclick=(e)=>{e.stopPropagation();openSiteRoomDetails(el.dataset.openSiteRoomProject,el.dataset.openSiteRoom)});
- box.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
- box.querySelectorAll('[data-job-notes]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openJobNotesDialog(b.dataset.jobNotes)});
- box.querySelectorAll('[data-delete-customer-job]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteCustomerLibraryJob(b.dataset.deleteCustomerJob)});
- box.querySelectorAll('.job-select-checkbox').forEach(cb=>{
+ body.querySelectorAll('[data-open-site-room]').forEach(el=>el.onclick=(e)=>{e.stopPropagation();openSiteRoomDetails(el.dataset.openSiteRoomProject,el.dataset.openSiteRoom)});
+ body.querySelectorAll('[data-edit-customer]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openEditCustomerDialog(b.dataset.editCustomer)});
+ body.querySelectorAll('[data-job-notes]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openJobNotesDialog(b.dataset.jobNotes)});
+ body.querySelectorAll('[data-delete-customer-job]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();deleteCustomerLibraryJob(b.dataset.deleteCustomerJob)});
+ body.querySelectorAll('.job-select-checkbox').forEach(cb=>{
   cb.onclick=(e)=>e.stopPropagation();
   cb.onchange=()=>{
    if(cb.checked)supplierSelectedJobIds.add(cb.dataset.selectJob);
@@ -2366,17 +2436,8 @@ function renderCustomers(){
   };
  });
  updateSendSelectedSupplierButton();
- const search=$("#customerSearchInput");
- if(search&&!search.dataset.wired){
-   search.dataset.wired="1";
-   search.addEventListener("input",()=>{
-     const q=search.value.trim().toLowerCase();
-     $$("#customersList .customer-card").forEach(card=>{
-       card.style.display=(!q||(card.dataset.search||"").includes(q))?"":"none";
-     });
-   });
- }
 }
+document.getElementById('customerCardBackBtn')?.addEventListener('click',()=>{state.currentCustomerCard=null;show('customers')});
 function renderParts(){
  const allParts=cabinetParts(),parts=allParts.filter(isCompleteSupplierPart),missing=allParts.length-parts.length,box=$("#partsSummary"),warning=$("#componentsValidation");
  if(warning){warning.style.display=missing?"block":"none";warning.innerHTML=missing?`⚠️ ${missing} unfinished panel${missing===1?" is":"s are"} still on the drawing. Add the part name, thickness, length and width before it can appear in Panel Status or the Cutting List.`:""}
@@ -2619,7 +2680,7 @@ function renderJobBom(){
  const send=document.getElementById('exportMobileBtn');if(send){send.disabled=!allReady;send.title=allReady?t("studio.finishJob.sendCompleteProjectTitle"):t("studio.finishJob.finishRedSectionsFirstTitle")}
  save()
 }
-function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();renderCustomers();updateUnitAddWording();show(state.screen||"jobs")}
+function renderAll(){state.projects.forEach(ensureSharedProject);renderHeader();renderJobs();renderProject();renderCabinetSelect();renderRooms();renderStudioRoomGuide();renderForm();renderPartList();renderParts();renderCutting();renderQr();renderPhone();renderJobBom();renderCustomers();renderCustomerCard();updateUnitAddWording();show(state.screen||"jobs")}
 
 function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;const raw=$("#"+id).value;const isMeasure=["length","width","thickness"].includes(key);
   // A typo or stray paste in Quantity (an extra digit, e.g. 2275 instead of 22) used to go
@@ -6957,14 +7018,13 @@ body.fiq-locked .app{display:none!important}
       banner.innerHTML=t("studio.jobOverview.showingFilterTemplate",[safe(f.label)])+'<button type="button" id="clearDashboardFilter">'+t("studio.jobOverview.clearFilterBtn")+'</button>';
       document.getElementById('clearDashboardFilter').onclick=()=>{window.__homeDashboardFilter=null;filterCustomerLibraryByProject()};
     }else if(banner){banner.remove()}
-    box.querySelectorAll('.customer-job-item').forEach(item=>{
-      const btn=item.querySelector('[data-open-job]');
-      const p=btn?state.projects.find(x=>x.id===btn.dataset.openJob):null;
-      item.style.display=(!f||(p&&f.predicate(p)))?'':'none';
-    });
-    box.querySelectorAll('.customer-card').forEach(card=>{
-      const anyVisible=Array.from(card.querySelectorAll('.customer-job-item')).some(item=>item.style.display!=='none');
-      card.style.display=anyVisible?'':'none';
+    // The main list is now one row per customer (no job rows inline) -- a filter narrows
+    // it to customers who have at least one job matching the predicate, same intent as
+    // before (jump from a Job Overview stat card straight to the relevant customers).
+    box.querySelectorAll('.customer-row').forEach(row=>{
+      const jobs=typeof customerProjects==='function'?customerProjects(row.dataset.openCustomer):[];
+      const anyMatch=!f||jobs.some(p=>f.predicate(p));
+      row.style.display=anyMatch?'':'none';
     });
   }
   window.a208FilterCustomerLibrary=filterCustomerLibraryByProject;
