@@ -1752,6 +1752,29 @@ function ensureCustomerForProject(p){
 function migrateCustomers(){
  state.customers=state.customers||[];
  state.projects.forEach(p=>{if(!p.customerId||!state.customers.find(c=>c.id===p.customerId))ensureCustomerForProject(p)});
+ // Older Studio and Mobile imports could each create their own permanent customer
+ // record for the same name. The cards look identical, but their different ids split
+ // Site Measurements from Jobs / Designs. Consolidate those records by normalized
+ // customer name and redirect the existing projects to one id. No project, room,
+ // drawing, panel, photo, note or history data is copied or recreated here.
+ const canonicalByName=new Map(),duplicateIds=new Map();
+ state.customers.forEach(c=>{
+   const key=customerKeyFor(c.name);
+   if(!key)return;
+   const canonical=canonicalByName.get(key);
+   if(!canonical){canonicalByName.set(key,c);return}
+   duplicateIds.set(c.id,canonical.id);
+   ["address","phone","email","notes","geoLat","geoLng"].forEach(field=>{
+     if((canonical[field]===undefined||canonical[field]===null||canonical[field]==="")&&c[field]!==undefined&&c[field]!==null&&c[field]!=="")canonical[field]=c[field];
+   });
+   canonical.createdAt=Math.min(canonical.createdAt||Infinity,c.createdAt||Infinity);
+   canonical.updatedAt=Math.max(canonical.updatedAt||0,c.updatedAt||0);
+ });
+ if(duplicateIds.size){
+   state.projects.forEach(p=>{if(duplicateIds.has(p.customerId))p.customerId=duplicateIds.get(p.customerId)});
+   state.customers=state.customers.filter(c=>!duplicateIds.has(c.id));
+   if(duplicateIds.has(state.currentCustomerCard))state.currentCustomerCard=duplicateIds.get(state.currentCustomerCard);
+ }
 }
 // Job Notes / Communication: one chronological log per project (messages, missing/damaged
 // part reports, general notes, photos), each entry now tagged with the room it belongs to
