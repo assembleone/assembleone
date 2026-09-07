@@ -888,12 +888,16 @@ function mergeMobileSiteJob(incoming){
  return focusProject;
 }
 function customerKey(name){return String(name||"").trim()}
+function customerMatchKey(name){return customerKey(name).replace(/\\s+/g," ").toLocaleLowerCase()}
+function customerContactMatch(value){return String(value||"").trim().replace(/\\s+/g," ").toLocaleLowerCase()}
 function allCustomerEntries(){
  const map=new Map();
+ const namedCustomerKeys=new Map();
  (state.customers||[]).forEach(c=>{
   const key=customerKey(c.name);
   if(!key)return;
   map.set(key,{id:c.id,name:c.name,address:c.address||"",phone:c.phone||"",notes:c.notes||"",geoLat:null,geoLng:null,projects:[]});
+  namedCustomerKeys.set(customerMatchKey(key),key);
  });
  // A phone site job is split into one Studio project per room (see mergeMobileSiteJob),
  // so resolve one shared customer key per siteMobileJobId first -- using any sibling
@@ -907,7 +911,24 @@ function allCustomerEntries(){
  });
  const noCustomerLabels=new Map();
  (state.projects||[]).forEach(p=>{
-  let key=customerKey(p.customer)||(p.siteMobileJobId&&jobKeys.get(p.siteMobileJobId));
+  const projectCustomer=customerKey(p.customer)||(p.siteMobileJobId&&jobKeys.get(p.siteMobileJobId));
+  let key=projectCustomer;
+  // Customer records and older Studio jobs were created independently. Link an
+  // existing job to the permanent customer record even when capitalization or
+  // repeated spaces differ, while keeping the saved customer spelling intact.
+  if(key){
+   const permanentKey=namedCustomerKeys.get(customerMatchKey(key));
+   if(permanentKey)key=permanentKey;
+  }
+  // Some older jobs have no customer name at all, but do retain the same site
+  // address or phone number. Only use that evidence when it identifies exactly
+  // one permanent customer, so an existing job is never attached by guesswork.
+  if(!key){
+   const address=customerContactMatch(p.address);
+   const phone=customerContactMatch(p.phone);
+   const matches=[...map.entries()].filter(([,entry])=>(address&&customerContactMatch(entry.address)===address)||(phone&&customerContactMatch(entry.phone)===phone));
+   if(matches.length===1)key=matches[0][0];
+  }
   if(!key&&p.siteMobileJobId){
    // A job sent from the phone before a customer name was typed would otherwise vanish
    // from this screen entirely (it never gets a key). Group it under a findable label
