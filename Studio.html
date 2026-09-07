@@ -7385,6 +7385,11 @@ body.fiq-locked .app{display:none!important}
   function cardsForProject(p){
     const rooms=(p.rooms||[]).filter(r=>r&&r.name);
     if(!rooms.length)return [{project:p,room:null}];
+    // A complete Mobile site visit is one customer record on the dashboard, even when
+    // it contains many measured rooms. The room-by-room cards belong to designed and
+    // installation work, not to an incoming visit that the office needs to review as a
+    // whole. The Customer Card still keeps every room separate underneath this one card.
+    if(p.isNewFromSite)return [{project:p,room:'__site_visit__'}];
     const cards=rooms.map(r=>({project:p,room:r}));
     const roomIds=new Set(rooms.map(r=>r.id));
     if((p.cabinets||[]).some(c=>!c.roomId||!roomIds.has(c.roomId)))cards.push({project:p,room:'__general__'});
@@ -7392,7 +7397,7 @@ body.fiq-locked .app{display:none!important}
   }
   function cardCabinets(card){
     const p=card.project;
-    if(card.room===null)return p.cabinets||[];
+    if(card.room===null||card.room==='__site_visit__')return p.cabinets||[];
     if(card.room==='__general__'){
       const roomIds=new Set((p.rooms||[]).filter(r=>r&&r.name).map(r=>r.id));
       return (p.cabinets||[]).filter(c=>!c.roomId||!roomIds.has(c.roomId));
@@ -7400,7 +7405,7 @@ body.fiq-locked .app{display:none!important}
     return (p.cabinets||[]).filter(c=>c.roomId===card.room.id);
   }
   function cardKey(card){
-    if(card.room===null)return card.project.id;
+    if(card.room===null||card.room==='__site_visit__')return card.project.id;
     return card.project.id+'::'+(card.room==='__general__'?'__general__':card.room.id);
   }
   function parseCardKey(key){
@@ -7408,6 +7413,10 @@ body.fiq-locked .app{display:none!important}
     return i===-1?{projectId:key,roomKey:null}:{projectId:key.slice(0,i),roomKey:key.slice(i+2)};
   }
   function cardRoomLabel(card){
+    if(card.room==='__site_visit__'){
+      const rooms=(card.project.rooms||[]).filter(r=>r&&r.name);
+      return rooms.map(r=>(r.icon||'⌂')+' '+r.name).join(' · ');
+    }
     if(card.room==='__general__')return t("studio.jobOverview.generalLabel");
     if(card.room)return safe((card.room.icon||'⌂')+' '+card.room.name);
     const cab=(card.project.cabinets||[])[0];
@@ -7650,7 +7659,10 @@ body.fiq-locked .app{display:none!important}
     grid.innerHTML=cards.length?cards.map(card=>{
       const p=card.project,cabinets=cardCabinets(card),key=cardKey(card);
       const drawingCab=cabinets.find(c=>c.drawing&&c.drawingType!=='pdf');
-      const thumb=drawingCab?('<img src="'+drawingCab.drawing+'" alt="Drawing preview">'):'<span>📐</span>';
+      const siteVisit=card.room==='__site_visit__';
+      const sitePhotos=siteVisit?(p.rooms||[]).flatMap(r=>siteRoomPictures(r)):[];
+      const previewSource=drawingCab?.drawing||sitePhotos[0]||'';
+      const thumb=previewSource?('<img src="'+safe(previewSource)+'" alt="'+(siteVisit?'Site visit preview':'Drawing preview')+'">'):'<span>📐</span>';
       const pc=panelCheckTotalsForCabinets(cabinets);
       // Panel Check is only ever "finished" per real room (Mobile's own per-room Finish
       // Panel Check) -- a no-rooms project or the "General" catch-all card can never reach
@@ -7664,9 +7676,9 @@ body.fiq-locked .app{display:none!important}
       const showFitted=fit.installed>0;
       const fitPct=fit.total>0?Math.round(fit.installed/fit.total*100):0;
       const damaged=damagedTotalForCabinets(cabinets),missing=missingTotalForCabinets(cabinets);
-      const issueHtml='<span class="jor-issue'+(damaged?' jor-issue-bad':'')+'">'+t("studio.jobOverview.damagedTagTemplate",[damaged])+(damaged?' ⚠️':'')+'</span>'+
+      const issueHtml=siteVisit?'':'<span class="jor-issue'+(damaged?' jor-issue-bad':'')+'">'+t("studio.jobOverview.damagedTagTemplate",[damaged])+(damaged?' ⚠️':'')+'</span>'+
         '<span class="jor-issue'+(missing?' jor-issue-bad':'')+'">'+t("studio.jobOverview.missingTagTemplate",[missing])+(missing?' ⚠️':'')+'</span>';
-      const warn=(needsAttentionForCabinets(cabinets)||(pcFinished&&pcMissing.length))?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.needsAttentionTooltip")+'">⚠️</span>':'<span class="jor-warn"></span>';
+      const warn=!siteVisit&&(needsAttentionForCabinets(cabinets)||(pcFinished&&pcMissing.length))?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.needsAttentionTooltip")+'">⚠️</span>':'<span class="jor-warn"></span>';
       // isNewFromSite is the exact same flag switchToProject() already clears the moment
       // this job is opened (see there) -- reused as-is, not a new dashboard-only marker,
       // so it also already survives a reload correctly (it's just a field on the project).
@@ -7677,16 +7689,20 @@ body.fiq-locked .app{display:none!important}
       const roomLabel=cardRoomLabel(card);
       // The panel total is its own standalone, prominent figure next to the name -- not
       // buried only inside the Panel Check stat column, per the brief's §3/§6.
-      const panelTotalHtml='<div class="jor-panel-total">'+t(pc.total===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[pc.total])+'</div>';
-      const roomIdAttr=card.room===null?'':(card.room==='__general__'?'__general__':safe(card.room.id));
+      const siteRoomCount=siteVisit?(p.rooms||[]).filter(r=>r&&r.name).length:0;
+      const panelTotalHtml=siteVisit
+        ?'<div class="jor-panel-total">'+siteRoomCount+' room'+(siteRoomCount===1?'':'s')+' · '+sitePhotos.length+' photo'+(sitePhotos.length===1?'':'s')+'</div>'
+        :'<div class="jor-panel-total">'+t(pc.total===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[pc.total])+'</div>';
+      const roomIdAttr=card.room===null?'':(card.room==='__general__'?'__general__':card.room==='__site_visit__'?'__site_visit__':safe(card.room.id));
       return '<div class="job-overview-row'+(isNew?' jor-new':'')+'" data-open-job-card="'+safe(p.id)+'" data-card-room-id="'+roomIdAttr+'">'+
         '<label class="jor-select" title="'+t("studio.jobOverview.selectCardTitle")+'"><input type="checkbox" class="jor-select-checkbox" data-select-card="'+safe(key)+'" '+(jorSelectedCardKeys.has(key)?'checked':'')+'></label>'+
         '<div class="jor-thumb">'+thumb+'</div>'+
         '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||t("studio.customerLibrary.untitledJob"))+'</div>'+(roomLabel?'<div class="jor-room">'+roomLabel+'</div>':'')+panelTotalHtml+
         '<div class="jor-issues">'+issueHtml+'</div></div>'+
         '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(card.room&&card.room!=='__general__'?card.room:p,0,key):'')+'</div>'+
-        '<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.openPanelCheckTooltip")+'"><div class="jor-stat-label">'+t("studio.panelCheck.screenTitle")+'</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+t("studio.jobOverview.pctCheckedTemplate",[pcPct])+'</div>':'')+'</div>'+
-        '<div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">'+t("studio.jobOverview.fittedStatLabel")+'</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>'+
+        (siteVisit
+          ?'<div class="jor-stat jor-stat-primary"><div class="jor-stat-label">Site measurements</div><div class="jor-stat-value">'+siteRoomCount+' room'+(siteRoomCount===1?'':'s')+'</div></div><div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">Photos</div><div class="jor-stat-value">'+sitePhotos.length+' ready</div></div>'
+          :'<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.openPanelCheckTooltip")+'"><div class="jor-stat-label">'+t("studio.panelCheck.screenTitle")+'</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+t("studio.jobOverview.pctCheckedTemplate",[pcPct])+'</div>':'')+'</div><div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">'+t("studio.jobOverview.fittedStatLabel")+'</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>')+
         warn+
         '<span class="jor-chevron">›</span>'+
       '</div>';
@@ -7699,6 +7715,10 @@ body.fiq-locked .app{display:none!important}
     grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
       if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]')||e.target.closest('.jor-select'))return;
       const projectId=row.dataset.openJobCard,roomId=row.dataset.cardRoomId;
+      if(roomId==='__site_visit__'){
+        const proj=state.projects.find(x=>x.id===projectId);
+        if(proj?.customerId){customerCardActiveTab='site';openCustomerCard(proj.customerId);return}
+      }
       if(roomId&&roomId!=='__general__'){
         const proj=state.projects.find(x=>x.id===projectId);
         const room=proj&&(proj.rooms||[]).find(r=>r.id===roomId);
