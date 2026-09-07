@@ -800,6 +800,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -814,6 +815,8 @@ const fiqApp = initializeApp(firebaseConfig);
 window.fiqAuth = getAuth(fiqApp);
 window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
+window.fiqStorage = getStorage(fiqApp);
+window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL };
 window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
@@ -3576,7 +3579,8 @@ async function checkPendingStudioReceipts(){
    if(data&&data.status==='received'){
     p.pendingStudioReceiptDocId=null;
     p.studioReceivedAt=new Date().toISOString();
-    if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);
+    // Archive without deleting the phone photo backup. A fitter can reopen the sent
+    // visit later, and an explicit project deletion remains the only destructive action.
     p.mobileArchived=true;p.mobileArchivedAt=p.studioReceivedAt;
     changed=true;
     if(typeof onStudioReceiptConfirmed==='function')onStudioReceiptConfirmed(p);
@@ -5077,11 +5081,54 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       },250);
     });
   }
+  // Mobile photos must be durable before the Firestore packet is allowed to leave the
+  // phone. The local project keeps its data URI so an archived visit can still be opened
+  // and resent on this device. Only the cloned cloud packet is changed to Storage URLs.
+  // This mirrors the already proven Studio-to-Mobile media path and removes the Firestore
+  // document size limit from both directions.
+  async function offloadMobileMediaForStudio(project,companyId){
+    const cloudProject=JSON.parse(JSON.stringify(project));
+    const storage=window.fiqStorage,storageFns=window.fiqStorageFns||{};
+    if(!storage||!storageFns.ref||!storageFns.uploadString||!storageFns.getDownloadURL){
+      throw new Error("Photo storage is not ready yet. Keep FittersIQ open and try Send to Studio again.");
+    }
+    const uploads=[];
+    let fallbackId=0;
+    function walk(node){
+      if(!node||typeof node!=="object")return;
+      if(Array.isArray(node)){node.forEach(walk);return}
+      Object.keys(node).forEach(function(key){
+        const value=node[key];
+        if(typeof value==="string"&&value.startsWith("data:image/")){
+          const mediaId=String(node.id||("media-"+(fallbackId++))).replace(/[^a-zA-Z0-9_-]/g,"-");
+          const extension=/^data:image\/png/i.test(value)?"png":"jpg";
+          const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+mediaId+"-"+key+"."+extension;
+          uploads.push((async function(){
+            const objectRef=storageFns.ref(storage,objectPath);
+            await storageFns.uploadString(objectRef,value,"data_url");
+            const url=await storageFns.getDownloadURL(objectRef);
+            if(!url)throw new Error("The uploaded photo could not be verified.");
+            node[key]=url;
+          })());
+        }else if(value&&typeof value==="object")walk(value);
+      });
+    }
+    walk(cloudProject);
+    await Promise.all(uploads);
+    return cloudProject;
+  }
   window.sendPackDirectly=async function(pack){
     const fs=window.fiqAuthFns,db=window.fiqFirestore;
     if(!fs||!db)throw new Error("Not connected to FittersIQ yet. Please try again in a moment.");
     const user=window.fittersiqUser||await waitForFittersiqUser(8000);
     if(!user||!user.companyId)throw new Error("This account is not linked to a company yet, so it cannot be shared with Studio.");
+    let projectForCloud;
+    try{
+      projectForCloud=await offloadMobileMediaForStudio(pack.project||pack,user.companyId);
+    }catch(error){
+      console.error("Uploading Mobile photos to permanent storage failed",error);
+      throw new Error((error&&error.message)||"Could not safely upload the site photos. Nothing was deleted. Please try again.");
+    }
     const envelope={
       kind:"siteJobPacket",
       status:"waiting",
@@ -5093,7 +5140,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       app:pack.app||"AssembleOne",
       schema:pack.schema||"",
       source:pack.source||"mobile",
-      project:pack.project||pack
+      project:projectForCloud
     };
     // Firestore documents are capped at ~1MiB. Photos are already compressed, but a
     // room with several of them can still get close, so check before writing rather
