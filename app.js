@@ -888,8 +888,8 @@ function mergeMobileSiteJob(incoming){
  return focusProject;
 }
 function customerKey(name){return String(name||"").trim()}
-function customerMatchKey(name){return customerKey(name).replace(/\\s+/g," ").toLocaleLowerCase()}
-function customerContactMatch(value){return String(value||"").trim().replace(/\\s+/g," ").toLocaleLowerCase()}
+function customerMatchKey(name){return customerKey(name).replace(/\s+/g," ").toLocaleLowerCase()}
+function customerContactMatch(value){return String(value||"").trim().replace(/\s+/g," ").toLocaleLowerCase()}
 function allCustomerEntries(){
  const map=new Map();
  const namedCustomerKeys=new Map();
