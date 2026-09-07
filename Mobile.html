@@ -2803,7 +2803,9 @@ async function sendAllRoomsToStudio(p){
  if(btn){btn.disabled=false;const span=btn.querySelector('span');if(span)span.textContent='🚀 SEND TO STUDIO'}
  renderSendBar();
  if(status!=='sent'){
-  alert(status==='queued'
+  alert(status==='photo-loading'
+   ? (p.studioSyncBlockedReason||'One or more site photos are still loading from this phone. Keep FittersIQ open and tap Send to Studio again.')
+   : status==='queued'
    ? 'No signal right now. Nothing was lost -- your site visit is still saved on this phone and will send to Studio automatically once you have signal.'
    : 'Could not reach Studio. Nothing was lost -- your site visit is still saved on this phone. Tap Send to Studio again once you have signal.');
   return;
@@ -3445,7 +3447,24 @@ function archiveIfFinishedInstallation(p){
  p.mobileArchived=true;p.mobileArchivedAt=new Date().toISOString();
  if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}
 }
-async function exportJob(id,silent){const p=state.projects.find(x=>x.id===id);if(!p)return;const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};try{const sendResult=await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.lastStudioSyncDocId=sendResult.docId;archiveIfFinishedInstallation(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+async function exportJob(id,silent){
+ const p=state.projects.find(x=>x.id===id);if(!p)return;
+ // Photos are externalized to this phone's IndexedDB for reliable local storage.
+ // Firestore and Studio cannot read an "idb:..." pointer from another device, so
+ // hydrate the real image bytes before constructing the outgoing packet. Older
+ // sends built the packet first and could therefore deliver room names and text
+ // measurements while leaving Studio with a permanently broken photo reference.
+ await hydrateAllPhotos({projects:[p]});
+ const unresolvedLocalPhotos=JSON.stringify(p).includes('"idb:');
+ if(unresolvedLocalPhotos){
+   p.studioSyncBlocked=true;
+   p.studioSyncBlockedReason='One or more site photos are still loading from this phone. Keep FittersIQ open and tap Send to Studio again.';
+   save();renderAll();
+   if(!silent)alert(p.studioSyncBlockedReason);
+   return'photo-loading';
+ }
+ const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};
+ try{const sendResult=await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.lastStudioSyncDocId=sendResult.docId;archiveIfFinishedInstallation(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
