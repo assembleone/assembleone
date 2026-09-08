@@ -164,7 +164,12 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .zoom-controls{display:flex;align-items:center;gap:3px;margin-left:auto}
 .zoom-controls .btn{min-width:34px;padding:5px 8px!important}
 .zoom-value{min-width:48px;text-align:center;font-size:11px;font-weight:800;color:var(--brown)}
-@media(max-width:760px){.zoom-controls{width:100%;justify-content:flex-end;margin-left:0}.zoom-value{min-width:42px}}
+@media(max-width:760px){
+  #screen-mark .drawing-toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+  #screen-mark .drawing-toolbar>*{flex-shrink:0}
+  #screen-mark .zoom-controls{width:auto;justify-content:flex-end;margin-left:auto}
+  .zoom-value{min-width:42px}
+}
 
 /* Version 4.6 — hybrid panel markers: small crosses until selected */
 .pin{position:absolute;transform:translate(-50%,-50%);width:18px;height:18px;min-width:18px;border-radius:50%;display:grid;place-items:center;background:#63a43e;color:white;font-size:0;font-weight:900;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.24);cursor:grab;z-index:4;transition:width .14s ease,height .14s ease,box-shadow .14s ease,transform .14s ease}
