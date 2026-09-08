@@ -7265,6 +7265,7 @@ body.fiq-locked .app{display:none!important}
 .jor-warn{flex:none;font-size:18px;width:20px;text-align:center}
 .jor-stat[data-open-panel-check]:hover,.jor-warn[data-open-panel-check]:hover{background:#eef2ff;border-radius:8px}
 .jor-chevron{flex:none;color:var(--muted);font-size:18px}
+.jor-delete-job{flex:none;width:34px;height:34px;border:1px solid #efb5ba;border-radius:9px;background:#fff6f6;color:#bf1f29;font-size:16px;cursor:pointer}.jor-delete-job:hover{background:#ffe7e7}.delete-jobs-link{color:#bf1f29!important}.all-jobs-delete-list{display:grid;gap:7px;max-height:52vh;overflow:auto;margin:12px 0}.all-jobs-delete-row{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:11px}.all-jobs-delete-row input{width:20px;height:20px}.all-jobs-delete-row span{min-width:0;flex:1}.all-jobs-delete-row strong,.all-jobs-delete-row small{display:block}.all-jobs-delete-row small{color:var(--muted);margin-top:2px}
 /* Panel Check is the main live status on this row -- bigger and bolder than Fitted,
    which stays informative but visually secondary, matching how much a fitter/office
    actually needs at a glance versus after the check is already done. */
@@ -7714,7 +7715,7 @@ body.fiq-locked .app{display:none!important}
         '<button type="button" class="job-stat-card" data-stat="attention"><span class="job-stat-icon stat-attention">⚠️</span><span class="job-stat-num" id="statAttentionNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.needsAttentionLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.viewAllLabel")+'</span></button>'+
         '<button type="button" class="job-stat-card" data-stat="completed"><span class="job-stat-icon stat-completed">📋</span><span class="job-stat-num" id="statCompletedNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.completedLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.thisMonthLabel")+'</span></button>'+
         '</div></div>'+
-        '<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobOverviewHeading")+'</h3><button type="button" class="home-section-viewall" id="jobOverviewSelectAll">Select all</button><button type="button" class="home-section-viewall" id="jobOverviewViewAll">'+t("studio.jobOverview.viewAllLabel")+'</button></div>'+
+        '<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobOverviewHeading")+'</h3><button type="button" class="home-section-viewall" id="jobOverviewSelectAll">Select all</button><button type="button" class="home-section-viewall delete-jobs-link" id="jobOverviewManageDelete">Delete jobs</button><button type="button" class="home-section-viewall" id="jobOverviewViewAll">'+t("studio.jobOverview.viewAllLabel")+'</button></div>'+
         '<div class="jor-bulk-toolbar" id="jorBulkToolbar"><span class="jor-bulk-count" id="jorBulkCount"></span><select class="jor-bulk-fitter-select" id="jorBulkFitterSelect">'+bulkFitterOptionsHtml()+'</select><button type="button" class="btn primary" id="jorBulkAssignBtn"></button><button type="button" class="btn" id="jorBulkCheckBtn"></button><button type="button" class="btn danger" id="jorBulkDeleteBtn"></button></div>'+
         '<div class="job-overview-grid" id="jobOverviewGrid"></div></div>';
       actions.parentNode.insertBefore(dash,actions.nextSibling);
@@ -7741,6 +7742,21 @@ body.fiq-locked .app{display:none!important}
         const shouldSelect=visible.some(key=>!jorSelectedCardKeys.has(key));
         jorSelectedCardKeys.clear();if(shouldSelect)visible.forEach(key=>jorSelectedCardKeys.add(key));
         renderHomeDashboard();
+      };
+      dash.querySelector('#jobOverviewManageDelete').onclick=()=>{
+        document.getElementById('allJobsDeleteDialog')?.remove();
+        const jobs=namedProjects().slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+        const dialog=document.createElement('div');dialog.id='allJobsDeleteDialog';dialog.className='a100-edit-dialog';
+        const rows=jobs.length?jobs.map(p=>'<label class="all-jobs-delete-row"><input type="checkbox" data-delete-any-job="'+safe(p.id)+'"><span><strong>'+safe(p.customer||p.name||'Untitled job')+'</strong><small>'+safe(p.name||'Project')+' · '+((p.rooms||[]).length)+' room'+((p.rooms||[]).length===1?'':'s')+'</small></span></label>').join(''):'<div class="empty">No jobs to delete</div>';
+        dialog.innerHTML='<div class="a100-edit-sheet"><h2>Delete Jobs</h2><p class="muted">Choose one job, several jobs, or every job.</p><div class="a100-edit-actions"><button type="button" class="btn" data-select-every-job>Select all</button><button type="button" class="btn danger" data-delete-chosen-jobs hidden>Delete selected</button></div><div class="all-jobs-delete-list">'+rows+'</div><div class="a100-edit-actions"><button type="button" class="btn" data-close-all-jobs>Close</button></div></div>';
+        document.body.appendChild(dialog);
+        const boxes=()=>Array.from(dialog.querySelectorAll('[data-delete-any-job]'));
+        const selected=()=>boxes().filter(x=>x.checked);
+        const refresh=()=>{const n=selected().length,btn=dialog.querySelector('[data-delete-chosen-jobs]');btn.hidden=!n;btn.textContent=n===1?'Delete selected job':'Delete '+n+' selected jobs'};
+        boxes().forEach(box=>box.onchange=refresh);
+        dialog.querySelector('[data-select-every-job]').onclick=()=>{const select=boxes().some(x=>!x.checked);boxes().forEach(x=>x.checked=select);dialog.querySelector('[data-select-every-job]').textContent=select?'Clear selection':'Select all';refresh()};
+        const closeDialog=()=>dialog.remove();dialog.onclick=e=>{if(e.target===dialog)closeDialog()};dialog.querySelector('[data-close-all-jobs]').onclick=closeDialog;
+        dialog.querySelector('[data-delete-chosen-jobs]').onclick=()=>{const chosen=selected();if(!chosen.length)return;const message=chosen.length===1?'Delete this job and all its rooms, drawings, panels, photos and notes?':'Delete these '+chosen.length+' jobs and all their rooms, drawings, panels, photos and notes?';if(!confirm(message))return;chosen.forEach(x=>deleteProjectRecord(x.dataset.deleteAnyJob));save();jorSelectedCardKeys.clear();closeDialog();renderAll()};
       };
       // Full per-room dispatch: assignment now lands on each selected CARD's own target --
       // a room, or the whole project for a no-rooms job / the General catch-all -- instead
@@ -7877,6 +7893,7 @@ body.fiq-locked .app{display:none!important}
           ?'<div class="jor-stat jor-stat-primary"><div class="jor-stat-label">Site measurements</div><div class="jor-stat-value">'+siteRoomCount+' room'+(siteRoomCount===1?'':'s')+'</div></div><div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">Photos</div><div class="jor-stat-value">'+sitePhotos.length+' ready</div></div>'
           :'<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.openPanelCheckTooltip")+'"><div class="jor-stat-label">'+t("studio.panelCheck.screenTitle")+'</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+t("studio.jobOverview.pctCheckedTemplate",[pcPct])+'</div>':'')+'</div><div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">'+t("studio.jobOverview.fittedStatLabel")+'</div>'+(showFitted?'<div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div>':'<div class="jor-stat-value">—</div>')+'</div>')+
         warn+
+        '<button type="button" class="jor-delete-job" data-delete-overview-job="'+safe(p.id)+'" title="Delete this complete job">🗑</button>'+
         '<span class="jor-chevron">›</span>'+
       '</div>';
     }).join(''):'<div class="empty">'+t("studio.jobOverview.noActiveJobsEmpty")+'</div>';
@@ -7886,7 +7903,7 @@ body.fiq-locked .app{display:none!important}
     // its own job workspace when there's nothing sent from site yet. No separate room-chip
     // click target is needed any more now that the card itself is room-scoped.
     grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
-      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]')||e.target.closest('.jor-select'))return;
+      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]')||e.target.closest('.jor-select')||e.target.closest('[data-delete-overview-job]'))return;
       const projectId=row.dataset.openJobCard,roomId=row.dataset.cardRoomId;
       if(roomId==='__site_visit__'){
         const proj=state.projects.find(x=>x.id===projectId);
@@ -7907,6 +7924,7 @@ body.fiq-locked .app{display:none!important}
       save();
       if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
     });
+    grid.querySelectorAll('[data-delete-overview-job]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const p=state.projects.find(x=>x.id===btn.dataset.deleteOverviewJob);if(!p)return;const roomCount=(p.rooms||[]).length;const message=roomCount>1?'Delete this complete job and all '+roomCount+' rooms, drawings, panels, photos and notes?':'Delete this complete job, including its drawing, panels, photos and notes?';if(!confirm(message))return;deleteProjectRecord(p.id);save();jorSelectedCardKeys.clear();renderAll()});
     // The Panel Check stat and the "needs attention" warning icon are the actionable parts
     // of a row -- someone tapping them wants to go fix the problem, not land on the drawing
     // (which is what the rest of the row opens, and has no way to sort a panel from). This
