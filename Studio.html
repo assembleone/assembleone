@@ -7284,7 +7284,13 @@ body.fiq-locked .app{display:none!important}
 .job-overview-row.jor-new{border-color:#FFC600;border-width:2px;box-shadow:0 0 0 3px rgba(255,198,0,.28),0 2px 6px rgba(20,30,50,.05);animation:jorNewPulse 2.2s ease-in-out infinite}
 @keyframes jorNewPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,198,0,.28),0 2px 6px rgba(20,30,50,.05)}50%{box-shadow:0 0 0 6px rgba(255,198,0,.16),0 2px 6px rgba(20,30,50,.05)}}
 .jor-new-badge{display:inline-block;background:#FFC600;color:#5a4300;font-size:10px;font-weight:900;letter-spacing:.03em;padding:2px 8px;border-radius:999px;margin-bottom:3px}
-@media(max-width:900px){.jor-fitter,.jor-stat{display:none}}
+@media(max-width:900px){
+ .job-overview-row{flex-wrap:wrap;align-items:center}
+ .jor-main{flex:1 1 calc(100% - 190px)}
+ .jor-fitter{display:block;order:10;flex:1 1 210px}
+ .jor-stat{display:block;order:11;flex:1 1 120px}
+ .jor-warn{order:12}
+}
 .job-overview-updated{color:var(--muted);font-size:12px;font-weight:700}
 .dashboard-filter-banner{display:flex;align-items:center;justify-content:space-between;background:#eef3ff;border:1px solid #bcd2ff;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-weight:700}
 .dashboard-filter-banner button{background:#fff;border:1px solid #bcd2ff;border-radius:8px;padding:5px 10px;font-weight:800;cursor:pointer}
@@ -7326,15 +7332,14 @@ body.fiq-locked .app{display:none!important}
   function isIncomingMeasurementProject(p){return !!p.isNewFromSite}
   function incomingMeasurementProjects(){return namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}
   function activeJobsList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p))}
-  // Job Overview begins when the office workflow is complete, before Mobile dispatch.
-  // Reuse the Cutting List supplier-ready rule: there must be real panels and every panel
-  // must have passed Panel Check. Sending and fitter selection then happen on the card.
-  function jobOverviewProjects(){
-    return activeJobsList().filter(p=>{
-      const panels=(p.cabinets||[]).flatMap(c=>c.parts||[]);
-      return panels.length>0&&panels.every(part=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(part));
-    });
+  // Readiness belongs to a room card, not its parent customer job. One ready Library can
+  // enter Job Overview while its zero-panel Bathroom remains linked safely in the same
+  // project and Customer Library without producing an empty card.
+  function overviewReadyCabinets(cabinets){
+    const panels=(cabinets||[]).flatMap(c=>c.parts||[]);
+    return panels.length>0&&panels.every(part=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(part));
   }
+  function jobOverviewProjects(){return activeJobsList().filter(p=>cardsForProject(p).length>0)}
   function sentToFitterList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!!p.lastMobileSync)}
   function needsAttentionList(){
     const items=(typeof window.a203NeedsAttentionItems==='function')?window.a203NeedsAttentionItems():[];
@@ -7459,15 +7464,17 @@ body.fiq-locked .app{display:none!important}
   // or the real room object.
   function cardsForProject(p){
     const rooms=(p.rooms||[]).filter(r=>r&&r.name);
-    if(!rooms.length)return [{project:p,room:null}];
-    // A complete Mobile site visit is one customer record on the dashboard, even when
-    // it contains many measured rooms. The room-by-room cards belong to designed and
-    // installation work, not to an incoming visit that the office needs to review as a
-    // whole. The Customer Card still keeps every room separate underneath this one card.
+    if(!rooms.length)return overviewReadyCabinets(p.cabinets||[])?[{project:p,room:null}]:[];
+    // Incoming Mobile measurements stay grouped in New Project. Once design work begins,
+    // each room earns its own independent overview card only when that room has real,
+    // checked panels. Empty sibling rooms remain linked to the parent project but hidden.
     if(isIncomingMeasurementProject(p))return [{project:p,room:'__site_visit__'}];
-    const cards=rooms.map(r=>({project:p,room:r}));
+    const cards=rooms
+      .filter(r=>overviewReadyCabinets((p.cabinets||[]).filter(c=>c.roomId===r.id)))
+      .map(r=>({project:p,room:r}));
     const roomIds=new Set(rooms.map(r=>r.id));
-    if((p.cabinets||[]).some(c=>!c.roomId||!roomIds.has(c.roomId)))cards.push({project:p,room:'__general__'});
+    const generalCabinets=(p.cabinets||[]).filter(c=>!c.roomId||!roomIds.has(c.roomId));
+    if(overviewReadyCabinets(generalCabinets))cards.push({project:p,room:'__general__'});
     return cards;
   }
   function cardCabinets(card){
