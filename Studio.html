@@ -1890,6 +1890,8 @@ window.addEventListener('popstate',function(e){
 // create the next one.
 function blankUnstartedProject(){return state.projects.find(p=>!String(p.name||"").trim()&&!String(p.customer||"").trim()&&!(p.rooms||[]).length&&!(p.cabinets||[]).length)}
 function newJob(){
+ if(!window.__skipNewProjectLanding&&typeof window.openNewProjectLanding==='function'&&window.openNewProjectLanding())return;
+ window.__skipNewProjectLanding=false;
  const existing=blankUnstartedProject();
  const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
  if(existing){
@@ -7258,17 +7260,18 @@ body.fiq-locked .app{display:none!important}
 .jor-bulk-toolbar.show{display:flex}
 .jor-bulk-count{font-weight:900;color:var(--ink);font-size:13px}
 .jor-bulk-fitter-select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:700}
-.new-project-zone{order:1;min-width:0}
-.new-project-zone>.new-project-card{width:100%;box-sizing:border-box;order:initial}
-.incoming-projects-section{margin-top:8px;padding:12px;border:2px solid #6BBF3A;border-radius:20px;background:#f5fff0}
-.incoming-projects-section[hidden]{display:none}
-.incoming-projects-title{margin:0 0 9px;font-size:18px;color:#307508}
+.new-project-landing{position:fixed;inset:0;z-index:850;background:rgba(11,37,69,.6);display:flex;align-items:center;justify-content:center;padding:18px}
+.new-project-landing-card{width:min(760px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:28px;padding:22px;box-shadow:0 24px 70px rgba(11,37,69,.28)}
+.new-project-landing-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}.new-project-landing-head h2{margin:0;font-size:32px;color:var(--ink)}.new-project-landing-head p{margin:5px 0 0;color:var(--muted);font-weight:700}.new-project-landing-close{border:0;background:#eef3f8;border-radius:50%;width:42px;height:42px;font-size:23px;cursor:pointer}
+.incoming-projects-section{padding:14px;border:2px solid #6BBF3A;border-radius:20px;background:#f5fff0}
+.incoming-projects-title{margin:0 0 10px;font-size:21px;color:#307508}
 .incoming-projects-grid{display:grid;gap:8px}
 .incoming-project-card{width:100%;display:grid;grid-template-columns:68px minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px;border:1px solid #acd793;border-radius:16px;background:#fff;box-shadow:0 4px 12px rgba(44,126,20,.08);text-align:left;color:var(--ink);cursor:pointer;font:inherit}
 .incoming-project-card:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(44,126,20,.17)}
 .incoming-project-preview{width:68px;height:62px;border-radius:13px;overflow:hidden;background:#eaf5e4;display:grid;place-items:center;font-size:32px}
 .incoming-project-preview img{width:100%;height:100%;object-fit:cover;display:block}
 .incoming-project-copy{min-width:0}.incoming-project-badge{display:inline-block;border-radius:999px;background:#FFC600;color:#5a4300;font-size:10px;font-weight:950;padding:3px 8px;margin-bottom:3px}.incoming-project-copy strong{display:block;font-size:19px;line-height:1.12;color:#172e4a}.incoming-project-rooms{display:block;margin-top:3px;color:var(--muted);font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.incoming-project-counts{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.incoming-project-counts span{background:#eef3f8;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:900;color:#174E98}.incoming-project-open{color:#174E98;font-size:28px;font-weight:950;white-space:nowrap}
+.new-project-choice-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-weight:900}.new-project-choice-divider:before,.new-project-choice-divider:after{content:"";height:1px;background:var(--line);flex:1}.new-project-blank-btn{width:100%;min-height:72px;border:2px solid #6BBF3A;border-radius:20px;background:#f6fbf3;color:var(--ink);font:inherit;font-size:20px;font-weight:950;cursor:pointer}.new-project-blank-btn small{display:block;margin-top:3px;color:var(--muted);font-size:13px}
 @media(max-width:700px){.incoming-project-card{grid-template-columns:58px 1fr auto}.incoming-project-preview{width:58px;height:56px}.incoming-project-copy strong{font-size:18px}}
 </style>
 <script id="a208-home-dashboard-script">
@@ -7555,19 +7558,58 @@ body.fiq-locked .app{display:none!important}
     if(deleteBtn)deleteBtn.textContent=t(projects.length===1?"studio.jobOverview.deleteSelectedSingular":"studio.jobOverview.deleteSelectedPlural",[projects.length]);
   }
 
+  // New Project keeps its original Home card and opens one clear choice screen. Incoming
+  // Mobile measurements live inside that screen, while the manual blank-project route is
+  // still available underneath them. If no Site Jobs are waiting, the original newJob()
+  // flow continues immediately without adding an unnecessary extra step.
+  window.openNewProjectLanding=function(){
+    const incoming=namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    if(!incoming.length)return false;
+    document.getElementById('newProjectLanding')?.remove();
+    const overlay=document.createElement('div');
+    overlay.id='newProjectLanding';
+    overlay.className='new-project-landing';
+    const rows=incoming.map(p=>{
+      const rooms=(p.rooms||[]).filter(r=>r&&r.name);
+      const photos=rooms.flatMap(r=>siteRoomPictures(r));
+      const measurements=rooms.reduce((sum,r)=>sum+siteRoomMeasureCount(r),0);
+      const preview=photos[0]?'<img src="'+safe(photos[0])+'" alt="Site measurement preview">':'📐';
+      const roomNames=rooms.map(r=>(r.icon||'⌂')+' '+r.name).join(' · ')||'Site measurements ready';
+      const customer=p.customer||p.name||t("studio.customerLibrary.untitledJob");
+      return '<button type="button" class="incoming-project-card" data-open-incoming-project="'+safe(p.id)+'">'+
+        '<span class="incoming-project-preview">'+preview+'</span><span class="incoming-project-copy">'+
+        '<span class="incoming-project-badge">NEW SITE MEASURE</span><strong>'+safe(customer)+'</strong><span class="incoming-project-rooms">'+safe(roomNames)+'</span>'+
+        '<span class="incoming-project-counts"><span>'+rooms.length+' room'+(rooms.length===1?'':'s')+'</span><span>'+photos.length+' photo'+(photos.length===1?'':'s')+'</span><span>'+measurements+' measurement'+(measurements===1?'':'s')+'</span></span></span>'+
+        '<span class="incoming-project-open" aria-hidden="true">›</span></button>';
+    }).join('');
+    overlay.innerHTML='<div class="new-project-landing-card" role="dialog" aria-modal="true" aria-labelledby="newProjectLandingTitle">'+
+      '<div class="new-project-landing-head"><div><h2 id="newProjectLandingTitle">New Project</h2><p>Open a Site Job or start a completely new project.</p></div><button type="button" class="new-project-landing-close" aria-label="Close">×</button></div>'+
+      '<section class="incoming-projects-section"><h3 class="incoming-projects-title">'+incoming.length+' Site Job'+(incoming.length===1?'':'s')+' Ready</h3><div class="incoming-projects-grid">'+rows+'</div></section>'+
+      '<div class="new-project-choice-divider">OR</div><button type="button" class="new-project-blank-btn" id="startBlankProject">＋ Start a completely new project<small>Create a new customer, rooms and design</small></button></div>';
+    document.body.appendChild(overlay);
+    const close=()=>overlay.remove();
+    overlay.querySelector('.new-project-landing-close').onclick=close;
+    overlay.onclick=e=>{if(e.target===overlay)close()};
+    overlay.querySelector('#startBlankProject').onclick=()=>{
+      close();
+      window.__skipNewProjectLanding=true;
+      newJob();
+    };
+    overlay.querySelectorAll('[data-open-incoming-project]').forEach(card=>card.onclick=()=>{
+      const p=state.projects.find(x=>x.id===card.dataset.openIncomingProject);
+      if(!p)return;
+      close();
+      if(p.customerId&&typeof openCustomerCard==='function'){
+        customerCardActiveTab='site';
+        openCustomerCard(p.customerId);
+      }else if(typeof switchToProject==='function')switchToProject(p.id);
+    });
+    return true;
+  };
+
   function renderHomeDashboard(){
     const actions=document.querySelector('.studio-home-actions');
     if(!actions)return;
-    const newProjectButton=document.getElementById('newJobBtn');
-    let newProjectZone=document.getElementById('newProjectZone');
-    if(newProjectButton&&!newProjectZone){
-      newProjectZone=document.createElement('div');
-      newProjectZone.id='newProjectZone';
-      newProjectZone.className='new-project-zone';
-      actions.insertBefore(newProjectZone,newProjectButton);
-      newProjectZone.appendChild(newProjectButton);
-      newProjectZone.insertAdjacentHTML('beforeend','<section class="incoming-projects-section" id="incomingProjectsSection" hidden><h3 class="incoming-projects-title" id="incomingProjectsTitle">Site jobs ready</h3><div class="incoming-projects-grid" id="incomingProjectsGrid"></div></section>');
-    }
     let dash=document.getElementById('homeDashboard');
     if(!dash){
       dash=document.createElement('div');
@@ -7673,36 +7715,6 @@ body.fiq-locked .app{display:none!important}
     setNum('statSentNum',sentToFitterList().length);
     setNum('statAttentionNum',needsAttentionList().length);
     setNum('statCompletedNum',completedThisMonthList().length);
-
-    const incoming=namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-    const incomingSection=document.getElementById('incomingProjectsSection');
-    const incomingGrid=document.getElementById('incomingProjectsGrid');
-    if(incomingSection&&incomingGrid){
-      incomingSection.hidden=!incoming.length;
-      const incomingTitle=document.getElementById('incomingProjectsTitle');
-      if(incomingTitle)incomingTitle.textContent=incoming.length+' Site Job'+(incoming.length===1?'':'s')+' Ready';
-      incomingGrid.innerHTML=incoming.map(p=>{
-        const rooms=(p.rooms||[]).filter(r=>r&&r.name);
-        const photos=rooms.flatMap(r=>siteRoomPictures(r));
-        const measurements=rooms.reduce((sum,r)=>sum+siteRoomMeasureCount(r),0);
-        const preview=photos[0]?'<img src="'+safe(photos[0])+'" alt="Site measurement preview">':'📐';
-        const roomNames=rooms.map(r=>(r.icon||'⌂')+' '+r.name).join(' · ')||'Site measurements ready';
-        const customer=p.customer||p.name||t("studio.customerLibrary.untitledJob");
-        return '<button type="button" class="incoming-project-card" data-open-incoming-project="'+safe(p.id)+'">'+
-          '<span class="incoming-project-preview">'+preview+'</span><span class="incoming-project-copy">'+
-          '<span class="incoming-project-badge">NEW SITE MEASURE</span><strong>'+safe(customer)+'</strong><span class="incoming-project-rooms">'+safe(roomNames)+'</span>'+
-          '<span class="incoming-project-counts"><span>'+rooms.length+' room'+(rooms.length===1?'':'s')+'</span><span>'+photos.length+' photo'+(photos.length===1?'':'s')+'</span><span>'+measurements+' measurement'+(measurements===1?'':'s')+'</span></span></span>'+
-          '<span class="incoming-project-open" aria-hidden="true">›</span></button>';
-      }).join('');
-      incomingGrid.querySelectorAll('[data-open-incoming-project]').forEach(card=>card.onclick=()=>{
-        const p=state.projects.find(x=>x.id===card.dataset.openIncomingProject);
-        if(!p)return;
-        if(p.customerId&&typeof openCustomerCard==='function'){
-          customerCardActiveTab='site';
-          openCustomerCard(p.customerId);
-        }else if(typeof switchToProject==='function')switchToProject(p.id);
-      });
-    }
 
     const grid=document.getElementById('jobOverviewGrid');
     // No slice/limit here -- the whole point of making this scroll is that a company
