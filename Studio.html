@@ -1757,7 +1757,12 @@ function ensureCustomerForProject(p){
 }
 function migrateCustomers(){
  state.customers=state.customers||[];
- state.projects.forEach(p=>{if(!p.customerId||!state.customers.find(c=>c.id===p.customerId))ensureCustomerForProject(p)});
+ state.projects.forEach(p=>{
+   const hasSavedWork=(p.rooms||[]).length||(p.cabinets||[]).length||(p.cuttingList||[]).length;
+   if(!String(p.name||'').trim()&&hasSavedWork)p.name=String(p.customer||'').trim()||'Recovered Project';
+   const linked=customerFor(p),projectCustomer=customerKeyFor(p.customer);
+   if(!p.customerId||!linked||(projectCustomer&&projectCustomer!==customerKeyFor(linked.name))){p.customerId=null;ensureCustomerForProject(p)}
+ });
  // Older Studio and Mobile imports could each create their own permanent customer
  // record for the same name. The cards look identical, but their different ids split
  // Site Measurements from Jobs / Designs. Consolidate those records by normalized
@@ -2430,10 +2435,24 @@ function openJobNotesDialog(projectId,roomId){
 function deleteProjectRecord(id){
  const p=state.projects.find(x=>x.id===id);
  if(!p)return false;
+ state.deletedProjects=state.deletedProjects||[];
+ if(!state.deletedProjects.some(x=>x&&x.project&&x.project.id===id)){
+   state.deletedProjects.unshift({deletedAt:Date.now(),project:JSON.parse(JSON.stringify(p))});
+ }
  state.projects=state.projects.filter(x=>x.id!==id);
  state.deletedProjectIds=state.deletedProjectIds||[];
  if(!state.deletedProjectIds.includes(id))state.deletedProjectIds.push(id);
  if(state.currentProject===id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
+ return true;
+}
+function restoreDeletedProject(id){
+ state.deletedProjects=state.deletedProjects||[];
+ const entry=state.deletedProjects.find(x=>x&&x.project&&x.project.id===id);
+ if(!entry)return false;
+ if(!state.projects.some(x=>x.id===id))state.projects.unshift(entry.project);
+ state.deletedProjects=state.deletedProjects.filter(x=>!x||!x.project||x.project.id!==id);
+ state.deletedProjectIds=(state.deletedProjectIds||[]).filter(x=>x!==id);
+ ensureCustomerForProject(entry.project);
  return true;
 }
 // The deliberate place to delete an old job -- takes an explicit job id (never
@@ -4635,16 +4654,20 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     document.body.appendChild(o); o.querySelector('#a100JobName').value=p.name||''; o.querySelector('#a100Customer').value=p.customer||'';
     const close=()=>o.remove(); o.querySelector('#a100Cancel').onclick=close; o.onclick=e=>{if(e.target===o)close()};
     o.querySelector('#a100Save').onclick=()=>{
-      p.name=o.querySelector('#a100JobName').value.trim()||p.name;
+      const enteredJobName=o.querySelector('#a100JobName').value.trim();
       const newCustomerName=o.querySelector('#a100Customer').value.trim();
+      p.name=enteredJobName||p.name||newCustomerName||'New Project';
       const current=customerFor(p);
       // Typing a *different* customer name here means "this job belongs to someone else"
       // (attach to that customer, or create them if they're new) -- it does not rename the
       // customer that's already linked. Fixing a typo on an existing customer's own name
       // is done from their Customer Card instead, so a correction never looks like a move.
-      if(customerKeyFor(newCustomerName)!==customerKeyFor(current?.name)){
-        p.customerId=null;p.customer=newCustomerName;ensureCustomerForProject(p);
+      if(newCustomerName){
+        p.customer=newCustomerName;
+        if(customerKeyFor(newCustomerName)!==customerKeyFor(current?.name))p.customerId=null;
+        ensureCustomerForProject(p);
       }
+      p.updatedAt=Date.now();
       const pn=document.getElementById('projectName'),cn=document.getElementById('customerName');if(pn)pn.value=p.name;if(cn)cn.value=p.customer;save();close();renderAll();renderA100Start();
       if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
     };
@@ -7287,6 +7310,7 @@ body.fiq-locked .app{display:none!important}
 .incoming-project-preview{width:68px;height:62px;border-radius:13px;overflow:hidden;background:#eaf5e4;display:grid;place-items:center;font-size:32px}
 .incoming-project-preview img{width:100%;height:100%;object-fit:cover;display:block}
 .incoming-project-copy{min-width:0}.incoming-project-badge{display:inline-block;border-radius:999px;background:#FFC600;color:#5a4300;font-size:10px;font-weight:950;padding:3px 8px;margin-bottom:3px}.incoming-project-copy strong{display:block;font-size:19px;line-height:1.12;color:#172e4a}.incoming-project-rooms{display:block;margin-top:3px;color:var(--muted);font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.incoming-project-counts{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.incoming-project-counts span{background:#eef3f8;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:900;color:#174E98}.incoming-project-open{color:#174E98;font-size:28px;font-weight:950;white-space:nowrap}
+.incoming-project-select-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center}.incoming-project-select{display:grid;place-items:center;width:34px;height:44px}.incoming-project-select input{width:21px;height:21px}.incoming-delete-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 9px}.incoming-delete-tools .btn{padding:7px 10px;font-size:12px}.deleted-jobs-btn{margin-left:auto}.deleted-jobs-list{display:grid;gap:8px;max-height:55vh;overflow:auto}.deleted-job-row{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:12px}.deleted-job-row span{min-width:0;flex:1}.deleted-job-row strong,.deleted-job-row small{display:block}.deleted-job-row small{color:var(--muted);margin-top:2px}
 .new-project-choice-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-weight:900}.new-project-choice-divider:before,.new-project-choice-divider:after{content:"";height:1px;background:var(--line);flex:1}.new-project-blank-btn{width:100%;min-height:72px;border:2px solid #6BBF3A;border-radius:20px;background:#f6fbf3;color:var(--ink);font:inherit;font-size:20px;font-weight:950;cursor:pointer}.new-project-blank-btn small{display:block;margin-top:3px;color:var(--muted);font-size:13px}
 .new-project-incoming-badge{position:absolute;right:12px;top:10px;margin:0!important;background:#4da918!important;color:#fff!important;border-radius:999px!important;padding:7px 11px!important;font-size:12px!important;font-weight:950!important;box-shadow:0 3px 10px rgba(48,117,8,.2)}
 @media(max-width:850px){.home-action-card .new-project-incoming-badge{display:block!important}}
@@ -7583,7 +7607,7 @@ body.fiq-locked .app{display:none!important}
   // flow continues immediately without adding an unnecessary extra step.
   window.openNewProjectLanding=function(){
     const incoming=incomingMeasurementProjects();
-    if(!incoming.length)return false;
+    state.deletedProjects=(state.deletedProjects||[]).filter(x=>x&&x.project&&(Date.now()-(Number(x.deletedAt)||0)<30*24*60*60*1000));
     document.getElementById('newProjectLanding')?.remove();
     const overlay=document.createElement('div');
     overlay.id='newProjectLanding';
@@ -7595,16 +7619,16 @@ body.fiq-locked .app{display:none!important}
       const preview=photos[0]?'<img src="'+safe(photos[0])+'" alt="Site measurement preview">':'📐';
       const roomNames=rooms.map(r=>(r.icon||'⌂')+' '+r.name).join(' · ')||'Site measurements ready';
       const customer=p.customer||p.name||t("studio.customerLibrary.untitledJob");
-      return '<button type="button" class="incoming-project-card" data-open-incoming-project="'+safe(p.id)+'">'+
+      return '<div class="incoming-project-select-row"><label class="incoming-project-select" title="Select job"><input type="checkbox" data-select-incoming-project="'+safe(p.id)+'"></label><button type="button" class="incoming-project-card" data-open-incoming-project="'+safe(p.id)+'">'+
         '<span class="incoming-project-preview">'+preview+'</span><span class="incoming-project-copy">'+
         '<span class="incoming-project-badge">NEW SITE MEASURE</span><strong>'+safe(customer)+'</strong><span class="incoming-project-rooms">'+safe(roomNames)+'</span>'+
         '<span class="incoming-project-counts"><span>'+rooms.length+' room'+(rooms.length===1?'':'s')+'</span><span>'+photos.length+' photo'+(photos.length===1?'':'s')+'</span><span>'+measurements+' measurement'+(measurements===1?'':'s')+'</span></span></span>'+
-        '<span class="incoming-project-open" aria-hidden="true">›</span></button>';
+        '<span class="incoming-project-open" aria-hidden="true">›</span></button></div>';
     }).join('');
     overlay.innerHTML='<div class="new-project-landing-card" role="dialog" aria-modal="true" aria-labelledby="newProjectLandingTitle">'+
       '<div class="new-project-landing-head"><div><h2 id="newProjectLandingTitle">New Project</h2><p>Open a Site Job or start a completely new project.</p></div><button type="button" class="new-project-landing-close" aria-label="Close">×</button></div>'+
-      '<section class="incoming-projects-section"><h3 class="incoming-projects-title">'+incoming.length+' Site Job'+(incoming.length===1?'':'s')+' Ready</h3><div class="incoming-projects-grid">'+rows+'</div></section>'+
-      '<div class="new-project-choice-divider">OR</div><button type="button" class="new-project-blank-btn" id="startBlankProject">＋ Start a completely new project<small>Create a new customer, rooms and design</small></button></div>';
+      '<button type="button" class="new-project-blank-btn" id="startBlankProject">＋ Start a completely new project<small>Create a new customer, rooms and design</small></button><div class="new-project-choice-divider">OR</div>'+
+      '<section class="incoming-projects-section"><h3 class="incoming-projects-title">'+incoming.length+' Site Job'+(incoming.length===1?'':'s')+' Ready</h3><div class="incoming-delete-tools"><button type="button" class="btn" id="selectAllIncomingJobs">Select all</button><button type="button" class="btn danger" id="deleteSelectedIncomingJobs" hidden>Delete selected</button><button type="button" class="btn deleted-jobs-btn" id="openDeletedJobs">Deleted Jobs ('+((state.deletedProjects||[]).length)+')</button></div><div class="incoming-projects-grid">'+rows+'</div></section></div>';
     document.body.appendChild(overlay);
     const close=()=>overlay.remove();
     overlay.querySelector('.new-project-landing-close').onclick=close;
@@ -7613,6 +7637,41 @@ body.fiq-locked .app{display:none!important}
       close();
       window.__skipNewProjectLanding=true;
       newJob();
+    };
+    const selectedIncoming=()=>Array.from(overlay.querySelectorAll('[data-select-incoming-project]:checked')).map(x=>x.dataset.selectIncomingProject);
+    const refreshIncomingDelete=()=>{
+      const n=selectedIncoming().length,btn=overlay.querySelector('#deleteSelectedIncomingJobs');
+      btn.hidden=!n;
+      btn.textContent=n===1?'Delete selected job':'Delete '+n+' selected jobs';
+    };
+    overlay.querySelectorAll('[data-select-incoming-project]').forEach(box=>box.onchange=refreshIncomingDelete);
+    overlay.querySelector('#selectAllIncomingJobs').onclick=()=>{
+      const boxes=Array.from(overlay.querySelectorAll('[data-select-incoming-project]'));
+      const select=boxes.some(x=>!x.checked);
+      boxes.forEach(x=>x.checked=select);
+      overlay.querySelector('#selectAllIncomingJobs').textContent=select?'Clear selection':'Select all';
+      refreshIncomingDelete();
+    };
+    overlay.querySelector('#deleteSelectedIncomingJobs').onclick=()=>{
+      const ids=selectedIncoming();if(!ids.length)return;
+      const message=ids.length===1?'Delete this job and all its rooms, photos, measurements and notes?':'Delete these '+ids.length+' jobs and all their rooms, photos, measurements and notes?';
+      if(!confirm(message))return;
+      ids.forEach(deleteProjectRecord);save();close();renderAll();
+      if(incomingMeasurementProjects().length)window.openNewProjectLanding();
+    };
+    overlay.querySelector('#openDeletedJobs').onclick=()=>{
+      document.getElementById('deletedJobsDialog')?.remove();
+      const dialog=document.createElement('div');dialog.id='deletedJobsDialog';dialog.className='a100-edit-dialog';
+      const deleted=state.deletedProjects||[];
+      const list=deleted.length?deleted.map(entry=>{
+        const p=entry.project;
+        return '<div class="deleted-job-row"><span><strong>'+safe(p.customer||p.name||'Untitled job')+'</strong><small>'+safe(p.name||'Project')+' · Deleted '+new Date(entry.deletedAt).toLocaleDateString()+'</small></span><button type="button" class="btn" data-restore-deleted="'+safe(p.id)+'">Restore</button><button type="button" class="btn danger" data-forget-deleted="'+safe(p.id)+'">Delete forever</button></div>';
+      }).join(''):'<div class="empty">No deleted jobs</div>';
+      dialog.innerHTML='<div class="a100-edit-sheet"><h2>Deleted Jobs</h2><p class="muted">Jobs can be restored for 30 days.</p><div class="deleted-jobs-list">'+list+'</div><div class="a100-edit-actions"><button type="button" class="btn" data-close-deleted>Close</button></div></div>';
+      document.body.appendChild(dialog);
+      const closeDeleted=()=>dialog.remove();dialog.onclick=e=>{if(e.target===dialog)closeDeleted()};dialog.querySelector('[data-close-deleted]').onclick=closeDeleted;
+      dialog.querySelectorAll('[data-restore-deleted]').forEach(btn=>btn.onclick=()=>{if(restoreDeletedProject(btn.dataset.restoreDeleted)){save();closeDeleted();close();renderAll();window.openNewProjectLanding()}});
+      dialog.querySelectorAll('[data-forget-deleted]').forEach(btn=>btn.onclick=()=>{if(!confirm('Delete this job forever? This cannot be undone.'))return;state.deletedProjects=(state.deletedProjects||[]).filter(x=>x.project.id!==btn.dataset.forgetDeleted);save();closeDeleted();close();renderAll();if(incomingMeasurementProjects().length)window.openNewProjectLanding()});
     };
     overlay.querySelectorAll('[data-open-incoming-project]').forEach(card=>card.onclick=()=>{
       const p=state.projects.find(x=>x.id===card.dataset.openIncomingProject);
@@ -7655,7 +7714,7 @@ body.fiq-locked .app{display:none!important}
         '<button type="button" class="job-stat-card" data-stat="attention"><span class="job-stat-icon stat-attention">⚠️</span><span class="job-stat-num" id="statAttentionNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.needsAttentionLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.viewAllLabel")+'</span></button>'+
         '<button type="button" class="job-stat-card" data-stat="completed"><span class="job-stat-icon stat-completed">📋</span><span class="job-stat-num" id="statCompletedNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.completedLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.thisMonthLabel")+'</span></button>'+
         '</div></div>'+
-        '<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobOverviewHeading")+'</h3><button type="button" class="home-section-viewall" id="jobOverviewViewAll">'+t("studio.jobOverview.viewAllLabel")+'</button></div>'+
+        '<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobOverviewHeading")+'</h3><button type="button" class="home-section-viewall" id="jobOverviewSelectAll">Select all</button><button type="button" class="home-section-viewall" id="jobOverviewViewAll">'+t("studio.jobOverview.viewAllLabel")+'</button></div>'+
         '<div class="jor-bulk-toolbar" id="jorBulkToolbar"><span class="jor-bulk-count" id="jorBulkCount"></span><select class="jor-bulk-fitter-select" id="jorBulkFitterSelect">'+bulkFitterOptionsHtml()+'</select><button type="button" class="btn primary" id="jorBulkAssignBtn"></button><button type="button" class="btn" id="jorBulkCheckBtn"></button><button type="button" class="btn danger" id="jorBulkDeleteBtn"></button></div>'+
         '<div class="job-overview-grid" id="jobOverviewGrid"></div></div>';
       actions.parentNode.insertBefore(dash,actions.nextSibling);
@@ -7677,6 +7736,12 @@ body.fiq-locked .app{display:none!important}
         };
       });
       dash.querySelector('#jobOverviewViewAll').onclick=()=>{window.__homeDashboardFilter=null;show('customers');};
+      dash.querySelector('#jobOverviewSelectAll').onclick=()=>{
+        const visible=namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p)).flatMap(cardsForProject).map(cardKey);
+        const shouldSelect=visible.some(key=>!jorSelectedCardKeys.has(key));
+        jorSelectedCardKeys.clear();if(shouldSelect)visible.forEach(key=>jorSelectedCardKeys.add(key));
+        renderHomeDashboard();
+      };
       // Full per-room dispatch: assignment now lands on each selected CARD's own target --
       // a room, or the whole project for a no-rooms job / the General catch-all -- instead
       // of collapsing every selection to its parent project first. Ticking Kitchen and TV
