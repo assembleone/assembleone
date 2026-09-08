@@ -149,11 +149,7 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .name-btn:hover{background:#c5d2ef}
 .drawing-wrap{background:#d8deec;border:1px solid #97a8cd;border-radius:12px;overflow:hidden}
 .drawing-toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:9px;background:#e7ecf8;border-bottom:1px solid var(--line)}
-.drawing-site-reference{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;background:#FFF7E6;border-bottom:1px solid #F0C36D;font-size:12px}
-.drawing-site-reference[hidden]{display:none}
-.drawing-site-reference-text{flex:1 1 auto;color:#6b4b06;font-weight:700;line-height:1.5}
-.drawing-site-reference-text b{font-weight:900}
-.drawing-site-reference #drawingViewSiteMeasurementBtn{flex-shrink:0;padding:5px 10px;font-size:11px;min-height:0}
+#drawingViewSiteMeasurementBtn{flex-shrink:0;padding:6px 10px;font-size:11px;min-height:0;background:#fff7e6;border-color:#f0c36d;color:#6b4b06}
 .drawing-stage{position:relative;height:clamp(420px,68vh,700px);min-height:420px;overflow:auto;display:grid;place-items:center;background:#d7dde9;padding:14px;box-sizing:border-box}
 .drawing-stage.expanded{height:calc(100vh - 150px);max-height:none}
 .drawing-stage:after{content:"Double-click to expand";position:sticky;left:10px;bottom:10px;justify-self:start;align-self:end;background:rgba(46,41,78,.84);color:#fff;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;pointer-events:none;opacity:.72}
@@ -451,8 +447,6 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 #screen-mark .drawing-stage.drag-over{border-color:var(--bronze);background:#dbe4f7;outline:none}
 #screen-mark .drawing-stage.paste-ready{border-color:#2f63d3;background:#eef3ff;outline:4px solid rgba(47,127,211,.18);outline-offset:-5px}
 #screen-mark .drawing-stage.importing::after{content:"Loading drawing…";position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,250,244,.88);font-weight:700;color:var(--brown);z-index:20}
-.phone-photo-btn{display:none}
-@media(max-width:760px){.phone-photo-btn{display:inline-flex}}
 
 /* AssembleOne 2.9 drawing fixes */
 #screen-mark{padding:10px}
@@ -1598,20 +1592,16 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="drawing-wrap">
 <div class="drawing-toolbar">
 <select aria-label="Wardrobe or cabinet" data-i18n-aria="studio.drawing.wardrobeOrCabinetAria" class="toolbar-select" id="cabinetSelect"></select>
+<button class="btn" type="button" id="drawingViewSiteMeasurementBtn" hidden>Site Measurements</button>
 <strong hidden="" id="drawingName">No drawing</strong>
 <button class="btn primary" id="pasteScreenshotBtn" data-i18n-title="studio.drawing.pasteScreenshotTitle" title="Paste a copied screenshot or image" data-i18n="studio.drawing.pasteDrawingBtn">Paste drawing</button>
 <label class="file-btn" data-i18n="studio.drawing.chooseDrawingLabel">Choose drawing<input accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.pdf" id="drawingInputTop" type="file"/></label>
-<label class="file-btn phone-photo-btn" data-i18n="measure.takePhoto">Take photo<input accept="image/*" capture="environment" id="drawingPhotoInput" type="file"/></label>
 <div aria-label="Rooms zoom controls" data-i18n-aria="studio.drawing.zoomControlsAria" class="zoom-controls">
 <button class="btn" id="zoomOutBtn" data-i18n-title="studio.drawing.zoomOutTitle" title="Zoom out" type="button">−</button>
 <span class="zoom-value" id="zoomValue">100%</span>
 <button class="btn" id="zoomInBtn" data-i18n-title="studio.drawing.zoomInTitle" title="Zoom in" type="button">+</button>
 <button class="btn" id="zoomFitBtn" data-i18n-title="studio.drawing.fitDrawingTitle" title="Fit drawing" type="button" data-i18n="studio.drawing.fitBtn">Fit</button>
 </div>
-</div>
-<div class="drawing-site-reference" id="drawingSiteReference" hidden>
-<div class="drawing-site-reference-text" id="drawingSiteReferenceText"></div>
-<button class="btn" type="button" id="drawingViewSiteMeasurementBtn" data-i18n="studio.drawing.viewOriginalSiteMeasurementBtn">View original Site Measurement</button>
 </div>
 <div class="drawing-stage" id="drawingStage" tabindex="0">
 <div class="drawing-canvas" id="drawingCanvas">
@@ -2149,20 +2139,11 @@ function renderRooms(){
  // live from the project and the room it's still linked to via c.roomId, the same
  // single source of truth Site Measurements already uses, so an edited customer name
  // or address is never stale here.
- const refStrip=$("#drawingSiteReference");
- if(refStrip){
+ const viewBtn=$("#drawingViewSiteMeasurementBtn");
+ if(viewBtn){
    const refRoom=c?.siteReference?(project()?.rooms||[]).find(r=>r.id===c.roomId):null;
-   if(refRoom){
-     const pr=project();
-     const bits=[`${safe(refRoom.icon||"⌂")} <b>${safe(refRoom.name)}</b>`,safe(pr?.customer||"")];
-     const notes=refRoom.notes||refRoom.siteNotes||"";
-     $("#drawingSiteReferenceText").innerHTML=t("studio.drawing.siteReferenceLabel").replace(/^📍\s*/,"")+" — "+bits.filter(Boolean).join(" · ")+(notes?`<br>📝 ${safe(notes)}`:"");
-     refStrip.hidden=false;
-     const viewBtn=$("#drawingViewSiteMeasurementBtn");
-     if(viewBtn)viewBtn.onclick=()=>openSiteRoomDetails(pr.id,refRoom.id);
-   }else{
-     refStrip.hidden=true;
-   }
+   viewBtn.hidden=!refRoom;
+   viewBtn.onclick=refRoom?()=>openSiteRoomDetails(project().id,refRoom.id):null;
  }
  if(!c?.drawing)return;empty.style.display="none";
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
@@ -3625,7 +3606,7 @@ function firstDroppedFile(dt){
  }
  return null;
 }
-["drawingInputTop","drawingPhotoInput"].forEach(id=>{
+["drawingInputTop"].forEach(id=>{
  const input=$("#"+id);
  if(input)input.addEventListener("change",async e=>{
    const file=e.target.files&&e.target.files[0];
