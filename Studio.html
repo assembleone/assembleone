@@ -7326,6 +7326,10 @@ body.fiq-locked .app{display:none!important}
   function isIncomingMeasurementProject(p){return !!p.isNewFromSite}
   function incomingMeasurementProjects(){return namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}
   function activeJobsList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p))}
+  // Job Overview is the live fitting boss view, not a second design-project list. A job
+  // enters it only after Studio has genuinely sent it to Mobile. Incoming Site Jobs stay
+  // in New Project, and unsent drawings stay out until the owner deliberately sends them.
+  function jobOverviewProjects(){return activeJobsList().filter(p=>!!p.lastMobileSync)}
   function sentToFitterList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!!p.lastMobileSync)}
   function needsAttentionList(){
     const items=(typeof window.a203NeedsAttentionItems==='function')?window.a203NeedsAttentionItems():[];
@@ -7733,7 +7737,7 @@ body.fiq-locked .app{display:none!important}
       });
       dash.querySelector('#jobOverviewViewAll').onclick=()=>{window.__homeDashboardFilter=null;show('customers');};
       dash.querySelector('#jobOverviewSelectAll').onclick=()=>{
-        const visible=namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p)).flatMap(cardsForProject).map(cardKey);
+        const visible=jobOverviewProjects().flatMap(cardsForProject).map(cardKey);
         const shouldSelect=visible.some(key=>!jorSelectedCardKeys.has(key));
         jorSelectedCardKeys.clear();if(shouldSelect)visible.forEach(key=>jorSelectedCardKeys.add(key));
         renderHomeDashboard();
@@ -7834,7 +7838,7 @@ body.fiq-locked .app{display:none!important}
     // site) has answered "what am I working on now?" and moves to Customer Library's
     // list instead, which is unfiltered and keeps the job's full technical history --
     // nothing here deletes or strips anything, it's a display filter only.
-    const recentProjects=namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    const recentProjects=jobOverviewProjects().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     // Build 1: one card per room, or one card per whole project when it has no rooms --
     // cardsForProject/cardCabinets/cardKey are defined above this function. A project's
     // several room-cards stay visually grouped as "one job" via the shared jor-name
