@@ -665,13 +665,12 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 .measure-box .measure-wrap input:focus{outline:2px solid rgba(183,121,60,.28);outline-offset:1px;border-radius:4px}
 .measure-box .measure-wrap>span{font-size:11px;font-weight:700;color:var(--muted);padding:0}
 .measure-box .unit-qty input{max-width:56px}
-/* Quantity protection: once a panel is reviewed, #fQty locks (native disabled -- blocks
-   typing, arrow keys and mouse wheel uniformly, no JS needed beyond setting the
-   attribute) and a small unlock button takes its place in the same row. Scoped to
-   .unit-qty only so Length/Width/Thickness's own two-column layout is untouched. */
+/* Quantity starts safely locked at one. The small button deliberately unlocks it only
+   for the currently selected panel. Native disabled blocks typing, arrows and wheel. */
 .measure-wrap.unit-qty,.measure-box .measure-wrap.unit-qty{grid-template-columns:minmax(0,1fr) auto auto}
 #fQty:disabled{background:#eaf8e4;color:#2f7d16;-webkit-text-fill-color:#2f7d16;opacity:1;cursor:not-allowed;font-weight:800}
-.qty-unlock-btn{padding:3px 7px;font-size:10px;font-weight:900;border-radius:8px;background:#fff7e6;border:1px solid #F0C36D;color:#6b4b06;cursor:pointer;white-space:nowrap;line-height:1.4}
+.qty-unlock-btn{width:30px;height:30px;padding:0;font-size:15px;font-weight:900;border-radius:8px;background:#eaf8e4;border:1px solid #8fcb77;color:#2f7d16;cursor:pointer;white-space:nowrap;line-height:1}
+.qty-unlock-btn.unlocked{background:#fff7e6;border-color:#F0C36D;color:#6b4b06}
 .qty-unlock-btn:hover{background:#F0C36D;color:#3d2c02}
 .measure-box .measure-wrap.edge-one::after,.measure-box .measure-wrap.edge-two::before,.measure-box .measure-wrap.edge-two::after{left:0;right:27px;bottom:2px}
 .measure-box .measure-wrap.edge-two::before{bottom:6px}
@@ -1432,7 +1431,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <label class="measure-field"><span data-i18n="studio.drawing.widthLabel">Width</span><div class="measure-wrap unit-mm" id="widthMeasureWrap"><input id="fWidth" step="0.1" data-i18n-title="studio.drawing.doubleClickEdgeBanding" title="Double-click to add edge banding" type="number" data-i18n-placeholder="studio.drawing.insertWidthPlaceholder" placeholder="Insert width"/><span id="widthUnitLabel">mm</span><span class="edge-lines" aria-hidden="true"><i></i><i></i></span></div></label>
 </div>
 <div class="quantity-card">
-<label class="measure-field"><span data-i18n="studio.drawing.quantityLabel">Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" max="500" type="number" value="1" data-i18n-placeholder="studio.drawing.insertQuantityPlaceholder" placeholder="Insert quantity"/><span>pcs</span><button type="button" id="fQtyUnlockBtn" class="qty-unlock-btn" hidden data-i18n="studio.drawing.editQuantityBtn" data-i18n-title="studio.drawing.editQuantityTitle" title="Quantity is protected because this panel has been reviewed. Tap to edit it.">🔓 Edit</button></div></label>
+<label class="measure-field"><span data-i18n="studio.drawing.quantityLabel">Quantity</span><div class="measure-wrap unit-qty"><input id="fQty" min="1" max="500" type="number" value="1" disabled data-i18n-placeholder="studio.drawing.insertQuantityPlaceholder" placeholder="Insert quantity"/><span>pcs</span><button type="button" id="fQtyUnlockBtn" class="qty-unlock-btn" hidden title="Unlock quantity" aria-label="Unlock quantity">🔒</button></div></label>
 </div>
 </div>
 <div class="edge-help" data-i18n="studio.drawing.edgeBandingHelp">Double-click the length or width number to add edge banding: no line → one line → double line.</div>
@@ -2156,9 +2155,8 @@ function renderRooms(){
    if(refRoom){
      const pr=project();
      const bits=[`${safe(refRoom.icon||"⌂")} <b>${safe(refRoom.name)}</b>`,safe(pr?.customer||"")];
-     if(pr?.address)bits.push(safe(pr.address));
      const notes=refRoom.notes||refRoom.siteNotes||"";
-     $("#drawingSiteReferenceText").innerHTML=t("studio.drawing.siteReferenceLabel")+" — "+bits.filter(Boolean).join(" · ")+(notes?`<br>📝 ${safe(notes)}`:"");
+     $("#drawingSiteReferenceText").innerHTML=t("studio.drawing.siteReferenceLabel").replace(/^📍\s*/,"")+" — "+bits.filter(Boolean).join(" · ")+(notes?`<br>📝 ${safe(notes)}`:"");
      refStrip.hidden=false;
      const viewBtn=$("#drawingViewSiteMeasurementBtn");
      if(viewBtn)viewBtn.onclick=()=>openSiteRoomDetails(pr.id,refRoom.id);
@@ -2289,19 +2287,22 @@ function renderNotesPicker(){
 }
 function renderForm(){
  const p=part();const banner=$("#selectedPartBanner");banner.textContent=p?`${p.code} — ${p.name||t("studio.drawing.partSelectedFallback")}`:t("studio.drawing.noPanelSelected");banner.classList.toggle("has-panel",!!p);banner.classList.toggle("no-panel",!p);
+ if(p&&(p.qty===""||p.qty==null))p.qty=1;
  const map={fLength:"length",fWidth:"width",fThickness:"thickness",fQty:"qty",fMaterial:"material",fNotes:"notes"};
  Object.entries(map).forEach(([id,key])=>{const v=p?.[key]??"";$("#"+id).value=["length","width","thickness"].includes(key)?(typeof aoMmToUnit==='function'?aoMmToUnit(v):v):v});
  if(typeof aoRenderUnitLabels==='function')aoRenderUnitLabels();
- // Quantity locks once the panel is reviewed (Option C: reuse the existing review
- // signature, no new state) -- disabled blocks typing/arrows/wheel uniformly while still
- // showing the stored value. Guarded for load order since panelIsReviewed is exported by
- // a later script block.
+ // Quantity is locked by default for every panel. Unlocking is deliberately temporary
+ // and applies only to the currently selected panel.
  const qtyInput=$("#fQty"),qtyUnlockBtn=$("#fQtyUnlockBtn");
  if(qtyInput&&qtyUnlockBtn){
-  const qtyLocked=!!p&&typeof window.panelIsReviewed==='function'&&window.panelIsReviewed(p);
-  qtyInput.disabled=qtyLocked;
-  qtyUnlockBtn.hidden=!qtyLocked;
-  qtyUnlockBtn.onclick=()=>{const cur=part();if(!cur)return;cur.reviewSignature='';save();renderAll();const el=$("#fQty");if(el){el.focus();el.select()}};
+  const qtyUnlocked=!!p&&window.fiqQtyUnlockedPartId===p.id;
+  qtyInput.disabled=!qtyUnlocked;
+  qtyUnlockBtn.hidden=!p;
+  qtyUnlockBtn.textContent=qtyUnlocked?'🔓':'🔒';
+  qtyUnlockBtn.classList.toggle('unlocked',qtyUnlocked);
+  qtyUnlockBtn.title=qtyUnlocked?'Lock quantity':'Unlock quantity';
+  qtyUnlockBtn.setAttribute('aria-label',qtyUnlockBtn.title);
+  qtyUnlockBtn.onclick=()=>{const cur=part();if(!cur)return;window.fiqQtyUnlockedPartId=qtyUnlocked?null:cur.id;renderForm();const el=$("#fQty");if(!qtyUnlocked&&el){el.focus();el.select()}};
  }
  renderMaterialPicker();
  renderNotesPicker();
@@ -5254,6 +5255,7 @@ body.guide-only .a131-back-studio{display:block}
 
     if(typeof closeMaterialPicker==='function')closeMaterialPicker();
     if(typeof closeNotesPicker==='function')closeNotesPicker();
+    window.fiqQtyUnlockedPartId=null;
     // A Mobile site visit remains in Home's large New Projects stage until Studio has
     // saved the first genuine panel. Opening or reviewing measurements alone must never
     // make it disappear. Positive geometry plus a panel name is the same minimum used by
@@ -5272,7 +5274,7 @@ body.guide-only .a131-back-studio{display:block}
       if(t)t.value=String(Number(thickness)||19);
       if(l){l.value='';l.placeholder='Type length';}
       if(w){w.value='';w.placeholder='Type width';}
-      if(q){q.value='';q.placeholder='Type quantity';}
+      if(q){q.value='1';q.disabled=true;q.placeholder='Type quantity';}
       if(typeof updateEdgePreview==='function')updateEdgePreview();
       if(l){l.focus();try{l.select()}catch(_){} }
     });
