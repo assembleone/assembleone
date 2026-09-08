@@ -1093,6 +1093,8 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .attention-item-actions{display:flex;gap:8px;margin-top:8px}
 .attention-item-actions .btn{min-height:38px;padding:0 14px;font-size:13px}
 @media(max-width:760px){.site-room-modal{padding:5px}.site-room-dialog{width:100%;height:calc(100vh - 10px);max-height:none;border-radius:18px}.site-room-head{padding:8px 12px}.site-room-head .room-badge{font-size:28px}.site-room-head p{margin-top:1px;font-size:12px}.site-room-kind-badge{margin-top:3px}.site-room-close{width:40px;height:40px}.site-room-body{display:flex;flex-direction:column}.site-reference-pane{border-right:0;border-bottom:2px solid #eaf2f1;padding:7px 10px;flex:0 0 auto}.site-reference-frame{height:220px;min-height:0;max-height:34vh}.site-thumb{width:42px;height:34px}.site-design-pane{padding:7px 10px;margin-top:auto;flex:0 0 auto}.site-facts{grid-template-columns:1fr 1fr}.site-fact{padding:4px 7px}.site-fact b{font-size:14px}.site-fact span{font-size:10px}.site-notes-box{min-height:56px;max-height:140px;padding:7px 8px}.site-notes-box h3{font-size:13px}.site-detail-actions{padding:9px 10px}.site-detail-actions .btn{min-height:60px;font-size:20px}.site-room-head h2{font-size:20px}}
+.site-room-status-row{display:flex;align-items:center;justify-content:space-between;gap:18px}.site-room-address{margin:6px 0 0 auto}.site-note-photo-row{display:flex;gap:6px;overflow-x:auto;margin-top:6px}.site-note-photo{width:48px;height:40px;flex:0 0 auto;border:2px solid #b9cbe8;border-radius:8px;object-fit:cover;cursor:pointer}.site-reference-pane{display:flex;flex-direction:column}.site-reference-frame{height:auto;min-height:240px;max-height:none;flex:1 1 auto}
+@media(max-width:760px){.site-room-address{margin:3px 0 0 auto}.site-room-address a{font-size:11px}.site-reference-pane{flex:1 1 auto;min-height:0}.site-reference-frame{height:auto;min-height:220px;max-height:none;flex:1 1 auto}.site-note-photo{width:44px;height:36px}.site-notes-box{min-height:64px;max-height:150px}}
 </style>
 
 
@@ -2009,6 +2011,7 @@ function openSiteRoomDetails(projectId,roomId){
  // Job into every relevant room while a room-specific instruction remains visible too.
  const noteParts=[room.notes,room.siteNotes,p.siteNotes,p.notes].map(x=>String(x||'').trim()).filter((x,i,a)=>x&&a.indexOf(x)===i);
  const caps=siteRoomCaptures(room),measures=siteRoomMeasureCount(room),floor=room.floor||room.location||t("studio.siteRoom.notSelectedFallback"),notes=noteParts.join('\n\n');
+ const notePhotos=[...(room.notePhotos||[]),...(room.siteNotePhotos||[]),...(p.notePhotos||[]),...(p.siteNotePhotos||[])].map(x=>typeof x==='string'?x:(x?.src||x?.image||x?.dataUrl||'')).filter((x,i,a)=>x&&a.indexOf(x)===i);
  const overlay=document.getElementById('siteRoomDetailsModal');if(!overlay)return;overlay.dataset.projectId=p.id;overlay.dataset.roomId=room.id||'';overlay.dataset.pictureIndex='0';
  document.getElementById('siteRoomDetailsTitle').textContent=room.name||t("studio.siteRoom.siteRoomFallback");document.getElementById('siteRoomDetailsIcon').textContent=room.icon||'📍';document.getElementById('siteRoomDetailsMeta').textContent=`${p.name||t("proj.projectFallback")} · ${floor}`;
  const addressBox=document.getElementById('siteRoomDetailsAddress');
@@ -2038,6 +2041,8 @@ function openSiteRoomDetails(projectId,roomId){
  const frame=document.getElementById('siteRoomReferenceFrame');
  const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=caps.map((c,i)=>`<img class="site-thumb ${i===0?'active':''}" data-site-thumb="${i}" src="${c.image}" alt="Photo ${i+1}">`).join('');
  document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;document.getElementById('siteRoomNotes').textContent=notes||'No extra notes';
+ const notePhotoRow=document.getElementById('siteRoomNotePhotos');
+ if(notePhotoRow)notePhotoRow.innerHTML=notePhotos.map((src,i)=>`<img class="site-note-photo" data-site-note-photo="${i}" src="${safe(src)}" alt="Note picture ${i+1}">`).join('');
  function showCapture(i){
   overlay.dataset.pictureIndex=i;
   const c=caps[i];
@@ -2052,6 +2057,7 @@ function openSiteRoomDetails(projectId,roomId){
   thumbs.querySelectorAll('.site-thumb').forEach((x,xi)=>x.classList.toggle('active',xi===i));
  }
  thumbs.querySelectorAll('[data-site-thumb]').forEach(t=>t.onclick=()=>showCapture(+t.dataset.siteThumb));
+ notePhotoRow?.querySelectorAll('[data-site-note-photo]').forEach(t=>t.onclick=()=>{const src=notePhotos[+t.dataset.siteNotePhoto];if(!src)return;frame.innerHTML=`<img id="siteRoomMainImage" src="${safe(src)}" alt="Note picture">`;const per=document.getElementById('siteRoomPhotoMeasureLabel');if(per)per.textContent='Note picture';thumbs.querySelectorAll('.site-thumb').forEach(x=>x.classList.remove('active'))});
  showCapture(0);
  overlay.classList.add('open');overlay.setAttribute('aria-hidden','false')
 }
@@ -3914,10 +3920,10 @@ load();
 </div>
 <div class="site-room-modal" id="siteRoomDetailsModal" aria-hidden="true">
  <div class="site-room-dialog" role="dialog" aria-modal="true" aria-labelledby="siteRoomDetailsTitle">
-  <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p><span class="site-room-kind-badge" id="siteRoomDetailsKindBadge"></span><div class="site-room-address" id="siteRoomDetailsAddress"></div></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
+  <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div style="flex:1;min-width:0"><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p><div class="site-room-status-row"><span class="site-room-kind-badge" id="siteRoomDetailsKindBadge"></span><div class="site-room-address" id="siteRoomDetailsAddress"></div></div></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
   <div class="site-room-body">
    <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-photo-measure-label" id="siteRoomPhotoMeasureLabel"></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
-   <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div></div></section>
+   <section class="site-design-pane"><div class="site-facts"><div class="site-fact"><b id="siteRoomMeasureCount">0</b><span>Measurements</span></div><div class="site-fact"><b id="siteRoomFloor">—</b><span>Floor</span></div></div><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div><div class="site-note-photo-row" id="siteRoomNotePhotos"></div></div></section>
   </div>
   <div class="site-detail-actions"><button class="btn primary" id="siteStartDesignBtn" type="button">Start Design</button></div>
  </div>
