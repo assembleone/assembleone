@@ -164,10 +164,20 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .zoom-controls{display:flex;align-items:center;gap:3px;margin-left:auto}
 .zoom-controls .btn{min-width:34px;padding:5px 8px!important}
 .zoom-value{min-width:48px;text-align:center;font-size:11px;font-weight:800;color:var(--brown)}
-@media(max-width:760px){
-  #screen-mark .drawing-toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
-  #screen-mark .drawing-toolbar>*{flex-shrink:0}
-  #screen-mark .zoom-controls{width:auto;justify-content:flex-end;margin-left:auto}
+@media(max-width:1100px){
+  #screen-mark .drawing-toolbar{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto auto;
+    grid-template-areas:"selector zoom zoom" "site paste choose";
+    overflow:visible;
+  }
+  #screen-mark #cabinetSelect{grid-area:selector;width:100%;min-width:0}
+  #screen-mark #drawingViewSiteMeasurementBtn{grid-area:site;width:100%}
+  #screen-mark #pasteScreenshotBtn{grid-area:paste}
+  #screen-mark .drawing-toolbar>.file-btn{grid-area:choose}
+  #screen-mark .zoom-controls{grid-area:zoom;width:auto;justify-content:flex-end;margin-left:auto}
+  #screen-mark #drawingViewSiteMeasurementBtn[hidden]~#pasteScreenshotBtn{grid-column:1;grid-row:2}
+  #screen-mark #drawingViewSiteMeasurementBtn[hidden]~.file-btn{grid-column:2;grid-row:2}
   .zoom-value{min-width:42px}
 }
 
