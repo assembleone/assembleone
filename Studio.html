@@ -2092,6 +2092,10 @@ function closeSiteRoomDetails(){const m=document.getElementById('siteRoomDetails
 function startDesignFromSiteRoom(projectId,roomId){
  const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return;
  const room=p.rooms.find(r=>r.id===roomId);if(!room)return alert(t("studio.siteRoom.jobNotFound"));
+ // This deliberate Start/Open Design action is the boundary between an incoming Site
+ // Job in New Project and active design work in Job Overview. Panel drafts alone must
+ // never move the whole visit out of New Project before the owner chooses this action.
+ p.isNewFromSite=false;
  let c=p.cabinets.find(x=>x.roomId===room.id);
  const alreadyHasDrawing=!!(c&&c.drawing);
  if(!c){c={id:uid(),name:room.name+' design',roomId:room.id,drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
@@ -5275,13 +5279,6 @@ body.guide-only .a131-back-studio{display:block}
     if(typeof closeMaterialPicker==='function')closeMaterialPicker();
     if(typeof closeNotesPicker==='function')closeNotesPicker();
     window.fiqQtyUnlockedPartId=null;
-    // A Mobile site visit remains in Home's large New Projects stage until Studio has
-    // saved the first genuine panel. Opening or reviewing measurements alone must never
-    // make it disappear. Positive geometry plus a panel name is the same minimum used by
-    // the dashboard stage check, so an incomplete draft remains safely in New Projects.
-    if(pr&&String(p.name||'').trim()&&Number(p.length)>0&&Number(p.width)>0&&Number(p.thickness)>0){
-      pr.isNewFromSite=false;
-    }
     state.currentPart=null;
     const stored=typeof save==='function'?save():true;
     if(typeof showPanelSavedToast==='function')showPanelSavedToast(stored!==false);
@@ -7323,12 +7320,10 @@ body.fiq-locked .app{display:none!important}
   function isCompletedProject(p){return jobStatusInfoSafe(p).cls==='status-done'}
   function isThisMonth(ts){if(!ts)return false;const d=new Date(ts),now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()}
   function namedProjects(){return (state.projects||[]).filter(p=>String(p.name||'').trim())}
-  function hasPanelWork(p){
-    return (p.cabinets||[]).some(c=>(c.parts||[]).some(part=>
-      String(part.name||'').trim()&&Number(part.length)>0&&Number(part.width)>0&&Number(part.thickness)>0
-    ));
-  }
-  function isIncomingMeasurementProject(p){return !!p.isNewFromSite&&!hasPanelWork(p)}
+  // Incoming Site Jobs stay grouped under New Project until the owner deliberately opens
+  // a room design. A panel draft or recovered panel must not leak every room from the same
+  // site visit into Job Overview. startDesignFromSiteRoom() clears this flag explicitly.
+  function isIncomingMeasurementProject(p){return !!p.isNewFromSite}
   function incomingMeasurementProjects(){return namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}
   function activeJobsList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p))}
   function sentToFitterList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!!p.lastMobileSync)}
@@ -8568,6 +8563,7 @@ body.fiq-locked .app{display:none!important}
 <style id="a222-cutting-list-return-style">
 .panel-check-return-strip{margin-bottom:14px;padding:14px 16px;border-radius:14px;background:#e6f7ec;border:2px solid #9be0af;color:#16a34a;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .panel-check-return-strip span{font-weight:900;flex:1;min-width:220px}
+.panel-check-return-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .panel-check-return-strip button{white-space:nowrap}
 </style>
 <script id="a222-cutting-list-return-script">
@@ -8580,7 +8576,14 @@ body.fiq-locked .app{display:none!important}
     const panels=typeof cabinetParts==='function'?cabinetParts():[];
     const ready=panels.length&&panels.every(p=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(p));
     if(!ready){box.innerHTML='';return}
-    box.innerHTML='<div class="panel-check-return-strip"><span>✓ '+t("studio.panelCheck.returnPromptText")+'</span><button type="button" class="btn primary" id="panelCheckReturnBtn">'+t("studio.panelCheck.returnPromptBtn")+'</button></div>';
+    box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Send it to Mobile or return to Job Overview.</span><div class="panel-check-return-actions"><button type="button" class="btn primary" id="cuttingListSendMobileBtn">'+t("studio.onboarding.headingSendToMobile")+'</button><button type="button" class="btn" id="panelCheckReturnBtn">'+t("studio.panelCheck.returnPromptBtn")+'</button></div></div>';
+    const sendBtn=document.getElementById('cuttingListSendMobileBtn');
+    if(sendBtn)sendBtn.onclick=async()=>{
+      if(sendBtn.disabled)return;
+      sendBtn.disabled=true;
+      try{if(typeof exportProjectToMobile==='function')await exportProjectToMobile(project())}
+      finally{sendBtn.disabled=false}
+    };
     const btn=document.getElementById('panelCheckReturnBtn');
     if(btn)btn.onclick=()=>{if(typeof show==='function')show('jobs')};
   }
