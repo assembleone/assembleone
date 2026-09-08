@@ -1834,7 +1834,6 @@ function switchToProject(id,cabinetId,partId){
  state.currentPart=partId!==undefined?partId:null;
  state.showStartShell=true;
  const opened=state.projects.find(x=>x.id===id);
- if(opened&&opened.isNewFromSite)opened.isNewFromSite=false;
  if(typeof renderProject==='function')renderProject();
 }
 
@@ -5235,6 +5234,13 @@ body.guide-only .a131-back-studio{display:block}
 
     if(typeof closeMaterialPicker==='function')closeMaterialPicker();
     if(typeof closeNotesPicker==='function')closeNotesPicker();
+    // A Mobile site visit remains in Home's large New Projects stage until Studio has
+    // saved the first genuine panel. Opening or reviewing measurements alone must never
+    // make it disappear. Positive geometry plus a panel name is the same minimum used by
+    // the dashboard stage check, so an incomplete draft remains safely in New Projects.
+    if(pr&&String(p.name||'').trim()&&Number(p.length)>0&&Number(p.width)>0&&Number(p.thickness)>0){
+      pr.isNewFromSite=false;
+    }
     state.currentPart=null;
     const stored=typeof save==='function'?save():true;
     if(typeof showPanelSavedToast==='function')showPanelSavedToast(stored!==false);
@@ -7252,6 +7258,16 @@ body.fiq-locked .app{display:none!important}
 .jor-bulk-toolbar.show{display:flex}
 .jor-bulk-count{font-weight:900;color:var(--ink);font-size:13px}
 .jor-bulk-fitter-select{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:700}
+.incoming-projects-section{margin-bottom:18px}
+.incoming-projects-section[hidden]{display:none}
+.incoming-projects-title{margin:0 0 10px;font-size:24px;color:var(--ink)}
+.incoming-projects-grid{display:grid;gap:12px}
+.incoming-project-card{width:100%;display:grid;grid-template-columns:112px minmax(0,1fr) auto;align-items:center;gap:18px;padding:20px;border:3px solid #4da918;border-radius:26px;background:linear-gradient(135deg,#f5fff0,#fff);box-shadow:0 8px 22px rgba(44,126,20,.12);text-align:left;color:var(--ink);cursor:pointer;font:inherit}
+.incoming-project-card:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(44,126,20,.17)}
+.incoming-project-preview{width:112px;height:94px;border-radius:18px;overflow:hidden;background:#eaf5e4;display:grid;place-items:center;font-size:44px}
+.incoming-project-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.incoming-project-copy{min-width:0}.incoming-project-badge{display:inline-block;border-radius:999px;background:#FFC600;color:#5a4300;font-size:12px;font-weight:950;padding:5px 11px;margin-bottom:5px}.incoming-project-copy strong{display:block;font-size:27px;line-height:1.12;color:#172e4a}.incoming-project-rooms{display:block;margin-top:5px;color:var(--muted);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.incoming-project-counts{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}.incoming-project-counts span{background:#eef3f8;border-radius:999px;padding:7px 11px;font-size:13px;font-weight:900;color:#174E98}.incoming-project-open{background:#174E98;color:#fff;border-radius:16px;padding:14px 18px;font-weight:950;white-space:nowrap}
+@media(max-width:700px){.incoming-project-card{grid-template-columns:76px 1fr;padding:14px;gap:12px}.incoming-project-preview{width:76px;height:76px}.incoming-project-open{grid-column:1/-1;text-align:center}.incoming-project-copy strong{font-size:22px}}
 </style>
 <script id="a208-home-dashboard-script">
 (function(){
@@ -7259,14 +7275,20 @@ body.fiq-locked .app{display:none!important}
   function isCompletedProject(p){return jobStatusInfoSafe(p).cls==='status-done'}
   function isThisMonth(ts){if(!ts)return false;const d=new Date(ts),now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()}
   function namedProjects(){return (state.projects||[]).filter(p=>String(p.name||'').trim())}
-  function activeJobsList(){return namedProjects().filter(p=>!isCompletedProject(p))}
-  function sentToFitterList(){return namedProjects().filter(p=>!!p.lastMobileSync)}
+  function hasPanelWork(p){
+    return (p.cabinets||[]).some(c=>(c.parts||[]).some(part=>
+      String(part.name||'').trim()&&Number(part.length)>0&&Number(part.width)>0&&Number(part.thickness)>0
+    ));
+  }
+  function isIncomingMeasurementProject(p){return !!p.isNewFromSite&&!hasPanelWork(p)}
+  function activeJobsList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p))}
+  function sentToFitterList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!!p.lastMobileSync)}
   function needsAttentionList(){
     const items=(typeof window.a203NeedsAttentionItems==='function')?window.a203NeedsAttentionItems():[];
     const ids=new Set(items.map(x=>x.projectId));
-    return namedProjects().filter(p=>ids.has(p.id));
+    return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&ids.has(p.id));
   }
-  function completedThisMonthList(){return namedProjects().filter(p=>isCompletedProject(p)&&isThisMonth(p.updatedAt))}
+  function completedThisMonthList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&isCompletedProject(p)&&isThisMonth(p.updatedAt))}
   // Panel Check counts unique panel rows (one review covers a whole "qty 8 shelves" row),
   // Fitted Progress counts physical pieces -- matching how Panel Check and Installation
   // Progress already count things elsewhere, so this summary agrees with the job's own
@@ -7389,7 +7411,7 @@ body.fiq-locked .app{display:none!important}
     // it contains many measured rooms. The room-by-room cards belong to designed and
     // installation work, not to an incoming visit that the office needs to review as a
     // whole. The Customer Card still keeps every room separate underneath this one card.
-    if(p.isNewFromSite)return [{project:p,room:'__site_visit__'}];
+    if(isIncomingMeasurementProject(p))return [{project:p,room:'__site_visit__'}];
     const cards=rooms.map(r=>({project:p,room:r}));
     const roomIds=new Set(rooms.map(r=>r.id));
     if((p.cabinets||[]).some(c=>!c.roomId||!roomIds.has(c.roomId)))cards.push({project:p,room:'__general__'});
@@ -7539,7 +7561,8 @@ body.fiq-locked .app{display:none!important}
       dash=document.createElement('div');
       dash.id='homeDashboard';
       dash.className='home-dashboard';
-      dash.innerHTML='<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobStatusOverviewHeading")+'</h3></div><div class="job-stat-grid">'+
+      dash.innerHTML='<section class="incoming-projects-section" id="incomingProjectsSection" hidden><h3 class="incoming-projects-title">New Projects</h3><div class="incoming-projects-grid" id="incomingProjectsGrid"></div></section>'+
+        '<div class="home-section"><div class="home-section-head"><h3>'+t("studio.jobOverview.jobStatusOverviewHeading")+'</h3></div><div class="job-stat-grid">'+
         '<button type="button" class="job-stat-card" data-stat="active"><span class="job-stat-icon stat-active">👥</span><span class="job-stat-num" id="statActiveNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.activeJobsLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.viewAllLabel")+'</span></button>'+
         '<button type="button" class="job-stat-card" data-stat="sent"><span class="job-stat-icon stat-sent">✅</span><span class="job-stat-num" id="statSentNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.sentToFitterLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.viewAllLabel")+'</span></button>'+
         '<button type="button" class="job-stat-card" data-stat="attention"><span class="job-stat-icon stat-attention">⚠️</span><span class="job-stat-num" id="statAttentionNum">0</span><span class="job-stat-label">'+t("studio.jobOverview.needsAttentionLabel")+'</span><span class="job-stat-view">'+t("studio.jobOverview.viewAllLabel")+'</span></button>'+
@@ -7640,6 +7663,34 @@ body.fiq-locked .app{display:none!important}
     setNum('statAttentionNum',needsAttentionList().length);
     setNum('statCompletedNum',completedThisMonthList().length);
 
+    const incoming=namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    const incomingSection=document.getElementById('incomingProjectsSection');
+    const incomingGrid=document.getElementById('incomingProjectsGrid');
+    if(incomingSection&&incomingGrid){
+      incomingSection.hidden=!incoming.length;
+      incomingGrid.innerHTML=incoming.map(p=>{
+        const rooms=(p.rooms||[]).filter(r=>r&&r.name);
+        const photos=rooms.flatMap(r=>siteRoomPictures(r));
+        const measurements=rooms.reduce((sum,r)=>sum+siteRoomMeasureCount(r),0);
+        const preview=photos[0]?'<img src="'+safe(photos[0])+'" alt="Site measurement preview">':'📐';
+        const roomNames=rooms.map(r=>(r.icon||'⌂')+' '+r.name).join(' · ')||'Site measurements ready';
+        const customer=p.customer||p.name||t("studio.customerLibrary.untitledJob");
+        return '<button type="button" class="incoming-project-card" data-open-incoming-project="'+safe(p.id)+'">'+
+          '<span class="incoming-project-preview">'+preview+'</span><span class="incoming-project-copy">'+
+          '<span class="incoming-project-badge">NEW SITE MEASURE</span><strong>'+safe(customer)+'</strong><span class="incoming-project-rooms">'+safe(roomNames)+'</span>'+
+          '<span class="incoming-project-counts"><span>'+rooms.length+' room'+(rooms.length===1?'':'s')+'</span><span>'+photos.length+' photo'+(photos.length===1?'':'s')+'</span><span>'+measurements+' measurement'+(measurements===1?'':'s')+'</span></span></span>'+
+          '<span class="incoming-project-open">Open measurements ›</span></button>';
+      }).join('');
+      incomingGrid.querySelectorAll('[data-open-incoming-project]').forEach(card=>card.onclick=()=>{
+        const p=state.projects.find(x=>x.id===card.dataset.openIncomingProject);
+        if(!p)return;
+        if(p.customerId&&typeof openCustomerCard==='function'){
+          customerCardActiveTab='site';
+          openCustomerCard(p.customerId);
+        }else if(typeof switchToProject==='function')switchToProject(p.id);
+      });
+    }
+
     const grid=document.getElementById('jobOverviewGrid');
     // No slice/limit here -- the whole point of making this scroll is that a company
     // with many active jobs can see all of them without the homepage growing forever.
@@ -7648,7 +7699,7 @@ body.fiq-locked .app{display:none!important}
     // site) has answered "what am I working on now?" and moves to Customer Library's
     // list instead, which is unfiltered and keeps the job's full technical history --
     // nothing here deletes or strips anything, it's a display filter only.
-    const recentProjects=namedProjects().filter(p=>!isCompletedProject(p)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    const recentProjects=namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     // Build 1: one card per room, or one card per whole project when it has no rooms --
     // cardsForProject/cardCabinets/cardKey are defined above this function. A project's
     // several room-cards stay visually grouped as "one job" via the shared jor-name
@@ -7679,11 +7730,9 @@ body.fiq-locked .app{display:none!important}
       const issueHtml=siteVisit?'':'<span class="jor-issue'+(damaged?' jor-issue-bad':'')+'">'+t("studio.jobOverview.damagedTagTemplate",[damaged])+(damaged?' ⚠️':'')+'</span>'+
         '<span class="jor-issue'+(missing?' jor-issue-bad':'')+'">'+t("studio.jobOverview.missingTagTemplate",[missing])+(missing?' ⚠️':'')+'</span>';
       const warn=!siteVisit&&(needsAttentionForCabinets(cabinets)||(pcFinished&&pcMissing.length))?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.needsAttentionTooltip")+'">⚠️</span>':'<span class="jor-warn"></span>';
-      // isNewFromSite is the exact same flag switchToProject() already clears the moment
-      // this job is opened (see there) -- reused as-is, not a new dashboard-only marker,
-      // so it also already survives a reload correctly (it's just a field on the project).
-      // Shown on every room-card of a brand new job, not just one -- they're all still
-      // unopened until switchToProject() runs, whichever card gets clicked first.
+      // Incoming measurement-only visits are filtered into New Projects above. This flag
+      // can remain true only as a recovery fallback if a project contains panel work from
+      // another import path; normal Save and Next clears it with the first complete panel.
       const isNew=!!p.isNewFromSite;
       const newBadge=isNew?'<span class="jor-new-badge">'+t("studio.jobOverview.newSiteJobBadge")+'</span>':'';
       const roomLabel=cardRoomLabel(card);
