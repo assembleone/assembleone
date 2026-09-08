@@ -1634,7 +1634,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="title-row"><div><h2 data-i18n="studio.panelCheck.screenTitle">Panel Check</h2><div class="muted" data-i18n="studio.panelCheck.screenSubtitle">Check every panel before making the cutting list.</div></div></div>
 <div id="customerSheetEstimateCard"></div>
 <div id="panelCheckStatusBanner"></div>
-<div id="panelCheckReturnStrip"></div>
 <div id="installProgressCard"></div>
 <div id="estimatedMaterialsCard"></div>
 <div class="notice" id="componentsValidation" style="display:none;margin-bottom:10px"></div>
@@ -1656,6 +1655,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div hidden><table><tbody id="cuttingBody"></tbody></table><button id="downloadCsvBtn"></button><button id="printCuttingBtn"></button></div>
 <div class="supplier-sticker-settings"><div><h3 data-i18n="studio.supplier.stickerSizeHeading">QR sticker size</h3><div class="muted" data-i18n="studio.supplier.stickerSizeSubtitle">Choose a common size or enter your own measurements.</div></div><div class="sticker-size-grid"><label><span data-i18n="studio.supplier.widthMmLabel">Width mm</span><input id="stickerWidth" inputmode="decimal" max="300" min="20" step="1" type="number" value="70"/></label><label><span data-i18n="studio.supplier.heightMmLabel">Height mm</span><input id="stickerHeight" inputmode="decimal" max="300" min="20" step="1" type="number" value="50"/></label></div><div aria-label="Quick sticker sizes" data-i18n-aria="studio.supplier.quickStickerSizesAria" class="size-presets"><button class="btn sticker-preset" data-h="30" data-w="50" type="button">50 × 30</button><button class="btn sticker-preset" data-h="50" data-w="70" type="button">70 × 50</button><button class="btn sticker-preset" data-h="75" data-w="100" type="button">100 × 75</button></div></div>
 <h3 class="supplier-section-title" data-i18n="studio.supplier.stickerPreviewHeading">Sticker preview</h3><div class="supplier-labels" id="supplierLabels"></div>
+<div id="cuttingListReturnStrip"></div>
 </section>
 <section class="screen" id="screen-qr">
 <div class="title-row"><div><h2>QR labels — selected wardrobe only</h2><div class="muted">QR codes from other jobs and wardrobes are kept separate.</div></div></div>
@@ -8565,41 +8565,28 @@ body.fiq-locked .app{display:none!important}
   });
 })();
 </script>
-<style id="a222-panel-check-return-style">
+<style id="a222-cutting-list-return-style">
 .panel-check-return-strip{margin-bottom:14px;padding:14px 16px;border-radius:14px;background:#e6f7ec;border:2px solid #9be0af;color:#16a34a;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .panel-check-return-strip span{font-weight:900;flex:1;min-width:220px}
 .panel-check-return-strip button{white-space:nowrap}
 </style>
-<script id="a222-panel-check-return-script">
+<script id="a222-cutting-list-return-script">
 (function(){
-  // Once every panel card currently on screen is "complete" (no missing fields AND
-  // reviewed -- the exact same .complete/.incomplete classes a135's single-job render and
-  // a221's combined-job render both already stamp onto every card), tell the user what to
-  // do next instead of leaving them to guess. Reads the rendered DOM rather than calling
-  // into readyForSupplier/combinedOk itself, so this one strip works unmodified for both a
-  // single job (a135/a212) and several jobs checked together for the same customer (a221)
-  // without duplicating either's own completion logic or inventing a second flag.
+  // The return to Job Overview belongs at the end of the workflow, after Cutting List.
+  // Use the same supplier-ready rule as the Cutting List itself so the prompt only appears
+  // when the current wardrobe has panels and every one has passed Panel Check.
   function render(){
-    const box=document.getElementById('panelCheckReturnStrip');if(!box)return;
-    const summary=document.getElementById('partsSummary');
-    const cards=summary?summary.querySelectorAll('.panel-check-card'):[];
-    const incomplete=summary?summary.querySelectorAll('.panel-check-card.incomplete'):[];
-    if(!cards.length||incomplete.length){box.innerHTML='';return}
+    const box=document.getElementById('cuttingListReturnStrip');if(!box)return;
+    const panels=typeof cabinetParts==='function'?cabinetParts():[];
+    const ready=panels.length&&panels.every(p=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(p));
+    if(!ready){box.innerHTML='';return}
     box.innerHTML='<div class="panel-check-return-strip"><span>✓ '+t("studio.panelCheck.returnPromptText")+'</span><button type="button" class="btn primary" id="panelCheckReturnBtn">'+t("studio.panelCheck.returnPromptBtn")+'</button></div>';
     const btn=document.getElementById('panelCheckReturnBtn');
     if(btn)btn.onclick=()=>{if(typeof show==='function')show('jobs')};
   }
-  const prevRenderParts=window.renderParts;
-  window.renderParts=function(){const r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
-  try{renderParts=window.renderParts}catch(e){}
-  // Belt-and-braces: a221's own combined-review dblclick handler calls its internal
-  // renderCombinedPanelCheck() directly rather than through window.renderParts, so the wrap
-  // above alone would miss it. Watching #partsSummary itself catches every path that
-  // repaints it, present or future, without needing to know about each one individually.
-  const summaryEl=document.getElementById('partsSummary');
-  if(summaryEl&&typeof MutationObserver!=='undefined'){
-    new MutationObserver(render).observe(summaryEl,{childList:true,subtree:true});
-  }
+  const prevRenderCutting=window.renderCutting;
+  window.renderCutting=function(){const r=prevRenderCutting?prevRenderCutting.apply(this,arguments):undefined;render();return r};
+  try{renderCutting=window.renderCutting}catch(e){}
   try{render()}catch(e){}
 })();
 </script>
