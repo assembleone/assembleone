@@ -7326,10 +7326,15 @@ body.fiq-locked .app{display:none!important}
   function isIncomingMeasurementProject(p){return !!p.isNewFromSite}
   function incomingMeasurementProjects(){return namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}
   function activeJobsList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!isCompletedProject(p))}
-  // Job Overview is the live fitting boss view, not a second design-project list. A job
-  // enters it only after Studio has genuinely sent it to Mobile. Incoming Site Jobs stay
-  // in New Project, and unsent drawings stay out until the owner deliberately sends them.
-  function jobOverviewProjects(){return activeJobsList().filter(p=>!!p.lastMobileSync)}
+  // Job Overview begins when the office workflow is complete, before Mobile dispatch.
+  // Reuse the Cutting List supplier-ready rule: there must be real panels and every panel
+  // must have passed Panel Check. Sending and fitter selection then happen on the card.
+  function jobOverviewProjects(){
+    return activeJobsList().filter(p=>{
+      const panels=(p.cabinets||[]).flatMap(c=>c.parts||[]);
+      return panels.length>0&&panels.every(part=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(part));
+    });
+  }
   function sentToFitterList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!!p.lastMobileSync)}
   function needsAttentionList(){
     const items=(typeof window.a203NeedsAttentionItems==='function')?window.a203NeedsAttentionItems():[];
@@ -8318,7 +8323,14 @@ body.fiq-locked .app{display:none!important}
         const fitter=fitterByName(target.assignedFitter);
         const phone=digitsOnly(fitter&&fitter.phone);
         if(!phone){alert(t("studio.fitters.addWhatsappNumberFirstLongTemplate",[target.assignedFitter||t("studio.fitters.thisFitterFallback")]));return}
-        window.open('https://wa.me/'+phone,'_blank');
+        // Keep the proven Mobile packet send and the human handover together. Assignment
+        // normally sends immediately, but resending here makes the WhatsApp action safe
+        // after edits too. The fitter receives the actual Mobile app link, not an empty chat.
+        if(typeof exportProjectToMobile==='function')exportProjectToMobile(ctx.project);
+        const mobileUrl='https://assembleone.github.io/assembleone/Mobile.html';
+        const jobName=ctx.project.customer||ctx.project.name||'your FittersIQ job';
+        const message='Hi '+(fitter.name||'')+', your FittersIQ job '+jobName+' is ready. Open it here: '+mobileUrl;
+        window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(message),'_blank');
       };
     });
     // otherFittersHtml is only ever rendered for a whole project (Install Progress's own
@@ -8580,14 +8592,7 @@ body.fiq-locked .app{display:none!important}
     const panels=typeof cabinetParts==='function'?cabinetParts():[];
     const ready=panels.length&&panels.every(p=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(p));
     if(!ready){box.innerHTML='';return}
-    box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Send it to Mobile or return to Job Overview.</span><div class="panel-check-return-actions"><button type="button" class="btn primary" id="cuttingListSendMobileBtn">'+t("studio.onboarding.headingSendToMobile")+'</button><button type="button" class="btn" id="panelCheckReturnBtn">'+t("studio.panelCheck.returnPromptBtn")+'</button></div></div>';
-    const sendBtn=document.getElementById('cuttingListSendMobileBtn');
-    if(sendBtn)sendBtn.onclick=async()=>{
-      if(sendBtn.disabled)return;
-      sendBtn.disabled=true;
-      try{if(typeof exportProjectToMobile==='function')await exportProjectToMobile(project())}
-      finally{sendBtn.disabled=false}
-    };
+    box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Return to Job Overview to choose a fitter and send the job.</span><button type="button" class="btn primary" id="panelCheckReturnBtn">'+t("studio.panelCheck.returnPromptBtn")+'</button></div>';
     const btn=document.getElementById('panelCheckReturnBtn');
     if(btn)btn.onclick=()=>{if(typeof show==='function')show('jobs')};
   }
