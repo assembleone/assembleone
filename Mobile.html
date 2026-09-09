@@ -1803,7 +1803,10 @@ function canSeeJob(p,room){
  if(roomObj&&hasRoomAssignments&&!(roomIds&&roomIds.length)&&!(roomEmails&&roomEmails.length))return false;
  const ids=(roomIds&&roomIds.length)?roomIds:((p&&Array.isArray(p.assignedFitterIds))?p.assignedFitterIds:[]);
  const emails=(roomEmails&&roomEmails.length)?roomEmails:((p&&Array.isArray(p.assignedEmails))?p.assignedEmails:[]);
- if(!ids.length&&!emails.length)return true;
+ // Studio jobs are working assignments, not a shared storage list. An unassigned
+ // Studio job stays with the owner in Mobile until Studio deliberately assigns a fitter.
+ // Site Measure visits are still visible to the signed-in person who created them.
+ if(!ids.length&&!emails.length)return !isStudioJob(p);
  if(me.fitterId&&ids.includes(me.fitterId))return true;
  if(me.email&&emails.includes(String(me.email).trim().toLowerCase()))return true;
  return false;
@@ -3021,7 +3024,6 @@ function renderRoomDetail(r){
   <div class="studio-tools mobile-tools">
    <button type="button" class="btn tools-toggle" id="roomToolsToggleBtn" aria-label="${t('mobile.menuAria')}">⋯</button>
    <div class="tools-menu" id="roomToolsMenu">
-    <button type="button" class="btn" id="openCuttingList">📋 ${t('detail.cuttingList')}</button>
     ${r.finished?'':`<button type="button" class="btn danger" id="finishJobBtn">✓ ${t('mobile.menuFinishJob')}</button>`}
    </div>
   </div>
@@ -3030,6 +3032,7 @@ function renderRoomDetail(r){
   <div class="room-status-figure"><b>${roomUnitTotal}</b><span>${roomUnitTotal===1?t('mobile.panelSingular'):t('mobile.panelPlural')}</span></div>
   <div class="room-status-progress"><div class="room-status-progress-label">${checkedCount}/${roomUnitTotal} ${t('detail.checkPanelsAccounted')}</div><div class="job-panelcheck-bar"><i style="width:${pct}%"></i></div></div>
  </div>
+ <button type="button" class="btn primary" id="openCuttingList" style="width:100%;min-height:54px;margin-top:12px">📋 ${t('detail.cuttingList')}</button>
  ${combinedStripHtml}
  ${r.finished?`<div class="job-finished-banner">✓ ${t('mobile.jobFinishedBanner',[safe(r.name)])}</div>`:''}
  <section class="room-section installer-design-section room-design-max" id="designGuideSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designCount}</span></div><div class="room-photo-grid">${designCount?r.designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join(''):`<div class="room-empty">${t('detail.noDesignViews')}</div>`}</div></section>
@@ -3051,8 +3054,9 @@ function renderRoomDetail(r){
  </div>
  <section class="room-section installer-check-section" id="panelCheckSection"><div class="panel-check-list">${filteredParts.length?filteredParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=pt.status||'ready';return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}</div></div><span class="panel-check-badge">${safe(statusLabel(pt.status))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div>${r.panelCheckFinished?`<div class="panel-check-complete-banner">✓ ${t('mobile.panelCheckComplete')}</div>`:(roomParts.length?`<button type="button" class="btn primary panel-check-finish-btn" id="finishPanelCheckBtn">✓ ${t('mobile.finishPanelCheckBtn')}</button>`:'')}</section>
  <div class="room-action-row">
+  <button type="button" class="btn warn" id="roomReportMissing">❔ Missing Panel</button>
+  <button type="button" class="btn danger" id="roomReportDamage">⚠ Damaged Panel</button>
   <button type="button" class="btn" id="openJobNotesFromRoom">💬 ${t('mobile.jobNotesBtn')}</button>
-  <button type="button" class="btn danger" id="roomReportDamage">⚠ ${t('mobile.reportDamageBtn')}</button>
   <button type="button" class="btn" id="sendRoomUpdate">${t('detail.sendSiteUpdate')}</button>
  </div>
  <div class="room-customer-row">
@@ -3094,7 +3098,12 @@ function renderRoomDetail(r){
  // (#saveJobNote/#saveDamage etc., defined once at top level), just reachable from this
  // consolidated screen now instead of a screen the fitter no longer lands on.
  $('#openJobNotesFromRoom').onclick=()=>{$('#jobNotesPanel').classList.remove('hidden');if(typeof renderJobNotesList==='function')renderJobNotesList();$('#jobNoteText')?.focus()};
- $('#roomReportDamage').onclick=()=>{$('#damagePanelOverlay').classList.remove('hidden');$('#damagePanelCode')?.focus()};
+ $('#roomReportMissing').onclick=()=>{mobileBomAction='missing';renderMobileBom();show('bom')};
+ $('#roomReportDamage').onclick=()=>{
+  state.pendingProblemAction='damaged';
+  state.scanMode='find';
+  save();show('scan');startCamera();
+ };
  $('#sendRoomUpdate').onclick=()=>exportJob(p.id);
  // §9: address is the primary, tappable item (same google.com/maps/search/?api=1&query=
  // pattern already used by the site-measure flow's own #openInMaps); phone/details stay
@@ -3744,6 +3753,16 @@ function parseOldQr(text){
 // paste/photo scan taken mid-flow still behaves consistently with how the camera got
 // opened in the first place.
 function handlePanelIdentified(){
+ if(state.pendingProblemAction==='damaged'){
+  state.pendingProblemAction=null;save();
+  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
+  stopCamera();
+  const pt=part();
+  $('#damagePanelOverlay').classList.remove('hidden');
+  $('#damagePanelCode').value=pt?.code||'';
+  $('#damageNote').focus();
+  return;
+ }
  if(state.scanMode==='check'){handlePanelCheckScan();return}
  markCurrentPanelScanned();
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
@@ -4400,7 +4419,7 @@ function addJobLogEntry(p,text,photos,roomId){
 }
 let damagePhotoData=null,lastDamageShare=null;
 $("#damagePhotoInput").onchange=e=>{const file=e.target.files&&e.target.files[0];if(!file)return;compressImage(file,data=>{damagePhotoData=data;$("#damagePhotoImg").src=data;$("#damagePhotoPreview").classList.remove("hidden")},()=>alert(t('msg.photoLoadFailed')))};
-$("#saveDamage").onclick=()=>{
+$("#saveDamage").onclick=async()=>{
  const found=locatePanelByCode($("#damagePanelCode").value);
  if(!found){alert(t('msg.panelNotFoundCheckNumber'));return}
  state.currentProject=found.pr.id;state.currentCabinet=found.cab.id;state.currentPart=found.pt.id;state.currentRoom=found.cab.roomId||null;
@@ -4413,7 +4432,7 @@ $("#saveDamage").onclick=()=>{
  if(damagePhotoData){found.pt.panelPhotos=found.pt.panelPhotos||[];found.pt.panelPhotos.push({id:uid(),data:damagePhotoData})}
  addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[],found.cab.roomId||null);
  save();
- if(typeof exportJob==='function')exportJob(found.pr.id);
+ const studioResult=typeof exportJob==='function'?await exportJob(found.pr.id,true):null;
  lastDamageShare={code:found.pt.code,name:found.pt.name||"",note:found.pt.damageNote,job:found.pr.name||t('msg.jobFallback'),photo:damagePhotoData};
  $("#damagePanelCode").value=$("#damageNote").value="";
  $("#damagePhotoPreview").classList.add("hidden");$("#damagePhotoImg").src="";damagePhotoData=null;
@@ -4423,7 +4442,10 @@ $("#saveDamage").onclick=()=>{
  if(state.scanMode==='check')renderPanelCheckResult(found.pt,'damaged');
  if(state.scanMode==='find'&&typeof renderFindPanelResult==='function')renderFindPanelResult();
  $("#shareDamageWhatsapp").classList.remove("hidden");
- alert(t('msg.panelMarkedDamaged',[found.pt.code]));
+ if(studioResult==='sent')alert("Damaged panel saved and sent to Studio.");
+ else if(studioResult==='queued')alert("Damaged panel saved on this phone. It will send to Studio automatically when the connection returns.");
+ else if(studioResult==='photo-loading')alert("Damaged panel saved on this phone. Keep FittersIQ open, then send it to Studio again when the photo has finished loading.");
+ else alert(t('msg.panelMarkedDamaged',[found.pt.code]));
 };
 $("#shareDamageWhatsapp").onclick=async()=>{
  if(!lastDamageShare)return;
@@ -4454,31 +4476,42 @@ function renderRoomScanContext(){const screen=$("#scan");if(!screen)return;let b
 // another's just because they're open together. A no-rooms project (state.currentRoom
 // unset, or the room can't be found) falls back to every cabinet on the project, unchanged
 // from how the old summary behaved for that shape.
+let mobileBomAction=null;
 function buildMobileCuttingList(p){
  if(!p)return null;
  const room=(p.rooms||[]).find(r=>r.id===state.currentRoom)||null;
  const cabinets=room?(p.cabinets||[]).filter(c=>c.roomId===room.id):(p.cabinets||[]);
- const rows=cabinets.flatMap(c=>(c.parts||[]).map(pt=>({pt,cabinetName:c.name})));
+ const rows=cabinets.flatMap(c=>(c.parts||[]).map(pt=>({pt,cabinetName:c.name,cabinetId:c.id})));
  return {room,rows};
 }
 function renderMobileBom(){
  const box=$("#mobileJobBom"),p=project();
  const headingEl=$("#bomHeading"),subtitleEl=$("#bomSubtitle");
- if(headingEl)headingEl.textContent=t('detail.cuttingList');
+ if(headingEl)headingEl.textContent=mobileBomAction==='missing'?'Select Missing Panel':t('detail.cuttingList');
  if(!box)return;
  if(!p){if(subtitleEl)subtitleEl.textContent='';box.innerHTML=`<div class="muted">${t('bom.openProjectFirst')}</div>`;return}
  const {room,rows}=buildMobileCuttingList(p);
  if(subtitleEl)subtitleEl.textContent=room?safe(room.name):safe(p.customer||p.name||'');
  if(!rows.length){box.innerHTML=`<div class="muted">${t('detail.noPanelsToCheck')}</div>`;return}
- box.innerHTML=`<div class="panel-check-list">${rows.map(({pt})=>{
+ box.innerHTML=`<div class="panel-check-list">${rows.map(({pt,cabinetId})=>{
   const qty=Math.max(1,Number(pt.qty)||1);
   const dims=`${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm`;
   const material=safe(pt.material)||t('install.materialNotSet');
   const edgeInfo=`${Number(pt.edgeLong||0)} ${Number(pt.edgeLong||0)===1?t('install.longEdge'):t('install.longEdges')} · ${Number(pt.edgeShort||0)} ${Number(pt.edgeShort||0)===1?t('install.shortEdge'):t('install.shortEdges')}`;
-  return `<div class="panel-check-row"><span class="panel-check-mark">${qty}×</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${dims}</div><div class="panel-check-sub">${material} · ${edgeInfo}</div></div></div>`;
+  return `<div class="panel-check-row"><span class="panel-check-mark">${qty}×</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${dims}</div><div class="panel-check-sub">${material} · ${edgeInfo}</div></div>${mobileBomAction==='missing'?`<button type="button" class="btn warn" data-missing-panel="${safe(pt.id)}" data-missing-cabinet="${safe(cabinetId)}">Missing Panel</button>`:''}</div>`;
  }).join('')}</div>`;
+ box.querySelectorAll('[data-missing-panel]').forEach(btn=>btn.onclick=()=>{
+  const cab=(p.cabinets||[]).find(x=>x.id===btn.dataset.missingCabinet);
+  const pt=(cab?.parts||[]).find(x=>x.id===btn.dataset.missingPanel);
+  if(!cab||!pt)return;
+  if(!confirm(`Mark ${pt.code||pt.name||'this panel'} as missing and send it to Studio?`))return;
+  state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||state.currentRoom;
+  mobileBomAction=null;
+  applyMissingStatus(p,pt);
+  show('drawings');
+ });
 }
-$('#bomBackBtn')?.addEventListener('click',()=>show('drawings'));
+$('#bomBackBtn')?.addEventListener('click',()=>{mobileBomAction=null;show('drawings')});
 function renderAll(){state.projects.forEach(ensureExtras);renderHeader();renderProjects();if(state.screen==='drawings')renderRooms();if(project()){renderMeasure();renderInstall();renderMobileBom()}renderRoomScanContext();renderScanDashboard()}
 load();
 </script>
