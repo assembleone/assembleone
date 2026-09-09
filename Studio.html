@@ -7371,7 +7371,7 @@ body.fiq-locked .app{display:none!important}
 .jor-warn{position:absolute;right:18px;bottom:14px;font-size:18px;width:20px;text-align:center}
 .jor-stat[data-open-panel-check]:hover,.jor-warn[data-open-panel-check]:hover{background:#eef2ff;border-radius:8px}
 .jor-chevron{display:none}
-.jor-delete-job{position:absolute;right:12px;top:12px;width:34px;height:34px;border:1px solid #efb5ba;border-radius:9px;background:#fff6f6;color:#bf1f29;font-size:16px;cursor:pointer}.jor-delete-job:hover{background:#ffe7e7}.jor-completed-badge{position:absolute;right:56px;top:12px;min-height:34px;border-radius:9px;padding:5px 9px;background:#f1f5f9;color:#64748b;font-size:9px;font-weight:900;line-height:1.05;text-align:center}.jor-completed-badge b{display:block;font-size:11px;margin-top:2px}.jor-completed-badge.done{background:#e6f7ec;color:#15803d}.delete-jobs-link{color:#bf1f29!important}.all-jobs-delete-list{display:grid;gap:7px;max-height:52vh;overflow:auto;margin:12px 0}.all-jobs-delete-row{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:11px}.all-jobs-delete-row input{width:20px;height:20px}.all-jobs-delete-row span{min-width:0;flex:1}.all-jobs-delete-row strong,.all-jobs-delete-row small{display:block}.all-jobs-delete-row small{color:var(--muted);margin-top:2px}
+.jor-top-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex:none}.jor-delete-job{position:static;width:34px;height:34px;border:1px solid #efb5ba;border-radius:9px;background:#fff6f6;color:#bf1f29;font-size:16px;cursor:pointer}.jor-delete-job:hover{background:#ffe7e7}.jor-completed-badge{position:static;min-height:34px;border-radius:9px;padding:5px 9px;background:#f1f5f9;color:#64748b;font-size:9px;font-weight:900;line-height:1.05;text-align:center;white-space:nowrap}.jor-completed-badge b{display:block;font-size:11px;margin-top:2px}.jor-completed-badge.done{background:#e6f7ec;color:#15803d}.jor-top-actions .jor-library-slim{min-height:34px;padding:6px 10px;margin:0;flex:none}.delete-jobs-link{color:#bf1f29!important}.all-jobs-delete-list{display:grid;gap:7px;max-height:52vh;overflow:auto;margin:12px 0}.all-jobs-delete-row{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:11px}.all-jobs-delete-row input{width:20px;height:20px}.all-jobs-delete-row span{min-width:0;flex:1}.all-jobs-delete-row strong,.all-jobs-delete-row small{display:block}.all-jobs-delete-row small{color:var(--muted);margin-top:2px}
 /* Panel Check is the main live status on this row -- bigger and bolder than Fitted,
    which stays informative but visually secondary, matching how much a fitter/office
    actually needs at a glance versus after the check is already done. */
@@ -7398,19 +7398,22 @@ body.fiq-locked .app{display:none!important}
 @keyframes jorNewPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,198,0,.28),0 2px 6px rgba(20,30,50,.05)}50%{box-shadow:0 0 0 6px rgba(255,198,0,.16),0 2px 6px rgba(20,30,50,.05)}}
 .jor-new-badge{display:inline-block;background:#FFC600;color:#5a4300;font-size:10px;font-weight:900;letter-spacing:.03em;padding:2px 8px;border-radius:999px;margin-bottom:3px}
 @media(max-width:900px){
- .jor-card-top{display:grid;grid-template-columns:72px minmax(0,1fr);grid-template-rows:auto auto;column-gap:14px;row-gap:5px;padding-right:155px;align-items:center}
+ .jor-card-top{display:grid;grid-template-columns:72px minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:14px;row-gap:5px;padding-right:0;align-items:center}
  .jor-card-top>.jor-select{position:absolute;left:4px;top:4px}
  .jor-thumb{grid-column:1;grid-row:1 / span 2}
  .jor-main{grid-column:2;grid-row:1;min-width:0}
- .jor-fitter{grid-column:2;grid-row:2;min-width:0;margin:0}
+ .jor-top-actions{grid-column:3;grid-row:1}
+ .jor-fitter{grid-column:2 / 4;grid-row:2;min-width:0;margin:0}
  .jor-fitter .fitter-row{width:100%}
  .jor-card-metrics{margin:8px 0 0 86px;grid-template-columns:repeat(4,minmax(70px,1fr));gap:10px}
  .jor-card-whatsapp{position:absolute;left:30px;top:82px;width:38px;height:38px}
- .jor-library-slim{min-height:36px;padding:6px 12px;margin:8px 0 0 86px}
 }
 @media(max-width:600px){
  .job-overview-row{padding-right:48px}
  .jor-card-top{padding-right:0;grid-template-columns:58px minmax(0,1fr)}
+ .jor-top-actions{grid-column:2;grid-row:2;justify-content:flex-start;flex-wrap:wrap}
+ .jor-fitter{grid-column:2;grid-row:3}
+ .jor-thumb{grid-row:1 / span 3}
  .jor-card-whatsapp{left:20px;top:72px;width:36px;height:36px}
  .jor-fitter .fitter-row{flex-wrap:wrap}
  .jor-fitter .fitter-send-mobile-btn{flex:1 1 120px}
@@ -8041,15 +8044,14 @@ body.fiq-locked .app{display:none!important}
         '<div class="jor-thumb">'+thumb+'</div>'+
         '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||t("studio.customerLibrary.untitledJob"))+'</div>'+(roomLabel?'<div class="jor-room">'+roomLabel+'</div>':'')+
         '<div class="jor-summary-line">'+panelTotalHtml+'</div></div>'+
-        '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(card.room&&card.room!=='__general__'?card.room:p,0,key,true):'')+'</div></div>'+
+        '<div class="jor-fitter">'+(typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(card.room&&card.room!=='__general__'?card.room:p,0,key,true):'')+'</div>'+
+        '<div class="jor-top-actions">'+jobCompletedBadge+'<button type="button" class="jor-finish-job jor-library-slim" data-finish-overview-job="'+safe(p.id)+'" data-finish-room-id="'+roomIdAttr+'" '+(jobCompleted?'':'disabled')+'>Move to Library</button><button type="button" class="jor-delete-job" data-delete-overview-job="'+safe(p.id)+'" title="Delete this complete job">🗑</button></div></div>'+
         '<div class="jor-card-metrics">'+
         issueHtml+
         (siteVisit
           ?'<div class="jor-stat jor-stat-primary"><div class="jor-stat-label">Site measurements</div><div class="jor-stat-value">'+siteRoomCount+' room'+(siteRoomCount===1?'':'s')+'</div></div><div class="jor-stat jor-stat-secondary"><div class="jor-stat-label">Photos</div><div class="jor-stat-value">'+sitePhotos.length+' ready</div></div>'
           :'<div class="jor-stat jor-stat-primary" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.openPanelCheckTooltip")+'"><div class="jor-stat-label">'+t("studio.panelCheck.screenTitle")+'</div><div class="jor-stat-value">'+pcValue+'</div>'+(pc.total&&!pcFinished?'<div class="jor-bar jor-bar-primary"><i style="width:'+pcPct+'%"></i></div><div class="jor-stat-pct">'+t("studio.jobOverview.pctCheckedTemplate",[pcPct])+'</div>':'')+'</div>'+completionHtml)+
-        '</div>'+warn+jobCompletedBadge+
-        '<button type="button" class="jor-finish-job jor-library-slim" data-finish-overview-job="'+safe(p.id)+'" data-finish-room-id="'+roomIdAttr+'" '+(jobCompleted?'':'disabled')+'>Move to Library</button>'+
-        '<button type="button" class="jor-delete-job" data-delete-overview-job="'+safe(p.id)+'" title="Delete this complete job">🗑</button>'+
+        '</div>'+
         '<span class="jor-chevron">›</span>'+
       '</div>';
     }).join(''):'<div class="empty">'+t("studio.jobOverview.noActiveJobsEmpty")+'</div>';
