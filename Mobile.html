@@ -1189,6 +1189,24 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .mobile-bulk-toolbar span{font-weight:800;color:#174E98;font-size:13px}
 .mobile-bulk-toolbar button{min-height:40px}
 
+/* Build 57: compact, unmistakable Open Jobs overview for fitters handling several
+   Studio jobs. This is presentation only; the existing card keys and combined Panel
+   Check workflow remain the source of truth. */
+.mobile-open-jobs-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 0 8px;padding:12px 14px;border:2px solid #6bbf3a;border-radius:16px;background:linear-gradient(135deg,#fff 0%,#f4fbea 100%);box-shadow:0 5px 14px rgba(11,37,69,.07)}
+.mobile-open-jobs-kicker{display:block;margin-bottom:2px;color:#4e9d28;font-size:10px;font-weight:900;letter-spacing:.9px;text-transform:uppercase}
+.mobile-open-jobs-title{display:block;color:#0b2545;font-size:20px;font-weight:900;line-height:1.1}
+.mobile-open-jobs-count{display:block;margin-top:4px;color:#5b6b7c;font-size:12px;font-weight:800}
+.mobile-open-jobs-new{flex:none;min-width:62px;padding:8px 10px;border-radius:999px;background:#e8f7df;color:#34791d;text-align:center;font-size:12px;font-weight:900}
+.mobile-open-jobs-help{margin:0 2px 9px;color:#5b6b7c;font-size:12px;font-weight:700;line-height:1.35}
+#jobList .job.mobile-job-selected{border-color:#6bbf3a!important;background:#fbfff8;box-shadow:0 7px 18px rgba(78,157,40,.14)}
+.mobile-job-select{border:2px solid #6bbf3a}
+.mobile-job-select input{accent-color:#4e9d28}
+@media(max-width:430px){
+ .mobile-open-jobs-head{padding:10px 12px}
+ .mobile-open-jobs-title{font-size:18px}
+ .mobile-open-jobs-help{font-size:11px}
+}
+
 /* Build 2, §10: "..." menu, mirrors Studio's own .studio-tools/.tools-toggle/.tools-menu
    interaction pattern (same shape app-wide) since Mobile has its own separate stylesheet. */
 .mobile-tools{position:relative;flex:none}
@@ -2059,7 +2077,7 @@ function renderProjects(){
   // separate top-level child) so it doesn't shift #jobList .job's own fixed 3-column grid
   // (icon | content | actions).
   const selectHtml=ready?`<label class="mobile-job-select" title="${safe(t('mobile.selectJobAria'))}"><input type="checkbox" class="mobile-job-select-checkbox" data-select-card="${safe(key)}" ${mobileSelectedCardKeys.has(key)?'checked':''}></label>`:'';
-  return `<div class="job"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${badge}${syncBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`;
+  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${badge}${syncBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`;
  }
  // A job assigned to someone else's email never appears on this phone at all -- not
  // greyed out, not visible-but-locked, just not in the list, the same way it would look
@@ -2095,7 +2113,10 @@ function renderProjects(){
   .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?!!a.room.finished:allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?!!b.room.finished:allRoomsFinished(b.project))?1:0;return fa-fb});
  const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived);
  const siteHtml=siteJobs.length?siteJobs.map(p=>jobCard({project:p,room:null})).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
- const installHtml=installCardsActive.length?`<div class="mobile-projects-title">Studio Installation Jobs</div><div class="mobile-projects-help">Sent from Studio for Panel Check and Find Panel.</div><div class="mobile-bulk-toolbar hidden" id="mobileBulkToolbar"><span id="mobileBulkCount"></span><button type="button" class="btn primary" id="mobileBulkOpenBtn"></button></div>`+installCardsActive.map(jobCard).join(""):"";
+ const openProjectCount=new Set(installCardsActive.map(card=>card.project.id)).size;
+ const newOpenCount=installCardsActive.filter(card=>{const rm=(card.room&&card.room!=='__general__')?card.room:null;return (rm?rm.mobileSeen:card.project.mobileSeen)===false}).length;
+ const openJobsHead=installCardsActive.length?`<div class="mobile-open-jobs-head"><div><span class="mobile-open-jobs-kicker">From Studio</span><span class="mobile-open-jobs-title">Open Jobs</span><span class="mobile-open-jobs-count">${openProjectCount} ${openProjectCount===1?'job':'jobs'} · ${installCardsActive.length} open ${installCardsActive.length===1?'area':'areas'}</span></div>${newOpenCount?`<span class="mobile-open-jobs-new">${newOpenCount} NEW</span>`:''}</div><div class="mobile-open-jobs-help">Tap Open for one area. Tick two or more to run one combined Panel Check.</div>`:"";
+ const installHtml=installCardsActive.length?openJobsHead+`<div class="mobile-bulk-toolbar hidden" id="mobileBulkToolbar"><span id="mobileBulkCount"></span><button type="button" class="btn primary" id="mobileBulkOpenBtn"></button></div>`+installCardsActive.map(jobCard).join(""):"";
  // Only shown when there is truly nothing in Jobs yet (no active AND no archived install
  // cards) -- installHtml already carries its own "Studio Installation Jobs" heading when
  // there's real content, so this never doubles up with it.
@@ -2135,6 +2156,7 @@ function renderProjects(){
  $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);[...mobileSelectedCardKeys].forEach(k=>{if(parseCardKey(k).projectId===p.id)mobileSelectedCardKeys.delete(k)});if(Array.isArray(state.activeCardKeys))state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
  $$(".mobile-job-select-checkbox").forEach(cb=>cb.onchange=()=>{
   if(cb.checked)mobileSelectedCardKeys.add(cb.dataset.selectCard);else mobileSelectedCardKeys.delete(cb.dataset.selectCard);
+  const cardEl=cb.closest('.job');if(cardEl)cardEl.classList.toggle('mobile-job-selected',cb.checked);
   updateMobileBulkToolbar();
  });
  updateMobileBulkToolbar();
