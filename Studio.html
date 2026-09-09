@@ -7628,7 +7628,10 @@ body.fiq-locked .app{display:none!important}
     const bar=document.getElementById('jorBulkToolbar');if(!bar)return;
     refreshBulkFitterOptions();
     const cards=selectedCardObjects(),projects=distinctSelectedProjects();
-    bar.classList.toggle('show',cards.length>0);
+    const availableCount=jobOverviewProjects().flatMap(cardsForProject).length;
+    // Multi-select is only a tool for genuinely multiple cards. With one card the fitter
+    // picker and green send button on that card are the complete workflow.
+    bar.classList.toggle('show',availableCount>1&&cards.length>0);
     if(!cards.length)return;
     const countEl=document.getElementById('jorBulkCount');
     if(countEl)countEl.textContent=t(cards.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[cards.length]);
@@ -7891,6 +7894,9 @@ body.fiq-locked .app{display:none!important}
     // several room-cards stay visually grouped as "one job" via the shared jor-name
     // (customer/job heading); only the room subtitle and every stat/total differ per card.
     const cards=recentProjects.flatMap(cardsForProject);
+    const multiSelectAvailable=cards.length>1;
+    const selectAllBtn=document.getElementById('jobOverviewSelectAll');
+    if(selectAllBtn)selectAllBtn.hidden=!multiSelectAvailable;
     const validKeys=new Set(cards.map(cardKey));
     [...jorSelectedCardKeys].forEach(k=>{if(!validKeys.has(k))jorSelectedCardKeys.delete(k)});
     grid.innerHTML=cards.length?cards.map(card=>{
@@ -7933,7 +7939,7 @@ body.fiq-locked .app{display:none!important}
       const roomIdAttr=card.room===null?'':(card.room==='__general__'?'__general__':card.room==='__site_visit__'?'__site_visit__':safe(card.room.id));
       return '<div class="job-overview-row'+(isNew?' jor-new':'')+'" data-open-job-card="'+safe(p.id)+'" data-card-room-id="'+roomIdAttr+'">'+
         '<div class="jor-card-top">'+
-        '<label class="jor-select" title="'+t("studio.jobOverview.selectCardTitle")+'"><input type="checkbox" class="jor-select-checkbox" data-select-card="'+safe(key)+'" '+(jorSelectedCardKeys.has(key)?'checked':'')+'></label>'+
+        (multiSelectAvailable?'<label class="jor-select" title="'+t("studio.jobOverview.selectCardTitle")+'"><input type="checkbox" class="jor-select-checkbox" data-select-card="'+safe(key)+'" '+(jorSelectedCardKeys.has(key)?'checked':'')+'></label>':'')+
         '<div class="jor-thumb">'+thumb+'</div>'+
         '<div class="jor-main">'+newBadge+'<div class="jor-name">'+safe(p.customer||p.name||t("studio.customerLibrary.untitledJob"))+'</div>'+(roomLabel?'<div class="jor-room">'+roomLabel+'</div>':'')+
         '<div class="jor-summary-line">'+panelTotalHtml+'</div></div>'+
@@ -8290,10 +8296,11 @@ body.fiq-locked .app{display:none!important}
       .concat(fitters.map(f=>'<option value="'+safe(f.name)+'" '+(f.name===current?'selected':'')+'>'+safe(f.name)+'</option>'))
       .concat(['<option value="__add__">'+t("studio.fitters.addNewFitterOption")+'</option>'])
       .concat(currentFitter?['<option value="__edit__">'+t("studio.fitters.editFitterDetailsTemplate",[safe(currentFitter.name)])+'</option>','<option value="__delete__">'+t("studio.fitters.removeFitterOptionTemplate",[safe(currentFitter.name)])+'</option>']:[]);
-    // The owner has no duplicate roster record, so their button must remain available.
-    // The first click collects and remembers the owner's WhatsApp number if needed.
+    const ownerSelected=current==='__owner__';
+    const actionTitle=ownerSelected?'Send this job to my phone':t("studio.fitters.messageWhatsappTitle");
+    const actionIcon=ownerSelected?'📱':'💬';
     return '<div class="fitter-row" data-fitter-row="'+idx+'">'+
-      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(rowKey)+'" title="'+t("studio.fitters.messageWhatsappTitle")+'">💬</button>'+
+      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(rowKey)+'" title="'+safe(actionTitle)+'">'+actionIcon+'</button>'+
       '<select class="fitter-select" data-fitter-select="'+safe(rowKey)+'">'+options.join('')+'</select>'+
     '</div>';
   }
@@ -8381,14 +8388,15 @@ body.fiq-locked .app{display:none!important}
           return;
         }
         const isOwner=target.assignedFitter==='__owner__';
-        const fitter=isOwner?{name:ownerOptionLabel(),phone:state.ownerWhatsappPhone||''}:fitterByName(target.assignedFitter);
-        let phone=digitsOnly(fitter&&fitter.phone);
-        if(isOwner&&!phone){
-          const entered=prompt('Enter your WhatsApp number including the country code',state.ownerWhatsappPhone||'');
-          if(entered===null)return;
-          phone=digitsOnly(entered);
-          if(phone){state.ownerWhatsappPhone=entered.trim();save()}
+        // The owner does not need a WhatsApp message to themselves. This is a clear,
+        // repeatable resend control even when Owner was already selected and the select
+        // element therefore has no change event to fire.
+        if(isOwner){
+          if(typeof exportProjectToMobile==='function')exportProjectToMobile(ctx.project);
+          return;
         }
+        const fitter=fitterByName(target.assignedFitter);
+        const phone=digitsOnly(fitter&&fitter.phone);
         if(!phone){alert(t("studio.fitters.addWhatsappNumberFirstLongTemplate",[target.assignedFitter||t("studio.fitters.thisFitterFallback")]));return}
         // Keep the proven Mobile packet send and the human handover together. Assignment
         // normally sends immediately, but resending here makes the WhatsApp action safe
