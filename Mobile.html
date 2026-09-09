@@ -1357,14 +1357,18 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
      room-detail screen ("drawings"/renderRoomDetail) is the real open/active job screen
      -- same ids, same handlers (see #openJobNotes/#saveJobNote), nothing behavioural
      changed, only its position in the document. -->
-<div id="jobNotesPanel" class="damage-sheet job-notes-sheet hidden">
- <strong>📝 Job Notes</strong>
- <div class="muted" style="margin:4px 0 10px">Messages, missing/damaged parts, updates and photos -- everything stays with this job.</div>
- <div id="jobNotesList" class="job-notes-list"></div>
- <textarea id="jobNoteText" placeholder="Add a note -- e.g. a missing part, an update for the office, anything worth recording"></textarea>
- <label class="btn damage-photo-btn" for="jobNotePhotoInput"><span>📷 Add photo(s)</span><input id="jobNotePhotoInput" type="file" accept="image/*" capture="environment" hidden multiple></label>
- <div id="jobNotePhotoPreview" class="job-notes-photo-preview"></div>
- <button class="btn primary" id="saveJobNote">Save note</button>
+<div id="jobNotesPanel" class="job-notes-overlay hidden">
+ <div class="job-notes-sheet" role="dialog" aria-modal="true" aria-labelledby="jobNotesTitle">
+  <div class="job-notes-head"><strong id="jobNotesTitle">📝 Notes &amp; Updates</strong><button type="button" class="job-notes-close" id="closeJobNotes" aria-label="Close notes">×</button></div>
+  <div class="muted">Messages, missing or damaged panels, updates and photos stay with this job.</div>
+  <div id="jobNotesList" class="job-notes-list"></div>
+  <div class="job-notes-composer">
+   <textarea id="jobNoteText" placeholder="Add an update for Studio"></textarea>
+   <label class="btn damage-photo-btn" for="jobNotePhotoInput"><span>📷 Add photo</span><input id="jobNotePhotoInput" type="file" accept="image/*" capture="environment" hidden multiple></label>
+   <div id="jobNotePhotoPreview" class="job-notes-photo-preview"></div>
+   <button class="btn primary" id="saveJobNote">Send Update to Studio</button>
+  </div>
+ </div>
 </div>
 
 <div id="damagePanelOverlay" class="damage-panel-overlay hidden">
@@ -3106,7 +3110,7 @@ function renderRoomDetail(r){
  // Folded in from the old Install screen (§8/§B) -- same overlays, same handlers
  // (#saveJobNote/#saveDamage etc., defined once at top level), just reachable from this
  // consolidated screen now instead of a screen the fitter no longer lands on.
- $('#openJobNotesFromRoom').onclick=()=>{$('#jobNotesPanel').classList.remove('hidden');if(typeof renderJobNotesList==='function')renderJobNotesList();$('#jobNoteText')?.focus()};
+ $('#openJobNotesFromRoom').onclick=()=>{if(typeof openJobNotesPanel==='function')openJobNotesPanel()};
  $('#roomReportMissing').onclick=()=>{mobileBomAction='missing';renderMobileBom();show('bom')};
  $('#roomReportDamage').onclick=()=>{
   state.pendingProblemAction='damaged';
@@ -4383,10 +4387,20 @@ function renderJobNotePhotoPreview(){
  const box=$("#jobNotePhotoPreview");if(!box)return;
  box.innerHTML=jobNotePendingPhotos.map(src=>`<img src="${src}" alt="Pending photo">`).join('');
 }
+function openJobNotesPanel(){
+ const panel=$("#jobNotesPanel"),field=$("#jobNoteText");
+ panel.classList.remove("hidden");
+ renderJobNotesList();
+ field.focus();
+ setTimeout(()=>field.scrollIntoView({block:"center",behavior:"smooth"}),250);
+}
+function closeJobNotesPanel(){$("#jobNotesPanel").classList.add("hidden")}
 $("#openJobNotes").onclick=()=>{
- $("#jobNotesPanel").classList.toggle("hidden");
- if(!$("#jobNotesPanel").classList.contains("hidden")){renderJobNotesList();$("#jobNoteText").focus()}
+ if($("#jobNotesPanel").classList.contains("hidden"))openJobNotesPanel();else closeJobNotesPanel();
 };
+$("#closeJobNotes").onclick=closeJobNotesPanel;
+$("#jobNotesPanel").addEventListener("click",e=>{if(e.target.id==="jobNotesPanel")closeJobNotesPanel()});
+$("#jobNoteText").addEventListener("focus",()=>setTimeout(()=>$("#jobNoteText").scrollIntoView({block:"center",behavior:"smooth"}),250));
 $("#jobNotePhotoInput").onchange=e=>{
  const files=Array.from(e.target.files||[]);
  if(!files.length)return;
@@ -5001,6 +5015,17 @@ body:has(#measure.active) main{height:100dvh!important;overflow:hidden;padding-t
 .job-notes-empty{color:#6d6a7e;font-weight:700;text-align:center;padding:10px}
 .job-notes-photo-preview{display:flex;flex-wrap:wrap;gap:6px}
 .job-notes-photo-preview img{width:56px;height:56px;object-fit:cover;border-radius:10px;border:2px solid #2f6fed}
+.job-notes-overlay{position:fixed;inset:0;z-index:5600;display:flex;align-items:flex-end;justify-content:center;background:rgba(11,37,69,.58);padding-top:env(safe-area-inset-top)}
+.job-notes-overlay.hidden{display:none}
+.job-notes-overlay .job-notes-sheet{width:min(520px,100%);max-height:min(88dvh,720px);margin:0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));border:0;border-top:4px solid #2f6fed;border-radius:22px 22px 0 0;background:#f5f9ff;box-shadow:0 -12px 36px rgba(11,37,69,.22);display:flex;flex-direction:column;gap:10px;overflow-y:auto;overscroll-behavior:contain}
+.job-notes-head{position:sticky;top:-14px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-14px -14px 0;padding:14px;background:#f5f9ff;border-bottom:1px solid #d7e2f7}
+.job-notes-head strong{font-size:18px;color:#174e98}
+.job-notes-close{width:42px;height:42px;border:0;border-radius:50%;background:#fff;color:#174e98;font-size:27px;line-height:1;box-shadow:0 2px 8px rgba(11,37,69,.12)}
+.job-notes-overlay .job-notes-list{max-height:none;min-height:72px;flex:1 1 auto}
+.job-notes-composer{position:sticky;bottom:calc(-14px - env(safe-area-inset-bottom));z-index:2;display:grid;gap:9px;margin:0 -14px calc(-14px - env(safe-area-inset-bottom));padding:10px 14px calc(14px + env(safe-area-inset-bottom));background:#f5f9ff;border-top:1px solid #d7e2f7}
+#jobNoteText{min-height:92px;max-height:180px;resize:vertical;font-size:16px;line-height:1.35;padding:12px;border:2px solid #9bbef0;border-radius:13px;background:#fff;scroll-margin-bottom:190px}
+#saveJobNote{min-height:50px;font-size:17px;font-weight:900}
+@media(max-height:620px){.job-notes-overlay .job-notes-sheet{max-height:96dvh}.job-notes-overlay .job-notes-list{min-height:36px}#jobNoteText{min-height:76px}}
 </style>
 <!-- a202-sent-badge removed: it polled a hardcoded, non-company-scoped Realtime Database
      path (sync_v2/mads_assembleone_1088/studioQueue) that nothing in the app has written
