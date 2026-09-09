@@ -7528,7 +7528,12 @@ body.fiq-locked .app{display:none!important}
   function damagedTotalForCabinets(cabinets){
     let damaged=0;
     (cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
-      damaged+=Math.min(Math.max(1,Number(part.qty)||1),Math.max(0,Number(part.damagedQty)||0));
+      const qty=Math.max(1,Number(part.qty)||1);
+      const recorded=Math.max(0,Number(part.damagedQty)||0);
+      // New Mobile updates carry damagedQty, but older or partial updates can carry only
+      // status="damaged". Count that as one damaged piece so Studio never shows zero for
+      // a panel the phone has clearly marked Damaged.
+      damaged+=Math.min(qty,recorded||(part.status==='damaged'?1:0));
     }));
     return damaged;
   }
