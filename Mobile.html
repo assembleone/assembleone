@@ -3458,7 +3458,9 @@ window.retryPendingStudioSync=async function(){
       if(proj){
         proj.lastStudioSync=entry.pack.exportedAt;proj.studioSyncBlocked=false;proj.studioSyncBlockedReason='';
         if(result&&result.docId)proj.pendingStudioReceiptDocId=result.docId;
-        if(typeof archiveIfFinishedInstallation==='function')archiveIfFinishedInstallation(proj);
+        // Keep completed installation work on the phone until Studio confirms that this
+        // exact packet was received. checkPendingStudioReceipts performs the archive only
+        // after the Studio acknowledgement comes back.
         projectsChanged=true;
       }
     }catch(e){
@@ -3521,7 +3523,7 @@ async function exportJob(id,silent){
  }
  const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};
  const sendToStudio=window.sendPackDirectly||sendPackDirectly;
- try{const sendResult=await sendToStudio(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.lastStudioSyncDocId=sendResult.docId;archiveIfFinishedInstallation(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+ try{const sendResult=await sendToStudio(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
@@ -3531,7 +3533,7 @@ async function exportJob(id,silent){
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
     const slimResult=await sendToStudio(slimPack);
-    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.lastStudioSyncDocId=slimResult.docId;archiveIfFinishedInstallation(p);save();renderAll();
+    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.pendingStudioReceiptDocId=slimResult.docId;save();renderAll();
     if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
     return'sent';
   }catch(e2){
