@@ -1803,10 +1803,10 @@ function canSeeJob(p,room){
  if(roomObj&&hasRoomAssignments&&!(roomIds&&roomIds.length)&&!(roomEmails&&roomEmails.length))return false;
  const ids=(roomIds&&roomIds.length)?roomIds:((p&&Array.isArray(p.assignedFitterIds))?p.assignedFitterIds:[]);
  const emails=(roomEmails&&roomEmails.length)?roomEmails:((p&&Array.isArray(p.assignedEmails))?p.assignedEmails:[]);
- // Studio jobs are working assignments, not a shared storage list. An unassigned
- // Studio job stays with the owner in Mobile until Studio deliberately assigns a fitter.
- // Site Measure visits are still visible to the signed-in person who created them.
- if(!ids.length&&!emails.length)return !isStudioJob(p);
+ // An unassigned Studio job must still appear after the office deliberately uses
+ // Send to Mobile. Assignment narrows a job to one fitter when present, but it is not
+ // required for the owner or workshop phone workflow.
+ if(!ids.length&&!emails.length)return true;
  if(me.fitterId&&ids.includes(me.fitterId))return true;
  if(me.email&&emails.includes(String(me.email).trim().toLowerCase()))return true;
  return false;
