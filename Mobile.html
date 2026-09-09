@@ -3401,7 +3401,8 @@ window.retryPendingStudioSync=async function(){
   for(let i=0;i<arr.length;i++){
     const entry=arr[i];
     try{
-      const result=await sendPackDirectly(entry.pack);
+      const sendToStudio=window.sendPackDirectly||sendPackDirectly;
+      const result=await sendToStudio(entry.pack);
       arr[i]=null;dirty=true;
       // The write succeeding here only means the retry itself got through -- it's the
       // exact same "not yet confirmed" situation as a first-try success, so this must
@@ -3475,7 +3476,8 @@ async function exportJob(id,silent){
    return'photo-loading';
  }
  const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};
- try{const sendResult=await sendPackDirectly(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.lastStudioSyncDocId=sendResult.docId;archiveIfFinishedInstallation(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+ const sendToStudio=window.sendPackDirectly||sendPackDirectly;
+ try{const sendResult=await sendToStudio(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.lastStudioSyncDocId=sendResult.docId;archiveIfFinishedInstallation(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
@@ -3484,7 +3486,7 @@ async function exportJob(id,silent){
   return'queued'}
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
-    const slimResult=await sendPackDirectly(slimPack);
+    const slimResult=await sendToStudio(slimPack);
     clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.lastStudioSyncDocId=slimResult.docId;archiveIfFinishedInstallation(p);save();renderAll();
     if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
     return'sent';
