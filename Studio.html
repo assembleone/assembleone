@@ -7250,7 +7250,7 @@ body.fiq-locked .app{display:none!important}
 .job-overview-row{position:relative;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 58px 12px 14px;text-align:left;cursor:pointer;display:block;box-shadow:0 2px 6px rgba(20,30,50,.05)}
 .job-overview-row:hover{border-color:#8B5CF6}
 .jor-card-top{display:flex;align-items:center;gap:14px;min-width:0}
-.jor-card-metrics{display:grid;grid-template-columns:repeat(4,minmax(92px,1fr));align-items:end;gap:16px;margin:12px 0 0 78px}
+.jor-card-metrics{display:grid;grid-template-columns:repeat(4,minmax(92px,1fr));align-items:start;gap:16px;margin:12px 0 0 78px}
 .jor-thumb{width:44px;height:44px;border-radius:10px;background:#f4f7ff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none}
 .jor-thumb img{width:100%;height:100%;object-fit:cover}
 .jor-thumb span{font-size:20px;opacity:.4}
@@ -7291,10 +7291,9 @@ body.fiq-locked .app{display:none!important}
 .jor-issue{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.02em}
 .jor-issue-bad{color:#bf1f29}
 .jor-issue-stat{text-align:center}
-.jor-issue-stat .jor-stat-label,.jor-completion .jor-stat-label{font-size:11px;color:#174E98}
-.jor-issue-stat .jor-stat-value{font-size:14px}
+.jor-card-metrics .jor-stat-label{font-size:11px;color:#174E98}
+.jor-card-metrics .jor-stat-value{font-size:17px;color:#174E98}
 .jor-completion{text-align:center}
-.jor-completion .jor-stat-value{font-size:12px;color:var(--muted)}
 /* A new Site Measure arrival must be unmissable but not another popup -- a persistent
    glow on its own row until the owner actually opens it (isNewFromSite, cleared by
    switchToProject -- see there) is the whole mechanism, no separate notification queue. */
@@ -7305,12 +7304,14 @@ body.fiq-locked .app{display:none!important}
  .jor-card-top{flex-wrap:wrap}
  .jor-main{flex:1 1 calc(100% - 130px)}
  .jor-fitter{flex:1 1 250px;margin-left:78px}
- .jor-card-metrics{margin-left:0;grid-template-columns:repeat(2,minmax(100px,1fr))}
+ .jor-card-metrics{margin-left:0;grid-template-columns:repeat(4,minmax(82px,1fr));gap:12px}
 }
 @media(max-width:600px){
  .job-overview-row{padding-right:52px}
  .jor-fitter{margin-left:0;min-width:0;flex-basis:100%}
- .jor-card-metrics{grid-template-columns:repeat(2,minmax(82px,1fr));gap:12px 8px}
+ .jor-card-metrics{grid-template-columns:repeat(4,minmax(64px,1fr));gap:8px}
+ .jor-card-metrics .jor-stat-label{font-size:10px}
+ .jor-card-metrics .jor-stat-value{font-size:16px}
 }
 .job-overview-updated{color:var(--muted);font-size:12px;font-weight:700}
 .dashboard-filter-banner{display:flex;align-items:center;justify-content:space-between;background:#eef3ff;border:1px solid #bcd2ff;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-weight:700}
@@ -8138,9 +8139,9 @@ body.fiq-locked .app{display:none!important}
 .fitter-row{display:flex;align-items:center;gap:6px}
 .fitter-select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:12px;font-weight:700;color:var(--ink);background:#f7f8fb}
 .fitter-select:focus{background:#fff;border-color:#8B5CF6}
-.fitter-whatsapp-btn{flex:none;width:38px;height:38px;border-radius:50%;border:2px solid #128C4A;background:#25D366;color:#fff;font-size:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 3px 9px rgba(18,140,74,.35)}
-.fitter-whatsapp-btn:hover:not(:disabled){background:#1DB954;transform:translateY(-1px)}
-.fitter-whatsapp-btn:disabled{background:#b9eacb;border-color:#a8ddbb;box-shadow:none;opacity:.65;cursor:not-allowed}
+.fitter-whatsapp-btn{flex:none;width:40px;height:40px;border-radius:50%;border:3px solid #0B8F3E;background:#25D366;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:0 4px 10px rgba(11,143,62,.42)}
+.fitter-whatsapp-btn:hover{background:#16B84E;transform:translateY(-1px)}
+.fitter-whatsapp-btn:focus-visible{outline:4px solid rgba(37,211,102,.3);outline-offset:2px}
 .install-progress-fitter{display:flex;align-items:flex-start;gap:8px;margin:8px 0 2px;font-size:13px;flex-wrap:wrap}
 .install-progress-fitter .fitter-row{max-width:220px}
 .fitter-team-others{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -8281,9 +8282,8 @@ body.fiq-locked .app{display:none!important}
       .concat(currentFitter?['<option value="__edit__">'+t("studio.fitters.editFitterDetailsTemplate",[safe(currentFitter.name)])+'</option>','<option value="__delete__">'+t("studio.fitters.removeFitterOptionTemplate",[safe(currentFitter.name)])+'</option>']:[]);
     // The owner has no duplicate roster record, so their button must remain available.
     // The first click collects and remembers the owner's WhatsApp number if needed.
-    const hasPhone=current==='__owner__'||!!(currentFitter&&currentFitter.phone);
     return '<div class="fitter-row" data-fitter-row="'+idx+'">'+
-      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(rowKey)+'" title="'+t("studio.fitters.messageWhatsappTitle")+'" '+(hasPhone?'':'disabled')+'>💬</button>'+
+      '<button type="button" class="fitter-whatsapp-btn" data-fitter-whatsapp="'+safe(rowKey)+'" title="'+t("studio.fitters.messageWhatsappTitle")+'">💬</button>'+
       '<select class="fitter-select" data-fitter-select="'+safe(rowKey)+'">'+options.join('')+'</select>'+
     '</div>';
   }
@@ -8366,6 +8366,10 @@ body.fiq-locked .app{display:none!important}
         e.stopPropagation();
         const ctx=resolve(btn.dataset.fitterWhatsapp);if(!ctx||!ctx.target)return;
         const target=ctx.target;
+        if(!target.assignedFitter){
+          alert('Choose a fitter first, then press the green WhatsApp button.');
+          return;
+        }
         const isOwner=target.assignedFitter==='__owner__';
         const fitter=isOwner?{name:ownerOptionLabel(),phone:state.ownerWhatsappPhone||''}:fitterByName(target.assignedFitter);
         let phone=digitsOnly(fitter&&fitter.phone);
