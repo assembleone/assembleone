@@ -3024,7 +3024,6 @@ function renderRoomDetail(r){
   <div class="studio-tools mobile-tools">
    <button type="button" class="btn tools-toggle" id="roomToolsToggleBtn" aria-label="${t('mobile.menuAria')}">⋯</button>
    <div class="tools-menu" id="roomToolsMenu">
-    <button type="button" class="btn" id="openCuttingList">📋 ${t('detail.cuttingList')}</button>
     ${r.finished?'':`<button type="button" class="btn danger" id="finishJobBtn">✓ ${t('mobile.menuFinishJob')}</button>`}
    </div>
   </div>
@@ -3033,6 +3032,7 @@ function renderRoomDetail(r){
   <div class="room-status-figure"><b>${roomUnitTotal}</b><span>${roomUnitTotal===1?t('mobile.panelSingular'):t('mobile.panelPlural')}</span></div>
   <div class="room-status-progress"><div class="room-status-progress-label">${checkedCount}/${roomUnitTotal} ${t('detail.checkPanelsAccounted')}</div><div class="job-panelcheck-bar"><i style="width:${pct}%"></i></div></div>
  </div>
+ <button type="button" class="btn primary" id="openCuttingList" style="width:100%;min-height:54px;margin-top:12px">📋 ${t('detail.cuttingList')}</button>
  ${combinedStripHtml}
  ${r.finished?`<div class="job-finished-banner">✓ ${t('mobile.jobFinishedBanner',[safe(r.name)])}</div>`:''}
  <section class="room-section installer-design-section room-design-max" id="designGuideSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designCount}</span></div><div class="room-photo-grid">${designCount?r.designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join(''):`<div class="room-empty">${t('detail.noDesignViews')}</div>`}</div></section>
