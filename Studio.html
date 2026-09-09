@@ -118,11 +118,13 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-search-wrap{margin-bottom:14px}
 .customer-search-input{width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;border:1.5px solid var(--line);border-radius:12px;font-weight:600}
 .customer-search-input:focus{outline:none;border-color:#0051ff;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
-.customer-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:white;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 6px rgba(20,30,50,.05);cursor:pointer}
-.customer-row:hover{border-color:#8B5CF6;background:#F8F5FF}
-.customer-row-main{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0}
+.customer-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:white;border:1.5px solid rgba(82,178,45,.58);border-radius:16px;padding:11px 14px;margin-bottom:8px;box-shadow:0 3px 10px rgba(69,145,38,.09);cursor:pointer}
+.customer-row:hover{border-color:#52b22d;background:#f8fff5;box-shadow:0 5px 14px rgba(69,145,38,.15)}
+.customer-row-main{flex:1 1 auto;display:flex;flex-direction:column;gap:4px;min-width:0}
+.customer-row-heading{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
 .customer-row-main strong{font-size:17px}
-.customer-row-location{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.customer-row-location{color:var(--muted);font-size:13px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.customer-row .customer-new-tag{align-self:flex-start;margin:0;padding:2px 8px;font-size:10px;line-height:1.45}
 .customer-row-count{background:#F3EEFE;color:#6b3fbf;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800;flex-shrink:0;white-space:nowrap}
 .customer-row-chevron{font-size:22px;color:var(--muted);flex-shrink:0}
 .customer-card-back{margin-bottom:12px}
@@ -2561,6 +2563,16 @@ function renderCustomers(){
    save();
  }
  migrateCustomers();
+ function customerTown(address){
+   const parts=String(address||'').split(',').map(x=>x.trim()).filter(Boolean);
+   const ignored=/^(spain|españa|balearic islands|illes balears|islas baleares|mallorca|majorca|district.*|districte.*)$/i;
+   for(let i=parts.length-1;i>=0;i--){
+     const part=parts[i];
+     if(!part||ignored.test(part)||/^\d{4,6}$/.test(part)||/^\d+\s/.test(part))continue;
+     return part;
+   }
+   return '';
+ }
  const groups=state.customers.map(c=>({customer:c,jobs:customerProjects(c.id)})).filter(g=>g.jobs.length);
  groups.sort((a,b)=>{
    const aLast=Math.max(a.customer.updatedAt||0,...a.jobs.map(p=>p.updatedAt||0),0);
@@ -2570,9 +2582,10 @@ function renderCustomers(){
  box.innerHTML=groups.length?groups.map(g=>{
    const c=g.customer,jobs=g.jobs;
    const newCount=jobs.filter(p=>p.isNewFromSite).length;
+   const town=customerTown(c.address);
    const searchText=[c.name,c.address,...jobs.map(p=>p.name)].filter(Boolean).join(" ").toLowerCase();
    return `<button type="button" class="customer-row" data-open-customer="${safe(c.id)}" data-search="${safe(searchText)}">`+
-     `<span class="customer-row-main"><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}${c.address?`<span class="customer-row-location">📍 ${safe(c.address)}</span>`:""}</span>`+
+     `<span class="customer-row-main"><span class="customer-row-heading"><strong>${safe(c.name)}</strong>${town?`<span class="customer-row-location">📍 ${safe(town)}</span>`:""}</span>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}</span>`+
      `<span class="customer-row-count">${t(jobs.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[jobs.length])}</span>`+
      `<span class="customer-row-chevron">›</span>`+
    `</button>`;
