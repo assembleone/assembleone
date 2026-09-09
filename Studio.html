@@ -6003,7 +6003,9 @@ body.guide-only .a131-back-studio{display:block}
       state.currentPart=b.dataset.editPanel;state.selectedCopy=-1;state.focusMarker=true;
       if(typeof save==='function')save();if(typeof renderAll==='function')renderAll();if(typeof show==='function')show('mark');
     }));
-    box.querySelectorAll('[data-review-panel]').forEach(el=>el.addEventListener('dblclick',()=>{
+    box.querySelectorAll('[data-review-panel]').forEach(el=>el.addEventListener('dblclick',(e)=>{
+      // This direct handler owns the action. Do not also run the delegated fallback.
+      e.stopPropagation();
       const p=rows.find(x=>String(x.id)===String(el.dataset.reviewPanel));
       if(!p)return;
       const miss=baseMissing(p);
@@ -6015,9 +6017,14 @@ body.guide-only .a131-back-studio{display:block}
       }
       p.reviewSignature=sig(p);
       if(typeof save==='function')save();
-      window.renderParts();
-      if(typeof renderCutting==='function')renderCutting();
-      if(typeof updateWorkflowProgress==='function')updateWorkflowProgress();
+      // Panel approval changes whether this room has a Job Overview card. Rebuild the
+      // whole Studio now so the card exists before the user returns from Cutting List.
+      if(typeof renderAll==='function')renderAll();
+      else{
+        window.renderParts();
+        if(typeof renderCutting==='function')renderCutting();
+      }
+      if(typeof updateWorkflowProgress==='function')updateWorkflowProgress(state.screen||'parts');
     }));
   };
   try{renderParts=window.renderParts}catch(e){}
@@ -6038,9 +6045,12 @@ body.guide-only .a131-back-studio{display:block}
       }
       if(typeof sig==='function')p.reviewSignature=sig(p);
       save();
-      if(typeof window.renderParts==='function')window.renderParts();
-      if(typeof renderCutting==='function')renderCutting();
-      if(typeof updateWorkflowProgress==='function')updateWorkflowProgress();
+      if(typeof renderAll==='function')renderAll();
+      else{
+        if(typeof window.renderParts==='function')window.renderParts();
+        if(typeof renderCutting==='function')renderCutting();
+      }
+      if(typeof updateWorkflowProgress==='function')updateWorkflowProgress(state.screen||'parts');
     });
   }
 
@@ -8308,6 +8318,7 @@ body.fiq-locked .app{display:none!important}
         e.stopPropagation();
         const ctx=resolve(sel.dataset.fitterSelect);if(!ctx||!ctx.target)return;
         const p=ctx.project,target=ctx.target;
+        const previousFitter=target.assignedFitter||'';
         // Computed before anything changes assignedFitter below -- this is "does this
         // card have nobody on it yet, and has this job never reached Mobile" at the
         // moment the boss acts, regardless of which of the two ways (pick existing / add
@@ -8316,7 +8327,6 @@ body.fiq-locked .app{display:none!important}
         // started -- used to fire an empty cutting list that looked identical to a real
         // send, with nothing afterwards to prompt sending the real one once it existed.
         const hasPanels=(p.cabinets||[]).some(c=>(c.parts||[]).length>0);
-        const wasUnassignedAndUnsent=!target.assignedFitter&&!p.lastMobileSync&&hasPanels;
         if(sel.value==='__add__'){
           // Adding a fitter to the roster and assigning them to whichever card
           // happens to be open are two different decisions -- opening the
@@ -8336,14 +8346,9 @@ body.fiq-locked .app{display:none!important}
           save();
           if(typeof renderAll==='function')renderAll();
         }
-        // Assigning the first fitter to a job that's never been sent is the moment the
-        // boss actually means "this is ready for them" -- reuse the exact same send this
-        // job would get from pressing Send to Mobile by hand, instead of adding a second,
-        // separate sync path that could drift from the one already proven to work. Always
-        // sends the whole PARENT project (never just the room/target), exactly like every
-        // other send path -- exportProjectToMobile() already carries every room's own
-        // (now possibly independent) assignment inside the one packet.
-        if(wasUnassignedAndUnsent&&target.assignedFitter&&typeof exportProjectToMobile==='function')exportProjectToMobile(p);
+        // Every real assignment change must reach Mobile. Limiting this to the first send
+        // left later room assignments and fitter changes trapped only in Studio.
+        if(hasPanels&&target.assignedFitter!==previousFitter&&typeof exportProjectToMobile==='function')exportProjectToMobile(p);
       };
     });
     container.querySelectorAll('[data-fitter-whatsapp]').forEach(btn=>{
@@ -8620,12 +8625,21 @@ body.fiq-locked .app{display:none!important}
   // when the current wardrobe has panels and every one has passed Panel Check.
   function render(){
     const box=document.getElementById('cuttingListReturnStrip');if(!box)return;
-    const panels=typeof cabinetParts==='function'?cabinetParts():[];
+    // Job Overview creates one card per room, so validate the same room here. Checking
+    // only the open cabinet could promise a card while a sibling cabinet was unchecked.
+    const p=typeof project==='function'?project():null;
+    const c=typeof cabinet==='function'?cabinet():null;
+    const roomId=(c&&c.roomId)||state.currentRoom||'';
+    const cabinets=p&&roomId?(p.cabinets||[]).filter(x=>x.roomId===roomId):(c?[c]:[]);
+    const panels=cabinets.flatMap(x=>x.parts||[]);
     const ready=panels.length&&panels.every(p=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(p));
     if(!ready){box.innerHTML='';return}
     box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Return to Job Overview to choose a fitter and send the job.</span><button type="button" class="btn primary" id="panelCheckReturnBtn">'+t("studio.panelCheck.returnPromptBtn")+'</button></div>';
     const btn=document.getElementById('panelCheckReturnBtn');
-    if(btn)btn.onclick=()=>{if(typeof show==='function')show('jobs')};
+    if(btn)btn.onclick=()=>{
+      if(typeof renderAll==='function')renderAll();
+      if(typeof show==='function')show('jobs');
+    };
   }
   const prevRenderCutting=window.renderCutting;
   window.renderCutting=function(){const r=prevRenderCutting?prevRenderCutting.apply(this,arguments):undefined;render();return r};

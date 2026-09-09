@@ -1793,6 +1793,14 @@ function canSeeJob(p,room){
  const roomObj=(room&&room!=='__general__')?room:null;
  const roomIds=roomObj&&Array.isArray(roomObj.assignedFitterIds)?roomObj.assignedFitterIds:null;
  const roomEmails=roomObj&&Array.isArray(roomObj.assignedEmails)?roomObj.assignedEmails:null;
+ // Once any room has its own assignment, an unassigned sibling is not a public job.
+ // Studio sends the parent project as one safe packet, but Mobile exposes only the room
+ // cards the office deliberately assigned.
+ const hasRoomAssignments=!!(p&&Array.isArray(p.rooms)&&(p.rooms||[]).some(r=>
+   (Array.isArray(r.assignedFitterIds)&&r.assignedFitterIds.length)||
+   (Array.isArray(r.assignedEmails)&&r.assignedEmails.length)
+ ));
+ if(roomObj&&hasRoomAssignments&&!(roomIds&&roomIds.length)&&!(roomEmails&&roomEmails.length))return false;
  const ids=(roomIds&&roomIds.length)?roomIds:((p&&Array.isArray(p.assignedFitterIds))?p.assignedFitterIds:[]);
  const emails=(roomEmails&&roomEmails.length)?roomEmails:((p&&Array.isArray(p.assignedEmails))?p.assignedEmails:[]);
  if(!ids.length&&!emails.length)return true;
