@@ -2585,7 +2585,7 @@ function renderCustomers(){
    const town=customerTown(c.address);
    const searchText=[c.name,c.address,...jobs.map(p=>p.name)].filter(Boolean).join(" ").toLowerCase();
    return `<button type="button" class="customer-row" data-open-customer="${safe(c.id)}" data-search="${safe(searchText)}">`+
-     `<span class="customer-row-main"><span class="customer-row-heading"><strong>${safe(c.name)}</strong>${town?`<span class="customer-row-location">📍 ${safe(town)}</span>`:""}</span>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}</span>`+
+     `<span class="customer-row-main"><span class="customer-row-heading"><strong>${safe(c.name)}</strong>${town?`<span class="customer-row-location">📍 ${safe(town)}</span>`:""}</span></span>`+
      `<span class="customer-row-count">${t(jobs.length===1?"studio.customerLibrary.jobCountSingular":"studio.customerLibrary.jobCountPlural",[jobs.length])}</span>`+
      `<span class="customer-row-chevron">›</span>`+
    `</button>`;
