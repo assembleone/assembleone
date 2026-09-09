@@ -2087,7 +2087,10 @@ function renderProjects(){
   // separate top-level child) so it doesn't shift #jobList .job's own fixed 3-column grid
   // (icon | content | actions).
   const selectHtml=ready?`<label class="mobile-job-select" title="${safe(t('mobile.selectJobAria'))}"><input type="checkbox" class="mobile-job-select-checkbox" data-select-card="${safe(key)}" ${mobileSelectedCardKeys.has(key)?'checked':''}></label>`:'';
-  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${badge}${syncBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button><button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button></div></div>`;
+  const safetyCopy=!!card.safetyCopy;
+  const safetyBadge=safetyCopy?`<span class="job-status-badge finished">Protected for ${Math.max(1,Number(card.safetyHours)||1)} more hour${Number(card.safetyHours)===1?'':'s'}</span>`:'';
+  const deleteHtml=safetyCopy?'':`<button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button>`;
+  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
  }
  // A job assigned to someone else's email never appears on this phone at all -- not
  // greyed out, not visible-but-locked, just not in the list, the same way it would look
@@ -2119,6 +2122,12 @@ function renderProjects(){
  // requires every room finished), so every one of a project's cards moves together.
  const siteJobs=visibleSiteProjects.filter(p=>!p.mobileArchived);
  const archivedSite=visibleSiteProjects.filter(p=>p.mobileArchived);
+ // A Studio acceptance clears the active measuring queue immediately, but the complete
+ // local record remains available as a protected safety copy for 24 hours. Older copies
+ // stay in local storage for recovery but disappear from the working screen, so Mobile
+ // remains a tool rather than a long-term storage list.
+ const SITE_RECEIVED_SAFETY_MS=24*60*60*1000;
+ const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0);
  const installCardsActive=installCards.filter(c=>!c.project.mobileArchived)
   .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?!!a.room.finished:allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?!!b.room.finished:allRoomsFinished(b.project))?1:0;return fa-fb});
  const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived);
@@ -2131,7 +2140,7 @@ function renderProjects(){
  // cards) -- installHtml already carries its own "Studio Installation Jobs" heading when
  // there's real content, so this never doubles up with it.
  const jobsEmptyHtml=installCards.length?"":`<div class="mobile-empty-projects">${t('proj.noStudioJobsYetEmpty')}</div>`;
- const archivedSiteHtml=archivedSite.length?`<details class="mobile-archived-jobs"><summary>✓ Sent to Studio (${archivedSite.length}) ›</summary>${archivedSite.map(p=>jobCard({project:p,room:null})).join("")}</details>`:"";
+ const archivedSiteHtml=receivedSafetySite.length?`<details class="mobile-archived-jobs"><summary>✓ Received by Studio · 24 hour safety copy (${receivedSafetySite.length}) ›</summary>${receivedSafetySite.map(x=>jobCard({project:x.project,room:null,safetyCopy:true,safetyHours:Math.ceil(x.remaining/3600000)})).join("")}</details>`:"";
  const archivedInstallHtml=archivedInstallCards.length?`<details class="mobile-archived-jobs"><summary>✓ Finished Installations (${archivedInstallCards.length}) ›</summary>${archivedInstallCards.map(jobCard).join("")}</details>`:"";
  // Site Measure (Mobile-created) and Jobs (Studio-sent) never share a list -- only one
  // half is ever drawn into #jobList at a time, matching whichever half of the header/
