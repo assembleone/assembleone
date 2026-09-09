@@ -1085,6 +1085,9 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .site-room-kind-badge{display:inline-block;margin-top:6px;font-size:11px;font-weight:900;letter-spacing:.02em;border-radius:999px;padding:3px 10px}
 .site-room-kind-badge.kind-site{background:#FFF7E6;color:#6b4b06;border:1px solid #F0C36D}
 .site-room-kind-badge.kind-job{background:#EAF8E4;color:#0f4d1c;border:1px solid #8FCB77}.site-room-address{display:none;margin-top:5px}.site-room-address.visible{display:block}.site-room-address a{display:inline-flex;align-items:center;color:#0051ff;font-size:12px;font-weight:850;text-decoration:none}.site-room-close{margin-left:auto;width:46px;height:46px;border-radius:14px;border:2px solid #d9e8e6;background:#fff;font-size:28px;cursor:pointer}.site-room-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.9fr);min-height:0;flex:1 1 auto;overflow:auto}.site-reference-pane{padding:10px 14px;border-right:2px solid #eaf2f1;background:#f8f9fc;min-width:0}.site-reference-frame{background:#e9ecf1;border-radius:15px;height:160px;max-height:26vh;overflow:hidden;position:relative}.site-reference-frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.site-photo-measure-label{font-size:11px;font-weight:800;color:#4b4664;padding:5px 2px 0}.site-reference-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:#777286;text-align:center;padding:16px}.site-thumb-row{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding-top:5px;max-width:100%}.site-thumb{width:50px;height:40px;flex:0 0 auto;border:2px solid transparent;border-radius:8px;object-fit:cover;cursor:pointer;background:#eee}.site-thumb.active{border-color:#004cf1}.site-design-pane{padding:10px 14px;display:flex;flex-direction:column;gap:8px;min-height:0}.site-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px}.site-fact{border:2px solid #e1ebea;border-radius:12px;padding:5px 9px;background:#fff}.site-fact b{display:block;font-size:16px;line-height:1.15;color:#283c54}.site-fact span{color:#6c677d;font-size:11px;font-weight:750}.site-notes-box{border:2px solid #e1ebea;border-radius:12px;padding:7px 9px;min-height:48px;max-height:180px;overflow:auto}.site-notes-box h3{margin:0 0 2px;font-size:14px;position:sticky;top:0;background:#fff}.site-notes-box #siteRoomNotes{white-space:pre-wrap;font-size:13px}.site-detail-actions{padding:8px 14px;border-top:2px solid #eaf2f1;background:#fff;flex:0 0 auto}.site-detail-actions .btn{width:100%;min-height:46px;font-size:17px;border-radius:13px}.site-detail-actions .primary{background:#0051ff;color:#23374f;border-color:#0046dd}.site-job-tag{display:inline-flex;align-items:center;gap:8px;background:#eff8ea;color:#377812;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;margin-top:7px}.folder-card.site-received{border-color:#5ca631;background:#f7fbf4}.folder-card .site-details-btn{border-color:#456dc4;background:#f3f7ff}
+.site-inbox-review-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.site-inbox-review-actions .btn{min-height:40px;white-space:nowrap}
+@media(max-width:760px){.site-inbox-review-actions{width:100%;margin-left:0}.site-inbox-review-actions .btn{flex:1 1 150px}}
 .attention-modal{position:fixed;inset:0;background:rgba(24,20,45,.6);z-index:10050;display:none;align-items:center;justify-content:center;padding:18px}
 .attention-modal.open{display:flex}
 .attention-dialog{width:min(720px,96vw);max-height:88vh;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 24px 70px rgba(20,17,42,.32);display:flex;flex-direction:column}
@@ -3372,11 +3375,33 @@ async function fetchCloudSitePackets(){
  }catch(e){console.error('Cloud site job fetch failed',e);return []}
 }
 async function studioInboxPackets(){let out=[];try{const db=await studioSyncDb();const tx=db.transaction("studioInbox","readonly"),req=tx.objectStore("studioInbox").getAll();out=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close()}catch(e){}const cloud=await fetchCloudSitePackets();const map=new Map();[...out,...fallbackPackets(),...cloud].forEach(x=>map.set(x.syncId||x.exportedAt||Math.random(),x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
-function inboxSummary(pack){const p=pack?.project||pack||{};const room=(p.rooms||[]).find(r=>bestSiteReference(r).image)||p.rooms?.find(r=>r.draft)||p.rooms?.[0]||{};const measures=siteRoomMeasureCount(room)||p.siteMeasurements?.length||0;const photos=siteRoomPictures(room).length||siteRoomPictures(p).length||0;return {syncId:pack?.syncId||pack?.exportedAt||'',customer:p.customer||t('studio.siteJobsInbox.customerNotNamed'),project:p.name||t('studio.siteJobsInbox.newSiteJobFallback'),icon:room.icon||'📍',room:room.name||t('studio.siteJobsInbox.roomNotNamed'),floor:room.floor||'',measures,photos}}
+function inboxSummary(pack){
+ const p=pack?.project||pack||{};
+ const rooms=(p.rooms||[]).filter(r=>(r.measureCaptures||[]).length);
+ const room=rooms.find(r=>bestSiteReference(r).image)||rooms[0]||p.rooms?.find(r=>r.draft)||p.rooms?.[0]||{};
+ const measures=rooms.reduce((n,r)=>n+siteRoomMeasureCount(r),0)||(p.siteMeasurements?.length||0);
+ const photos=rooms.reduce((n,r)=>n+siteRoomPictures(r).length,0)||siteRoomPictures(p).length||0;
+ const notes=rooms.reduce((n,r)=>n+(String(r.notes||'').trim()?1:0)+(r.notePhotos||[]).length,0)+(String(p.siteNotes||'').trim()?1:0)+(p.siteNotePhotos||[]).length;
+ return {syncId:pack?.syncId||pack?.exportedAt||'',customer:p.customer||t('studio.siteJobsInbox.customerNotNamed'),project:p.name||t('studio.siteJobsInbox.newSiteJobFallback'),icon:room.icon||'📍',room:room.name||t('studio.siteJobsInbox.roomNotNamed'),floor:room.floor||'',rooms:rooms.length,measures,photos,notes};
+}
 function showInboxPopup(items){return}
-async function paintSiteInbox(){const badge=document.getElementById('siteUpdateBadge'),panel=document.getElementById('directSiteInbox'),list=document.getElementById('siteJobsList');try{const items=await studioInboxPackets();if(badge){badge.textContent=items.length?`${items.length} ${t('msg.newBadge2')}`:'';badge.style.display=items.length?'':'none'}panel?.classList.toggle('inbox-ready',!!items.length);if(!list)return;if(!items.length){list.innerHTML=`<div class="site-jobs-empty">${t('studio.siteJobsInbox.noNewSiteJobs')}</div>`;return}list.innerHTML=items.map(pack=>{const x=inboxSummary(pack);return `<button class="site-job-inbox-card" type="button" data-open-site-packet="${safe(x.syncId)}"><span class="site-job-room-icon">${x.icon}</span><span class="site-job-main"><strong>${safe(x.customer)}</strong><span class="site-project-name">${safe(x.project)} · ${safe(x.room)}${x.floor?' · '+safe(x.floor):''}</span><span class="site-job-meta"><span>📷 ${x.photos}</span><span>📏 ${x.measures}</span></span></span><span class="site-job-open">${t('studio.siteJobsInbox.openDrawingBtn')}</span></button>`}).join('');list.querySelectorAll('[data-open-site-packet]').forEach(b=>b.onclick=()=>receiveSitePacket(b.dataset.openSitePacket))}catch(e){if(badge){badge.textContent='Use backup file';badge.style.display=''}if(list)list.innerHTML='<div class="site-jobs-empty">Direct sync unavailable. Use the backup file.</div>';document.querySelector('.site-file-backup')?.classList.add('visible')}}
+async function paintSiteInbox(){
+ const badge=document.getElementById('siteUpdateBadge'),panel=document.getElementById('directSiteInbox'),list=document.getElementById('siteJobsList');
+ try{
+  const items=await studioInboxPackets();
+  if(badge){badge.textContent=items.length?`${items.length} ${t('msg.newBadge2')}`:'';badge.style.display=items.length?'':'none'}
+  panel?.classList.toggle('inbox-ready',!!items.length);
+  if(!list)return;
+  if(!items.length){list.innerHTML=`<div class="site-jobs-empty">${t('studio.siteJobsInbox.noNewSiteJobs')}</div>`;return}
+  list.innerHTML=items.map(pack=>{const x=inboxSummary(pack);return `<div class="site-job-inbox-card"><span class="site-job-room-icon">${x.icon}</span><span class="site-job-main"><strong>${safe(x.customer)}</strong><span class="site-project-name">${safe(x.project)} · ${x.rooms} room${x.rooms===1?'':'s'} · ${safe(x.room)}${x.floor?' · '+safe(x.floor):''}</span><span class="site-job-meta"><span>📷 ${x.photos}</span><span>📏 ${x.measures}</span><span>📝 ${x.notes}</span></span></span><span class="site-inbox-review-actions"><button class="btn" type="button" data-review-site-packet="${safe(x.syncId)}">Review</button><button class="btn primary" type="button" data-accept-site-packet="${safe(x.syncId)}">Accept Site Measure</button></span></div>`}).join('');
+ }catch(e){
+  if(badge){badge.textContent='Use backup file';badge.style.display=''}
+  if(list)list.innerHTML='<div class="site-jobs-empty">Direct sync unavailable. Use the backup file.</div>';
+  document.querySelector('.site-file-backup')?.classList.add('visible');
+ }
+}
 async function removeInboxPacket(syncId){try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK);if(String(syncId||'').startsWith('cloud:')){try{const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;const cloudId=String(syncId).slice(6);if(fs&&db2&&user&&user.companyId){await fs.updateDoc(fs.doc(db2,'companies',user.companyId,'jobs',cloudId),{status:'received',receivedAt:fs.serverTimestamp()})}}catch(e){console.error('Could not mark cloud site job received',e)}}}
-async function applyOneSitePacket(pack){
+async function applyOneSitePacket(pack,acknowledge=false){
  const incoming=ensureSharedProject(pack.project||pack);
  if(pack.exportedAt)incoming._packetExportedAt=pack.exportedAt;
  const merged=mergeMobileProject(incoming);
@@ -3394,8 +3419,12 @@ async function applyOneSitePacket(pack){
  // merged is permanently unrecoverable, with Studio never able to ask
  // Firestore for it again even though the data is still sitting there.
  // Only mark it consumed once the save has actually succeeded.
+ const syncId=pack.syncId||pack.exportedAt;
+ merged.siteMeasureAwaitingAcceptance=!acknowledge;
+ merged.siteMeasureSyncId=acknowledge?'':syncId;
+ if(acknowledge)merged.siteMeasureAcceptedAt=new Date().toISOString();
  const saved=typeof save==='function'?await save():true;
- if(saved!==false)await removeInboxPacket(pack.syncId||pack.exportedAt);
+ if(saved!==false&&acknowledge)await removeInboxPacket(syncId);
  const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0];
  const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(merged);
  const roomId=room?.id||'';
@@ -3404,7 +3433,34 @@ async function applyOneSitePacket(pack){
  if(ref.image){c.drawing=ref.image;c.drawingType='image';c.drawingName=(room?.name||merged.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=ref.image;c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null}
  return {merged,cabinet:c};
 }
-async function receiveSitePacket(syncId){try{const packets=await studioInboxPackets();const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];if(!pack)return alert(t('studio.siteJobsInbox.jobNoLongerWaiting'));const result=await applyOneSitePacket(pack);if(!result){await paintSiteInbox();return alert(t('studio.siteJobsInbox.jobNoLongerWaiting'))}const {merged,cabinet:c}=result;switchToProject(merged.id,c.id);renderAll();save();await paintSiteInbox();show('mark');toast(t('studio.siteJobsInbox.siteJobOpenedToast'))}catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}}
+async function receiveSitePacket(syncId){
+ try{
+  const packets=await studioInboxPackets();
+  const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId)||packets[0];
+  if(!pack)return alert(t('studio.siteJobsInbox.jobNoLongerWaiting'));
+  const result=await applyOneSitePacket(pack,false);
+  if(!result){await paintSiteInbox();return alert(t('studio.siteJobsInbox.jobNoLongerWaiting'))}
+  const {merged,cabinet:c}=result;
+  switchToProject(merged.id,c.id);renderAll();await save();await paintSiteInbox();show('mark');
+  toast('Site Measure opened. Check every photo and measurement, then return and press Accept Site Measure.');
+ }catch(e){console.error(e);alert('Direct sync is not available here. Use Open backup file.');document.querySelector('.site-file-backup')?.classList.add('visible')}
+}
+async function acceptSitePacket(syncId){
+ try{
+  const packets=await studioInboxPackets();
+  const pack=packets.find(x=>(x.syncId||x.exportedAt)===syncId);
+  if(!pack)return alert(t('studio.siteJobsInbox.jobNoLongerWaiting'));
+  const x=inboxSummary(pack);
+  if(!x.rooms||!x.photos)return alert('This Site Measure is incomplete. It cannot be accepted because no complete room photo was received.');
+  const unresolved=JSON.stringify(pack).includes('\"idb:');
+  if(unresolved)return alert('This Site Measure still contains a phone-only photo. It cannot be accepted yet.');
+  if(!confirm(`Accept this Site Measure?\n\n${x.rooms} room${x.rooms===1?'':'s'}\n${x.photos} photo${x.photos===1?'':'s'}\n${x.measures} measurement${x.measures===1?'':'s'}\n${x.notes} note${x.notes===1?'':'s'}\n\nMobile will keep the visit until this acceptance reaches the phone.`))return;
+  const result=await applyOneSitePacket(pack,true);
+  if(!result){await paintSiteInbox();return}
+  await save();renderAll();await paintSiteInbox();
+  toast('Site Measure accepted. Mobile can now remove it from the active list.');
+ }catch(e){console.error(e);alert('The Site Measure was not accepted. Nothing was removed from Mobile.')}
+}
 // A site job no longer waits in a manual "inbox" list for someone to click Open --
 // it lands straight in the Customer Library (existing or auto-created customer),
 // tagged isNewFromSite so it surfaces there with a notification instead.
@@ -3457,7 +3513,7 @@ async function recoverAllCompanySiteJobs(){
  }catch(e){console.error('Site job recovery failed',e);return false}
 }
 async function receiveSiteInbox(){const packets=await studioInboxPackets();if(!packets.length)return alert(t("studio.siteJobsInbox.noNewSiteJobsWaiting"));return receiveSitePacket(packets[0].syncId||packets[0].exportedAt)}
-document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const card=e.target.closest('[data-open-site-packet]');if(card)receiveSitePacket(card.dataset.openSitePacket)});
+document.getElementById('directSiteInbox')?.addEventListener('click',e=>{const review=e.target.closest('[data-review-site-packet]');if(review){receiveSitePacket(review.dataset.reviewSitePacket);return}const accept=e.target.closest('[data-accept-site-packet]');if(accept)acceptSitePacket(accept.dataset.acceptSitePacket)});
 document.getElementById('siteInboxImportNow')?.addEventListener('click',receiveSiteInbox);
 
 // Delegated on document (not the elements themselves) because this modal's markup
