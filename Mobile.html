@@ -5259,7 +5259,9 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
         try{
           const incoming=packet.project||packet;
           if(!incoming?.id||!Array.isArray(incoming.cabinets)){await window.removeMobilePacket(packet);continue}
-          if((state.deletedProjectIds||[]).includes(incoming.id)){await window.removeMobilePacket(packet);continue}
+          // A deliberate Studio resend reactivates a job that was previously removed from this phone.
+          // Keeping the old deletion tombstone here made the phone discard every resend forever.
+          if((state.deletedProjectIds||[]).includes(incoming.id))state.deletedProjectIds=state.deletedProjectIds.filter(id=>id!==incoming.id)
           const units=incoming.cabinets,panels=units.flatMap(c=>Array.isArray(c.parts)?c.parts:[]),pieces=panels.reduce((n,p)=>n+Math.max(1,Number(p.qty)||1),0);
           const isNote=packet.sendType==="note";
           // This used to silently discard (and mark permanently "received", so a refresh
