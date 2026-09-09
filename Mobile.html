@@ -1230,17 +1230,23 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .room-check-chips .bomp-chip b{margin-left:4px}
 .room-action-row{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
 .room-action-row .btn{flex:1;min-width:120px;min-height:44px}
-.room-customer-row{margin:12px 0 4px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
-.room-customer-toggle{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:0;background:transparent;text-align:left}
-.room-customer-icon{font-size:20px;flex:none}
-.room-customer-main{flex:1;min-width:0;display:flex;flex-direction:column}
-.room-customer-main small{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.room-customer-chevron{font-size:20px;color:var(--muted);transform:rotate(90deg);transition:transform .15s}
-.room-customer-toggle[aria-expanded="true"] .room-customer-chevron{transform:rotate(-90deg)}
-.room-customer-detail{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
+.room-customer-row{margin:12px 0 4px;border:1px solid #bdd6f7;border-left:5px solid #2f80ed;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,#fff 0%,#f5f9ff 100%);box-shadow:0 5px 16px rgba(11,37,69,.08)}
+.room-customer-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:76px;padding:8px 9px 8px 11px;border:0;background:transparent;text-align:left}
+.room-customer-icon{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:21px;flex:none;background:#e8f3ff;box-shadow:inset 0 0 0 1px #c4ddfa}
+.room-customer-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.room-customer-main b{font-size:16px;color:#0b5db3}
+.room-customer-main small{color:#4f5f73;font-size:13px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room-customer-map{position:relative;width:88px;height:58px;border-radius:11px;overflow:hidden;flex:none;border:1px solid #b9cce2;background:linear-gradient(135deg,#e4edf7,#d1e4f5)}
+.room-customer-map iframe{width:100%;height:100%;border:0;pointer-events:none;filter:saturate(.8) contrast(.95)}
+.room-customer-map-empty{width:100%;height:100%;display:grid;place-items:center;color:#6f8093;font-size:11px;font-weight:800}
+.room-customer-map-label{position:absolute;left:5px;bottom:5px;padding:2px 6px;border-radius:999px;background:rgba(11,37,69,.86);color:#fff;font-size:9px;font-weight:900;letter-spacing:.06em}
+.room-customer-chevron{font-size:21px;color:#2174ce;transition:transform .15s}
+.room-customer-toggle[aria-expanded="true"] .room-customer-chevron{transform:rotate(90deg)}
+.room-customer-detail{padding:9px 11px 11px;border-top:1px solid #d8e6f5;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
 .room-customer-detail.hidden{display:none}
-.room-customer-detail .btn{min-height:42px}
-.room-customer-phone{font-size:13px;color:var(--muted)}
+.room-customer-detail .btn{min-height:44px;background:#0b63b6;color:#fff;border-color:#0b63b6;font-weight:900}
+.room-customer-phone{font-size:13px;color:#4f5f73;white-space:nowrap}
+@media(max-width:420px){.room-customer-map{width:78px}.room-customer-detail{grid-template-columns:1fr}.room-customer-phone{white-space:normal}}
 @media(max-width:420px){.room-action-row .btn{min-width:100%}.room-compact-title b{font-size:15px}}
 </style>
 
@@ -3017,6 +3023,8 @@ function renderRoomDetail(r){
  const jobTitle=safe(p?.customer)||safe(p?.name)||t('detail.currentProject');
  const addr=(p?.address||'').trim();
  const phone=(p?.phone||'').trim();
+ const mapQuery=(p?.geoLat!=null&&p?.geoLng!=null)?String(p.geoLat)+','+String(p.geoLng):addr;
+ const mapEmbedUrl=mapQuery?'https://www.google.com/maps?q='+encodeURIComponent(mapQuery)+'&z=15&output=embed':'';
  detail.innerHTML=`<div class="room-compact-header">
   <button type="button" class="btn room-back-btn" id="backRooms" aria-label="${t('detail.backProjects')}">‹</button>
   <div class="room-compact-icon">${r.icon||'🏠'}</div>
@@ -3063,6 +3071,7 @@ function renderRoomDetail(r){
   <button type="button" class="room-customer-toggle" id="roomCustomerToggle" aria-expanded="false">
    <span class="room-customer-icon">📍</span>
    <div class="room-customer-main"><b>${safe(t('mobile.customerLocationLabel'))}</b><small>${addr?safe(addr):t('mobile.noAddressOnFile')}</small></div>
+   <span class="room-customer-map">${mapEmbedUrl?'<iframe title="Map preview" loading="lazy" src="'+safe(mapEmbedUrl)+'"></iframe><span class="room-customer-map-label">MAP</span>':'<span class="room-customer-map-empty">No map</span>'}</span>
    <span class="room-customer-chevron">›</span>
   </button>
   <div class="room-customer-detail hidden" id="roomCustomerDetail">
