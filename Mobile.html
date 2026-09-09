@@ -3024,7 +3024,7 @@ function renderRoomDetail(r){
   <div class="studio-tools mobile-tools">
    <button type="button" class="btn tools-toggle" id="roomToolsToggleBtn" aria-label="${t('mobile.menuAria')}">⋯</button>
    <div class="tools-menu" id="roomToolsMenu">
-    ${r.finished?'':`<button type="button" class="btn danger" id="finishJobBtn">✓ ${t('mobile.menuFinishJob')}</button>`}
+    ${r.mobileJobCompleted?'':`<button type="button" class="btn danger" id="finishJobBtn">✓ Complete Job</button>`}
    </div>
   </div>
  </div>
@@ -3034,7 +3034,7 @@ function renderRoomDetail(r){
  </div>
  <button type="button" class="btn primary" id="openCuttingList" style="width:100%;min-height:54px;margin-top:12px">📋 ${t('detail.cuttingList')}</button>
  ${combinedStripHtml}
- ${r.finished?`<div class="job-finished-banner">✓ ${t('mobile.jobFinishedBanner',[safe(r.name)])}</div>`:''}
+ ${r.mobileJobCompleted?`<div class="job-finished-banner">✓ Job Completed</div>`:''}
  <section class="room-section installer-design-section room-design-max" id="designGuideSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designCount}</span></div><div class="room-photo-grid">${designCount?r.designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join(''):`<div class="room-empty">${t('detail.noDesignViews')}</div>`}</div></section>
  <details class="room-notes-compact" id="roomNotesSection">
   <summary>📝 ${t('mobile.notesLabel')}${noteReady?'':' — '+t('mobile.noNotesShort')}</summary>
@@ -3136,8 +3136,8 @@ function renderRoomDetail(r){
  // still-whole-project decision -- see archiveIfFinishedInstallation -- unaffected here.)
  $('#finishJobBtn')?.addEventListener('click',()=>{
   if(!requireLeadFitter(p,'finish this job'))return;
-  if(!confirm(t('mobile.confirmFinishJob',[r.name||'this room'])))return;
-  r.finished=true;r.finishedAt=new Date().toISOString();
+  if(!confirm('Complete '+(r.name||'this job')+' and send Job Completed to Studio?'))return;
+  r.mobileJobCompleted=true;r.mobileJobCompletedAt=new Date().toISOString();
   if(Array.isArray(state.activeCardKeys)){
    const thisKey=cardKey({project:p,room:r});
    state.activeCardKeys=state.activeCardKeys.filter(k=>k!==thisKey);
@@ -3464,7 +3464,7 @@ function stripHeavyMediaForSync(project){
 // resent, it arrives fresh via mergeStudioProject(), same as any other Studio packet.
 function archiveIfFinishedInstallation(p){
  if(!isInstallationJob(p)||p.mobileArchived)return;
- if(!(p.rooms||[]).length||!p.rooms.every(r=>r.finished))return;
+ if(!(p.rooms||[]).length||!p.rooms.every(r=>r.mobileJobCompleted))return;
  p.mobileArchived=true;p.mobileArchivedAt=new Date().toISOString();
  if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}
 }
