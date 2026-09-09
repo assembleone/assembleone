@@ -1634,6 +1634,8 @@ function deletePhotoBlob(id){
 function collectProjectPhotoIds(p){
  const ids=[];
  (p.sitePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ (p.notePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ (p.siteNotePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
  (p.measureCaptures||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
  if(p.siteMarkup)ids.push("sitemarkup:"+p.id);
  for(const c of p.cabinets||[]){
@@ -1643,6 +1645,7 @@ function collectProjectPhotoIds(p){
  for(const r of p.rooms||[]){
   (r.beforePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
   (r.designImages||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+  (r.notePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
   (r.measureCaptures||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
   if(r.siteMarkup)ids.push("sitemarkup:"+r.id);
  }
@@ -1655,6 +1658,7 @@ function deleteAllPhotosForRoom(r){
  const ids=[];
  (r.beforePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
  (r.designImages||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
+ (r.notePhotos||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
  (r.measureCaptures||[]).forEach(item=>{if(item&&item.id)ids.push(item.id)});
  if(r.siteMarkup)ids.push("sitemarkup:"+r.id);
  ids.forEach(id=>{deletePhotoBlob(id);photoPersistedIds.delete(id)});
@@ -1682,6 +1686,8 @@ function collectPhotoField(obj,key,id,restore){
 }
 function externalizeProjectPhotos(p,restore){
  (p.sitePhotos||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
+ (p.notePhotos||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
+ (p.siteNotePhotos||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
  (p.measureCaptures||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"image",item.id,restore)});
  if(p.siteMarkup)collectPhotoField(p.siteMarkup,"image","sitemarkup:"+p.id,restore);
  for(const c of p.cabinets||[]){
@@ -1691,6 +1697,7 @@ function externalizeProjectPhotos(p,restore){
  for(const r of p.rooms||[]){
   (r.beforePhotos||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
   (r.designImages||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
+  (r.notePhotos||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"data",item.id,restore)});
   (r.measureCaptures||[]).forEach(item=>{if(item&&item.id)collectPhotoField(item,"image",item.id,restore)});
   if(r.siteMarkup)collectPhotoField(r.siteMarkup,"image","sitemarkup:"+r.id,restore);
  }
@@ -1706,6 +1713,8 @@ async function hydrateAllPhotos(st){
  }
  for(const p of st.projects||[]){
   (p.sitePhotos||[]).forEach(item=>item&&hydrateField(item,"data"));
+  (p.notePhotos||[]).forEach(item=>item&&hydrateField(item,"data"));
+  (p.siteNotePhotos||[]).forEach(item=>item&&hydrateField(item,"data"));
   (p.measureCaptures||[]).forEach(item=>item&&hydrateField(item,"image"));
   if(p.siteMarkup)hydrateField(p.siteMarkup,"image");
   for(const c of p.cabinets||[]){
@@ -1715,6 +1724,7 @@ async function hydrateAllPhotos(st){
   for(const r of p.rooms||[]){
    (r.beforePhotos||[]).forEach(item=>item&&hydrateField(item,"data"));
    (r.designImages||[]).forEach(item=>item&&hydrateField(item,"data"));
+   (r.notePhotos||[]).forEach(item=>item&&hydrateField(item,"data"));
    (r.measureCaptures||[]).forEach(item=>item&&hydrateField(item,"image"));
    if(r.siteMarkup)hydrateField(r.siteMarkup,"image");
   }
@@ -2507,16 +2517,30 @@ function wireReadySendPanel(p){
 // The bottom send bar is its own section, separate from the room strip --
 // "3 ROOMS READY / 6 photos" plus the single Send to Studio action. This is
 // the ONLY thing in the whole screen that ever sends anything.
+// Build 59: an exact, lightweight inventory travels beside every Site Measure packet.
+function buildSiteTransferManifest(p,transferId){
+ const pictures=[],rooms=p.rooms||[];
+ const addPictures=(items,kind,roomId,key)=>{(items||[]).forEach((item,index)=>pictures.push({id:String(item&&item.id||kind+'-'+index),kind,roomId:roomId||null,field:key||'data'}))};
+ addPictures(p.sitePhotos,'site-photo',null,'data');
+ addPictures(p.notePhotos,'job-note-photo',null,'data');
+ addPictures(p.siteNotePhotos,'site-note-photo',null,'data');
+ addPictures(p.measureCaptures,'measure-photo',null,'image');
+ rooms.forEach(r=>{addPictures(r.measureCaptures,'measure-photo',r.id,'image');addPictures(r.notePhotos,'room-note-photo',r.id,'data');addPictures(r.beforePhotos,'room-photo',r.id,'data')});
+ const measurementCount=(p.siteMeasurements||[]).length+(p.measureCaptures||[]).reduce((n,c)=>n+((c&&c.marks)||[]).length,0)+rooms.reduce((n,r)=>n+(r.measureCaptures||[]).reduce((m,c)=>m+((c&&c.marks)||[]).length,0),0);
+ const noteCount=[p.notes,p.siteNotes,p.siteRoomNotes,...rooms.map(r=>r.notes)].filter(x=>String(x||'').trim()).length+(p.notePhotos||[]).length+(p.siteNotePhotos||[]).length+rooms.reduce((n,r)=>n+(r.notePhotos||[]).length,0);
+ return {version:1,transferId,projectId:p.id,roomCount:rooms.length,pictureCount:pictures.length,measurementCount,noteCount,pictures,createdAt:new Date().toISOString()};
+}
 function renderSendBar(){
  const p=project(),box=document.getElementById('measureSendBar');
  if(!box)return;
  if(!p){box.innerHTML='';return}
  const rooms=(p.rooms||[]).filter(x=>(x.measureCaptures||[]).length);
  if(!rooms.length){box.innerHTML='';return}
- const totalPhotos=rooms.reduce((n,x)=>n+(x.measureCaptures||[]).length,0);
+ const summary=buildSiteTransferManifest(p,'preview');
+ const totalPhotos=summary.pictureCount;
  const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
  const syncLine=sync&&sync.cls!=='unsent'?`<div class="send-bar-sync ${sync.cls}">${sync.label}</div>`:'';
- box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>`;
+ box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>`;
  document.getElementById('sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
 }
 // Tapping a finished room's own tile edits ONLY that room -- its photos live
@@ -3458,6 +3482,7 @@ window.retryPendingStudioSync=async function(){
       if(proj){
         proj.lastStudioSync=entry.pack.exportedAt;proj.studioSyncBlocked=false;proj.studioSyncBlockedReason='';
         if(result&&result.docId)proj.pendingStudioReceiptDocId=result.docId;
+        if(proj.siteTransfer)proj.siteTransfer.status='awaiting-studio';
         // Keep completed installation work on the phone until Studio confirms that this
         // exact packet was received. checkPendingStudioReceipts performs the archive only
         // after the Studio acknowledgement comes back.
@@ -3521,19 +3546,34 @@ async function exportJob(id,silent){
    if(!silent)alert(p.studioSyncBlockedReason);
    return'photo-loading';
  }
- const pack={app:"AssembleOne",schema:"assembleone-project-v8",source:"mobile",exportedAt:new Date().toISOString(),project:JSON.parse(JSON.stringify(p))};
+ const exportedAt=new Date().toISOString();
+ const transferManifest=!isStudioJob(p)?buildSiteTransferManifest(p,'site-'+p.id+'-'+Date.now()):null;
+ if(transferManifest){p.siteTransfer={transferId:transferManifest.transferId,status:'sending',counts:{rooms:transferManifest.roomCount,pictures:transferManifest.pictureCount,measurements:transferManifest.measurementCount,notes:transferManifest.noteCount},sentAt:exportedAt};save()}
+ const pack={app:"AssembleOne",schema:"assembleone-project-v9",source:"mobile",exportedAt,transferManifest,project:JSON.parse(JSON.stringify(p))};
  const sendToStudio=window.sendPackDirectly||sendPackDirectly;
- try{const sendResult=await sendToStudio(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+ try{const sendResult=await sendToStudio(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
   queuePendingStudioSync(pack);
+  if(p.siteTransfer){p.siteTransfer.status='waiting-for-connection';save()}
   if(!silent)alert("No signal right now -- your update is saved on this phone and will send to Studio automatically once you're back online.");
   return'queued'}
+  // Never report a Site Measure as sent after removing its pictures or measured
+  // captures. The phone remains the complete safety copy and Studio receives nothing
+  // partial; the fitter can retry after the media issue is resolved.
+  if(!isStudioJob(p)){
+    p.studioSyncBlocked=true;
+    p.studioSyncBlockedReason='The complete Site Measure is too large to send safely. All pictures and measurements are still saved on this phone.';
+    if(p.siteTransfer)p.siteTransfer.status='incomplete-not-sent';
+    save();renderAll();
+    if(!silent)alert(p.studioSyncBlockedReason);
+    return'blocked';
+  }
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
     const slimResult=await sendToStudio(slimPack);
-    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.pendingStudioReceiptDocId=slimResult.docId;save();renderAll();
+    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.pendingStudioReceiptDocId=slimResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();
     if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
     return'sent';
   }catch(e2){
@@ -3635,6 +3675,7 @@ async function checkPendingStudioReceipts(){
    if(data&&data.status==='received'){
     p.pendingStudioReceiptDocId=null;
     p.studioReceivedAt=new Date().toISOString();
+    if(p.siteTransfer)p.siteTransfer.status='studio-received';
     // Archive without deleting the phone photo backup. A fitter can reopen the sent
     // visit later, and an explicit project deletion remains the only destructive action.
     p.mobileArchived=true;p.mobileArchivedAt=p.studioReceivedAt;
@@ -5241,6 +5282,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       app:pack.app||"AssembleOne",
       schema:pack.schema||"",
       source:pack.source||"mobile",
+      transferManifest:pack.transferManifest||null,
       project:projectForCloud
     };
     // Firestore documents are capped at ~1MiB. Photos are already compressed, but a
