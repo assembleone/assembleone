@@ -5225,9 +5225,12 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     try{
       const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
       if(fs&&db&&user&&user.companyId){
-        const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'),fs.where('status','==','waiting'));
+        const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'));
         const snap=await fs.getDocs(q);
-        snap.forEach(docSnap=>{const data=docSnap.data()||{};cloud.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
+        // Filter the queue state on the phone. Combining kind and status in Firestore
+        // requires a composite index; without it Studio successfully writes the packet
+        // but Mobile's polling query fails and the job appears never to arrive.
+        snap.forEach(docSnap=>{const data=docSnap.data()||{};if(data.status==='waiting')cloud.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
       }
     }catch(e){console.error('Cloud Studio packet fetch failed',e)}
     return [...legacy,...cloud].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)));
