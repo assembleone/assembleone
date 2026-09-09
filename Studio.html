@@ -5944,7 +5944,10 @@ body.guide-only .a131-back-studio{display:block}
 <script id="a135-panel-review-script">
 (function(){
   function sig(p){
-    return [p&&p.name,p&&p.length,p&&p.width,p&&p.thickness,p&&p.qty,p&&p.material,p&&p.edgeLong||0,p&&p.edgeShort||0,p&&p.notes||'',p&&p.status||'ready'].map(v=>String(v??'').trim()).join('|');
+    // This signature protects the manufacturing details approved in Studio. Mobile
+    // installation states such as missing, damaged, checked, and fitted are later job
+    // progress and must never invalidate that approval or remove its Job Overview card.
+    return [p&&p.name,p&&p.length,p&&p.width,p&&p.thickness,p&&p.qty,p&&p.material,p&&p.edgeLong||0,p&&p.edgeShort||0,p&&p.notes||''].map(v=>String(v??'').trim()).join('|');
   }
   function baseMissing(p){
     const m=[];
@@ -5956,7 +5959,14 @@ body.guide-only .a131-back-studio{display:block}
     if(!String((typeof materialForPanel==='function'?materialForPanel(p):p&&p.material)||'').trim())m.push(t("studio.drawing.materialFieldLabel"));
     return m;
   }
-  function reviewed(p){return !!(p&&p.reviewSignature&&p.reviewSignature===sig(p));}
+  function reviewed(p){
+    if(!p||!p.reviewSignature)return false;
+    const current=sig(p),stored=String(p.reviewSignature);
+    if(stored===current)return true;
+    // Compatibility with every panel approved before Repair 32, when the live status
+    // was incorrectly appended to the stored signature.
+    return ['ready','missing','damaged','installed'].some(status=>stored===current+'|'+status);
+  }
   function readyForSupplier(p){return baseMissing(p).length===0&&reviewed(p);}
   window.panelReviewSignature=sig;
   window.panelIsReviewed=reviewed;
