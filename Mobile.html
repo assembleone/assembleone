@@ -3366,7 +3366,7 @@ function makeZip(files){const enc=new TextEncoder(),locals=[],centrals=[];let of
 async function readZip(file){const a=new Uint8Array(await file.arrayBuffer()),dec=new TextDecoder(),out={};let p=0;while(p+30<=a.length&&((a[p]|a[p+1]<<8|a[p+2]<<16|a[p+3]<<24)>>>0)===0x04034b50){const method=a[p+8]|a[p+9]<<8,sz=(a[p+18]|a[p+19]<<8|a[p+20]<<16|a[p+21]<<24)>>>0,nl=a[p+26]|a[p+27]<<8,el=a[p+28]|a[p+29]<<8,name=dec.decode(a.slice(p+30,p+30+nl)),start=p+30+nl+el;if(method!==0)throw new Error('Unsupported compressed ZIP');out[name]=a.slice(start,start+sz);p=start+sz}return out}
 function jsonFromZip(entries){const key=Object.keys(entries).find(x=>/project\.json$/i.test(x)||/updates\.json$/i.test(x));if(!key)throw new Error('project.json missing');return JSON.parse(new TextDecoder().decode(entries[key]))}
 
-async function importStudioFile(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file));if(raw.app&&raw.app!=="AssembleOne")throw new Error();const p=mergeStudioProject(raw.project||raw);if(state.deletedProjectIds)state.deletedProjectIds=state.deletedProjectIds.filter(id=>id!==p.id);state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;if(state.pendingPanelRoute&&openPanelRoute(state.pendingPanelRoute)){state.pendingPanelRoute=null;save();show("install");alert(t('msg.projectOpenedPanelReady'))}else{save();if(raw.includesCuttingList||p.cuttingList){show("install");alert(t('msg.cuttingListReceivedTrack'))}else{show("drawings");alert(t('msg.projectOpenedPhoneIpad'))}}}catch(e){alert(t('msg.notValidProjectZip'))}}
+async function importStudioFile(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file));if(raw.app&&raw.app!=="AssembleOne")throw new Error();const p=mergeStudioProject(raw.project||raw);if(state.deletedProjectIds)state.deletedProjectIds=state.deletedProjectIds.filter(id=>id!==p.id);state.currentProject=p.id;state.currentCabinet=p.cabinets[0]?.id||null;state.currentPart=null;if(state.pendingPanelRoute&&openPanelRoute(state.pendingPanelRoute)){state.pendingPanelRoute=null;save();show("install");alert(t('msg.projectOpenedPanelReady'))}else{save();show("drawings");alert((raw.includesCuttingList||p.cuttingList)?t('msg.cuttingListReceivedTrack'):t('msg.projectOpenedPhoneIpad'))}}catch(e){alert(t('msg.notValidProjectZip'))}}
 $("#importStudio").onchange=e=>{importStudioFile(e.target.files[0]);e.target.value=""};
 function download(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
@@ -5303,17 +5303,11 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       }else if(activeScan){
         renderAll();
       }else{
-        // A drawing means there is something to look at right away -- open the Install
-        // screen (where the Design Guide panel lives) and expand it automatically, instead
-        // of leaving the picture buried behind a manual "Design Guide" tap.
-        show(hasDrawing?"install":(isCut?"install":"drawings"));
-        setTimeout(()=>{
-          renderAll();
-          if(hasDrawing&&typeof renderDesignGuidePanel==="function"){
-            const panel=$("#designGuidePanel");
-            if(panel){panel.classList.remove("hidden");renderDesignGuidePanel()}
-          }
-        },40);
+        // Studio deliveries and jobs opened from the Jobs list now share the same room
+        // screen. The old Install dashboard remains available to existing scan routes,
+        // but a normal incoming job no longer lands in a second competing workflow.
+        show("drawings");
+        setTimeout(()=>{renderAll()},40);
         if(isNote)alert(`${t('msg.newNoteFromStudio')}\n\n${p.notes||''}`);
         else alert(isCut?t('msg.newCuttingListReceived',[panels.length,pieces]):t('msg.newSiteJobReceived',[units.length,panels.length,pieces]));
       }
