@@ -2128,9 +2128,9 @@ function renderProjects(){
  // remains a tool rather than a long-term storage list.
  const SITE_RECEIVED_SAFETY_MS=24*60*60*1000;
  const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0);
- const installCardsActive=installCards.filter(c=>!c.project.mobileArchived)
+ const installCardsActive=installCards.filter(c=>!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
   .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?!!a.room.finished:allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?!!b.room.finished:allRoomsFinished(b.project))?1:0;return fa-fb});
- const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived);
+ const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt));
  const siteHtml=siteJobs.length?siteJobs.map(p=>jobCard({project:p,room:null})).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
  const openProjectCount=new Set(installCardsActive.map(card=>card.project.id)).size;
  const newOpenCount=installCardsActive.filter(card=>{const rm=(card.room&&card.room!=='__general__')?card.room:null;return (rm?rm.mobileSeen:card.project.mobileSeen)===false}).length;
@@ -3389,6 +3389,7 @@ function mergeStudioProject(incoming){
  // been finished and archived on this phone (Studio reassigning/reopening a finished job
  // is exactly the case where the fitter needs to see it again).
  incoming.mobileArchived=false;
+ incoming.mobileMovedToLibraryAt=null;
  // The one reliable "this came from Studio" signal, set on every packet this function
  // ever merges (new project or a resync of one already known). isInstallationJob(p) (has
  // a cabinet with real parts) used to be the only way renderProjects() told a Site
@@ -3685,9 +3686,9 @@ async function checkPendingStudioReceipts(){
     p.pendingStudioReceiptDocId=null;
     p.studioReceivedAt=new Date().toISOString();
     if(p.siteTransfer)p.siteTransfer.status='studio-received';
-    // Archive without deleting the phone photo backup. A fitter can reopen the sent
-    // visit later, and an explicit project deletion remains the only destructive action.
-    p.mobileArchived=true;p.mobileArchivedAt=p.studioReceivedAt;
+    // Site Measures leave the active queue after confirmed receipt and keep their 24 hour
+    // safety copy. Installation work stays visible until Studio presses Move to Library.
+    if(!isStudioJob(p)){p.mobileArchived=true;p.mobileArchivedAt=p.studioReceivedAt}
     changed=true;
     if(typeof onStudioReceiptConfirmed==='function')onStudioReceiptConfirmed(p);
    }
@@ -5366,6 +5367,23 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       let lastApplied=null;
       for(const packet of packets){
         try{
+          if(packet.command&&packet.command.type==='move-to-library'){
+            const cmd=packet.command;
+            const local=state.projects.find(x=>x.id===cmd.projectId);
+            if(local){
+              if(cmd.roomId){
+                const localRoom=(local.rooms||[]).find(r=>r.id===cmd.roomId);
+                if(localRoom)localRoom.mobileMovedToLibraryAt=cmd.movedAt||Date.now();
+              }else local.mobileMovedToLibraryAt=cmd.movedAt||Date.now();
+              if(state.currentProject===local.id&&(!cmd.roomId||state.currentRoom===cmd.roomId)){
+                state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null;
+                show('projects');
+              }
+              save();renderAll();
+            }
+            await window.removeMobilePacket(packet);
+            continue;
+          }
           const incoming=packet.project||packet;
           if(!incoming?.id||!Array.isArray(incoming.cabinets)){await window.removeMobilePacket(packet);continue}
           // A deliberate Studio resend reactivates a job that was previously removed from this phone.
