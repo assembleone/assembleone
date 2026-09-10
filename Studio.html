@@ -1292,8 +1292,8 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
-import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadString, getDownloadURL, listAll, deleteObject } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -1311,8 +1311,8 @@ window.fiqAuth = getAuth(app);
 window.fiqFunctions = getFunctions(app);
 window.fiqFirestore = getFirestore(app);
 window.fiqStorage = getStorage(app);
-window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL };
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot };
+window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL, listAll, deleteObject };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, onSnapshot };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <body class="fiq-locked">
@@ -3370,6 +3370,7 @@ const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
 function studioSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open(DIRECT_SYNC_DB,1);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
 function fallbackPackets(){try{return JSON.parse(localStorage.getItem(DIRECT_SYNC_FALLBACK)||"[]")||[]}catch(e){return []}}
+function sitePacketIsAfterTestReset(pack){const cutoff=Number(localStorage.getItem('fittersiq_test_reset_at_v1')||0),sent=Date.parse(pack&&pack.exportedAt||'');return !cutoff||!Number.isFinite(sent)||sent>cutoff}
 async function fetchCloudSitePackets(){
  try{
   const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
@@ -3381,7 +3382,7 @@ async function fetchCloudSitePackets(){
   return out;
  }catch(e){console.error('Cloud site job fetch failed',e);return []}
 }
-async function studioInboxPackets(){let out=[];try{const db=await studioSyncDb();const tx=db.transaction("studioInbox","readonly"),req=tx.objectStore("studioInbox").getAll();out=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close()}catch(e){}const cloud=await fetchCloudSitePackets();const map=new Map();[...out,...fallbackPackets(),...cloud].forEach(x=>map.set(x.syncId||x.exportedAt||Math.random(),x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
+async function studioInboxPackets(){let out=[];try{const db=await studioSyncDb();const tx=db.transaction("studioInbox","readonly"),req=tx.objectStore("studioInbox").getAll();out=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close()}catch(e){}const cloud=await fetchCloudSitePackets();const map=new Map();[...out,...fallbackPackets(),...cloud].filter(sitePacketIsAfterTestReset).forEach(x=>map.set(x.syncId||x.exportedAt||Math.random(),x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
 // Build 60: compare the complete Mobile manifest with what Studio actually has.
 function sitePacketInventory(p){
  const pictures=[],rooms=p.rooms||[];
@@ -3532,6 +3533,7 @@ async function recoverAllCompanySiteJobs(){
   let changed=false;
   snap.forEach(docSnap=>{
    const data=docSnap.data()||{};
+   if(!sitePacketIsAfterTestReset(data))return;
    const incoming=data.project||data;
    if(!incoming||!incoming.id||!Array.isArray(incoming.cabinets))return;
    const already=state.projects.find(x=>x.id===incoming.id);
@@ -9521,6 +9523,84 @@ document.addEventListener('mousedown',function(e){
   var el=document.activeElement;
   if(el&&el!==e.target&&el.tagName==='INPUT'&&el.type==='number')el.blur();
 },true);
+</script>
+<style id="a218-clear-test-data-style">
+.fiq-clear-test-data{background:#fff1f1!important;border-color:#e7a2a7!important;color:#b4232d!important;font-weight:900!important;margin-top:5px}
+.fiq-clear-test-data[disabled]{opacity:.55;cursor:wait}
+</style>
+<script id="a218-clear-test-data-script">
+(function(){
+  const RESET_SEEN_KEY='fittersiq_last_test_reset_v1';
+  let resetInProgress=false,lastCloudCheck=0;
+  function emptyStudioState(){return {projects:[],customers:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,currentCustomerCard:null,lastChosenPartName:'',numbering:false,screen:'jobs',deletedProjectIds:[],deletedProjects:[]}}
+  async function clearIndexedStores(dbName,stores){
+    try{
+      const db=await new Promise((resolve,reject)=>{const req=indexedDB.open(dbName);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
+      const present=stores.filter(name=>db.objectStoreNames.contains(name));
+      if(present.length)await new Promise((resolve,reject)=>{const tx=db.transaction(present,'readwrite');present.forEach(name=>tx.objectStore(name).clear());tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+      db.close();
+    }catch(e){console.warn('Could not clear '+dbName,e)}
+  }
+  async function resetStudioLocalData(resetId,resetAt){
+    resetInProgress=true;
+    try{
+      state=emptyStudioState();
+      localStorage.setItem(STORE,JSON.stringify(state));
+      sessionStorage.removeItem(STORE+'_draft');
+      localStorage.removeItem('assembleone_direct_sync_queue_v1');
+      localStorage.removeItem('assembleone_mobile_direct_queue_v1');
+      localStorage.setItem('fittersiq_test_reset_at_v1',String(resetAt||Date.now()));
+      await clearIndexedStores('assembleone_direct_sync_v1',['studioInbox','mobileInbox']);
+      await clearIndexedStores('assembleone_stable_v1',['drawings','project_state']);
+      localStorage.setItem(RESET_SEEN_KEY,resetId);
+      await save();
+      renderAll();show('jobs');
+    }finally{resetInProgress=false}
+  }
+  async function deleteStoredJobMedia(companyId){
+    const storage=window.fiqStorage,fns=window.fiqStorageFns;
+    if(!storage||!fns||!fns.listAll||!fns.deleteObject)return;
+    async function removeFolder(folder){
+      const found=await fns.listAll(folder);
+      await Promise.all(found.items.map(item=>fns.deleteObject(item)));
+      for(const prefix of found.prefixes)await removeFolder(prefix);
+    }
+    await removeFolder(fns.ref(storage,'companies/'+companyId+'/jobs'));
+  }
+  async function clearCompanyTestData(){
+    const user=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;
+    if(!user||user.role!=='company_owner'||!user.companyId)throw new Error('Only the company owner can clear all test data.');
+    if(!fs||!db||!fs.deleteDoc)throw new Error('The secure data connection is not ready yet.');
+    const jobs=await fs.getDocs(fs.collection(db,'companies',user.companyId,'jobs'));
+    const deletes=[];jobs.forEach(docSnap=>deletes.push(fs.deleteDoc(docSnap.ref)));
+    await Promise.all(deletes);
+    try{await deleteStoredJobMedia(user.companyId)}catch(e){console.warn('Job media cleanup was incomplete',e)}
+    const resetAt=Date.now(),resetId=resetAt.toString(36)+'-'+Math.random().toString(36).slice(2,8);
+    await fs.addDoc(fs.collection(db,'companies',user.companyId,'jobs'),{kind:'studioToMobilePacket',status:'broadcast',companyId:user.companyId,createdBy:user.uid,createdAt:fs.serverTimestamp(),command:{type:'reset-all-test-data',resetId,resetAt}});
+    await resetStudioLocalData(resetId,resetAt);
+    return deletes.length;
+  }
+  async function checkCompanyReset(){
+    if(resetInProgress||Date.now()-lastCloudCheck<12000)return;lastCloudCheck=Date.now();
+    const user=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;if(!user||!user.companyId||!fs||!db)return;
+    try{
+      const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'));
+      const snap=await fs.getDocs(q);let resetId=null,resetAt=0;
+      snap.forEach(docSnap=>{const cmd=(docSnap.data()||{}).command;if(cmd&&cmd.type==='reset-all-test-data'&&cmd.resetId&&Number(cmd.resetAt||0)>=resetAt){resetId=cmd.resetId;resetAt=Number(cmd.resetAt||0)}});
+      if(resetId&&localStorage.getItem(RESET_SEEN_KEY)!==resetId)await resetStudioLocalData(resetId,resetAt);
+    }catch(e){console.warn('Could not check company reset',e)}
+  }
+  const host=document.querySelector('.header-right');
+  const button=document.createElement('button');button.type='button';button.id='fiqClearTestDataBtn';button.className='btn fiq-clear-test-data';button.textContent='Clear All Test Data';button.style.display='none';host.appendChild(button);
+  button.onclick=async()=>{
+    document.getElementById('toolsMenu')?.classList.remove('open');
+    if(!confirm('This will permanently delete every job, New Project, Customer Library record and Mobile job. Your account and settings will stay. Continue?'))return;
+    if(!confirm('Final check: delete all test data now? This cannot be undone.'))return;
+    button.disabled=true;button.textContent='Clearing...';
+    try{const count=await clearCompanyTestData();alert('All test data is cleared. '+count+' cloud transfer record'+(count===1?' was':'s were')+' removed. Open Mobile while online so it can clear its local jobs too.')}catch(e){console.error(e);alert(e&&e.message||'The test data could not be cleared. Nothing local was removed.')}finally{button.disabled=false;button.textContent='Clear All Test Data'}
+  };
+  setInterval(()=>{const owner=window.fittersiqUser&&window.fittersiqUser.role==='company_owner';button.style.display=owner?'':'none';checkCompanyReset()},3000);
+})();
 </script>
 <script src="fittersiq-help.js"></script>
 </body>

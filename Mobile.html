@@ -5355,7 +5355,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
         // Filter the queue state on the phone. Combining kind and status in Firestore
         // requires a composite index; without it Studio successfully writes the packet
         // but Mobile's polling query fails and the job appears never to arrive.
-        snap.forEach(docSnap=>{const data=docSnap.data()||{};if(data.status==='waiting')cloud.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
+        snap.forEach(docSnap=>{const data=docSnap.data()||{},cmd=data.command||{};const unseenReset=cmd.type==='reset-all-test-data'&&cmd.resetId&&localStorage.getItem('fittersiq_last_test_reset_v1')!==cmd.resetId;if(data.status==='waiting'||unseenReset)cloud.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
       }
     }catch(e){console.error('Cloud Studio packet fetch failed',e)}
     return [...legacy,...cloud].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)));
@@ -5382,6 +5382,11 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       let lastApplied=null;
       for(const packet of packets){
         try{
+          if(packet.command&&packet.command.type==='reset-all-test-data'){
+            if(typeof window.fiqResetMobileTestData==='function')await window.fiqResetMobileTestData(packet.command.resetId,packet.command.resetAt);
+            await window.removeMobilePacket(packet);
+            continue;
+          }
           if(packet.command&&packet.command.type==='move-to-library'){
             const cmd=packet.command;
             const local=state.projects.find(x=>x.id===cmd.projectId);
@@ -6234,6 +6239,44 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       helpToastTimer=setTimeout(()=>toast.classList.remove('show'),3200);
     });
   });
+})();
+</script>
+
+<script id="a218-company-test-reset">
+(function(){
+  const RESET_SEEN_KEY='fittersiq_last_test_reset_v1';
+  let resetRunning=false;
+  function emptyMobileState(){return {projects:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,screen:'projects',activeCardKeys:[],deletedProjectIds:[]}}
+  async function clearSyncInbox(){
+    try{
+      const db=await syncDb(),names=['studioInbox','mobileInbox'].filter(name=>db.objectStoreNames.contains(name));
+      if(names.length)await new Promise((resolve,reject)=>{const tx=db.transaction(names,'readwrite');names.forEach(name=>tx.objectStore(name).clear());tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+      db.close();
+    }catch(e){console.warn('Could not clear Mobile transfer inbox',e)}
+  }
+  async function clearMobilePhotos(){
+    try{
+      const db=await photoDb();
+      if(db.objectStoreNames.contains('photos'))await new Promise((resolve,reject)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').clear();tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+      photoPersistedIds.clear();pendingPhotoWrites.splice(0,pendingPhotoWrites.length);
+    }catch(e){console.warn('Could not clear Mobile photos',e)}
+  }
+  async function resetMobileLocalData(resetId,resetAt){
+    resetRunning=true;
+    try{
+      state=emptyMobileState();mobileSelectedCardKeys.clear();projectsListMode='jobs';
+      localStorage.setItem(KEY,JSON.stringify(state));
+      localStorage.removeItem(PENDING_STUDIO_SYNC_KEY);
+      localStorage.removeItem('assembleone_direct_sync_queue_v1');
+      localStorage.removeItem('assembleone_mobile_direct_queue_v1');
+      localStorage.removeItem('assembleone_mobile_new_notice_v1');
+      localStorage.setItem('fittersiq_test_reset_at_v1',String(resetAt||Date.now()));
+      await Promise.all([clearSyncInbox(),clearMobilePhotos()]);
+      localStorage.setItem(RESET_SEEN_KEY,resetId);
+      save();renderAll();show('projects');
+    }finally{resetRunning=false}
+  }
+  window.fiqResetMobileTestData=resetMobileLocalData;
 })();
 </script>
 
