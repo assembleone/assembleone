@@ -2059,7 +2059,7 @@ function openSiteRoomDetails(projectId,roomId){
  // label should say plainly which one is about to happen, so pressing it again is never
  // a surprise.
  const startDesignBtn=document.getElementById('siteStartDesignBtn');
- if(startDesignBtn)startDesignBtn.textContent=(roomCabinet&&roomCabinet.drawing)?t("studio.siteRoom.openDesignBtn"):t("studio.siteRoom.startDesignBtn");
+ if(startDesignBtn)startDesignBtn.textContent=t("studio.siteRoom.startDesignBtn");
  const frame=document.getElementById('siteRoomReferenceFrame');
  const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=caps.map((c,i)=>`<img class="site-thumb ${i===0?'active':''}" data-site-thumb="${i}" src="${c.image}" alt="Photo ${i+1}">`).join('');
  document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;document.getElementById('siteRoomNotes').textContent=notes||'No extra notes';
