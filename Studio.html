@@ -3225,13 +3225,15 @@ async function sendPackToPhoneDirectly(pack){
  if(fs&&db2&&user&&user.companyId){
    let projectForCloud=packet.project;
    try{
-     projectForCloud=await offloadHeavyMediaForMobileSync(packet.project,user.companyId);
+     // Lightweight office commands deliberately carry no project or heavy media.
+     if(packet.project)projectForCloud=await offloadHeavyMediaForMobileSync(packet.project,user.companyId);
    }catch(e){
      console.error("Uploading job photos/drawings to Storage failed",e);
      cloudError="Could not upload this job's photos and drawings right now. Check your connection and try again.";
    }
    if(!cloudError){
-     const envelope={kind:"studioToMobilePacket",status:"waiting",companyId:user.companyId,createdBy:user.uid,createdByEmail:user.email||"",createdAt:fs.serverTimestamp(),...packet,project:projectForCloud};
+     const envelope={kind:"studioToMobilePacket",status:"waiting",companyId:user.companyId,createdBy:user.uid,createdByEmail:user.email||"",createdAt:fs.serverTimestamp(),...packet};
+     if(projectForCloud)envelope.project=projectForCloud;
      let approxBytes=0;
      try{approxBytes=new Blob([JSON.stringify(envelope)]).size}catch(e){approxBytes=JSON.stringify(envelope).length}
      if(approxBytes>900000){
@@ -8118,7 +8120,7 @@ body.fiq-locked .app{display:none!important}
       save();
       if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
     });
-    grid.querySelectorAll('[data-finish-overview-job]').forEach(btn=>btn.onclick=e=>{
+    grid.querySelectorAll('[data-finish-overview-job]').forEach(btn=>btn.onclick=async e=>{
       e.stopPropagation();
       const p=state.projects.find(x=>x.id===btn.dataset.finishOverviewJob);if(!p)return;
       const roomId=btn.dataset.finishRoomId;
@@ -8128,6 +8130,15 @@ body.fiq-locked .app{display:none!important}
       const now=Date.now();
       if(room){room.finished=true;room.finishedAt=now;room.movedToLibraryAt=now}else{p.overviewFinishedAt=now;p.movedToLibraryAt=now}
       p.updatedAt=now;save();jorSelectedCardKeys.delete(room?cardKey({project:p,room}):p.id);renderAll();
+      // Receipt only proves the fitters update arrived. This explicit, lightweight
+      // command is what removes the matching completed card from Mobile.
+      try{
+        const result=await sendPackToPhoneDirectly({app:'AssembleOne',schema:'fittersiq-mobile-command-v1',source:'studio',exportedAt:new Date().toISOString(),sendType:'move-to-library',command:{type:'move-to-library',projectId:p.id,roomId:room?room.id:null,movedAt:now}});
+        if(result&&!result.cloudSent&&result.cloudError)alert('The job is in the Customer Library, but Mobile could not be updated yet. '+result.cloudError);
+      }catch(err){
+        console.error('Move to Library command failed',err);
+        alert('The job is safely in the Customer Library, but Mobile could not be updated yet. Please try Send to Mobile when the connection returns.');
+      }
     });
     grid.querySelectorAll('[data-delete-overview-job]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const p=state.projects.find(x=>x.id===btn.dataset.deleteOverviewJob);if(!p)return;const roomCount=(p.rooms||[]).length;const message=roomCount>1?'Delete this complete job and all '+roomCount+' rooms, drawings, panels, photos and notes?':'Delete this complete job, including its drawing, panels, photos and notes?';if(!confirm(message))return;deleteProjectRecord(p.id);save();jorSelectedCardKeys.clear();renderAll()});
     // The Panel Check stat and the "needs attention" warning icon are the actionable parts
