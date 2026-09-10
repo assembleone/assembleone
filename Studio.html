@@ -101,6 +101,9 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-select-toggle-btn{margin-left:auto}
 .customer-tab-row-wrap{display:flex;align-items:center;gap:6px;margin-bottom:8px}
 .customer-tab-row-wrap .customer-tab-row{margin-bottom:0;flex:1 1 auto}
+.customer-cutting-list-btn{flex:none;background:#eef8e8;border:1px solid #9bcf7f;color:#2f7d16;border-radius:9px;padding:8px 11px;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer}
+.customer-cutting-list-btn:hover{background:#dff2d4;border-color:#64ac3e}
+@media(max-width:760px){.customer-cutting-list-btn{padding:8px;width:36px;overflow:hidden;color:transparent;position:relative}.customer-cutting-list-btn:after{content:"📋";color:#2f7d16;position:absolute;inset:0;display:grid;place-items:center;font-size:17px}}
 .customer-job-select{flex:none;cursor:pointer}
 .customer-job-select input{width:20px;height:20px;cursor:pointer}
 .customer-row-overflow{position:relative;flex:none}
@@ -2135,6 +2138,12 @@ function openJobDesignForRoom(projectId,roomId){
  if(!c)return;
  switchToProject(p.id,c.id);renderAll();save();show('mark');
 }
+function openCuttingListForRoom(projectId,roomId){
+ const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+ const c=roomId?(p.cabinets||[]).find(x=>x.roomId===roomId):(p.cabinets||[])[0];
+ if(!c)return;
+ switchToProject(p.id,c.id);renderAll();save();show('cutting');
+}
 function renderProject(){
  const p=project();$("#projectName").value=p?.name||"";$("#customerName").value=p?.customer||"";
  const box=$("#cabinetList");
@@ -2762,8 +2771,9 @@ function renderCustomerCard(){
      `<span class="customer-tab-row-meta"><span class="customer-job-status ${status.cls}">${status.label}</span>${panelHtml}${updatedHtml}</span>`+
      `<span class="customer-tab-row-chevron">›</span>`+
    `</button>`;
+   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" title="${t("detail.cuttingList")}">📋 ${t("detail.cuttingList")}</button>`;
    const overflowHtml=`<div class="customer-row-overflow"><button type="button" class="customer-row-overflow-btn" data-overflow-toggle title="${t("studio.customerLibrary.jobOptionsMenuTitle")}">⋮</button><div class="customer-row-overflow-menu" hidden><button type="button" class="customer-row-overflow-item" data-delete-customer-job="${safe(p.id)}">🗑 ${t("detail.delete")}</button></div></div>`;
-   return `<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${overflowHtml}</div>`;
+   return `<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${cuttingListBtn}${overflowHtml}</div>`;
  }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsDesignsYetEmpty")}</div>`;
  const supplierSendHtml=(customerCardSelectMode&&supplierSelectedJobIds.size>0)?`<button type="button" class="btn primary customer-supplier-send-btn" data-send-selected-supplier>${t(supplierSelectedJobIds.size===1?"studio.customerLibrary.sendToSupplierSingular":"studio.customerLibrary.sendToSupplierPlural",[supplierSelectedJobIds.size])}</button>`:"";
  const jobsTabHtml=jobsToolbarHtml+jobsTabRowsHtml+supplierSendHtml;
@@ -2835,6 +2845,7 @@ function renderCustomerCard(){
  // Measurement modal -- so an existing Design is never mistaken for its permanent
  // original record, or the other way round.
  body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=()=>openJobDesignForRoom(el.dataset.openJobDesignProject,el.dataset.openJobDesign));
+ body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>openCuttingListForRoom(el.dataset.openCuttingListProject,el.dataset.openCuttingList));
  // Each Site Measurement row (and every photo/photo-group) opens ONLY that room's own
  // photos/measurements -- passing its real roomId means openSiteRoomDetails uses that
  // exact room instead of falling back to "whichever room has a picture".
