@@ -9525,7 +9525,8 @@ document.addEventListener('mousedown',function(e){
 },true);
 </script>
 <style id="a218-clear-test-data-style">
-.fiq-clear-test-data{background:#fff1f1!important;border-color:#e7a2a7!important;color:#b4232d!important;font-weight:900!important;margin-top:5px}
+.fiq-clear-test-data{width:22px!important;height:22px!important;min-width:22px!important;padding:0!important;border:0!important;border-radius:50%!important;background:transparent!important;color:#a9b0ba!important;font-size:18px!important;font-weight:900!important;line-height:18px!important;box-shadow:none!important;opacity:.46}
+.fiq-clear-test-data:hover,.fiq-clear-test-data:focus-visible{background:#fff1f1!important;color:#b4232d!important;opacity:1}
 .fiq-clear-test-data[disabled]{opacity:.55;cursor:wait}
 </style>
 <script id="a218-clear-test-data-script">
@@ -9591,13 +9592,13 @@ document.addEventListener('mousedown',function(e){
     }catch(e){console.warn('Could not check company reset',e)}
   }
   const host=document.querySelector('.header-right');
-  const button=document.createElement('button');button.type='button';button.id='fiqClearTestDataBtn';button.className='btn fiq-clear-test-data';button.textContent='Clear All Test Data';button.style.display='none';host.appendChild(button);
+  const button=document.createElement('button');button.type='button';button.id='fiqClearTestDataBtn';button.className='btn fiq-clear-test-data';button.textContent='·';button.setAttribute('aria-label','Clear all test data');button.title='Owner reset';button.style.display='none';host.appendChild(button);
   button.onclick=async()=>{
     document.getElementById('toolsMenu')?.classList.remove('open');
     if(!confirm('This will permanently delete every job, New Project, Customer Library record and Mobile job. Your account and settings will stay. Continue?'))return;
     if(!confirm('Final check: delete all test data now? This cannot be undone.'))return;
-    button.disabled=true;button.textContent='Clearing...';
-    try{const count=await clearCompanyTestData();alert('All test data is cleared. '+count+' cloud transfer record'+(count===1?' was':'s were')+' removed. Open Mobile while online so it can clear its local jobs too.')}catch(e){console.error(e);alert(e&&e.message||'The test data could not be cleared. Nothing local was removed.')}finally{button.disabled=false;button.textContent='Clear All Test Data'}
+    button.disabled=true;button.textContent='…';
+    try{const count=await clearCompanyTestData();alert('All test data is cleared. '+count+' cloud transfer record'+(count===1?' was':'s were')+' removed. Open Mobile while online so it can clear its local jobs too.')}catch(e){console.error(e);alert(e&&e.message||'The test data could not be cleared. Nothing local was removed.')}finally{button.disabled=false;button.textContent='·'}
   };
   setInterval(()=>{const owner=window.fittersiqUser&&window.fittersiqUser.role==='company_owner';button.style.display=owner?'':'none';checkCompanyReset()},3000);
 })();
