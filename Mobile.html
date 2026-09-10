@@ -3845,7 +3845,8 @@ function handlePanelIdentified(){
   state.pendingProblemAction=null;save();
   if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
   stopCamera();
-  const pt=part();
+  const pr=project(),cab=cabinet(),pt=part();
+  if(pr&&pt)setDamagePanelTarget(pr,cab,pt);
   $('#damagePanelOverlay').classList.remove('hidden');
   $('#damagePanelCode').value=pt?.code||'';
   $('#damageNote').focus();
@@ -3898,7 +3899,8 @@ $('#fpMarkMissing').onclick=()=>{
  if(typeof renderInstall==='function')renderInstall();
 };
 $('#fpMarkDamaged').onclick=()=>{
- const pt=part();if(!pt)return;
+ const pr=project(),cab=cabinet(),pt=part();if(!pr||!pt)return;
+ setDamagePanelTarget(pr,cab,pt);
  $('#damagePanelOverlay').classList.remove('hidden');
  $('#damagePanelCode').value=pt.code||'';
  $('#damageNote').focus();
@@ -4267,7 +4269,8 @@ $('#pcMarkMissing').onclick=()=>{
  if(typeof renderInstall==='function')renderInstall();
 };
 $('#pcMarkDamaged').onclick=()=>{
- const {pt}=resolveLastPanelCheckHit();if(!pt)return;
+ const {pr,cab,pt}=resolveLastPanelCheckHit();if(!pr||!pt)return;
+ setDamagePanelTarget(pr,cab,pt);
  $('#damagePanelOverlay').classList.remove('hidden');
  $('#damagePanelCode').value=pt.code||'';
  $('#damageNote').focus();
@@ -4309,6 +4312,7 @@ function renderPanelCheckMissingList(){
   state.currentProject=pr.id;state.currentCabinet=found.c.id;state.currentPart=found.pt.id;state.currentRoom=found.c.roomId||null;
   save();
   $('#pcMissingOverlay').classList.add('hidden');
+  setDamagePanelTarget(pr,found.c,found.pt);
   $('#damagePanelOverlay').classList.remove('hidden');
   $('#damagePanelCode').value=found.pt.code||'';
   $('#damageNote').focus();
@@ -4367,9 +4371,18 @@ $('#bompMarkRoomComplete').onclick=()=>{
  if(typeof exportJob==='function')exportJob(pr.id);
  renderInstall();
 };
-$("#openDamage").onclick=()=>{$("#damagePanelOverlay").classList.remove("hidden");$("#damagePanelCode").focus()};
-$("#closeDamagePanel").onclick=()=>$("#damagePanelOverlay").classList.add("hidden");
-$("#damagePanelOverlay").addEventListener("click",e=>{if(e.target.id==="damagePanelOverlay")$("#damagePanelOverlay").classList.add("hidden")});
+let damagePanelTarget=null;
+function setDamagePanelTarget(pr,cab,pt){damagePanelTarget=pr&&pt?{projectId:pr.id,cabinetId:cab&&cab.id,panelId:pt.id}:null}
+function resolveDamagePanelTarget(){
+ if(!damagePanelTarget)return null;
+ const pr=state.projects.find(x=>x.id===damagePanelTarget.projectId);
+ const cab=pr&&(pr.cabinets||[]).find(x=>x.id===damagePanelTarget.cabinetId);
+ const pt=cab&&(cab.parts||[]).find(x=>x.id===damagePanelTarget.panelId);
+ return pr&&cab&&pt?{pr,cab,pt}:null;
+}
+$("#openDamage").onclick=()=>{setDamagePanelTarget(null,null,null);$("#damagePanelOverlay").classList.remove("hidden");$("#damagePanelCode").focus()};
+$("#closeDamagePanel").onclick=()=>{setDamagePanelTarget(null,null,null);$("#damagePanelOverlay").classList.add("hidden")};
+$("#damagePanelOverlay").addEventListener("click",e=>{if(e.target.id==="damagePanelOverlay"){setDamagePanelTarget(null,null,null);$("#damagePanelOverlay").classList.add("hidden")}});
 let problemPanelCode=null;
 function openProblemPanelMenu(code){problemPanelCode=code;$("#problemPanelMenu").classList.remove("hidden")}
 function closeProblemPanelMenu(){$("#problemPanelMenu").classList.add("hidden")}
@@ -4385,6 +4398,8 @@ $("#problemPanelMissing").onclick=()=>{
  renderInstall();
 };
 $("#problemPanelDamaged").onclick=()=>{
+ const found=locatePanelByCode(problemPanelCode);
+ if(found)setDamagePanelTarget(found.pr,found.cab,found.pt);
  closeProblemPanelMenu();
  $("#damagePanelOverlay").classList.remove("hidden");
  $("#damagePanelCode").value=problemPanelCode||"";
@@ -4518,7 +4533,7 @@ function addJobLogEntry(p,text,photos,roomId){
 let damagePhotoData=null,lastDamageShare=null;
 $("#damagePhotoInput").onchange=e=>{const file=e.target.files&&e.target.files[0];if(!file)return;compressImage(file,data=>{damagePhotoData=data;$("#damagePhotoImg").src=data;$("#damagePhotoPreview").classList.remove("hidden")},()=>alert(t('msg.photoLoadFailed')))};
 $("#saveDamage").onclick=async()=>{
- const found=locatePanelByCode($("#damagePanelCode").value);
+ const found=resolveDamagePanelTarget()||locatePanelByCode($("#damagePanelCode").value);
  if(!found){alert(t('msg.panelNotFoundCheckNumber'));return}
  state.currentProject=found.pr.id;state.currentCabinet=found.cab.id;state.currentPart=found.pt.id;state.currentRoom=found.cab.roomId||null;
  const q=Math.max(1,Number(found.pt.qty)||1);
@@ -4532,7 +4547,7 @@ $("#saveDamage").onclick=async()=>{
  save();
  const studioResult=typeof exportJob==='function'?await exportJob(found.pr.id,true):null;
  lastDamageShare={code:found.pt.code,name:found.pt.name||"",note:found.pt.damageNote,job:found.pr.name||t('msg.jobFallback'),photo:damagePhotoData};
- $("#damagePanelCode").value=$("#damageNote").value="";
+ $("#damagePanelCode").value=$("#damageNote").value="";setDamagePanelTarget(null,null,null);
  $("#damagePhotoPreview").classList.add("hidden");$("#damagePhotoImg").src="";damagePhotoData=null;
  renderScanDashboard();
  if(typeof renderInstallDashboard==='function')renderInstallDashboard();
