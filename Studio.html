@@ -9636,7 +9636,24 @@ document.addEventListener('mousedown',function(e){
   setInterval(()=>{const owner=window.fittersiqUser&&window.fittersiqUser.role==='company_owner';button.style.display=owner?'':'none';checkCompanyReset()},3000);
 })();
 </script>
-<script src="fittersiq-help.js?v=20260911-clean1"></script>
-<script src="fittersiq-studio-ui.js?v=20260911-build70"></script>
+<script src="fittersiq-help.js?v=20260911-clean2"></script>
+<script src="fittersiq-studio-ui.js?v=20260911-build70b"></script>
+<script>
+(function(){
+  var key='fiq-auth-recovery-once-v1';
+  setTimeout(function(){
+    var checking=document.getElementById('fiqStateChecking');
+    var gate=document.getElementById('fiqAuthGate');
+    if(!gate||!checking||checking.hidden) return;
+    try{
+      if(sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key,'1');
+    }catch(e){}
+    var u=new URL(location.href);
+    u.searchParams.set('fiqfresh','20260911-authfix1');
+    location.replace(u.toString());
+  },7000);
+})();
+</script>
 </body>
 </html>
