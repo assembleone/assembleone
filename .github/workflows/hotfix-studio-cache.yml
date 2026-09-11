@@ -1,0 +1,39 @@
+name: Hotfix Studio cache
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, 'Hotfix Studio cache bootstrap')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Force fresh helper script
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('Studio.html')
+          s=p.read_text(encoding='utf-8')
+          old='<script src="fittersiq-help.js"></script>'
+          new='<script src="fittersiq-help.js?v=20260911-clean1"></script>'
+          count=s.count(old)
+          if count!=1:
+              raise SystemExit(f'Expected exactly one helper script tag, found {count}')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          rm -f .github/workflows/hotfix-studio-cache.yml
+          git config user.name "FittersIQ Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Studio.html .github/workflows/hotfix-studio-cache.yml
+          git commit -m "Hotfix: force fresh Studio helper script"
+          git push origin main
