@@ -33,23 +33,45 @@
     });
   }
 
-  function addTopLocation(){
-    var intro=document.querySelector('.installer-room-intro');
-    var customerRow=document.querySelector('.room-customer-row');
-    if(!intro||!customerRow)return;
-    customerRow.classList.add('fiq-location-hidden');
-    if(intro.querySelector('.fiq-room-map'))return;
-    var small=customerRow.querySelector('.room-customer-main small');
-    var addr=small?String(small.textContent||'').trim():'';
-    if(!addr||/no address/i.test(addr))return;
-    var map=document.createElement('button');
-    map.type='button';
-    map.className='fiq-room-map';
-    map.innerHTML='<span>📍</span><small>Directions</small>';
-    map.addEventListener('click',function(){
-      window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr),'_blank','noopener');
+  function getMobileState(){
+    try{return JSON.parse(localStorage.getItem('assembleone_mobile_v2')||'{}')}catch(e){return {}}
+  }
+
+  function projectForCardKey(key){
+    var id=String(key||'').split('::')[0];
+    var st=getMobileState();
+    return Array.isArray(st.projects)?st.projects.find(function(p){return String(p.id)===id}):null;
+  }
+
+  function openDirectionsForProject(p){
+    if(!p)return;
+    var url='';
+    if(p.geoLat!=null&&p.geoLng!=null){
+      url='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(String(p.geoLat)+','+String(p.geoLng));
+    }else if(String(p.address||'').trim()){
+      url='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(String(p.address).trim());
+    }
+    if(url)window.open(url,'_blank','noopener');
+  }
+
+  function addDirectionsToJobCards(){
+    document.querySelectorAll('#jobList .job').forEach(function(card){
+      if(card.querySelector('.fiq-job-directions'))return;
+      var open=card.querySelector('.open-job[data-card-key]');
+      var actions=card.querySelector('.mobile-job-actions');
+      if(!open||!actions)return;
+      var p=projectForCardKey(open.dataset.cardKey);
+      if(!p)return;
+      var hasAddress=String(p.address||'').trim();
+      var hasPin=p.geoLat!=null&&p.geoLng!=null;
+      if(!hasAddress&&!hasPin)return;
+      var btn=document.createElement('button');
+      btn.type='button';
+      btn.className='btn fiq-job-directions';
+      btn.innerHTML='📍 Directions';
+      btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();openDirectionsForProject(p)});
+      actions.insertBefore(btn,open);
     });
-    intro.appendChild(map);
   }
 
   function cleanRoomDetail(){
@@ -82,7 +104,6 @@
     }
 
     if(actions)actions.classList.add('fiq-duplicate-actions-hidden');
-    addTopLocation();
     makeDesignImagesFullscreen();
   }
 
@@ -100,16 +121,16 @@
       .fiq-studio-notes summary{padding:10px 12px!important;font-size:14px!important;font-weight:850!important}
       .fiq-studio-notes .installer-note-box{margin:0 10px 10px!important;padding:10px 11px!important;min-height:0!important;font-size:14px!important;line-height:1.35!important;border-radius:10px!important}
       .fiq-duplicate-actions-hidden{display:none!important}
-      .fiq-location-hidden{display:none!important}
-      .installer-room-intro{position:relative!important;padding-right:90px!important}
-      .fiq-room-map{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:68px;min-height:62px;border:2px solid #59b83a;border-radius:15px;background:#fff;color:#0B2545;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-weight:850}
-      .fiq-room-map span{font-size:24px;line-height:1}.fiq-room-map small{font-size:10px;font-weight:850}
+      .room-status-strip{display:none!important}
+      .room-customer-row{display:none!important}
+      .fiq-job-directions{background:#fff!important;color:#0B5DB3!important;border:2px solid #8fc0f1!important;font-weight:850!important;min-height:42px!important;white-space:nowrap!important}
+      .mobile-job-actions{display:flex!important;flex-direction:column!important;gap:7px!important;align-items:stretch!important}
       #designGuideSection .room-photo-tile img{transition:transform .12s ease}
       #designGuideSection .room-photo-tile img:active{transform:scale(.99)}
       .fiq-design-fullscreen{position:fixed;inset:0;z-index:10000;background:rgba(5,12,25,.96);display:flex;align-items:center;justify-content:center;padding:18px}
       .fiq-design-fullscreen img{max-width:100%;max-height:92vh;object-fit:contain;border-radius:10px}
       .fiq-design-fullscreen button{position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top));width:48px;height:48px;border-radius:50%;border:0;background:#fff;color:#0B2545;font-size:31px;line-height:1;z-index:2}
-      @media(max-width:390px){.fiq-room-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))!important}.installer-room-intro{padding-right:78px!important}.fiq-room-map{width:60px}}
+      @media(max-width:390px){.fiq-room-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))!important}.fiq-job-directions{font-size:13px!important;padding:8px 6px!important}}
     `;
     document.head.appendChild(style);
   }
@@ -118,7 +139,7 @@
   function apply(){
     if(busy)return;
     busy=true;
-    try{addCss();cleanRoomDetail()}finally{busy=false}
+    try{addCss();cleanRoomDetail();addDirectionsToJobCards()}finally{busy=false}
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
