@@ -179,18 +179,16 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
   #screen-mark .drawing-toolbar{
     display:grid;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto;
-    grid-template-areas:"customer room zoom zoom" "site site paste choose";
+    grid-template-areas:"customer room zoom zoom" "paste choose delete .";
     overflow:visible;
   }
   #screen-mark #drawingCustomerSelect{grid-area:customer;width:100%;min-width:0}
   #screen-mark #cabinetSelect{grid-area:room;width:100%;min-width:0}
-  #screen-mark #drawingViewSiteMeasurementBtn{grid-area:site;width:100%}
+  #screen-mark #drawingViewSiteMeasurementBtn{grid-column:1 / -1;grid-row:3;width:100%}
   #screen-mark #pasteScreenshotBtn{grid-area:paste}
-  #screen-mark #chooseDrawingBtn{grid-area:choose}
-  #screen-mark #deleteDrawingBtn{grid-column:3 / 5;grid-row:3;justify-self:end}
+  #screen-mark #chooseDrawingBtn{grid-area:choose;min-width:145px}
+  #screen-mark #deleteDrawingBtn{grid-area:delete;justify-self:start;align-self:center;padding:5px 8px;font-size:11px;min-width:0;white-space:nowrap}
   #screen-mark .zoom-controls{grid-area:zoom;width:auto;justify-content:flex-end;margin-left:auto}
-  #screen-mark #drawingViewSiteMeasurementBtn[hidden]~#pasteScreenshotBtn{grid-column:1;grid-row:2}
-  #screen-mark #chooseDrawingBtn{min-width:145px}
   .zoom-value{min-width:42px}
 }
 
