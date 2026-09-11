@@ -169,9 +169,9 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .drawing-canvas{position:relative;display:grid;place-items:center;transform-origin:top left;flex:0 0 auto}
 .drawing-canvas img{display:none;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain}
 .drawing-canvas iframe{width:100%;height:100%}
-#screen-mark #drawingCustomerSearch{min-width:185px;max-width:250px;font-weight:800;background:#fff}
+#screen-mark #drawingCustomerSelect{min-width:185px;max-width:250px;font-weight:800;background:#fff}
 #screen-mark #cabinetSelect{min-width:165px;max-width:250px;font-weight:800;background:#fff}
-#screen-mark #drawingCustomerSearch:disabled,#screen-mark #cabinetSelect:disabled{opacity:.6}
+#screen-mark #drawingCustomerSelect:disabled,#screen-mark #cabinetSelect:disabled{opacity:.6}
 .zoom-controls{display:flex;align-items:center;gap:3px;margin-left:auto}
 .zoom-controls .btn{min-width:34px;padding:5px 8px!important}
 .zoom-value{min-width:48px;text-align:center;font-size:11px;font-weight:800;color:var(--brown)}
@@ -182,14 +182,14 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
     grid-template-areas:"customer room zoom zoom" "site site paste choose";
     overflow:visible;
   }
-  #screen-mark #drawingCustomerSearch{grid-area:customer;width:100%;min-width:0}
+  #screen-mark #drawingCustomerSelect{grid-area:customer;width:100%;min-width:0}
   #screen-mark #cabinetSelect{grid-area:room;width:100%;min-width:0}
   #screen-mark #drawingViewSiteMeasurementBtn{grid-area:site;width:100%}
   #screen-mark #pasteScreenshotBtn{grid-area:paste}
-  #screen-mark .drawing-toolbar>.file-btn{grid-area:choose}
+  #screen-mark #chooseDrawingBtn{grid-area:choose}
   #screen-mark .zoom-controls{grid-area:zoom;width:auto;justify-content:flex-end;margin-left:auto}
   #screen-mark #drawingViewSiteMeasurementBtn[hidden]~#pasteScreenshotBtn{grid-column:1;grid-row:2}
-  #screen-mark #drawingViewSiteMeasurementBtn[hidden]~.file-btn{grid-column:2;grid-row:2}
+  #screen-mark #chooseDrawingBtn{min-width:145px}
   .zoom-value{min-width:42px}
 }
 
@@ -1646,13 +1646,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </aside>
 <div class="drawing-wrap">
 <div class="drawing-toolbar">
-<input aria-label="Choose customer" class="toolbar-select" id="drawingCustomerSearch" list="drawingCustomerList" placeholder="Choose customer" autocomplete="off"/>
-<datalist id="drawingCustomerList"></datalist>
-<select aria-label="Room or design" class="toolbar-select" id="cabinetSelect"></select>
+<select aria-label="Choose customer" class="toolbar-select" id="drawingCustomerSelect"><option value="">Choose customer</option></select>
+<select aria-label="Room guide" class="toolbar-select" id="cabinetSelect"><option value="">🏠 Room Guide</option></select>
 <button class="btn" type="button" id="drawingViewSiteMeasurementBtn" hidden>Site Measurements</button>
 <strong hidden="" id="drawingName">No drawing</strong>
 <button class="btn primary" id="pasteScreenshotBtn" data-i18n-title="studio.drawing.pasteScreenshotTitle" title="Paste a copied screenshot or image" data-i18n="studio.drawing.pasteDrawingBtn">Paste drawing</button>
-<label class="file-btn" data-i18n="studio.drawing.chooseDrawingLabel">Choose drawing<input accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.pdf" id="drawingInputTop" type="file"/></label>
+<button class="btn" id="chooseDrawingBtn" type="button" title="Open a drawing from this computer">📁 Choose drawing</button><input accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.pdf" id="drawingInputTop" type="file" hidden/>
 <div aria-label="Rooms zoom controls" data-i18n-aria="studio.drawing.zoomControlsAria" class="zoom-controls">
 <button class="btn" id="zoomOutBtn" data-i18n-title="studio.drawing.zoomOutTitle" title="Zoom out" type="button">−</button>
 <span class="zoom-value" id="zoomValue">100%</span>
@@ -2191,31 +2190,21 @@ function drawingRoomIcon(name){
  return "🏠";
 }
 function renderCabinetSelect(){
- const p=project(),customerSearch=$("#drawingCustomerSearch"),customerList=$("#drawingCustomerList"),s=$("#cabinetSelect");
- const customers=(state.customers||[]).filter(c=>c&&c.id&&String(c.name||"").trim()).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
- if(customerList)customerList.innerHTML=customers.map(c=>`<option value="${safe(c.name)}"></option>`).join("");
- if(customerSearch){
-  customerSearch.disabled=!p;
-  const linked=p?customers.find(c=>c.id===p.customerId):null;
-  customerSearch.value=linked?.name||"";
+ const p=project(),customerSelect=$("#drawingCustomerSelect"),s=$("#cabinetSelect");
+ // Match the Customer Library itself: only real customer records with at least one
+ // project/job, and never the internal placeholder record "No customer name".
+ const customers=(state.customers||[]).filter(c=>c&&c.id&&String(c.name||"").trim()&&String(c.name||"").trim().toLowerCase()!=="no customer name"&&customerProjects(c.id).length).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+ if(customerSelect){
+  customerSelect.innerHTML=`<option value="">Choose customer</option>`+customers.map(c=>`<option value="${safe(c.id)}">${safe(c.name)}</option>`).join("");
+  customerSelect.disabled=!p;
+  customerSelect.value=p?.customerId&&customers.some(c=>c.id===p.customerId)?p.customerId:"";
  }
  if(!s)return;
- const cabinets=p?.cabinets||[],rooms=p?.rooms||[];
- let html=`<option value="">🏠 Room / Design</option>`;
- rooms.forEach(r=>{
-  const label=`${drawingRoomIcon(r.name)} ${safe(r.name||"Room")}`;
-  const units=cabinets.filter(c=>c.roomId===r.id);
-  if(units.length){
-   html+=`<optgroup label="${label}">`+units.map(c=>`<option value="${c.id}">✏️ ${safe(c.name||"Design")}</option>`).join("")+`</optgroup>`;
-  }else{
-   html+=`<option disabled>${label} — no design yet</option>`;
-  }
- });
- const unassigned=cabinets.filter(c=>!c.roomId||!rooms.some(r=>r.id===c.roomId));
- if(unassigned.length)html+=`<optgroup label="🏠 Other / unassigned">`+unassigned.map(c=>`<option value="${c.id}">✏️ ${safe(c.name||"Design")}</option>`).join("")+`</optgroup>`;
- s.innerHTML=html;
+ // Room Guide is deliberately only a guide in Drawing. It uses the same original room
+ // icons as the project room picker; it does not expose cabinets/designs or alter room data.
+ const roomGuideTypes=(typeof studioRoomTypes!=="undefined"?studioRoomTypes:[]).filter(([name])=>name!=="Custom");
+ s.innerHTML=`<option value="">🏠 Room Guide</option>`+roomGuideTypes.map(([name,icon])=>`<option value="${safe(name)}">${icon} ${safe(typeof roomTypeLabel==="function"?roomTypeLabel(name):name)}</option>`).join("");
  s.disabled=!p;
- if(cabinets.some(c=>c.id===state.currentCabinet))s.value=state.currentCabinet;
 }
 // Shared by the Drawing workspace overlay and the site-room-details photo viewer so a
 // mark drawn on a specific site photo always renders identically wherever that photo
@@ -3677,13 +3666,11 @@ $("#openProjectInput").onchange=e=>{openProjectPackage(e.target.files[0]);e.targ
 // an explicit job id instead, so it can only ever delete the exact job the owner picked in
 // Customer Library -- never "whatever's currently open" and never any other job belonging
 // to that same customer.
-const drawingCustomerSearch=$("#drawingCustomerSearch");
-function commitDrawingCustomer(){
- const p=project();if(!p||!drawingCustomerSearch)return;
- const typed=String(drawingCustomerSearch.value||"").trim().toLowerCase();
- if(!typed)return;
- const c=(state.customers||[]).find(x=>String(x.name||"").trim().toLowerCase()===typed);
- if(!c)return;
+const drawingCustomerSelect=$("#drawingCustomerSelect");
+if(drawingCustomerSelect)drawingCustomerSelect.onchange=e=>{
+ const p=project();if(!p)return;
+ const customerId=e.target.value;if(!customerId)return;
+ const c=(state.customers||[]).find(x=>x.id===customerId);if(!c)return;
  p.customerId=c.id;
  p.customer=c.name||"";
  p.address=c.address||"";
@@ -3691,12 +3678,8 @@ function commitDrawingCustomer(){
  p.email=c.email||"";
  p.updatedAt=Date.now();
  save();renderAll();
-}
-if(drawingCustomerSearch){
- drawingCustomerSearch.addEventListener("change",commitDrawingCustomer);
- drawingCustomerSearch.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();commitDrawingCustomer();drawingCustomerSearch.blur();}});
-}
-$("#cabinetSelect").onchange=e=>{state.currentCabinet=e.target.value;state.currentPart=null;save();renderAll()};
+};
+$("#cabinetSelect").onchange=()=>{};
 const partNamePicker=$("#partNamePicker");
 if(partNamePicker){
   const storeTypedPartName=()=>{
@@ -3861,6 +3844,8 @@ function firstDroppedFile(dt){
  }
  return null;
 }
+const chooseDrawingBtn=$("#chooseDrawingBtn");
+if(chooseDrawingBtn)chooseDrawingBtn.onclick=()=>{const input=$("#drawingInputTop");if(input)input.click()};
 ["drawingInputTop"].forEach(id=>{
  const input=$("#"+id);
  if(input)input.addEventListener("change",async e=>{
