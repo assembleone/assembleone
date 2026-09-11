@@ -169,9 +169,9 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .drawing-canvas{position:relative;display:grid;place-items:center;transform-origin:top left;flex:0 0 auto}
 .drawing-canvas img{display:none;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain}
 .drawing-canvas iframe{width:100%;height:100%}
-#screen-mark #drawingCustomerSelect{min-width:185px;max-width:250px;font-weight:800;background:#fff}
+#screen-mark #drawingCustomerSearch{min-width:185px;max-width:250px;font-weight:800;background:#fff}
 #screen-mark #cabinetSelect{min-width:165px;max-width:250px;font-weight:800;background:#fff}
-#screen-mark #drawingCustomerSelect:disabled,#screen-mark #cabinetSelect:disabled{opacity:.6}
+#screen-mark #drawingCustomerSearch:disabled,#screen-mark #cabinetSelect:disabled{opacity:.6}
 .zoom-controls{display:flex;align-items:center;gap:3px;margin-left:auto}
 .zoom-controls .btn{min-width:34px;padding:5px 8px!important}
 .zoom-value{min-width:48px;text-align:center;font-size:11px;font-weight:800;color:var(--brown)}
@@ -182,7 +182,7 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
     grid-template-areas:"customer room zoom zoom" "site site paste choose";
     overflow:visible;
   }
-  #screen-mark #drawingCustomerSelect{grid-area:customer;width:100%;min-width:0}
+  #screen-mark #drawingCustomerSearch{grid-area:customer;width:100%;min-width:0}
   #screen-mark #cabinetSelect{grid-area:room;width:100%;min-width:0}
   #screen-mark #drawingViewSiteMeasurementBtn{grid-area:site;width:100%}
   #screen-mark #pasteScreenshotBtn{grid-area:paste}
@@ -1646,7 +1646,8 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </aside>
 <div class="drawing-wrap">
 <div class="drawing-toolbar">
-<select aria-label="Choose customer" class="toolbar-select" id="drawingCustomerSelect"><option value="">Choose customer</option></select>
+<input aria-label="Choose customer" class="toolbar-select" id="drawingCustomerSearch" list="drawingCustomerList" placeholder="Choose customer" autocomplete="off"/>
+<datalist id="drawingCustomerList"></datalist>
 <select aria-label="Room or design" class="toolbar-select" id="cabinetSelect"></select>
 <button class="btn" type="button" id="drawingViewSiteMeasurementBtn" hidden>Site Measurements</button>
 <strong hidden="" id="drawingName">No drawing</strong>
@@ -2190,17 +2191,31 @@ function drawingRoomIcon(name){
  return "🏠";
 }
 function renderCabinetSelect(){
- const p=project(),customerSelect=$("#drawingCustomerSelect"),s=$("#cabinetSelect");
- if(customerSelect){
-  const customers=(state.customers||[]).filter(c=>c&&c.id&&String(c.name||"").trim()).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
-  customerSelect.innerHTML=`<option value="">Choose customer</option>`+customers.map(c=>`<option value="${safe(c.id)}">${safe(c.name)}</option>`).join("");
-  customerSelect.disabled=!p;
-  customerSelect.value=p?.customerId&&customers.some(c=>c.id===p.customerId)?p.customerId:"";
+ const p=project(),customerSearch=$("#drawingCustomerSearch"),customerList=$("#drawingCustomerList"),s=$("#cabinetSelect");
+ const customers=(state.customers||[]).filter(c=>c&&c.id&&String(c.name||"").trim()).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+ if(customerList)customerList.innerHTML=customers.map(c=>`<option value="${safe(c.name)}"></option>`).join("");
+ if(customerSearch){
+  customerSearch.disabled=!p;
+  const linked=p?customers.find(c=>c.id===p.customerId):null;
+  customerSearch.value=linked?.name||"";
  }
  if(!s)return;
- s.innerHTML=p?.cabinets.length?p.cabinets.map(c=>`<option value="${c.id}">${drawingRoomIcon(c.name)} ${safe(c.name||"Room / Design")}</option>`).join(""):`<option value="">🏠 Room / Design</option>`;
+ const cabinets=p?.cabinets||[],rooms=p?.rooms||[];
+ let html=`<option value="">🏠 Room / Design</option>`;
+ rooms.forEach(r=>{
+  const label=`${drawingRoomIcon(r.name)} ${safe(r.name||"Room")}`;
+  const units=cabinets.filter(c=>c.roomId===r.id);
+  if(units.length){
+   html+=`<optgroup label="${label}">`+units.map(c=>`<option value="${c.id}">✏️ ${safe(c.name||"Design")}</option>`).join("")+`</optgroup>`;
+  }else{
+   html+=`<option disabled>${label} — no design yet</option>`;
+  }
+ });
+ const unassigned=cabinets.filter(c=>!c.roomId||!rooms.some(r=>r.id===c.roomId));
+ if(unassigned.length)html+=`<optgroup label="🏠 Other / unassigned">`+unassigned.map(c=>`<option value="${c.id}">✏️ ${safe(c.name||"Design")}</option>`).join("")+`</optgroup>`;
+ s.innerHTML=html;
  s.disabled=!p;
- if(p?.cabinets.some(c=>c.id===state.currentCabinet))s.value=state.currentCabinet;
+ if(cabinets.some(c=>c.id===state.currentCabinet))s.value=state.currentCabinet;
 }
 // Shared by the Drawing workspace overlay and the site-room-details photo viewer so a
 // mark drawn on a specific site photo always renders identically wherever that photo
@@ -3662,11 +3677,13 @@ $("#openProjectInput").onchange=e=>{openProjectPackage(e.target.files[0]);e.targ
 // an explicit job id instead, so it can only ever delete the exact job the owner picked in
 // Customer Library -- never "whatever's currently open" and never any other job belonging
 // to that same customer.
-const drawingCustomerSelect=$("#drawingCustomerSelect");
-if(drawingCustomerSelect)drawingCustomerSelect.onchange=e=>{
- const p=project();if(!p)return;
- const customerId=e.target.value;if(!customerId)return;
- const c=(state.customers||[]).find(x=>x.id===customerId);if(!c)return;
+const drawingCustomerSearch=$("#drawingCustomerSearch");
+function commitDrawingCustomer(){
+ const p=project();if(!p||!drawingCustomerSearch)return;
+ const typed=String(drawingCustomerSearch.value||"").trim().toLowerCase();
+ if(!typed)return;
+ const c=(state.customers||[]).find(x=>String(x.name||"").trim().toLowerCase()===typed);
+ if(!c)return;
  p.customerId=c.id;
  p.customer=c.name||"";
  p.address=c.address||"";
@@ -3674,7 +3691,11 @@ if(drawingCustomerSelect)drawingCustomerSelect.onchange=e=>{
  p.email=c.email||"";
  p.updatedAt=Date.now();
  save();renderAll();
-};
+}
+if(drawingCustomerSearch){
+ drawingCustomerSearch.addEventListener("change",commitDrawingCustomer);
+ drawingCustomerSearch.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();commitDrawingCustomer();drawingCustomerSearch.blur();}});
+}
 $("#cabinetSelect").onchange=e=>{state.currentCabinet=e.target.value;state.currentPart=null;save();renderAll()};
 const partNamePicker=$("#partNamePicker");
 if(partNamePicker){
