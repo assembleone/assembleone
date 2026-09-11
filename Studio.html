@@ -7,15 +7,25 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FittersIQ Studio</title>
-<meta http-equiv="refresh" content="0;url=Studio-Recovery.html?desktop=build81-completion-optional-scan">
-<script>
-(function(){
-  var target='Studio-Recovery.html?desktop=build81-completion-optional-scan';
-  try{ location.replace(target); }catch(e){ location.href=target; }
-})();
-</script>
 </head>
 <body style="font-family:Segoe UI,Arial,sans-serif;background:#0B2545;color:white;display:grid;place-items:center;min-height:100vh;margin:0">
-  <div style="text-align:center">Opening FittersIQ Studio…<br><a href="Studio-Recovery.html?desktop=build81-completion-optional-scan" style="color:white">Open Studio</a></div>
+  <div id="studioLoader" style="text-align:center">Opening FittersIQ Studio…</div>
+  <script>
+  (async function(){
+    try{
+      var url='Studio-Recovery.html?desktop=build82-clean-card-notes-home&ts='+Date.now();
+      var html=await fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('Could not load Studio');return r.text()});
+      var patch='<script src="studio-patch.js?build=82"><\/script>';
+      html=html.replace(/<\/body\s*>/i,patch+'</body>');
+      document.open();
+      document.write(html);
+      document.close();
+    }catch(e){
+      console.error(e);
+      var loader=document.getElementById('studioLoader');
+      if(loader)loader.innerHTML='Could not open Studio. Please refresh the page.';
+    }
+  })();
+  </script>
 </body>
 </html>
