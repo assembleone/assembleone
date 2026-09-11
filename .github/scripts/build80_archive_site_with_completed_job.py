@@ -1,0 +1,15 @@
+from pathlib import Path
+p=Path('Studio-Recovery.html')
+s=p.read_text(encoding='utf-8')
+
+anchor='''  function isIncomingMeasurementProject(p){return !!p.isNewFromSite}\n  function incomingMeasurementProjects(){return namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}'''
+insert='''  function isIncomingMeasurementProject(p){return !!p.isNewFromSite}\n  function incomingMeasurementProjects(){return namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}\n  function archiveMatchingIncomingSiteVisits(completedProject,completedRoom,now){\n    if(!completedProject)return [];\n    const customerId=completedProject.customerId||ensureCustomerForProject(completedProject);\n    if(!customerId)return [];\n    const norm=v=>String(v||'').trim().toLowerCase().replace(/\\s+/g,' ');\n    const customerName=norm(completedProject.customer);\n    const address=norm(completedProject.address);\n    const completedRoomNames=new Set((completedProject.rooms||[]).map(r=>norm(r&&r.name)).filter(Boolean));\n    if(completedRoom&&completedRoom.name)completedRoomNames.add(norm(completedRoom.name));\n    const candidates=(state.projects||[]).filter(q=>{\n      if(!q||q.id===completedProject.id||!q.isNewFromSite)return false;\n      if(q.customerId===customerId)return true;\n      return !q.customerId&&customerName&&norm(q.customer)===customerName;\n    });\n    if(!candidates.length)return [];\n    const strong=candidates.filter(q=>{\n      const sameAddress=address&&norm(q.address)===address;\n      const roomMatch=(q.rooms||[]).some(r=>completedRoomNames.has(norm(r&&r.name)));\n      return sameAddress||roomMatch;\n    });\n    const matches=strong.length?strong:(candidates.length===1?candidates:[]);\n    matches.forEach(q=>{\n      q.customerId=customerId;\n      if(!q.customer&&completedProject.customer)q.customer=completedProject.customer;\n      q.isNewFromSite=false;\n      q.siteVisitArchivedAt=now;\n      q.overviewFinishedAt=q.overviewFinishedAt||now;\n      q.movedToLibraryAt=now;\n      q.updatedAt=now;\n    });\n    return matches.map(q=>q.id);\n  }'''
+if s.count(anchor)!=1: raise SystemExit(f'archive helper anchor count {s.count(anchor)}')
+s=s.replace(anchor,insert,1)
+
+old='''      }else{p.overviewFinishedAt=now;p.movedToLibraryAt=now}\n      p.updatedAt=now;save();jorSelectedCardKeys.delete(room?cardKey({project:p,room}):p.id);renderAll();'''
+new='''      }else{p.overviewFinishedAt=now;p.movedToLibraryAt=now}\n      // Only when the parent job is genuinely filed do we also clear its matching\n      // incoming Site Job from New Project. Both records remain under the same Customer\n      // Library customerId; this only removes their front-screen clutter.\n      if(p.movedToLibraryAt)archiveMatchingIncomingSiteVisits(p,room,now);\n      p.updatedAt=now;save();jorSelectedCardKeys.delete(room?cardKey({project:p,room}):p.id);renderAll();'''
+if s.count(old)!=1: raise SystemExit(f'move-to-library completion block count {s.count(old)}')
+s=s.replace(old,new,1)
+
+p.write_text(s,encoding='utf-8')
