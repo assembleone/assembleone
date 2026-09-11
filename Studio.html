@@ -6472,8 +6472,9 @@ body.guide-only .a131-back-studio{display:block}
     // the boss sorts a problem from either place, it should stop showing as outstanding in
     // both, not just the one it was sorted from.
     const flagged=t.rows.filter(({pt})=>(pt.status==='missing'||pt.status==='damaged')&&!pt.attentionSorted);
+    const leadName=p.assignedFitter?((typeof window.a211FitterDisplayName==='function')?window.a211FitterDisplayName(p.assignedFitter):p.assignedFitter):'Not assigned';
     box.innerHTML=`<div class="install-progress-head"><strong>Installation Progress</strong><span>${t.installed} of ${t.total} panels fitted · ${t.pct}%</span></div>
-      <div class="install-progress-fitter"><span>Lead Fitter:</span>${typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):''}${typeof window.a211OtherFittersHtml==='function'?window.a211OtherFittersHtml(p):''}</div>
+      <div class="install-progress-fitter install-progress-fitter-text"><span>Lead Fitter:</span><strong>${safe(leadName)}</strong></div>
       <div class="install-progress-bar"><i style="width:${t.pct}%"></i></div>
       <div class="install-progress-stats">
         <div class="install-stat installed"><b>${t.installed}</b><span>Installed</span></div>
@@ -6495,7 +6496,6 @@ body.guide-only .a131-back-studio{display:block}
         setTimeout(()=>window.renderInstallProgress(),450);
       };
     });
-    if(typeof window.a211WireFitterRow==='function')window.a211WireFitterRow(box);
   };
   const oldRenderParts2=window.renderParts;
   window.renderParts=function(){const r=oldRenderParts2?oldRenderParts2.apply(this,arguments):undefined;window.renderInstallProgress();return r};
@@ -8332,6 +8332,8 @@ body.fiq-locked .app{display:none!important}
 .fitter-whatsapp-btn svg{width:23px;height:23px;display:block;fill:currentColor}.fitter-send-mobile-btn{flex:none;min-height:40px;border:1px solid #174E98;border-radius:10px;background:#174E98;color:#fff;padding:7px 12px;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap}.fitter-send-mobile-btn:hover{background:#0B2545}
 .install-progress-fitter{display:flex;align-items:flex-start;gap:8px;margin:8px 0 2px;font-size:13px;flex-wrap:wrap}
 .install-progress-fitter .fitter-row{max-width:220px}
+.install-progress-fitter-text{align-items:center;color:var(--muted);font-size:14px}
+.install-progress-fitter-text strong{color:var(--ink);font-weight:900}
 .fitter-team-others{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .fitter-chip{display:flex;align-items:center;gap:4px;background:#f7f8fb;border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 10px;font-size:12px;font-weight:700;color:var(--ink)}
 .fitter-chip-whatsapp,.fitter-chip-remove{flex:none;width:20px;height:20px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;font-size:11px}
