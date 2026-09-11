@@ -3206,6 +3206,15 @@ function renderRoomDetail(r){
   if(!requireLeadFitter(p,'finish this job'))return;
   if(!confirm('Complete '+(r.name||'this job')+' and send Job Completed to Studio?'))return;
   r.mobileJobCompleted=true;r.mobileJobCompletedAt=new Date().toISOString();
+  // Completion is a fitter decision, not a scan requirement. Keep panel/check data as
+  // optional progress only, and mirror completion onto the parent project when this is
+  // the only room or when every real room is now complete so Studio's general job card
+  // can turn green even for legacy/unassigned cabinet jobs.
+  const realRooms=(p.rooms||[]).filter(x=>x&&x.id);
+  if(realRooms.length<=1||realRooms.every(x=>!!x.mobileJobCompleted)){
+   p.mobileJobCompleted=true;
+   p.mobileJobCompletedAt=r.mobileJobCompletedAt;
+  }
   if(Array.isArray(state.activeCardKeys)){
    const thisKey=cardKey({project:p,room:r});
    state.activeCardKeys=state.activeCardKeys.filter(k=>k!==thisKey);

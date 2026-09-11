@@ -3385,7 +3385,7 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 // "this project was deleted, discard the packet" rather than a project to use.
 if((state.deletedProjectIds||[]).includes(incoming.id))return null;
 let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
-["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng","siteNotes","siteNotePhotos"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
+["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng","siteNotes","siteNotePhotos","mobileJobCompleted","mobileJobCompletedAt"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
 mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
 // Mobile can send several updates for the same job out of order (a dropped-signal
@@ -8204,7 +8204,8 @@ body.fiq-locked .app{display:none!important}
       const panelTotalHtml=siteVisit
         ?'<span class="jor-panel-total">'+siteRoomCount+' room'+(siteRoomCount===1?'':'s')+' · '+sitePhotos.length+' photo'+(sitePhotos.length===1?'':'s')+'</span>'
         :'<span class="jor-panel-total">'+t(pc.total===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[pc.total])+'</span>';
-      const jobCompleted=!siteVisit&&(card.room&&card.room!=='__general__'?!!card.room.mobileJobCompleted:!!p.mobileJobCompleted);
+      const mobileCompletedRooms=(p.rooms||[]).filter(r=>r&&r.mobileJobCompleted);
+      const jobCompleted=!siteVisit&&(card.room&&card.room!=='__general__'?!!card.room.mobileJobCompleted:(!!p.mobileJobCompleted||((p.rooms||[]).length===1&&mobileCompletedRooms.length===1)));
       const completionHtml=siteVisit?'':'<div class="jor-completion"><div class="jor-stat-label">Fitted</div><div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div></div>';
       const jobCompletedBadge=siteVisit?'':'<div class="jor-completed-badge '+(jobCompleted?'done':'')+'">JOB COMPLETED<b>'+(jobCompleted?'Yes ✓':'Waiting')+'</b></div>';
       const roomIdAttr=card.room===null?'':(card.room==='__general__'?'__general__':card.room==='__site_visit__'?'__site_visit__':safe(card.room.id));
