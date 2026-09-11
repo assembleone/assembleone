@@ -1,0 +1,115 @@
+name: Build 68 site measurement card
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-studio:
+    if: contains(github.event.head_commit.message, 'Build 68 workflow bootstrap')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch Studio site measurement card
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('Studio.html')
+          text = path.read_text(encoding='utf-8')
+          marker = 'id="build68-site-measure-card-style"'
+          if marker in text:
+              raise SystemExit('Build 68 card patch already present')
+
+          patch = r'''
+<style id="build68-site-measure-card-style">
+/* Build 68: the received Site Measurement card is now a reference record only.
+   Design creation is intentionally removed from this card while the linking workflow
+   is being designed separately. No measurement, photo, note, map or customer data is changed. */
+#siteRoomDetailsModal .site-room-kind-badge{display:none!important}
+#siteRoomDetailsModal .site-detail-actions{display:none!important}
+#siteRoomDetailsModal .site-room-body{display:flex!important;flex-direction:column!important;overflow:auto!important}
+#siteRoomDetailsModal .site-reference-pane{border-right:0!important;border-bottom:2px solid #eaf2f1!important;padding:10px 14px!important;flex:1 1 auto!important;min-height:0!important}
+#siteRoomDetailsModal .site-reference-frame{height:56vh!important;min-height:430px!important;max-height:650px!important;flex:0 0 auto!important}
+#siteRoomDetailsModal .site-design-pane{padding:10px 14px 14px!important;display:block!important;flex:0 0 auto!important}
+#siteRoomDetailsModal .site-notes-box{min-height:82px!important;max-height:none!important}
+#siteRoomDetailsModal .site-facts.site-facts-top{display:flex!important;gap:6px!important;align-items:center!important;flex-wrap:wrap!important;margin-top:7px!important}
+#siteRoomDetailsModal .site-facts.site-facts-top .site-fact{display:flex!important;align-items:baseline!important;gap:5px!important;width:auto!important;min-width:0!important;border:1px solid #d8e6e4!important;border-radius:999px!important;padding:3px 9px!important;background:#fff!important}
+#siteRoomDetailsModal .site-facts.site-facts-top .site-fact b{display:inline!important;font-size:12px!important;line-height:1.2!important}
+#siteRoomDetailsModal .site-facts.site-facts-top .site-fact span{font-size:10px!important;line-height:1.2!important}
+#siteRoomDetailsModal .site-room-status-row{margin-top:2px!important}
+#siteRoomDetailsModal .site-photo-measure-label{font-size:11px!important;padding-top:5px!important}
+@media(max-width:760px){
+ #siteRoomDetailsModal .site-room-head{align-items:flex-start!important}
+ #siteRoomDetailsModal .site-reference-frame{height:48vh!important;min-height:320px!important;max-height:none!important}
+ #siteRoomDetailsModal .site-facts.site-facts-top{margin-top:5px!important}
+ #siteRoomDetailsModal .site-facts.site-facts-top .site-fact{padding:2px 7px!important}
+ #siteRoomDetailsModal .site-notes-box{min-height:70px!important}
+}
+</style>
+<script id="build68-site-measure-card-script">
+(function(){
+  function cleanPhotoLabel(){
+    const label=document.getElementById('siteRoomPhotoMeasureLabel');
+    if(!label)return;
+    const text=String(label.textContent||'').trim();
+    const photoOnly=text.split('·')[0].trim();
+    if(photoOnly && text!==photoOnly)label.textContent=photoOnly;
+  }
+
+  function applySiteMeasureCard(){
+    const modal=document.getElementById('siteRoomDetailsModal');
+    if(!modal)return;
+    const title=document.getElementById('siteRoomDetailsTitle');
+    const titleWrap=title&&title.parentElement;
+    const meta=document.getElementById('siteRoomDetailsMeta');
+    const facts=modal.querySelector('.site-facts');
+    const badge=document.getElementById('siteRoomDetailsKindBadge');
+    const actions=modal.querySelector('.site-detail-actions');
+
+    if(meta && meta.textContent!=='Measurements from site')meta.textContent='Measurements from site';
+    if(badge)badge.style.display='none';
+    if(actions)actions.style.display='none';
+
+    if(facts && titleWrap && !facts.classList.contains('site-facts-top')){
+      facts.classList.add('site-facts-top');
+      titleWrap.insertBefore(facts,titleWrap.querySelector('.site-room-status-row'));
+    }
+    cleanPhotoLabel();
+  }
+
+  function init(){
+    applySiteMeasureCard();
+    const modal=document.getElementById('siteRoomDetailsModal');
+    if(!modal)return;
+    const observer=new MutationObserver(function(){
+      if(modal.classList.contains('open'))applySiteMeasureCard();
+    });
+    observer.observe(modal,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style']});
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+</script>
+'''
+
+          if '</body>' not in text:
+              raise SystemExit('Studio.html has no closing body tag')
+          text = text.replace('</body>', patch + '\n</body>', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/build68-site-measure-card.yml
+
+          git config user.name "FittersIQ Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Studio.html .github/workflows/build68-site-measure-card.yml
+          git commit -m "Build 68: simplify site measurement card"
+          git push origin main
