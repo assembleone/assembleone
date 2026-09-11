@@ -7592,6 +7592,38 @@ body.fiq-locked .app{display:none!important}
   // site visit into Job Overview. startDesignFromSiteRoom() clears this flag explicitly.
   function isIncomingMeasurementProject(p){return !!p.isNewFromSite}
   function incomingMeasurementProjects(){return namedProjects().filter(isIncomingMeasurementProject).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}
+  function archiveMatchingIncomingSiteVisits(completedProject,completedRoom,now){
+    if(!completedProject)return [];
+    const customerId=completedProject.customerId||ensureCustomerForProject(completedProject);
+    if(!customerId)return [];
+    const norm=v=>String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+    const customerName=norm(completedProject.customer);
+    const address=norm(completedProject.address);
+    const completedRoomNames=new Set((completedProject.rooms||[]).map(r=>norm(r&&r.name)).filter(Boolean));
+    if(completedRoom&&completedRoom.name)completedRoomNames.add(norm(completedRoom.name));
+    const candidates=(state.projects||[]).filter(q=>{
+      if(!q||q.id===completedProject.id||!q.isNewFromSite)return false;
+      if(q.customerId===customerId)return true;
+      return !q.customerId&&customerName&&norm(q.customer)===customerName;
+    });
+    if(!candidates.length)return [];
+    const strong=candidates.filter(q=>{
+      const sameAddress=address&&norm(q.address)===address;
+      const roomMatch=(q.rooms||[]).some(r=>completedRoomNames.has(norm(r&&r.name)));
+      return sameAddress||roomMatch;
+    });
+    const matches=strong.length?strong:(candidates.length===1?candidates:[]);
+    matches.forEach(q=>{
+      q.customerId=customerId;
+      if(!q.customer&&completedProject.customer)q.customer=completedProject.customer;
+      q.isNewFromSite=false;
+      q.siteVisitArchivedAt=now;
+      q.overviewFinishedAt=q.overviewFinishedAt||now;
+      q.movedToLibraryAt=now;
+      q.updatedAt=now;
+    });
+    return matches.map(q=>q.id);
+  }
   // A fully installed room stays in Job Overview until the office deliberately presses
   // Finish Job. Completion progress and archiving are separate decisions.
   function activeJobsList(){return namedProjects().filter(p=>!isIncomingMeasurementProject(p)&&!p.overviewFinishedAt)}
@@ -8235,6 +8267,10 @@ body.fiq-locked .app{display:none!important}
         const remainingRoomCard=cardsForProject(p).some(card=>card.room&&card.room!=='__general__'&&card.room!=='__site_visit__'&&!card.room.movedToLibraryAt);
         if(!remainingRoomCard){p.overviewFinishedAt=now;p.movedToLibraryAt=now}
       }else{p.overviewFinishedAt=now;p.movedToLibraryAt=now}
+      // Only when the parent job is genuinely filed do we also clear its matching
+      // incoming Site Job from New Project. Both records remain under the same Customer
+      // Library customerId; this only removes their front-screen clutter.
+      if(p.movedToLibraryAt)archiveMatchingIncomingSiteVisits(p,room,now);
       p.updatedAt=now;save();jorSelectedCardKeys.delete(room?cardKey({project:p,room}):p.id);renderAll();
       // Receipt only proves the fitters update arrived. This explicit, lightweight
       // command is what removes the matching completed card from Mobile.
