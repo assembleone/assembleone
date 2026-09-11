@@ -2,87 +2,33 @@ name: Build 71 separate site measurements from drawing
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: contains(github.event.head_commit.message, 'Build 71 bootstrap')
+    if: contains(github.event.head_commit.message, 'Build 71 run')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Remove Site Measurement to Drawing coupling
-        shell: bash
+      - name: Apply guarded Build 71 patch
+        run: python3 .github/scripts/build71_separate_site_measure.py
+      - name: Check Studio inline JavaScript
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p=Path('Studio.html')
-          s=p.read_text(encoding='utf-8')
-
-          old_apply=''' const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0];
- const ref=(room&&bestSiteReference(room).image)?bestSiteReference(room):bestSiteReference(merged);
- const roomId=room?.id||'';
- let c=merged.cabinets?.find(x=>x.roomId===roomId);
- if(!c){c={id:uid(),name:(room?.name||merged.name||'Site')+' drawing',roomId,drawing:null,drawingType:null,drawingName:'',parts:[]};merged.cabinets=merged.cabinets||[];merged.cabinets.push(c)}
- if(ref.image){c.drawing=ref.image;c.drawingType='image';c.drawingName=(room?.name||merged.name||'Site')+' site measurements';c.siteReference=true;c.beforePicture=ref.image;c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null}
- return {merged,cabinet:c};'''
-
-          new_apply=''' // Site Measurements are now permanent reference records only. They must never create
- // a Drawing cabinet or copy a site photo into the Drawing Area. Remove only old,
- // untouched auto-created Site Measurement cabinets so a real design with panels is
- // never deleted. Any genuine CAD/SketchUp design cabinet remains exactly as it is.
- merged.cabinets=(merged.cabinets||[]).filter(c=>!(c&&c.siteReference&&!(c.parts||[]).length&&(!c.drawingName||/site measurements/i.test(c.drawingName))));
- const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0]||null;
- return {merged,room};'''
-
-          if s.count(old_apply)!=1:
-              raise SystemExit(f'Expected one Site Measurement cabinet creation block, found {s.count(old_apply)}')
-          s=s.replace(old_apply,new_apply,1)
-
-          old_receive='''  const {merged,cabinet:c}=result;
-  switchToProject(merged.id,c.id);renderAll();await save();await paintSiteInbox();show('mark');
-  toast('Site Measure opened. Check every photo and measurement, then return and press Accept Site Measure.');'''
-
-          new_receive='''  const {merged,room}=result;
-  // Receiving a Site Measure no longer switches Studio into Drawing. Save the permanent
-  // customer/site record, refresh Studio, then open only the Site Measurement card.
-  await save();renderAll();await paintSiteInbox();
-  if(room&&typeof openSiteRoomDetails==='function')openSiteRoomDetails(merged.id,room.id);
-  else show('jobs');
-  toast('Site Measure opened. Check the photos and measurements on the Site Measurement card.');'''
-
-          if s.count(old_receive)!=1:
-              raise SystemExit(f'Expected one receiveSitePacket Drawing jump, found {s.count(old_receive)}')
-          s=s.replace(old_receive,new_receive,1)
-
-          # Guardrail: receiving Site Measurements must no longer copy them into a cabinet.
-          forbidden="c.drawingName=(room?.name||merged.name||'Site')+' site measurements'"
-          if forbidden in s:
-              raise SystemExit('Old Site Measurement to Drawing copy logic still exists')
-
-          p.write_text(s,encoding='utf-8')
-          PY
-
-          # Extract inline JS and check every script block that is plain JavaScript.
           python3 - <<'PY'
           from pathlib import Path
           import re
           s=Path('Studio.html').read_text(encoding='utf-8')
           blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S|re.I)
-          out=[]
-          for i,b in enumerate(blocks):
-              if b.strip():
-                  out.append(f'// block {i}\n'+b+'\n')
-          Path('/tmp/studio-inline.js').write_text('\n'.join(out),encoding='utf-8')
+          Path('/tmp/studio-inline.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
           PY
           node --check /tmp/studio-inline.js
-
+      - name: Commit Build 71
+        run: |
           rm -f .github/workflows/build71-separate-site-measure-from-drawing.yml
           git config user.name "FittersIQ Build Bot"
           git config user.email "actions@users.noreply.github.com"
