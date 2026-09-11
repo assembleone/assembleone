@@ -187,6 +187,7 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
   #screen-mark #drawingViewSiteMeasurementBtn{grid-area:site;width:100%}
   #screen-mark #pasteScreenshotBtn{grid-area:paste}
   #screen-mark #chooseDrawingBtn{grid-area:choose}
+  #screen-mark #deleteDrawingBtn{grid-column:3 / 5;grid-row:3;justify-self:end}
   #screen-mark .zoom-controls{grid-area:zoom;width:auto;justify-content:flex-end;margin-left:auto}
   #screen-mark #drawingViewSiteMeasurementBtn[hidden]~#pasteScreenshotBtn{grid-column:1;grid-row:2}
   #screen-mark #chooseDrawingBtn{min-width:145px}
@@ -1651,7 +1652,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <button class="btn" type="button" id="drawingViewSiteMeasurementBtn" hidden>Site Measurements</button>
 <strong hidden="" id="drawingName">No drawing</strong>
 <button class="btn primary" id="pasteScreenshotBtn" data-i18n-title="studio.drawing.pasteScreenshotTitle" title="Paste a copied screenshot or image" data-i18n="studio.drawing.pasteDrawingBtn">Paste drawing</button>
-<button class="btn" id="chooseDrawingBtn" type="button" title="Open a drawing from this computer">📁 Choose drawing</button><input accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.pdf" id="drawingInputTop" type="file" hidden/>
+<button class="btn" id="chooseDrawingBtn" type="button" title="Open a drawing from this computer">📁 Choose drawing</button><input accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.pdf" id="drawingInputTop" type="file" hidden/><button class="btn danger" id="deleteDrawingBtn" type="button" title="Remove the current drawing only">🗑 Delete drawing</button>
 <div aria-label="Rooms zoom controls" data-i18n-aria="studio.drawing.zoomControlsAria" class="zoom-controls">
 <button class="btn" id="zoomOutBtn" data-i18n-title="studio.drawing.zoomOutTitle" title="Zoom out" type="button">−</button>
 <span class="zoom-value" id="zoomValue">100%</span>
@@ -2221,6 +2222,7 @@ function renderSiteMeasurementOverlay(canvas,c){
 }
 function renderRooms(){
  const c=cabinet(),stage=$("#drawingStage"),canvas=$("#drawingCanvas"),img=$("#drawingImage"),pdf=$("#drawingPdf"),empty=$("#drawingEmpty");
+ const deleteDrawingBtn=$("#deleteDrawingBtn");if(deleteDrawingBtn)deleteDrawingBtn.disabled=!c?.drawing;
  // Zoom lives on state.drawingZoom (one shared value, not per-cabinet) purely as a cache
  // of "the cabinet on screen right now". Without the else branch, opening a cabinet that
  // has never been zoomed keeps whatever zoom the *previous* cabinet left behind, and the
@@ -3846,6 +3848,20 @@ function firstDroppedFile(dt){
 }
 const chooseDrawingBtn=$("#chooseDrawingBtn");
 if(chooseDrawingBtn)chooseDrawingBtn.onclick=()=>{const input=$("#drawingInputTop");if(input)input.click()};
+const deleteDrawingBtn=$("#deleteDrawingBtn");
+function deleteCurrentDrawing(){
+ const c=cabinet();
+ if(!c?.drawing)return;
+ if(!confirm("Delete this drawing? The customer, room, panels, notes and measurements will stay."))return;
+ c.drawing=null;
+ c.drawingType=null;
+ c.drawingName="";
+ c.viewState={};
+ save();
+ renderAll();
+ toast("Drawing deleted. You can paste or choose another drawing.");
+}
+if(deleteDrawingBtn)deleteDrawingBtn.onclick=deleteCurrentDrawing;
 ["drawingInputTop"].forEach(id=>{
  const input=$("#"+id);
  if(input)input.addEventListener("change",async e=>{
