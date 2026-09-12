@@ -39,7 +39,7 @@
         '<span class="fiq-switch-job-state">'+(isActive?'Working on':'Open')+'</span></button>';
     }).join(''):'<div class="fiq-switch-empty">No open jobs from Studio yet.</div>';
     overlay.innerHTML='<div class="fiq-switch-job-sheet" role="dialog" aria-modal="true" aria-label="Switch job">'+
-      '<div class="fiq-switch-job-head"><div><small>FITTESTIQ MOBILE</small><h2>Switch Job</h2></div><button type="button" class="fiq-switch-close" aria-label="Close">×</button></div>'+
+      '<div class="fiq-switch-job-head"><div><small>FITTERSIQ MOBILE</small><h2>Switch Job</h2></div><button type="button" class="fiq-switch-close" aria-label="Close">×</button></div>'+
       '<div class="fiq-switch-job-list">'+items+'</div></div>';
     overlay.addEventListener('click',function(e){if(e.target===overlay||e.target.closest('.fiq-switch-close'))closeSheet()});
     overlay.querySelectorAll('.fiq-switch-job-item').forEach(function(btn){
@@ -69,7 +69,9 @@
         importRow.appendChild(btn);
       }
     }
-    document.querySelectorAll('.mobile-open-jobs-head,.mobile-open-jobs-help').forEach(function(el){el.style.display='none'});
+    document.querySelectorAll('.mobile-open-jobs-head,.mobile-open-jobs-help,.mobile-bulk-toolbar').forEach(function(el){el.style.display='none'});
+    document.querySelectorAll('.mobile-job-select').forEach(function(el){el.remove()});
+    document.querySelectorAll('#jobList .job.mobile-job-selected').forEach(function(el){el.classList.remove('mobile-job-selected')});
   }
 
   function addCss(){
@@ -80,6 +82,7 @@
       #jobsImportRow{margin:0 0 10px!important}
       #fiqSwitchJobBtn{width:100%;min-height:52px;border:2px solid #6BBF3A;border-radius:15px;background:#f4fbea;color:#0B2545;display:flex;align-items:center;justify-content:center;gap:9px;font:inherit;font-weight:900;font-size:18px;box-shadow:0 4px 12px rgba(11,37,69,.06)}
       #fiqSwitchJobBtn span{font-size:23px;color:#4e9d28;line-height:1}
+      .mobile-job-select,.mobile-bulk-toolbar{display:none!important}
       .fiq-switch-job-overlay{position:fixed;inset:0;z-index:12000;background:rgba(5,18,34,.52);display:flex;align-items:flex-end;justify-content:center;padding:12px}
       .fiq-switch-job-sheet{width:min(560px,100%);max-height:78vh;overflow:auto;background:#f7f9fc;border-radius:22px 22px 16px 16px;padding:16px;box-shadow:0 -10px 35px rgba(0,0,0,.25)}
       .fiq-switch-job-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
