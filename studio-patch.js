@@ -314,6 +314,8 @@
       .fiq-cutting-intro{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;padding:11px 13px;border:1px solid #b8dba4;border-radius:12px;background:#f5fbf1}.fiq-cutting-intro strong{font-size:16px;color:#0B2545}.fiq-cutting-intro span{font-size:12px;color:#5B6B7C;font-weight:700}
       .fiq-cutting-row{width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left;border:1px solid #d6e3ef;border-radius:12px;background:#fff;padding:11px 12px;margin-bottom:8px;color:#0B2545}
       .fiq-cutting-row:hover{border-color:#69b949;background:#f8fff5}.fiq-cut-icon{font-size:23px;text-align:center}.fiq-cut-main{display:flex;flex-direction:column;gap:3px;min-width:0}.fiq-cut-main strong{font-size:15px}.fiq-cut-main small{font-size:11px;color:#5B6B7C;font-weight:700}.fiq-cut-open{font-size:12px;font-weight:900;color:#347d18;white-space:nowrap}
+      .supplier-action.export{background:#eef3ff!important;border-color:#8fa9df!important;color:#23364e!important}
+      .supplier-action.export:hover{border-color:#496fbf!important;box-shadow:0 0 0 4px rgba(73,111,191,.12)!important}
       @media(max-width:900px){
         .jor-card-top{grid-template-columns:68px minmax(0,1fr) auto!important}
         .jor-thumb{width:58px!important;height:58px!important;flex-basis:58px!important}

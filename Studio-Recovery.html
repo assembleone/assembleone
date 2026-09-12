@@ -1691,7 +1691,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong data-i18n="studio.supplier.printSupplierPackBtnLabel">Print Supplier Pack</strong><small data-i18n="studio.supplier.printSupplierPackBtnSub">Cutting list + matching QR stickers</small></button>
 </div>
 <div class="supplier-feedback" id="supplierActionStatus" aria-live="polite"></div>
-<h3 class="supplier-section-title" data-i18n="studio.finishJob.stagePanels">Panels</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
+<h3 class="supplier-section-title">Cutting List</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
 <div hidden><table><tbody id="cuttingBody"></tbody></table><button id="downloadCsvBtn"></button><button id="printCuttingBtn"></button></div>
 <div class="supplier-sticker-settings"><div><h3 data-i18n="studio.supplier.stickerSizeHeading">QR sticker size</h3><div class="muted" data-i18n="studio.supplier.stickerSizeSubtitle">Choose a common size or enter your own measurements.</div></div><div class="sticker-size-grid"><label><span data-i18n="studio.supplier.widthMmLabel">Width mm</span><input id="stickerWidth" inputmode="decimal" max="300" min="20" step="1" type="number" value="70"/></label><label><span data-i18n="studio.supplier.heightMmLabel">Height mm</span><input id="stickerHeight" inputmode="decimal" max="300" min="20" step="1" type="number" value="50"/></label></div><div aria-label="Quick sticker sizes" data-i18n-aria="studio.supplier.quickStickerSizesAria" class="size-presets"><button class="btn sticker-preset" data-h="30" data-w="50" type="button">50 × 30</button><button class="btn sticker-preset" data-h="50" data-w="70" type="button">70 × 50</button><button class="btn sticker-preset" data-h="75" data-w="100" type="button">100 × 75</button></div></div>
 <h3 class="supplier-section-title" data-i18n="studio.supplier.stickerPreviewHeading">Sticker preview</h3><div class="supplier-labels" id="supplierLabels"></div>
@@ -3437,14 +3437,29 @@ async function fetchCloudSitePackets(){
  try{
   const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
   if(!fs||!db||!user||!user.companyId)return [];
-  const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'),fs.where('status','==','waiting'));
+  // Include already-received packets because another open Studio tab may have
+  // acknowledged the update before the tab the owner is viewing could merge it.
+  const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'));
   const snap=await fs.getDocs(q);
   const out=[];
   snap.forEach(docSnap=>{const data=docSnap.data()||{};out.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
   return out;
  }catch(e){console.error('Cloud site job fetch failed',e);return []}
 }
-async function studioInboxPackets(){let out=[];try{const db=await studioSyncDb();const tx=db.transaction("studioInbox","readonly"),req=tx.objectStore("studioInbox").getAll();out=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close()}catch(e){}const cloud=await fetchCloudSitePackets();const map=new Map();[...out,...fallbackPackets(),...cloud].filter(sitePacketIsAfterTestReset).forEach(x=>map.set(x.syncId||x.exportedAt||Math.random(),x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
+function sitePacketNeedsMerge(pack){
+ const incoming=pack&&pack.project?pack.project:pack;
+ if(!incoming||!incoming.id)return false;
+ const base=(state.projects||[]).find(x=>x.id===incoming.id);
+ if(!base)return true;
+ const installationUpdate=!!(incoming.studioOrigin||(incoming.cabinets||[]).some(c=>(c.parts||[]).length));
+ if(pack.status==='received'&&!installationUpdate&&base.siteMeasureAcceptedAt)return false;
+ const incomingAt=Date.parse(pack.exportedAt||incoming._packetExportedAt||'');
+ const mergedAt=Number(base._lastMobilePacketAt)||0;
+ if(Number.isFinite(incomingAt)&&incomingAt>mergedAt)return true;
+ const known=new Set((base.jobLog||[]).map(x=>x&&x.id).filter(Boolean));
+ return (incoming.jobLog||[]).some(x=>x&&x.id&&!known.has(x.id));
+}
+async function studioInboxPackets(){let out=[];try{const db=await studioSyncDb();const tx=db.transaction("studioInbox","readonly"),req=tx.objectStore("studioInbox").getAll();out=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)});db.close()}catch(e){}const cloud=await fetchCloudSitePackets();const map=new Map();[...out,...fallbackPackets(),...cloud].filter(sitePacketIsAfterTestReset).filter(sitePacketNeedsMerge).forEach(x=>map.set(x.syncId||x.exportedAt||Math.random(),x));return [...map.values()].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)))}
 // Build 60: compare the complete Mobile manifest with what Studio actually has.
 function sitePacketInventory(p){
  const pictures=[],rooms=p.rooms||[];
@@ -3497,6 +3512,8 @@ async function applyOneSitePacket(pack,acknowledge=false){
  if(pack.exportedAt)incoming._packetExportedAt=pack.exportedAt;
  const merged=mergeMobileProject(incoming);
  if(merged){
+  const packetAt=Date.parse(pack.exportedAt||'');
+  if(Number.isFinite(packetAt))merged._lastMobilePacketAt=Math.max(Number(merged._lastMobilePacketAt)||0,packetAt);
   merged.siteTransferManifest=pack.transferManifest||merged.siteTransferManifest||null;
   merged.siteTransferVerification=verifySitePacket(pack);
  }
@@ -3642,7 +3659,7 @@ window.addEventListener('storage',e=>{if(e.key===DIRECT_SYNC_FALLBACK){paintSite
 function startCloudSitePacketListener(){
  const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
  if(window.__fiqCloudSitePacketUnsubscribe||!fs||!fs.onSnapshot||!db||!user||!user.companyId)return !!window.__fiqCloudSitePacketUnsubscribe;
- const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'),fs.where('status','==','waiting'));
+ const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'));
  window.__fiqCloudSitePacketUnsubscribe=fs.onSnapshot(q,snap=>{if(!snap.empty)autoImportSitePackets()},e=>{console.error('Live Mobile status listener failed',e);try{window.__fiqCloudSitePacketUnsubscribe()}catch(_){}window.__fiqCloudSitePacketUnsubscribe=null});
  return true;
 }
@@ -3656,6 +3673,10 @@ setInterval(()=>{if(typeof paintSiteInbox==='function')paintSiteInbox();if(typeo
 // first paint; the 30s interval and the explicit sign-in/broadcast/
 // storage/panel-check triggers already cover ongoing refresh.
 setTimeout(paintSiteInbox,200);
+window.paintSiteInbox=paintSiteInbox;
+window.autoImportSitePackets=autoImportSitePackets;
+window.recoverAllCompanySiteJobs=recoverAllCompanySiteJobs;
+window.startCloudSitePacketListener=startCloudSitePacketListener;
 
 async function openProjectPackage(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error();const i=state.projects.findIndex(x=>x.id===incoming.id);if(i>=0)state.projects[i]=incoming;else state.projects.unshift(incoming);switchToProject(incoming.id,incoming.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Project opened in FittersIQ Studio.")}catch(e){alert("This is not a valid FittersIQ project ZIP.")}}
 // #exportMobileBtn (Finish and Send, removed) called exportProjectToMobile() directly.
