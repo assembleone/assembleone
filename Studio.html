@@ -13,10 +13,15 @@
   <script>
   (async function(){
     try{
-      var url='Studio-Recovery.html?desktop=build82-clean-card-notes-home&ts='+Date.now();
+      var url='Studio-Recovery.html?desktop=build83-wrapper-fix&ts='+Date.now();
       var html=await fetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('Could not load Studio');return r.text()});
-      var patch='<script src="studio-patch.js?build=82"><\/script>';
-      html=html.replace(/<\/body\s*>/i,patch+'</body>');
+      var patch='<script src="studio-patch.js?build=83"><\/script>';
+      var bodyClose=html.toLowerCase().lastIndexOf('</body>');
+      if(bodyClose!==-1){
+        html=html.slice(0,bodyClose)+patch+html.slice(bodyClose);
+      }else{
+        html+=patch;
+      }
       document.open();
       document.write(html);
       document.close();
