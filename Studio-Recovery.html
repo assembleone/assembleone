@@ -3568,7 +3568,14 @@ async function autoImportSitePackets(){
    const packets=await studioInboxPackets();
    if(!packets.length)return false;
    for(const pack of packets){
-     try{await applyOneSitePacket(pack)}catch(e){console.error('Auto-import of one site packet failed',e)}
+     try{
+       // Installation updates are complete progress packets and can be acknowledged as
+       // soon as the durable Studio save succeeds. Site Measurements still wait for the
+       // owner's explicit acceptance so their photo and measurement manifest is reviewed.
+       const incoming=pack&&pack.project?pack.project:pack;
+       const installationUpdate=!!(incoming&&(incoming.studioOrigin||(incoming.cabinets||[]).some(c=>(c.parts||[]).length)));
+       await applyOneSitePacket(pack,installationUpdate);
+     }catch(e){console.error('Auto-import of one site packet failed',e)}
    }
    save();renderAll();
    return true;

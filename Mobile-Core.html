@@ -5272,7 +5272,23 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     let fallbackId=0;
     function walk(node){
       if(!node||typeof node!=="object")return;
-      if(Array.isArray(node)){node.forEach(walk);return}
+      if(Array.isArray(node)){
+        node.forEach(function(value,index){
+          if(typeof value==="string"&&value.startsWith("data:image/")){
+            const mediaId="media-"+(fallbackId++);
+            const extension=/^data:image\/png/i.test(value)?"png":"jpg";
+            const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+mediaId+"-item."+extension;
+            uploads.push((async function(){
+              const objectRef=storageFns.ref(storage,objectPath);
+              await storageFns.uploadString(objectRef,value,"data_url");
+              const url=await storageFns.getDownloadURL(objectRef);
+              if(!url)throw new Error("The uploaded photo could not be verified.");
+              node[index]=url;
+            })());
+          }else if(value&&typeof value==="object")walk(value);
+        });
+        return;
+      }
       Object.keys(node).forEach(function(key){
         const value=node[key];
         if(typeof value==="string"&&value.startsWith("data:image/")){
