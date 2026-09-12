@@ -2122,7 +2122,7 @@ if(appLang){appLang.value=localStorage.getItem('assembleone_language')||'en';app
   function selectedRoom(){try{return selectedStudioRoom()}catch(e){return null}}
   function openEdit(){
     const p=getProject(); if(!p) return;
-    const o=document.createElement('div'); o.className='a100-edit-dialog';
+    const o=document.createElement('div'); o.className='a100-edit-dialog a100-job-edit-dialog';
     o.innerHTML=`<div class="a100-edit-sheet"><h2>${st('common.editJobHeading')}</h2><label>${st('common.jobNameLabel')}<input id="a100JobName"></label><label>${st('common.customerLabel')}<input id="a100Customer"></label><div class="a100-edit-actions"><button class="btn" id="a100Cancel">${st('common.cancelBtn')}</button><button class="btn primary" id="a100Save">${st('common.saveBtn')}</button></div></div>`;
     document.body.appendChild(o); o.querySelector('#a100JobName').value=p.name||''; o.querySelector('#a100Customer').value=p.customer||'';
     const close=()=>o.remove(); o.querySelector('#a100Cancel').onclick=close; o.onclick=e=>{if(e.target===o)close()};
