@@ -93,14 +93,93 @@
     });
   }
 
+  function roomIdForOverviewRow(row){
+    var raw=String(row.getAttribute('data-card-room-id')||'');
+    if(!raw||raw==='__general__'||raw==='__site_visit__')return null;
+    return raw;
+  }
+
+  function updateCountFor(projectId,roomId){
+    var p=projectById(projectId);
+    if(!p)return 0;
+    try{
+      if(typeof jobLogEntriesForRoom==='function')return jobLogEntriesForRoom(p,roomId).length;
+    }catch(e){}
+    var log=Array.isArray(p.jobLog)?p.jobLog:[];
+    if(roomId)return log.filter(function(en){return String(en.roomId||'')===String(roomId)}).length;
+    return log.filter(function(en){return !en.roomId}).length;
+  }
+
+  function openSiteUpdates(projectId,roomId){
+    try{
+      if(typeof openJobNotesDialog==='function'){
+        openJobNotesDialog(projectId,roomId||null);
+        var sheet=document.querySelector('.job-notes-dialog-sheet');
+        if(sheet){
+          var h=sheet.querySelector('h2');
+          if(h)h.textContent='Site Updates';
+        }
+        return;
+      }
+    }catch(e){console.error('Could not open Site Updates',e)}
+  }
+
+  function addSiteUpdateButtons(){
+    document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function(row){
+      var projectId=String(row.getAttribute('data-open-job-card')||'');
+      if(!projectId)return;
+      var roomId=roomIdForOverviewRow(row);
+      var count=updateCountFor(projectId,roomId);
+      var btn=row.querySelector('.fiq-site-updates-btn');
+      if(!btn){
+        btn=document.createElement('button');
+        btn.type='button';
+        btn.className='fiq-site-updates-btn';
+        btn.title='Site Updates';
+        btn.setAttribute('aria-label','Site Updates');
+        btn.addEventListener('click',function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          openSiteUpdates(projectId,roomId);
+        });
+        row.appendChild(btn);
+      }
+      btn.textContent='Updates'+(count?' '+count:'');
+      btn.classList.toggle('has-updates',count>0);
+    });
+  }
+
+  function addStyles(){
+    if(document.getElementById('fiqStudioPatchStyles'))return;
+    var style=document.createElement('style');
+    style.id='fiqStudioPatchStyles';
+    style.textContent=`
+      .fiq-site-updates-btn{
+        position:absolute;left:22px;top:130px;z-index:4;
+        min-width:54px;height:24px;padding:2px 7px;
+        border:1px solid #AFC7E7;border-radius:999px;
+        background:#F6FAFF;color:#174E98;
+        font-size:10px;font-weight:900;line-height:1;
+        box-shadow:0 2px 6px rgba(23,78,152,.08);
+      }
+      .fiq-site-updates-btn.has-updates{border-color:#79BF55;background:#F1FAED;color:#347D18}
+      .fiq-site-updates-btn:hover{transform:translateY(-1px)}
+      @media(max-width:900px){.fiq-site-updates-btn{left:22px;top:126px}}
+      @media(max-width:600px){.fiq-site-updates-btn{left:14px;top:116px;min-width:50px;font-size:9px}}
+    `;
+    document.head.appendChild(style);
+  }
+
   var applying=false;
   function apply(){
     if(applying)return;
     applying=true;
     try{
+      addStyles();
       wireLogoHome();
       removeDocumentsTab();
       mirrorSiteNotesIntoNotesTab();
+      addSiteUpdateButtons();
     }finally{applying=false}
   }
 
