@@ -968,6 +968,7 @@ thead{background:#174E98;color:white}tbody tr:nth-child(even){background:#FAFAFC
 .a100-units{display:grid;gap:8px}.a100-unit-row{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px}.a100-unit-row strong{flex:1}.a100-unit-row .btn{min-height:42px;padding:8px 12px}
 .a100-empty-note{padding:12px;text-align:center;color:var(--muted);font-size:14px}
 .a100-edit-dialog{position:fixed;inset:0;z-index:700;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px}.a100-edit-sheet{width:min(620px,100%);max-height:calc(100dvh - 40px);overflow-y:auto;background:#fff;border-radius:24px;padding:20px;display:grid;gap:12px}.a100-edit-sheet h2{margin:0}.a100-edit-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.a100-job-edit-dialog .a100-edit-sheet{position:fixed;top:50dvh;left:50vw;transform:translate(-50%,-50%)}
 @media(max-width:700px){#screen-jobs>.toolbar{grid-template-columns:1fr 1fr}.a100-project-name{font-size:19px}.a100-room-text,.a100-add-unit{font-size:20px}.a100-room-icon{font-size:36px}}
 
 
