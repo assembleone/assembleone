@@ -46,14 +46,15 @@
     return out;
   }
 
-  function clearDrawingWorkspace(project){
-    (project.cabinets||[]).forEach(function(c){
-      if(!c)return;
-      c.drawing=null;
-      c.drawingType=null;
-      c.drawingName='';
-      c.hasStoredDrawing=false;
-    });
+  function clearActiveWorkspace(projectId){
+    try{
+      if(String(state.currentProject||'')!==String(projectId||''))return;
+      state.currentProject=null;
+      state.currentCabinet=null;
+      state.currentPart=null;
+      state.currentRoom=null;
+      state.screen='jobs';
+    }catch(e){}
   }
 
   function installSendProtection(){
@@ -64,7 +65,6 @@
     window.exportProjectToMobile=async function(target){
       var p=target||((typeof project==='function')?project():null);
       if(!p)return original.apply(this,arguments);
-      var firstSend=!p.lastMobileSync;
       var beforeSync=p.lastMobileSync||'';
       var captured=await capturePreviews(p);
       var result=await original.apply(this,arguments);
@@ -74,9 +74,10 @@
           var c=(p.cabinets||[]).find(function(x){return String(x.id)===String(item.id)});
           if(c){c.sentDrawingPreview=item.preview;c.sentDrawingPreviewAt=p.lastMobileSync}
         });
-        if(firstSend)clearDrawingWorkspace(p);
+        clearActiveWorkspace(p.id);
         try{if(typeof save==='function')save()}catch(e){}
         try{if(typeof renderAll==='function')renderAll()}catch(e){}
+        try{if(typeof show==='function')show('jobs')}catch(e){}
         setTimeout(applyFrozenPreviews,30);
       }
       return result;
