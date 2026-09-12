@@ -30,6 +30,94 @@
     return null;
   }
 
+  function currentCustomerProjects(){
+    try{
+      var customerId=state.currentCustomerCard;
+      if(!customerId)return [];
+      return (state.projects||[]).filter(function(p){return String(p.customerId||'')===String(customerId)}).sort(function(a,b){return (b.updatedAt||0)-(a.updatedAt||0)});
+    }catch(e){return []}
+  }
+
+  function panelQtyForCabinets(cabinets){
+    return (cabinets||[]).reduce(function(total,c){
+      return total+(c.parts||[]).reduce(function(sum,pt){return sum+Math.max(1,Number(pt.qty)||1)},0);
+    },0);
+  }
+
+  function cuttingListRows(){
+    var rows=[];
+    currentCustomerProjects().forEach(function(p){
+      var rooms=(p.rooms||[]).filter(function(r){return r&&r.id});
+      rooms.forEach(function(room){
+        var cabinets=(p.cabinets||[]).filter(function(c){return String(c.roomId||'')===String(room.id)});
+        if(!cabinets.length)return;
+        var qty=panelQtyForCabinets(cabinets);
+        if(!qty)return;
+        rows.push({project:p,room:room,qty:qty,label:room.name||cabinets[0].name||p.name||'Job'});
+      });
+      var unroomed=(p.cabinets||[]).filter(function(c){return !c.roomId});
+      if(unroomed.length){
+        var qty=panelQtyForCabinets(unroomed);
+        if(qty)rows.push({project:p,room:null,qty:qty,label:p.name||unroomed[0].name||'Job'});
+      }
+    });
+    return rows;
+  }
+
+  function openCutting(projectId,roomId){
+    try{
+      if(typeof openCuttingListForRoom==='function'){
+        openCuttingListForRoom(projectId,roomId||'');
+        return;
+      }
+    }catch(e){console.error('Could not open Cutting List',e)}
+  }
+
+  function addCustomerCuttingListTab(){
+    var tabs=document.querySelector('.customer-card-tabs');
+    if(!tabs||tabs.querySelector('.fiq-cutting-tab'))return;
+    var photos=tabs.querySelector('.customer-tab[data-tab="photos"]');
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.className='customer-tab fiq-cutting-tab';
+    btn.setAttribute('role','tab');
+    btn.setAttribute('aria-selected','false');
+    btn.textContent='Cutting List';
+    if(photos&&photos.nextSibling)tabs.insertBefore(btn,photos.nextSibling);else tabs.appendChild(btn);
+
+    var panel=document.createElement('div');
+    panel.className='customer-tab-panel fiq-cutting-panel';
+    panel.hidden=true;
+    var existingPanels=document.querySelectorAll('.customer-tab-panel');
+    var anchor=existingPanels.length?existingPanels[existingPanels.length-1]:null;
+    if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(panel,anchor.nextSibling);
+    else tabs.parentNode.appendChild(panel);
+
+    function renderPanel(){
+      var rows=cuttingListRows();
+      if(!rows.length){panel.innerHTML='<div class="empty">No cutting lists saved for this customer yet.</div>';return}
+      panel.innerHTML='<div class="fiq-cutting-intro"><strong>Cutting Lists</strong><span>Open a job to see every panel measurement and its QR labels.</span></div>'+rows.map(function(item){
+        return '<button type="button" class="fiq-cutting-row" data-fiq-cut-project="'+String(item.project.id)+'" data-fiq-cut-room="'+String(item.room?item.room.id:'')+'">'+
+          '<span class="fiq-cut-icon">📋</span><span class="fiq-cut-main"><strong>'+escapeHtml(item.label)+'</strong><small>'+item.qty+' panel'+(item.qty===1?'':'s')+' · measurements · QR labels</small></span><span class="fiq-cut-open">Open ›</span></button>';
+      }).join('');
+      panel.querySelectorAll('[data-fiq-cut-project]').forEach(function(row){
+        row.addEventListener('click',function(){openCutting(row.getAttribute('data-fiq-cut-project'),row.getAttribute('data-fiq-cut-room'))});
+      });
+    }
+
+    function activate(){
+      renderPanel();
+      tabs.querySelectorAll('.customer-tab').forEach(function(x){x.classList.remove('active');x.setAttribute('aria-selected','false')});
+      document.querySelectorAll('.customer-tab-panel').forEach(function(x){x.hidden=true});
+      btn.classList.add('active');btn.setAttribute('aria-selected','true');panel.hidden=false;
+    }
+    btn.addEventListener('click',activate);
+  }
+
+  function escapeHtml(value){
+    return String(value==null?'':value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]});
+  }
+
   function addGeneralSiteNote(notesPanel,p){
     if(!p)return;
     var text=String(p.siteNotes||p.siteRoomNotes||'').trim();
@@ -89,13 +177,10 @@
     document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function(row){
       var projectId=String(row.getAttribute('data-open-job-card')||'');if(!projectId)return;
       var roomId=roomIdForOverviewRow(row),count=updateCountFor(projectId,roomId);
-
       row.querySelectorAll('.fiq-site-updates-btn').forEach(function(x){x.remove()});
-
       var main=row.querySelector('.jor-main'),room=row.querySelector('.jor-room'),name=row.querySelector('.jor-name'),summary=row.querySelector('.jor-summary-line');
       if(main&&room&&name&&room.previousElementSibling!==null){main.insertBefore(room,name)}
       if(summary)summary.style.display='none';
-
       var completion=row.querySelector('.jor-completion');
       if(completion){
         completion.className='jor-stat fiq-site-update-stat';
@@ -138,6 +223,10 @@
       .fiq-site-update-stat{cursor:pointer!important;border-color:#b6dca3!important;background:#f5fbf1!important}
       .fiq-site-update-stat.has-updates{border-color:#69b949!important;background:#eef9e8!important}
       .fiq-site-update-stat.has-updates .jor-stat-label,.fiq-site-update-stat.has-updates .jor-stat-value{color:#347d18!important}
+      .fiq-cutting-tab{font-weight:900!important}
+      .fiq-cutting-intro{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;padding:11px 13px;border:1px solid #b8dba4;border-radius:12px;background:#f5fbf1}.fiq-cutting-intro strong{font-size:16px;color:#0B2545}.fiq-cutting-intro span{font-size:12px;color:#5B6B7C;font-weight:700}
+      .fiq-cutting-row{width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left;border:1px solid #d6e3ef;border-radius:12px;background:#fff;padding:11px 12px;margin-bottom:8px;color:#0B2545}
+      .fiq-cutting-row:hover{border-color:#69b949;background:#f8fff5}.fiq-cut-icon{font-size:23px;text-align:center}.fiq-cut-main{display:flex;flex-direction:column;gap:3px;min-width:0}.fiq-cut-main strong{font-size:15px}.fiq-cut-main small{font-size:11px;color:#5B6B7C;font-weight:700}.fiq-cut-open{font-size:12px;font-weight:900;color:#347d18;white-space:nowrap}
       @media(max-width:900px){
         .jor-card-top{grid-template-columns:68px minmax(0,1fr) auto!important}
         .jor-thumb{width:58px!important;height:58px!important;flex-basis:58px!important}
@@ -162,7 +251,7 @@
   var applying=false;
   function apply(){
     if(applying)return;applying=true;
-    try{addStyles();wireLogoHome();removeDocumentsTab();mirrorSiteNotesIntoNotesTab();polishOverviewCards()}finally{applying=false}
+    try{addStyles();wireLogoHome();removeDocumentsTab();addCustomerCuttingListTab();mirrorSiteNotesIntoNotesTab();polishOverviewCards()}finally{applying=false}
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
