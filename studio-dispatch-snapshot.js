@@ -102,10 +102,57 @@
     });
   }
 
+  function archiveIncomingSiteJob(projectId){
+    var p=projectById(projectId);if(!p)return;
+    var customer=p.customer||p.name||'this site job';
+    if(!confirm('Move '+customer+' to the Customer Library? The photos, measurements and notes will stay there.'))return;
+    var now=Date.now();
+    try{if(typeof ensureCustomerForProject==='function')ensureCustomerForProject(p)}catch(e){}
+    p.isNewFromSite=false;
+    p.siteVisitArchivedAt=now;
+    p.overviewFinishedAt=p.overviewFinishedAt||now;
+    p.movedToLibraryAt=now;
+    p.updatedAt=now;
+    try{if(typeof save==='function')save()}catch(e){}
+    document.getElementById('newProjectLanding')?.remove();
+    try{if(typeof renderAll==='function')renderAll()}catch(e){}
+    try{if(typeof show==='function')show('customers')}catch(e){}
+  }
+
+  function addIncomingLibraryButtons(){
+    document.querySelectorAll('.incoming-project-select-row').forEach(function(row){
+      var card=row.querySelector('[data-open-incoming-project]');
+      if(!card||row.querySelector('.fiq-file-site-job'))return;
+      var btn=document.createElement('button');
+      btn.type='button';
+      btn.className='fiq-file-site-job';
+      btn.textContent='Customer Library';
+      btn.title='File this Site Measure in Customer Library';
+      btn.addEventListener('click',function(e){
+        e.preventDefault();e.stopPropagation();
+        archiveIncomingSiteJob(card.getAttribute('data-open-incoming-project'));
+      });
+      row.appendChild(btn);
+    });
+  }
+
+  function addArchiveStyles(){
+    if(document.getElementById('fiqSiteArchiveStyles'))return;
+    var s=document.createElement('style');
+    s.id='fiqSiteArchiveStyles';
+    s.textContent=`
+      .incoming-project-select-row{grid-template-columns:auto minmax(0,1fr) auto!important}
+      .fiq-file-site-job{align-self:center;border:1.5px solid #69b949;border-radius:11px;background:#eef9e8;color:#347d18;padding:8px 10px;font:inherit;font-size:11px;font-weight:900;white-space:nowrap;box-shadow:0 2px 7px rgba(52,125,24,.08)}
+      .fiq-file-site-job:hover{background:#e1f4d7}
+      @media(max-width:700px){.incoming-project-select-row{grid-template-columns:auto minmax(0,1fr)!important}.fiq-file-site-job{grid-column:2;justify-self:end;margin-top:-2px}}
+    `;
+    document.head.appendChild(s);
+  }
+
   var applying=false;
   function apply(){
     if(applying)return;applying=true;
-    try{installSendProtection();applyFrozenPreviews()}finally{applying=false}
+    try{installSendProtection();applyFrozenPreviews();addArchiveStyles();addIncomingLibraryButtons()}finally{applying=false}
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
