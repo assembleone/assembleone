@@ -193,6 +193,83 @@
     });
   }
 
+
+  function addCompactCustomerSearch(){
+    var select=document.getElementById('drawingCustomerSelect');
+    if(!select)return;
+    var wrap=select.closest('.fiq-customer-search');
+    if(!wrap){
+      wrap=document.createElement('div');
+      wrap.className='fiq-customer-search';
+      select.parentNode.insertBefore(wrap,select);
+      wrap.appendChild(select);
+      select.classList.add('fiq-original-customer-select');
+      var icon=document.createElement('span');
+      icon.className='fiq-customer-search-icon';
+      icon.setAttribute('aria-hidden','true');
+      icon.textContent='⌕';
+      var input=document.createElement('input');
+      input.type='search';
+      input.className='fiq-customer-search-input';
+      input.setAttribute('aria-label','Search customers');
+      input.setAttribute('autocomplete','off');
+      input.placeholder='Choose customer';
+      var menu=document.createElement('div');
+      menu.className='fiq-customer-search-menu';
+      menu.hidden=true;
+      wrap.appendChild(icon);
+      wrap.appendChild(input);
+      wrap.appendChild(menu);
+
+      function options(){
+        return Array.from(select.options).filter(function(o){return o.value}).map(function(o){return {id:o.value,name:o.textContent.trim()}});
+      }
+      function close(){menu.hidden=true;input.setAttribute('aria-expanded','false')}
+      function choose(item){
+        select.value=item.id;
+        input.value=item.name;
+        close();
+        select.dispatchEvent(new Event('change',{bubbles:true}));
+        input.focus();
+      }
+      function paint(){
+        var q=input.value.trim().toLowerCase();
+        var items=options().filter(function(item){return !q||item.name.toLowerCase().indexOf(q)!==-1});
+        menu.innerHTML='';
+        if(!items.length){
+          var empty=document.createElement('div');empty.className='fiq-customer-search-empty';empty.textContent='No customer found';menu.appendChild(empty);
+        }else{
+          items.forEach(function(item){
+            var button=document.createElement('button');
+            button.type='button';
+            button.className='fiq-customer-search-option';
+            button.textContent=item.name;
+            button.addEventListener('mousedown',function(e){e.preventDefault();choose(item)});
+            menu.appendChild(button);
+          });
+        }
+        menu.hidden=false;input.setAttribute('aria-expanded','true');
+      }
+      input.addEventListener('focus',function(){input.select();paint()});
+      input.addEventListener('input',paint);
+      input.addEventListener('keydown',function(e){
+        if(e.key==='Escape'){close();input.blur();return}
+        if(e.key==='Enter'){
+          var first=menu.querySelector('.fiq-customer-search-option');
+          if(first){e.preventDefault();first.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}
+        }
+      });
+      document.addEventListener('mousedown',function(e){if(!wrap.contains(e.target))close()});
+    }
+    var input=wrap.querySelector('.fiq-customer-search-input');
+    if(!input)return;
+    input.disabled=select.disabled;
+    if(document.activeElement!==input){
+      var selected=select.options[select.selectedIndex];
+      input.value=selected&&selected.value?selected.textContent.trim():'';
+    }
+  }
+
   function addStyles(){
     if(document.getElementById('fiqStudioPatchStyles'))return;
     var style=document.createElement('style');style.id='fiqStudioPatchStyles';
@@ -223,6 +300,16 @@
       .fiq-site-update-stat{cursor:pointer!important;border-color:#b6dca3!important;background:#f5fbf1!important}
       .fiq-site-update-stat.has-updates{border-color:#69b949!important;background:#eef9e8!important}
       .fiq-site-update-stat.has-updates .jor-stat-label,.fiq-site-update-stat.has-updates .jor-stat-value{color:#347d18!important}
+      .fiq-customer-search{position:relative;min-width:185px;max-width:250px;flex:0 1 250px}
+      .fiq-original-customer-select{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+      .fiq-customer-search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);z-index:2;color:#0B2545;font-size:20px;font-weight:900;pointer-events:none}
+      .fiq-customer-search-input{width:100%!important;min-height:42px!important;margin:0!important;padding:8px 30px 8px 36px!important;border:2px solid #90aef0!important;border-radius:12px!important;background:#fff!important;color:#10233f!important;font-weight:800!important}
+      .fiq-customer-search-input:focus{outline:3px solid rgba(43,98,217,.16)!important;border-color:#2b62d9!important}
+      .fiq-customer-search-input::-webkit-search-cancel-button{cursor:pointer}
+      .fiq-customer-search-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:80;max-height:220px;overflow:auto;border:1px solid #c9d7e8;border-radius:10px;background:#fff;box-shadow:0 10px 26px rgba(11,37,69,.18);padding:4px}
+      .fiq-customer-search-option{display:block;width:100%;border:0;border-radius:7px;background:#fff;color:#10233f;text-align:left;padding:9px 10px;font-size:14px;font-weight:750}
+      .fiq-customer-search-option:hover,.fiq-customer-search-option:focus{background:#edf4ff;outline:none}
+      .fiq-customer-search-empty{padding:10px;color:#66778b;font-size:12px;font-weight:700}
       .fiq-cutting-tab{font-weight:900!important}
       .fiq-cutting-intro{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;padding:11px 13px;border:1px solid #b8dba4;border-radius:12px;background:#f5fbf1}.fiq-cutting-intro strong{font-size:16px;color:#0B2545}.fiq-cutting-intro span{font-size:12px;color:#5B6B7C;font-weight:700}
       .fiq-cutting-row{width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left;border:1px solid #d6e3ef;border-radius:12px;background:#fff;padding:11px 12px;margin-bottom:8px;color:#0B2545}
@@ -251,7 +338,7 @@
   var applying=false;
   function apply(){
     if(applying)return;applying=true;
-    try{addStyles();wireLogoHome();removeDocumentsTab();addCustomerCuttingListTab();mirrorSiteNotesIntoNotesTab();polishOverviewCards()}finally{applying=false}
+    try{addStyles();wireLogoHome();removeDocumentsTab();addCompactCustomerSearch();addCustomerCuttingListTab();mirrorSiteNotesIntoNotesTab();polishOverviewCards()}finally{applying=false}
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
