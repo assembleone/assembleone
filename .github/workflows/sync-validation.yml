@@ -1,7 +1,7 @@
 name: Sync repair validation
 on:
   push:
-    branches: [fix/resume-two-way-sync]
+    branches: [fix/resume-two-way-sync, fix/studio-memory-workspace]
 permissions:
   contents: read
 jobs:
@@ -21,3 +21,5 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Test persistent outbox in Chromium
         run: node tests/sync-outbox.cjs
+      - name: Test Studio saves and workspace completion in Chromium
+        run: node tests/studio-workspace.cjs

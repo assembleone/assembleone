@@ -1889,6 +1889,26 @@ function switchToProject(id,cabinetId,partId){
  if(typeof renderProject==='function')renderProject();
 }
 
+async function finishDesignToCard(projectId){
+ const p=state.projects.find(x=>x.id===projectId);
+ if(!p)throw new Error('The design no longer exists.');
+ const selection={currentProject:state.currentProject,currentCabinet:state.currentCabinet,currentPart:state.currentPart,currentRoom:state.currentRoom,screen:state.screen};
+ if(typeof ensureCustomerForProject==='function')ensureCustomerForProject(p);
+ if(await save()!==true)throw new Error('The design could not be saved.');
+ // Keep all job content in the existing record used by its card and Customer Library.
+ // Only release the editor selection, and never close another job opened while saving.
+ if(selection.currentProject!==projectId||Object.keys(selection).some(k=>state[k]!==selection[k]))return;
+ Object.assign(state,{currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,currentCustomerCard:null,lastChosenPartName:'',selectedCopy:-1,focusMarker:false,numbering:false,drawingZoom:1,screen:'jobs'});
+ window.__jorCombinedCheck=null;
+ window.fiqQtyUnlockedPartId=null;
+ if(await save()!==true){
+   Object.assign(state,selection);
+   renderAll();
+   throw new Error('The cleared workspace could not be saved.');
+ }
+ renderAll();
+}
+
 function save(){
  try{
    localStorage.setItem(STORE,JSON.stringify(state));
@@ -2243,7 +2263,7 @@ function renderRooms(){
    viewBtn.hidden=!refRoom;
    viewBtn.onclick=refRoom?()=>openSiteRoomDetails(project().id,refRoom.id):null;
  }
- if(!c?.drawing)return;empty.style.display="none";
+ if(!c?.drawing){img.onload=null;img.removeAttribute('src');pdf.removeAttribute('src');return}empty.style.display="none";
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
    const marks=[{x:p.x,y:p.y,index:-1},...(p.copies||[]).map((m,index)=>({...m,index}))];
@@ -5312,30 +5332,63 @@ body.guide-only .a131-back-studio{display:block}
     return dbPromise;
   }
   function keyFor(pr,c){return String(pr.id)+':'+String(c.id)}
-  async function putDrawing(pr,c){if(!c||!c.drawing)return;try{const d=await db();const tx=d.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put({drawing:c.drawing,drawingType:c.drawingType||'image',drawingName:c.drawingName||''},keyFor(pr,c))}catch(e){console.warn('Drawing backup failed',e)}}
+  const savedDrawings=new WeakMap();
+  async function putDrawing(pr,c){
+    if(!c||!c.drawing)return false;
+    const previous=savedDrawings.get(c);
+    if(previous&&previous.drawing===c.drawing&&previous.type===c.drawingType&&previous.name===c.drawingName)return false;
+    const d=await db(),record={drawing:c.drawing,drawingType:c.drawingType||'image',drawingName:c.drawingName||''};
+    await new Promise((resolve,reject)=>{
+      const tx=d.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(record,keyFor(pr,c));
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Drawing save interrupted'));
+    });
+    savedDrawings.set(c,{drawing:record.drawing,type:c.drawingType,name:c.drawingName});
+    return true;
+  }
   async function getDrawing(pr,c){try{const d=await db();return await new Promise((res,rej)=>{const r=d.transaction(DB_STORE,'readonly').objectStore(DB_STORE).get(keyFor(pr,c));r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}catch(e){return null}}
-  async function putProjectState(){try{const d=await db();const snapshot=JSON.parse(JSON.stringify(state));await new Promise((res,rej)=>{const tx=d.transaction(STATE_STORE,'readwrite');tx.objectStore(STATE_STORE).put({savedAt:Date.now(),state:snapshot},'active');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}catch(e){console.warn('Project backup failed',e)}}
+  async function putProjectState(){
+    const d=await db();
+    // IndexedDB takes its own snapshot. JSON cloning first doubles large image data.
+    await new Promise((resolve,reject)=>{
+      const tx=d.transaction(STATE_STORE,'readwrite');
+      tx.objectStore(STATE_STORE).put({savedAt:Date.now(),state},'active');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Project save interrupted'));
+    });
+  }
   async function getProjectState(){try{const d=await db();return await new Promise((res,rej)=>{const r=d.transaction(STATE_STORE,'readonly').objectStore(STATE_STORE).get('active');r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}catch(e){return null}}
   function cloneLight(){
-    const copy=JSON.parse(JSON.stringify(state));
-    (copy.projects||[]).forEach(pr=>(pr.cabinets||[]).forEach(c=>{if(c.drawing){c.hasStoredDrawing=true;c.drawing=null}}));
-    return copy;
+    // Omit drawings before serialization instead of cloning and then discarding them.
+    return {...state,projects:(state.projects||[]).map(pr=>({...pr,cabinets:(pr.cabinets||[]).map(c=>c.drawing?{...c,hasStoredDrawing:true,drawing:null}:c)}))};
   }
   function commitVisible(){
     try{
       const p=typeof project==='function'?project():null,partNow=typeof part==='function'?part():null,c=typeof cabinet==='function'?cabinet():null;
       const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
-      if(p){if(n&&n.value.trim())p.name=n.value.trim();if(cust&&cust.value.trim())p.customer=cust.value.trim();p.updatedAt=Date.now()}
+      let edited=false;
+      function assign(target,key,value){if(target[key]!==value){target[key]=value;edited=true}}
+      if(p){if(n&&n.value.trim())assign(p,'name',n.value.trim());if(cust&&cust.value.trim())assign(p,'customer',cust.value.trim())}
       if(partNow){
         const map={fThickness:'thickness',fLength:'length',fWidth:'width',fQty:'qty',fMaterial:'material',fNotes:'notes'};
-        Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width'].includes(k))v=v===''?'':(typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v));else if(k==='qty')v=clampPanelQty(v);if(v!==''||k==='notes'||k==='material')partNow[k]=v});
+        Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width'].includes(k))v=v===''?'':(typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v));else if(k==='qty')v=clampPanelQty(v);if(v!==''||k==='notes'||k==='material')assign(partNow,k,v)});
       }
+      if(p&&edited)p.updatedAt=Date.now();
       const stage=document.getElementById('drawingStage');if(c&&stage){c.viewState=c.viewState||{};c.viewState.scrollLeft=stage.scrollLeft;c.viewState.scrollTop=stage.scrollTop;c.viewState.zoom=Number(state.drawingZoom||1)}
     }catch(e){console.warn('Live form commit failed',e)}
   }
   function showSaved(){const bar=document.getElementById('a131RecoveryBar');if(!bar)return;bar.style.display='block';clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>bar.style.display='none',850)}
-  async function stableSave(showNotice){
-    commitVisible();
+  let saveInFlight=null,saveRequested=false,wantsNotice=false,lastSavedLight=null;
+  function stableSave(showNotice){
+    commitVisible();saveRequested=true;wantsNotice=wantsNotice||!!showNotice;
+    if(!saveInFlight)saveInFlight=(async()=>{
+      let saved=true;
+      while(saveRequested){saveRequested=false;if(!await writeStableState())saved=false}
+      if(saved&&wantsNotice)showSaved();
+      wantsNotice=false;
+      return saved;
+    })().finally(()=>{saveInFlight=null});
+    return saveInFlight;
+  }
+  async function writeStableState(){
     try{
       // Every open tab/session holds its own full in-memory `state` and this
       // function overwrites localStorage/IndexedDB wholesale, with no
@@ -5360,14 +5413,17 @@ body.guide-only .a131-back-studio{display:block}
         const missing=storedProjects.filter(p=>p&&p.id&&!knownIds.has(p.id)&&!deletedIds.has(p.id));
         if(missing.length){state.projects=state.projects||[];missing.forEach(p=>state.projects.push(p))}
       }catch(e){}
-      const light=cloneLight();
-      localStorage.setItem(STORE,JSON.stringify(light));
-      sessionStorage.setItem(STORE+'_draft',JSON.stringify(light));
-      for(const pr of state.projects||[])for(const c of pr.cabinets||[])if(c.drawing)putDrawing(pr,c);
-      await putProjectState();
-      if(showNotice)showSaved();
+      const lightJson=JSON.stringify(cloneLight());
+      let drawingChanged=false;
+      for(const pr of state.projects||[])for(const c of pr.cabinets||[])if(c.drawing){if(await putDrawing(pr,c))drawingChanged=true}
+      if(lightJson!==lastSavedLight||drawingChanged){
+        await putProjectState();
+        localStorage.setItem(STORE,lightJson);
+        sessionStorage.setItem(STORE+'_draft',lightJson);
+        lastSavedLight=lightJson;
+      }
       return true;
-    }catch(e){console.error('Stable save failed',e);return false}
+    }catch(e){lastSavedLight=null;console.error('Stable save failed',e);return false}
   }
   window.a131StableSave=stableSave;
   try{save=stableSave}catch(e){}
@@ -9023,9 +9079,14 @@ body.fiq-locked .app{display:none!important}
     if(!ready){box.innerHTML='';return}
     box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Return to Job Overview to choose a fitter and send the job.</span><button type="button" class="btn primary" id="panelCheckReturnBtn">'+t("studio.panelCheck.returnPromptBtn")+'</button></div>';
     const btn=document.getElementById('panelCheckReturnBtn');
-    if(btn)btn.onclick=()=>{
-      if(typeof renderAll==='function')renderAll();
-      if(typeof show==='function')show('jobs');
+    if(btn)btn.onclick=async()=>{
+      btn.disabled=true;
+      try{
+        await finishDesignToCard(p.id);
+      }catch(error){
+        console.error(error);
+        alert('The design could not be saved safely. It is still open. Please try again.');
+      }finally{if(btn.isConnected)btn.disabled=false}
     };
   }
   const prevRenderCutting=window.renderCutting;

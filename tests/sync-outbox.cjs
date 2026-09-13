@@ -16,7 +16,8 @@ const assert=require('node:assert/strict');
   window.state={projects:[{id:'job',rooms:[]}],deletedProjectIds:[]};
   window.fittersiqUser={companyId:'one',uid:'owner'};
   window.sent=[];window.fail=true;
-  window.save=()=>true;window.renderAll=()=>{};
+  window.saveCount=0;window.renderCount=0;
+  window.save=()=>{saveCount++;return true};window.renderAll=()=>{renderCount++};
   window.sendPackToPhoneDirectly=async pack=>{if(window.fail)throw new Error('offline');sent.push(pack);return{cloudSent:true,cloudDocId:pack.syncId}};
   // Drive retries explicitly so the assertions do not depend on timer scheduling.
   window.setInterval=()=>0;window.setTimeout=()=>0;
@@ -24,8 +25,12 @@ const assert=require('node:assert/strict');
  await page.addScriptTag({content:fs.readFileSync(path.join(__dirname,'../studio-sync-hardening.js'),'utf8')});
  }
  await install();
+ await page.evaluate(async()=>{for(let i=0;i<60;i++)await retryPendingMobileSends()});
+ assert.deepEqual(await page.evaluate(()=>[saveCount,renderCount]),[0,0],'idle outbox must not save or redraw the app');
  const error=await page.evaluate(async()=>{try{await sendPackToPhoneDirectly({project:{id:'job',rooms:[],photos:['data:image/jpeg;base64,'+'a'.repeat(2000000)]},exportedAt:new Date().toISOString()})}catch(e){return e.message}});
  assert(error.includes('saved'),'offline send must report a durable queued update');
+ await page.evaluate(()=>retryPendingMobileSends());
+ assert.deepEqual(await page.evaluate(()=>[saveCount,renderCount]),[0,0],'failed retry must not save or redraw the app');
  await page.reload();await install();
  await page.evaluate(async()=>{fittersiqUser.companyId='two';fail=false;await retryPendingMobileSends()});
  assert.equal(await page.evaluate(()=>sent.length),0,'another company cannot send the queued job');

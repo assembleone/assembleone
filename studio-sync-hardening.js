@@ -60,6 +60,7 @@
     retrying=true;
     return serial(async()=>{
       const rows=await operation('readonly',store=>store.getAll());
+      let changed=false;
       for(const entry of rows.sort((a,b)=>a.queuedAt-b.queuedAt)){
         if(!sameAccount(entry))continue;
         if(superseded(entry)){await operation('readwrite',store=>store.delete(entry.key));continue}
@@ -70,11 +71,15 @@
             const previous=Date.parse(p.lastMobileSync||'')||0;
             if(Date.parse(entry.pack.exportedAt)>previous){p.lastMobileSync=entry.pack.exportedAt;(p.rooms||[]).forEach(r=>{r.lastMobileSync=p.lastMobileSync})}
             p.pendingMobileReceiptDocId=result.cloudDocId||null;
+            changed=true;
           }
         }catch(error){console.warn('Mobile send remains queued',error)}
       }
-      if(typeof save==='function')save();
-      if(typeof renderAll==='function')renderAll();
+      // An empty outbox must not clone every photo and rebuild every screen.
+      if(changed){
+        if(typeof save==='function')await save();
+        if(typeof renderAll==='function')renderAll();
+      }
     }).catch(error=>console.warn('Pending sends could not be read',error)).finally(()=>{retrying=false});
   };
   window.addEventListener('focus',window.retryPendingMobileSends);
