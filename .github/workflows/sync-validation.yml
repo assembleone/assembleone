@@ -1,12 +1,11 @@
 name: Sync repair validation
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches: [fix/resume-two-way-sync]
 permissions:
   contents: read
 jobs:
   sync:
-    if: github.head_ref == 'fix/resume-two-way-sync'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
