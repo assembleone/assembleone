@@ -22,8 +22,9 @@
       }
       var patch='<script src="studio-patch.js?build=86&ts='+stamp+'"><\/script>';
       var snapshot='<script src="studio-dispatch-snapshot.js?build=86&ts='+stamp+'"><\/script>';
+      var hardening='<script src="studio-sync-hardening.js?build=90&ts='+stamp+'"><\/script>';
       var bodyClose=lower.lastIndexOf('</body>');
-      html=html.slice(0,bodyClose)+patch+snapshot+html.slice(bodyClose);
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);

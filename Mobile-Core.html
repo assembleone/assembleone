@@ -788,6 +788,7 @@ input:focus,textarea:focus,select:focus{outline:3px solid rgba(107,191,58,.20)!i
 .fitters-bottom-nav .scan-main span{color:#68BE3F!important}
 @media(max-width:430px){.fitters-header{min-height:76px!important}.fitters-tagline{font-size:10px}.fitters-logo-mark{width:48px;height:48px}}
 </style>
+<script src="sync-protocol.js?build=90"></script>
 </head>
 <body class="fiq-locked">
 <!-- TEMPORARY build marker, kept through the Mobile front-end rebuild so it's obvious on the phone which build loaded -- remove once the rebuild is fully confirmed -->
@@ -3328,6 +3329,12 @@ function mergePanelStatus(basePt,updatePt){
 function mergeStudioProject(incoming){
  if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
  const old=state.projects.find(x=>x.id===incoming.id);ensureExtras(incoming);
+ const packetAt=Date.parse(incoming._packetExportedAt||'');
+ if(old&&Number.isFinite(packetAt)&&packetAt<=(Number(old._lastStudioPacketAt)||0)){
+  window.FittersIQSyncProtocol.mergeLog(old,incoming);
+  return old;
+ }
+ incoming._lastStudioPacketAt=Math.max(Number(old&&old._lastStudioPacketAt)||0,Number.isFinite(packetAt)?packetAt:0);
  if(old){
   incoming.siteMeasurements=(old.siteMeasurements||[]).length?old.siteMeasurements:incoming.siteMeasurements||[];
   incoming.sitePhotos=(old.sitePhotos||[]).length?old.sitePhotos:incoming.sitePhotos||[];
@@ -5269,6 +5276,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       throw new Error("Photo storage is not ready yet. Keep FittersIQ open and try Send to Studio again.");
     }
     const uploads=[];
+    const transferId=uid();
     let fallbackId=0;
     function walk(node){
       if(!node||typeof node!=="object")return;
@@ -5277,7 +5285,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
           if(typeof value==="string"&&value.startsWith("data:image/")){
             const mediaId="media-"+(fallbackId++);
             const extension=/^data:image\/png/i.test(value)?"png":"jpg";
-            const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+mediaId+"-item."+extension;
+            const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+transferId+"/"+mediaId+"-item."+extension;
             uploads.push((async function(){
               const objectRef=storageFns.ref(storage,objectPath);
               await storageFns.uploadString(objectRef,value,"data_url");
@@ -5294,7 +5302,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
         if(typeof value==="string"&&value.startsWith("data:image/")){
           const mediaId=String(node.id||("media-"+(fallbackId++))).replace(/[^a-zA-Z0-9_-]/g,"-");
           const extension=/^data:image\/png/i.test(value)?"png":"jpg";
-          const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+mediaId+"-"+key+"."+extension;
+          const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+transferId+"/"+mediaId+"-"+key+"."+extension;
           uploads.push((async function(){
             const objectRef=storageFns.ref(storage,objectPath);
             await storageFns.uploadString(objectRef,value,"data_url");
@@ -5366,7 +5374,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
   window.mobileInboxPackets=async function(){
     let legacy=[];
-    try{const all=await firebaseGet(`${ROOT}/mobileQueue`);if(all)legacy=Object.values(all)}catch(e){console.error(e)}
+    // Company Firestore is the cross-device queue; the retired shared RTDB channel is not read.
     // Studio and this phone are almost always different devices, so the legacy
     // per-install RTDB channel above rarely has anything real in it. The reliable,
     // cross-device, company-scoped path is Firestore -- mirrors the Mobile-to-Studio
@@ -5380,7 +5388,28 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
         // Filter the queue state on the phone. Combining kind and status in Firestore
         // requires a composite index; without it Studio successfully writes the packet
         // but Mobile's polling query fails and the job appears never to arrive.
-        snap.forEach(docSnap=>{const data=docSnap.data()||{},cmd=data.command||{};const unseenReset=cmd.type==='reset-all-test-data'&&cmd.resetId&&localStorage.getItem('fittersiq_last_test_reset_v1')!==cmd.resetId;if(data.status==='waiting'||unseenReset)cloud.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
+        const packets=[];
+        snap.forEach(docSnap=>packets.push({...docSnap.data(),syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id}));
+        const latest=new Map();
+        packets.forEach(packet=>{if(packet.project){const prior=latest.get(packet.project.id);if(!prior||Date.parse(packet.exportedAt)>Date.parse(prior.exportedAt))latest.set(packet.project.id,packet)}});
+        const cutoff=Number(localStorage.getItem('fittersiq_test_reset_at_v1')||0);
+        packets.forEach(packet=>{
+          const cmd=packet.command||{};
+          if(cmd.type){
+            if(packet.status!=='waiting')return;
+            if(cmd.type==='reset-all-test-data'&&localStorage.getItem('fittersiq_last_test_reset_v1')===cmd.resetId)return;
+            if(cutoff&&Date.parse(packet.exportedAt||'')<=cutoff)return;
+            cloud.push(packet);return;
+          }
+          const incoming=packet.project;
+          if(!incoming||!incoming.id||!Array.isArray(incoming.cabinets))return;
+          if(cutoff&&Date.parse(packet.exportedAt||'')<=cutoff)return;
+          const newest=latest.get(incoming.id).project;
+          if(typeof canSeeJob==='function'&&!(newest.rooms&&newest.rooms.length?newest.rooms:[null]).some(room=>canSeeJob(newest,room)))return;
+          if((state.deletedProjectIds||[]).includes(incoming.id)&&packet.status!=='waiting')return;
+          const local=(state.projects||[]).find(x=>x.id===incoming.id);
+          if(packet.status==='waiting'||window.FittersIQSyncProtocol.shouldApply(local,packet,'_lastStudioPacketAt'))cloud.push(packet);
+        });
       }
     }catch(e){console.error('Cloud Studio packet fetch failed',e)}
     return [...legacy,...cloud].sort((a,b)=>String(a.exportedAt).localeCompare(String(b.exportedAt)));
@@ -5429,6 +5458,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
             await window.removeMobilePacket(packet);
             continue;
           }
+          if(packet.companyId&&packet.companyId!==window.fittersiqUser?.companyId)continue;
           const incoming=packet.project||packet;
           if(!incoming?.id||!Array.isArray(incoming.cabinets)){await window.removeMobilePacket(packet);continue}
           // A deliberate Studio resend reactivates a job that was previously removed from this phone.
@@ -5443,8 +5473,10 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
           // this loop says this code avoids: still apply it, so the job at least shows up
           // (even at 0 panels) instead of vanishing without a trace the fitter has no way
           // to know happened.
+          if(packet.exportedAt)incoming._packetExportedAt=packet.exportedAt;
           const p=mergeStudioProject(incoming);
-          save();await window.removeMobilePacket(packet);
+          if(await save()===false){p._lastStudioPacketAt=0;throw new Error('Mobile could not save the update. Receipt was not confirmed.')}
+          await window.removeMobilePacket(packet);
           lastApplied={packet,p,units,panels,pieces,isNote};
         }catch(e){console.error("Failed to apply a queued Studio packet",e)}
       }

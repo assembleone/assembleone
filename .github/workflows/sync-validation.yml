@@ -1,0 +1,23 @@
+name: Sync repair validation
+on:
+  push:
+    branches: [fix/resume-two-way-sync]
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test real transfer and merge functions with isolated data
+        run: node tests/sync-roundtrip.cjs
+      - name: Install isolated browser test dependencies
+        run: npm install --no-save --package-lock=false playwright@1.62.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test persistent outbox in Chromium
+        run: node tests/sync-outbox.cjs
