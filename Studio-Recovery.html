@@ -1309,6 +1309,7 @@ document.addEventListener('DOMContentLoaded', function(){
 .app>.sidebar .nav-btn:nth-of-type(5).active,
 .app>.sidebar .nav-btn:nth-of-type(6).active{background:#6BBF3A!important;color:#fff!important}
 </style>
+<script src="sync-protocol.js?build=90"></script>
 </head>
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
@@ -3242,7 +3243,7 @@ const HEAVY_MEDIA_INLINE_THRESHOLD=6000;
 async function uploadIfHeavyDataUri(value,path){
   if(typeof value!=='string'||!value.startsWith('data:')||value.length<HEAVY_MEDIA_INLINE_THRESHOLD)return value;
   const {ref,uploadString,getDownloadURL}=window.fiqStorageFns||{};
-  if(!ref||!window.fiqStorage)return value;
+  if(!ref||!uploadString||!getDownloadURL||!window.fiqStorage)throw new Error('Photo storage is not ready. Please retry.');
   const objRef=ref(window.fiqStorage,path);
   await uploadString(objRef,value,'data_url');
   return await getDownloadURL(objRef);
@@ -3250,17 +3251,25 @@ async function uploadIfHeavyDataUri(value,path){
 async function offloadHeavyMediaForMobileSync(project,companyId){
   const p=JSON.parse(JSON.stringify(project));
   const jobId=p.id;
+  const transferId=uid();
   const uploads=[];
   let counter=0;
   function walk(node){
     if(!node||typeof node!=='object')return;
-    if(Array.isArray(node)){node.forEach(walk);return}
+    if(Array.isArray(node)){
+      node.forEach((value,index)=>{
+        if(typeof value==='string'&&value.startsWith('data:')&&value.length>=HEAVY_MEDIA_INLINE_THRESHOLD){
+          const path=`companies/${companyId}/jobs/${jobId}/media/${transferId}/array-${counter++}-${index}`;
+          uploads.push(uploadIfHeavyDataUri(value,path).then(url=>{node[index]=url}));
+        }else if(value&&typeof value==='object')walk(value);
+      });return;
+    }
     Object.keys(node).forEach(key=>{
       const val=node[key];
       if(typeof val==='string'&&val.startsWith('data:')&&val.length>=HEAVY_MEDIA_INLINE_THRESHOLD){
         const fileId=node.id||('f'+(counter++));
         const ext=/^data:image\/png/i.test(val)?'png':'jpg';
-        const path=`companies/${companyId}/jobs/${jobId}/media/${fileId}-${key}-${counter++}.${ext}`;
+        const path=`companies/${companyId}/jobs/${jobId}/media/${transferId}/${fileId}-${key}-${counter++}.${ext}`;
         uploads.push(uploadIfHeavyDataUri(val,path).then(url=>{node[key]=url}));
       }else if(val&&typeof val==='object'){
         walk(val);
@@ -3272,17 +3281,10 @@ async function offloadHeavyMediaForMobileSync(project,companyId){
   return p;
 }
 async function sendPackToPhoneDirectly(pack){
- const packet={...pack,syncId:uid(),syncStatus:"waiting"};
- let stored=false;
- // Same-device convenience path: works only when Studio and Mobile share a browser profile.
- try{const db=await mobileSyncDb();const tx=db.transaction("mobileInbox","readwrite");tx.objectStore("mobileInbox").put(packet);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();stored=true}catch(e){console.error(e)}
- try{const key="assembleone_mobile_direct_queue_v1",arr=JSON.parse(localStorage.getItem(key)||"[]");arr.push(packet);localStorage.setItem(key,JSON.stringify(arr.slice(-20)));stored=true}catch(e){}
- try{new BroadcastChannel("assembleone-sync").postMessage({type:"studio-published",syncId:packet.syncId})}catch(e){}
- // Cross-device path: Studio and the installer's phone are almost always different
- // devices, so the same-browser queue above never reaches them in real use. Mirror the
- // already-working Mobile-to-Studio path (a200-sync-v1088-fix) so any phone signed into
- // the same company can pick this up regardless of device.
- let cloudSent=false,cloudError=null;
+ const packet={...pack,syncId:pack.syncId||uid(),syncStatus:"waiting"};
+ // The durable outbox owns retries. Send directly to the company queue so a local
+ // IndexedDB transaction cannot hold up the cross-device connection.
+ let cloudSent=false,cloudError=null,cloudDocId=null;
  const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;
  if(fs&&db2&&user&&user.companyId){
    let projectForCloud=packet.project;
@@ -3301,15 +3303,19 @@ async function sendPackToPhoneDirectly(pack){
      if(approxBytes>900000){
        cloudError="This job could not be sent to the phone right now. Please try again in a moment.";
      }else{
-       try{await fs.addDoc(fs.collection(db2,"companies",user.companyId,"jobs"),envelope);cloudSent=true}
+       try{
+         cloudDocId='studio-'+packet.syncId;
+         await fs.setDoc(fs.doc(db2,"companies",user.companyId,"jobs",cloudDocId),envelope);
+         cloudSent=true;
+       }
        catch(e){console.error("Cloud send to Mobile failed",e);cloudError="Could not send this job to the phone right now. Please check your connection and try again."}
      }
    }
  }else if(!user||!user.companyId){
    cloudError="This account is not linked to a company yet, so it cannot reach a phone on a different device.";
  }
- if(!stored&&!cloudSent)throw new Error(cloudError||"Direct phone storage unavailable");
- return {...packet,cloudSent,cloudError};
+ if(!cloudSent)throw new Error(cloudError||"Direct phone storage unavailable");
+ return {...packet,cloudSent,cloudError,cloudDocId};
 }
 async function exportProjectToMobile(target){const p=ensureSharedProject(target||project());if(!p)return alert("Open a job first.");
   // The project-name/customer inputs only ever reflect whichever job is open in the editor
@@ -3363,9 +3369,9 @@ function mergePanelStatus(bp,ip){
   // is on a job.
   bp.updatedByFitterId=ip.updatedByFitterId||null;
 }
-function mergePanelFields(bp,ip){
+function mergePanelFields(bp,ip,stalePacket=false){
   ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=Math.max(Number(bp[k])||0,Number(ip[k])||0)});
-  ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(ip[k]!==undefined)bp[k]=ip[k]});
+  if(!stalePacket)["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(ip[k]!==undefined&&(!Array.isArray(ip[k])||ip[k].length))bp[k]=ip[k]});
   // Who most recently scanned this panel (a fitter, or "__owner__"), kept in step with
   // scannedQty above -- only overwrite if the incoming scan is actually newer, the same
   // "only a genuinely later update wins" rule mergePanelStatus already applies to status,
@@ -3385,7 +3391,9 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 // "this project was deleted, discard the packet" rather than a project to use.
 if((state.deletedProjectIds||[]).includes(incoming.id))return null;
 let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
-["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng","siteNotes","siteNotePhotos","mobileJobCompleted","mobileJobCompletedAt"].forEach(k=>{if(incoming[k]!==undefined)base[k]=incoming[k]});
+const packetAt=Date.parse(incoming._packetExportedAt||'');
+const isStalePacket=Number.isFinite(packetAt)&&packetAt<Math.max(Number(base._lastRoomsSyncAt)||0,Number(base._lastMobilePacketAt)||0);
+if(!isStalePacket)["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng","siteNotes","siteNotePhotos","mobileJobCompleted","mobileJobCompletedAt"].forEach(k=>{if(incoming[k]!==undefined&&(!Array.isArray(incoming[k])||incoming[k].length))base[k]=incoming[k]});
 mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
 // Mobile can send several updates for the same job out of order (a dropped-signal
@@ -3395,8 +3403,7 @@ base.updatedAt=Date.now();
 // packet stomp a room's name/notes back to an older value. Only let a packet
 // overwrite rooms it's actually newer than; a brand-new room id is always added
 // since that can't clobber anything.
-const packetAt=Date.parse(incoming._packetExportedAt||"");
-const isStalePacket=!isNaN(packetAt)&&base._lastRoomsSyncAt&&packetAt<base._lastRoomsSyncAt;
+
 base.rooms=base.rooms||[];
 // A room's own Site Measurement -- its photos and the measurements drawn on them -- is
 // a permanent record once captured, and must survive every later sync untouched (see
@@ -3426,7 +3433,7 @@ const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","meas
   Object.assign(br,clonedIr);
 });
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}mergePanelFields(bp,ip)})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}mergePanelFields(bp,ip,isStalePacket)})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);if(!merged){alert("This job was deleted from Studio and can't be restored from a backup file.");return}switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
@@ -3452,7 +3459,7 @@ function sitePacketNeedsMerge(pack){
  const base=(state.projects||[]).find(x=>x.id===incoming.id);
  if(!base)return true;
  const installationUpdate=!!(incoming.studioOrigin||(incoming.cabinets||[]).some(c=>(c.parts||[]).length));
- if(pack.status==='received'&&!installationUpdate&&base.siteMeasureAcceptedAt)return false;
+ if(!installationUpdate&&base.siteMeasureAwaitingAcceptance&&base.siteMeasureSyncId===(pack.syncId||pack.exportedAt))return true;
  const incomingAt=Date.parse(pack.exportedAt||incoming._packetExportedAt||'');
  const mergedAt=Number(base._lastMobilePacketAt)||0;
  if(Number.isFinite(incomingAt)&&incomingAt>mergedAt)return true;
@@ -3536,7 +3543,8 @@ async function applyOneSitePacket(pack,acknowledge=false){
  merged.siteMeasureSyncId=acknowledge?'':syncId;
  if(acknowledge)merged.siteMeasureAcceptedAt=new Date().toISOString();
  const saved=typeof save==='function'?await save():true;
- if(saved!==false&&acknowledge)await removeInboxPacket(syncId);
+ if(saved===false){merged._lastMobilePacketAt=0;throw new Error('Studio could not save this update. Receipt was not confirmed.')}
+ if(acknowledge)await removeInboxPacket(syncId);
  // Site Measurements are permanent reference records only. Never create a Drawing
  // cabinet or copy a site photo into the Drawing Area. Remove only untouched legacy
  // auto-created Site Measurement cabinets, never a real design carrying panels.
