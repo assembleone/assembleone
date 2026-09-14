@@ -186,6 +186,9 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .nsj-body input,.nsj-body textarea{margin-top:5px;width:100%;box-sizing:border-box;padding:11px 12px;font-size:16px;border:1px solid var(--line);border-radius:10px;font-family:inherit}
 .nsj-body textarea{resize:vertical}
 .nsj-location-map{height:150px;border-radius:12px;overflow:hidden;background:#eee;margin-top:6px}
+/* Site Measure job switching */
+.site-job-actions{display:flex;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);flex-shrink:0}
+.site-job-actions .btn{flex:1;min-width:0;min-height:42px;padding:8px;font-size:13px;font-weight:800}
 /* Site Visit Summary */
 .svs-header{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--line)}
 .svs-title{flex:1;min-width:0}
@@ -920,6 +923,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </section>
 
 <section id="measure" class="screen">
+ <div class="site-job-actions"><button type="button" class="btn primary" data-start-site-job>＋ New Job</button><button type="button" class="btn" data-saved-site-jobs>Saved Site Jobs</button></div>
  <div class="markup-app">
   <div class="markup-topbar measure-simple-topbar measure61-topbar">
    <button type="button" id="measureHomeBtn" class="mini-btn measure61-home" aria-label="Back to Site Visit Summary">🏠</button>
@@ -991,6 +995,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </section>
 
 <section id="newSiteJob" class="screen">
+ <div class="site-job-actions"><button type="button" class="btn primary" data-start-site-job>＋ New Job</button><button type="button" class="btn" data-saved-site-jobs>Saved Site Jobs</button></div>
  <div class="nsj-header">
   <button type="button" id="nsjBackBtn" class="measure-back-btn" aria-label="Back">←</button>
   <div class="nsj-title"><strong>New Site Job</strong><small id="nsjStepSubtitle">Customer information</small></div>
@@ -1028,6 +1033,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </section>
 
 <section id="siteVisitSummary" class="screen">
+ <div class="site-job-actions"><button type="button" class="btn primary" data-start-site-job>＋ New Job</button><button type="button" class="btn" data-saved-site-jobs>Saved Site Jobs</button></div>
  <div class="svs-header">
   <button type="button" id="svsBackBtn" class="measure-back-btn" aria-label="Back">←</button>
   <div class="svs-title"><strong>Site Visit Summary</strong><small id="svsCustomerLine">Customer: —</small></div>
@@ -1938,8 +1944,14 @@ function updateInstallNewBadge(){
 // filled up with several empty "New Site Job / No customer" cards to sort through. One
 // blank, ready-to-fill job is enough at a time -- reuse it until it's actually started
 // on, and only then does tapping "New Job" create the next one.
-function blankUnstartedJob(){return state.projects.find(p=>p.name==="New Site Job"&&!p.customer&&!(p.rooms||[]).length&&!(p.cabinets||[]).length)}
+function isBlankSiteJob(p){
+ return p.name==='New Site Job'&&!isStudioJob(p)&&!p.mobileArchived&&!p.customer&&!p.address&&!p.phone&&!p.email&&!p.notes&&p.geoLat==null&&p.geoLng==null&&
+  !['rooms','cabinets','siteMeasurements','sitePhotos','measureCaptures','notePhotos'].some(key=>(p[key]||[]).length)&&
+  !p.siteRoomName&&!p.siteRoomNotes&&!p.siteRoomLocation&&!p.siteMarkup?.image&&!(p.siteMarkup?.marks||[]).length;
+}
+function blankUnstartedJob(){return state.projects.find(isBlankSiteJob)}
 function newJob(){
+ state.currentRoom=null;state.currentCaptureIndex=0;
  const existing=blankUnstartedJob();
  if(existing){state.currentProject=existing.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob");return}
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('site_job_created');const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[],nsjStep:1};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob")}
@@ -1982,6 +1994,9 @@ function startSiteMeasureFlow(){
 // project happens to be current. newJob() itself only reuses a genuinely blank, never-
 // touched job (nothing to carry over there); anything with real content always gets a
 // brand new one.
+function openSavedSiteJobs(){projectsListMode='site';save();show('projects')}
+document.querySelectorAll('[data-start-site-job]').forEach(button=>button.onclick=()=>newJob());
+document.querySelectorAll('[data-saved-site-jobs]').forEach(button=>button.onclick=openSavedSiteJobs);
 if($("#newJob"))$("#newJob").onclick=()=>newJob();
 if($("#syncAllJobsBtn"))$("#syncAllJobsBtn").onclick=()=>{if(typeof syncAllJobs==='function')syncAllJobs()};
 $('#langCurrentBtn').onclick=openLangPicker;
@@ -2077,7 +2092,7 @@ function renderProjects(){
  // Clean up any blank "New Site Job" duplicates already sitting from before newJob()
  // started reusing one -- each has zero customer/room/cabinet data, so there is nothing
  // to lose by collapsing them down to the single most recent one.
- const blanks=state.projects.filter(p=>p.name==="New Site Job"&&!p.customer&&!(p.rooms||[]).length&&!(p.cabinets||[]).length);
+ const blanks=state.projects.filter(isBlankSiteJob);
  if(blanks.length>1){const keep=blanks.some(b=>b.id===state.currentProject)?state.currentProject:blanks[0].id;state.projects=state.projects.filter(p=>p.id===keep||!blanks.some(b=>b.id===p.id));save()}
  const FLOOR_KEYS={'Basement':'intake.floorBasement','Ground':'intake.floorGround','1st floor':'intake.floor1st','2nd floor':'intake.floor2nd','3rd floor':'intake.floor3rd'};
  const floorLabel=f=>{const k=FLOOR_KEYS[f];return k?t(k):f};
@@ -2823,7 +2838,7 @@ document.getElementById('nsjNextBtn')?.addEventListener('click',()=>{
  save();
  renderNewSiteJobScreen();
 });
-document.getElementById('svsBackBtn')?.addEventListener('click',()=>show('projects'));
+document.getElementById('svsBackBtn')?.addEventListener('click',openSavedSiteJobs);
 document.getElementById('svsCustomerBtn')?.addEventListener('click',openCustomerPanel);
 document.getElementById('svsAddRoomBtn')?.addEventListener('click',()=>{
  const p=project();if(!p)return;
