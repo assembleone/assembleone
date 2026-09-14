@@ -1892,21 +1892,42 @@ function switchToProject(id,cabinetId,partId){
 async function finishDesignToCard(projectId){
  const p=state.projects.find(x=>x.id===projectId);
  if(!p)throw new Error('The design no longer exists.');
- const selection={currentProject:state.currentProject,currentCabinet:state.currentCabinet,currentPart:state.currentPart,currentRoom:state.currentRoom,screen:state.screen};
+ const cleared={currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,currentCustomerCard:null,lastChosenPartName:'',selectedCopy:-1,focusMarker:false,numbering:false,drawingZoom:1,showStartShell:false,screen:'jobs'};
+ const selection=Object.fromEntries(Object.keys(cleared).map(k=>[k,state[k]]));
  if(typeof ensureCustomerForProject==='function')ensureCustomerForProject(p);
  if(await save()!==true)throw new Error('The design could not be saved.');
- // Keep all job content in the existing record used by its card and Customer Library.
- // Only release the editor selection, and never close another job opened while saving.
- if(selection.currentProject!==projectId||Object.keys(selection).some(k=>state[k]!==selection[k]))return;
- Object.assign(state,{currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,currentCustomerCard:null,lastChosenPartName:'',selectedCopy:-1,focusMarker:false,numbering:false,drawingZoom:1,screen:'jobs'});
+ // Keep all content on the saved job. Only release the matching editor session.
+ if(selection.currentProject!==projectId||Object.keys(selection).some(k=>state[k]!==selection[k]))return false;
+ const combined=window.__jorCombinedCheck,unlocked=window.fiqQtyUnlockedPartId;
+ Object.assign(state,cleared);
  window.__jorCombinedCheck=null;
  window.fiqQtyUnlockedPartId=null;
  if(await save()!==true){
-   Object.assign(state,selection);
+   // A failed save must not replace a different job opened during the write.
+   if(Object.keys(cleared).every(k=>state[k]===cleared[k])){
+     Object.assign(state,selection);
+     window.__jorCombinedCheck=combined;window.fiqQtyUnlockedPartId=unlocked;
+   }
    renderAll();
    throw new Error('The cleared workspace could not be saved.');
  }
  renderAll();
+ return true;
+}
+async function returnToJobOverview(){
+ const p=project();
+ try{
+   if(p)return await finishDesignToCard(p.id);
+   window.__jorCombinedCheck=null;
+   state.screen='jobs';state.showStartShell=false;
+   renderAll();
+   if(await save()!==true)throw new Error('The workspace could not be saved.');
+   return true;
+ }catch(error){
+   console.error(error);
+   alert('The job could not be saved safely. Please try again.');
+   return false;
+ }
 }
 
 function save(){
@@ -3048,6 +3069,7 @@ function renderQr(){
  setTimeout(()=>parts.forEach(p=>{
    const el=document.getElementById("qr-"+p.id);
    const link=phoneQrText(p);
+   if(!el)return; // The workspace may have closed before this queued QR render.
    el.innerHTML="";
    if(window.QRCode){
      try{
@@ -3223,9 +3245,9 @@ function bindField(id,key){$("#"+id).oninput=()=>{const p=part();if(!p)return;co
 // every language switch, not just once at load like this used to).
 ["fLength:length","fWidth:width","fThickness:thickness","fQty:qty","fNotes:notes"].forEach(x=>{const[a,b]=x.split(":");bindField(a,b)});
 function setPartName(name){state.lastChosenPartName=name;const p=part();if(p)p.name=name;save();renderAll()}
-$$(".nav-btn").forEach(b=>b.onclick=()=>show(b.dataset.screen));
+$(".nav-btn").forEach(b=>b.onclick=()=>b.dataset.screen==="jobs"?returnToJobOverview():show(b.dataset.screen));
 const toolsToggle=document.getElementById('toolsToggleBtn');const toolsMenu=document.getElementById('toolsMenu');if(toolsToggle&&toolsMenu){toolsToggle.onclick=(e)=>{e.stopPropagation();toolsMenu.classList.toggle('open')};document.addEventListener('click',(e)=>{if(!e.target.closest('.studio-tools'))toolsMenu.classList.remove('open')});}
-$("#newJobBtn").onclick=newJob;$("#newCabinetBtn").onclick=addCabinet;$("#studioAddRoomBtn").onclick=addStudioRoom;$("#studioRoomBackBtn").onclick=()=>show("jobs");
+$("#newJobBtn").onclick=newJob;$("#newCabinetBtn").onclick=addCabinet;$("#studioAddRoomBtn").onclick=addStudioRoom;$("#studioRoomBackBtn").onclick=()=>returnToJobOverview();
 // #saveProjectBtn (Finish and Send, removed) used to copy #projectName/#customerName into
 // the project and save() -- commitVisible(), called at the start of every save() including
 // the periodic 4s autosave (see switchToProject's own comment on this), already does
@@ -7862,7 +7884,7 @@ body.fiq-locked .app{display:none!important}
     // checked panels. Empty sibling rooms remain linked to the parent project but hidden.
     if(isIncomingMeasurementProject(p))return [{project:p,room:'__site_visit__'}];
     const cards=rooms
-      .filter(r=>!r.finished&&overviewReadyCabinets((p.cabinets||[]).filter(c=>c.roomId===r.id)))
+      .filter(r=>!r.movedToLibraryAt&&overviewReadyCabinets((p.cabinets||[]).filter(c=>c.roomId===r.id)))
       .map(r=>({project:p,room:r}));
     const roomIds=new Set(rooms.map(r=>r.id));
     const generalCabinets=(p.cabinets||[]).filter(c=>!c.roomId||!roomIds.has(c.roomId));
@@ -8352,19 +8374,49 @@ body.fiq-locked .app{display:none!important}
       const room=roomId&&roomId!=='__general__'?(p.rooms||[]).find(r=>r.id===roomId):null;
       const label=room?(room.name||'this room'):(p.name||'this job');
       if(!confirm('Move '+label+' to the Customer Library?'))return;
+      btn.disabled=true;
+      try{
+        // Save visible edits and release this job before changing archive flags.
+        // A different active job is saved but remains selected.
+        await finishDesignToCard(p.id);
+      }catch(error){
+        console.error(error);btn.disabled=false;
+        alert('The job could not be saved safely. It is still in Job Overview. Please try again.');
+        return;
+      }
+      const archiveKeys=['finished','finishedAt','movedToLibraryAt','overviewFinishedAt','siteVisitArchivedAt','isNewFromSite','updatedAt'];
+      const archiveFields=record=>Object.fromEntries(archiveKeys.filter(k=>Object.prototype.hasOwnProperty.call(record,k)).map(k=>[k,record[k]]));
+      const archiveBefore=state.projects.map(record=>({id:record.id,...archiveFields(record),rooms:(record.rooms||[]).map(r=>({id:r.id,...archiveFields(r)}))}));
       const now=Date.now();
       if(room){
         room.finished=true;room.finishedAt=now;room.movedToLibraryAt=now;
         // Once the final real Job Overview room is filed, close the parent project too so
         // the Active Jobs total cannot keep counting a project with no visible cards.
-        const remainingRoomCard=cardsForProject(p).some(card=>card.room&&card.room!=='__general__'&&card.room!=='__site_visit__'&&!card.room.movedToLibraryAt);
+        const remainingRoomCard=cardsForProject(p).some(card=>card.room==='__general__'||(card.room&&card.room!=='__site_visit__'&&!card.room.movedToLibraryAt));
         if(!remainingRoomCard){p.overviewFinishedAt=now;p.movedToLibraryAt=now}
       }else{p.overviewFinishedAt=now;p.movedToLibraryAt=now}
       // Only when the parent job is genuinely filed do we also clear its matching
       // incoming Site Job from New Project. Both records remain under the same Customer
       // Library customerId; this only removes their front-screen clutter.
       if(p.movedToLibraryAt)archiveMatchingIncomingSiteVisits(p,room,now);
-      p.updatedAt=now;save();jorSelectedCardKeys.delete(room?cardKey({project:p,room}):p.id);renderAll();
+      p.updatedAt=now;
+      if(await save()!==true){
+        // Restore only archive metadata, preserving drawings and any concurrent edits.
+        const previous=archiveBefore;
+        const keys=archiveKeys;
+        function restoreFields(target,old){keys.forEach(k=>{if(Object.prototype.hasOwnProperty.call(old,k))target[k]=old[k];else delete target[k]})}
+        previous.forEach(old=>{
+          const current=state.projects.find(x=>x.id===old.id);if(!current)return;
+          if(current.movedToLibraryAt===now||current.overviewFinishedAt===now)restoreFields(current,old);
+          (old.rooms||[]).forEach(r=>{const currentRoom=(current.rooms||[]).find(x=>x.id===r.id);if(currentRoom&&currentRoom.movedToLibraryAt===now)restoreFields(currentRoom,r)});
+        });
+        renderAll();
+        alert('The move could not be saved. The job is still in Job Overview. Please try again.');
+        return;
+      }
+      jorSelectedCardKeys.delete(room?cardKey({project:p,room}):p.id);
+      if(!state.currentProject){state.currentCustomerCard=p.customerId||null;state.screen='customers'}
+      renderAll();
       // Receipt only proves the fitters update arrived. This explicit, lightweight
       // command is what removes the matching completed card from Mobile.
       try{
