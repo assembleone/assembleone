@@ -1,8 +1,12 @@
 (function(){
   'use strict';
 
-  function goHome(){
+  async function goHome(){
     try{
+      if(typeof window.returnToJobOverview==='function'){
+        await window.returnToJobOverview();
+        return;
+      }
       if(typeof window.show==='function'){
         window.show('jobs');
         if(typeof window.renderAll==='function')window.renderAll();
