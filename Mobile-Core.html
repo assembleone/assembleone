@@ -400,6 +400,11 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .room-switch-btn.active{border-color:#FFC600;background:#fffbea}
 .room-switch-btn.room-switch-finished{color:#16a34a;border-color:#9be0af;background:#f3faf4}
 .room-switch-btn.room-switch-finished.active{background:#e6f7ec}
+.floor-picker{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;width:100%}
+.floor-picker .btn{min-height:42px;padding:8px 10px;font-size:13px;white-space:nowrap}
+.floor-number-stepper{display:flex;align-items:center;gap:3px;border:1px solid var(--line);border-radius:11px;padding:2px;background:#f7f9fc}
+.floor-number-stepper [data-floor-step]{width:36px;min-width:36px;padding:4px;font-size:22px;line-height:1}
+.floor-number-stepper [data-numbered-floor]{min-width:76px;text-align:center}
 .floor-preset-btn.active{border-color:#FFC600;background:#fffbea;font-weight:900}
 .room-switch-add{font-size:20px;padding:10px 18px}
 .room-switch-finish{color:#fff!important;background:var(--fi-green,#6BBF3A)!important;border-color:var(--fi-green-dark,#4E9D28)!important}
@@ -1995,6 +2000,50 @@ function renderHeader(){
 }
 const FLOOR_I18N_KEYS={'Basement':'intake.floorBasement','Ground':'intake.floorGround','1st floor':'intake.floor1st','2nd floor':'intake.floor2nd','3rd floor':'intake.floor3rd'};
 function floorDisplayLabel(loc){if(!loc)return '';const key=FLOOR_I18N_KEYS[loc];return key?t(key):loc}
+function numberedFloor(n){
+ const mod100=n%100,mod10=n%10;
+ const suffix=mod100>=11&&mod100<=13?'th':mod10===1?'st':mod10===2?'nd':mod10===3?'rd':'th';
+ return n+suffix+' floor';
+}
+function floorNumber(value){
+ const match=String(value||'').trim().match(/^([1-9]\d*)(?:(?:st|nd|rd|th) floor)?$/i);
+ const n=match?Number(match[1]):0;
+ return Number.isSafeInteger(n)?n:0;
+}
+function floorPickerHtml(value){
+ const n=floorNumber(value)||1;
+ return `<div class="floor-picker" data-floor-picker data-number="${n}">
+  <button type="button" class="btn floor-preset-btn" data-floor="Basement">${safe(floorDisplayLabel('Basement'))}</button>
+  <button type="button" class="btn floor-preset-btn" data-floor="Ground">${safe(floorDisplayLabel('Ground'))}</button>
+  <div class="floor-number-stepper">
+   <button type="button" class="btn" data-floor-step="-1" aria-label="Lower floor">−</button>
+   <button type="button" class="btn floor-preset-btn" data-numbered-floor>${safe(floorDisplayLabel(numberedFloor(n)))}</button>
+   <button type="button" class="btn" data-floor-step="1" aria-label="Higher floor">+</button>
+  </div>
+ </div>`;
+}
+function setFloorPickerValue(box,value){
+ if(!box)return;
+ const n=floorNumber(value);if(n)box.dataset.number=String(n);
+ const current=Number(box.dataset.number)||1;
+ box.querySelector('[data-numbered-floor]').textContent=floorDisplayLabel(numberedFloor(current));
+ box.querySelector('[data-floor-step="-1"]').disabled=current<=1;
+ box.querySelectorAll('.floor-preset-btn').forEach(button=>{
+  const active=button.hasAttribute('data-numbered-floor')?n===current:button.dataset.floor===value;
+  button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));
+ });
+}
+function wireFloorPicker(box,value,onChange,onChoose){
+ if(!box)return;
+ setFloorPickerValue(box,value);
+ function select(value,finish){setFloorPickerValue(box,value);onChange(value);if(finish&&onChoose)onChoose()}
+ box.querySelectorAll('[data-floor]').forEach(button=>button.onclick=()=>select(button.dataset.floor,true));
+ box.querySelector('[data-numbered-floor]').onclick=()=>select(numberedFloor(Number(box.dataset.number)||1),true);
+ box.querySelectorAll('[data-floor-step]').forEach(button=>button.onclick=()=>{
+  const next=(Number(box.dataset.number)||1)+Number(button.dataset.floorStep);
+  if(Number.isSafeInteger(next)&&next>=1)select(numberedFloor(next),false);
+ });
+}
 function roomIconFromName(name,type){
  const text=((type||"")+" "+(name||"")).toLowerCase();
  const map=[["wine","🍷"],["bath","🚿"],["kitchen","🍳"],["laundry","🧺"],["utility","📦"],["dressing","👕"],["master bedroom","🛏️"],["bedroom","🛏️"],["kids","🧸"],["living","🛋️"],["tv wall","📺"],["office","💼"],["hall","🚪"],["under stairs","🪜"],["library","📚"]];
@@ -2367,9 +2416,6 @@ function roomCover(r){return r.beforePhotos?.[0]?.data||r.siteMarkup?.image||(r.
 function roomCardHtml(p,r){
  const roomName=r?(r.name||''):(p.siteRoomName||'');
  const roomFloor=r?(r.location||''):(p.siteRoomLocation||'');
- const floorPresets=['Basement','Ground','1st floor','2nd floor','3rd floor'];
- const FLOOR_I18N_KEYS={'Basement':'intake.floorBasement','Ground':'intake.floorGround','1st floor':'intake.floor1st','2nd floor':'intake.floor2nd','3rd floor':'intake.floor3rd'};
- const floorLabel=f=>{const key=FLOOR_I18N_KEYS[f];return key?t(key):f};
  const roomIcon=r?(r.icon||roomIconFromName(r.name||'','')):(p.siteRoomIcon||roomIconFromName(p.siteRoomName||'',''));
  const roomNotes=r?(r.notes||''):(p.siteRoomNotes||'');
  const holder=r||p;
@@ -2391,7 +2437,7 @@ function roomCardHtml(p,r){
  const notePhotoStamp=iso=>{if(!iso)return'';const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString([],{day:'2-digit',month:'short'})+' · '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
  const notePhotosSection=`<div style="margin-top:10px"><div class="room-photo-grid" style="margin-bottom:8px">${notePhotos.map(np=>`<div class="room-photo-tile" style="position:relative"><img src="${np.data}"><div class="design-caption">${notePhotoStamp(np.takenAt)}</div><button type="button" class="note-photo-delete-btn" data-note-photo-id="${np.id}" title="${t('detail.delete')}" style="position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5484d;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-weight:900;font-size:15px;line-height:1">✕</button></div>`).join('')}</div><button type="button" class="btn" id="addNotePhotoBtn">📷 ${t('intake.addNotePhoto')}</button><input id="notePhotoInput" type="file" accept="image/*" multiple hidden></div>`;
  const extraSections='';
- return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="${t('msg.tapToChangeIcon')}" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.floor')}<div class="floor-btn-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${floorPresets.map(f=>`<button type="button" class="btn floor-preset-btn ${roomFloor===f?'active':''}" data-floor="${f}" style="padding:8px 12px;font-size:13px">${floorLabel(f)}</button>`).join('')}</div><input id="siteRoomFloor" style="margin-top:6px" placeholder="${t('intake.floorPlaceholder')}" value="${safe(roomFloor)}"></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea>${notePhotosSection}</label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.readyToSendSuffix')}</div>${sentCount?`<div class="muted" style="margin-top:4px">${sentCount} ${sentCount===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.sentToStudioSuffix')}</div>`:''}<div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">✓ Save & Back to Rooms</button>${r?`<button class="btn danger" id="deleteRoomBtn" type="button">🗑 ${t('detail.delete')}</button>`:''}</div>${extraSections}</div>`;
+ return `<div class="site-intake-card">${photo?`<div class="room-thumb" style="margin-bottom:14px;border-radius:12px;overflow:hidden"><img src="${photo}" style="width:100%;display:block"></div>`:''}<div class="site-intake-title"><span>${roomIcon||'📍'}</span><div><b id="siteRoomTitle">${titleText}</b><div class="muted">${t('intake.subtitle')}</div></div></div><div class="site-intake-grid"><label>${t('intake.customerName')}<input id="siteCustomerName" placeholder="${t('intake.customerPlaceholder')}" value="${safe(p.customer||'')}"></label><label>${t('intake.roomName')}<div style="display:flex;align-items:center;gap:8px"><button type="button" id="siteRoomIconBtn" title="${t('msg.tapToChangeIcon')}" style="font-size:24px;line-height:1;background:#f4ede4;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;flex:none">${roomIcon}</button><input id="siteRoomName" style="flex:1" placeholder="${t('intake.roomPlaceholder')}" value="${safe(roomName)}"></div></label><label style="grid-column:1/-1">${t('intake.address')}<div style="display:flex;gap:8px"><input id="siteAddress" style="flex:1" placeholder="${t('intake.addressPlaceholder')}" value="${safe(p.address||'')}"><button type="button" class="btn" id="openInMaps">📍 ${t('intake.maps')}</button></div></label><label style="grid-column:1/-1">${t('intake.floor')}${floorPickerHtml(roomFloor)}<input id="siteRoomFloor" style="margin-top:6px" placeholder="${t('intake.floorPlaceholder')}" value="${safe(roomFloor)}"></label><label style="grid-column:1/-1">${t('intake.exactLocation')}<button type="button" class="btn primary" id="useCurrentLocationBtn" style="width:100%;margin-top:4px">📍 ${t('intake.useCurrentLocation')}</button><div id="siteLocationMap" style="height:140px;border-radius:12px;overflow:hidden;margin-top:6px;background:#eee"></div><div class="muted" style="margin-top:4px">${p.geoLat!=null?`${t('intake.pinSet')} · ${Number(p.geoLat).toFixed(5)}, ${Number(p.geoLng).toFixed(5)}`:t('intake.tapMapHint')}</div></label><label style="grid-column:1/-1">${t('intake.notes')}<textarea id="siteRoomNotes" placeholder="${t('intake.notesPlaceholder')}">${safe(roomNotes)}</textarea>${notePhotosSection}</label></div><div class="muted" style="margin-top:10px">${measureCount} ${t('intake.measurementsTaken')}</div>${capturesSection}<div class="muted" style="margin-top:10px;font-weight:800">${captures.length} ${captures.length===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.readyToSendSuffix')}</div>${sentCount?`<div class="muted" style="margin-top:4px">${sentCount} ${sentCount===1?t('intake.photoSingular'):t('intake.photoPlural')} ${t('intake.sentToStudioSuffix')}</div>`:''}<div class="site-intake-actions"><button class="btn" id="backToMeasure">📏 ${t('intake.measurementsBtn')}</button><button class="btn primary" id="sendNewSiteToStudio">✓ Save & Back to Rooms</button>${r?`<button class="btn danger" id="deleteRoomBtn" type="button">🗑 ${t('detail.delete')}</button>`:''}</div>${extraSections}</div>`;
 }
 function wireRoomCard(p,r){
  const notePhotoHolder=r||p;
@@ -2445,8 +2491,10 @@ function wireRoomCard(p,r){
  }
  if($('#siteAddress'))$('#siteAddress').oninput=()=>{p.address=$('#siteAddress').value;save()};
  if($('#siteRoomNotes'))$('#siteRoomNotes').oninput=()=>{const val=$('#siteRoomNotes').value;if(r)r.notes=val;else p.siteRoomNotes=val;save()};
- if($('#siteRoomFloor'))$('#siteRoomFloor').oninput=()=>{const val=$('#siteRoomFloor').value;if(r)r.location=val;else p.siteRoomLocation=val;save()};
- $$('.floor-preset-btn').forEach(b=>b.onclick=()=>{const val=b.dataset.floor;const input=$('#siteRoomFloor');if(input)input.value=val;if(r)r.location=val;else p.siteRoomLocation=val;save();renderRooms()});
+ const floorPicker=document.querySelector('.site-intake-card [data-floor-picker]');
+ const updateFloor=val=>{if(r)r.location=val;else p.siteRoomLocation=val;save()};
+ if($('#siteRoomFloor'))$('#siteRoomFloor').oninput=()=>{const val=$('#siteRoomFloor').value;updateFloor(val);setFloorPickerValue(floorPicker,val)};
+ wireFloorPicker(floorPicker,r?r.location:p.siteRoomLocation,val=>{const input=$('#siteRoomFloor');if(input)input.value=val;updateFloor(val)});
  if($('#siteRoomName'))$('#siteRoomName').oninput=()=>{const val=$('#siteRoomName').value;const manual=r?r.iconManual:p.siteRoomIconManual;if(!manual){const btn=$('#siteRoomIconBtn');if(btn)btn.textContent=roomIconFromName(val,'')}const title=$('#siteRoomTitle');if(title)title.textContent=val.trim()||t('intake.title');if(r)r.name=val;else p.siteRoomName=val;save()};
  if($('#siteRoomIconBtn'))$('#siteRoomIconBtn').onclick=()=>openSiteRoomIconPicker(r||p,!!r);
  initSiteLocationMap(p);
@@ -2726,9 +2774,9 @@ function renderNsjRoomGrid(p){
 function renderNsjFloorGrid(p){
  const box=document.getElementById('nsjFloorGrid');if(!box)return;
  const room=nsjPendingRoom(p);
- const presets=['Basement','Ground','1st floor','2nd floor','3rd floor'];
- box.innerHTML=presets.map(f=>`<button type="button" class="btn floor-preset-btn ${room&&room.location===f?'active':''}" data-floor="${f}" style="padding:14px 12px;font-size:15px">${safe(floorDisplayLabel(f))}</button>`).join('');
- box.querySelectorAll('[data-floor]').forEach(b=>b.onclick=()=>{const r=nsjPendingRoom(p);if(r)r.location=b.dataset.floor;nsjFinishWizard(p)});
+ box.innerHTML=floorPickerHtml(room&&room.location);
+ wireFloorPicker(box.querySelector('[data-floor-picker]'),room&&room.location,val=>{const r=nsjPendingRoom(p);if(r){r.location=val;save()}},()=>nsjFinishWizard(p));
+
 }
 // Studio-facing structure is exactly what Site Measure already produces (a real room
 // on p.rooms, same schema as any other) -- this just clears the wizard bookkeeping and

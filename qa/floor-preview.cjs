@@ -1,0 +1,42 @@
+const fs=require('fs'),assert=require('node:assert/strict'),{chromium}=require('playwright');
+const source=fs.readFileSync('Mobile-Core.html','utf8');
+const a=source.indexOf('const FLOOR_I18N_KEYS='),b=source.indexOf('function roomIconFromName(',a);
+const styles=[...source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map(m=>m[1]).join('\n');
+(async()=>{const browser=await chromium.launch();try{const page=await browser.newPage({viewport:{width:390,height:300}});await page.setContent('<html><head><style>'+styles+'</style><style>body{margin:0;padding:18px;background:#f6f8fb;font-family:Arial}.site-intake-card{padding:16px}h3{font-size:16px;margin:0 0 12px;color:#0b2545}</style></head><body><div class="site-intake-card"><h3>Floor / Level</h3><div id="picker"></div></div></body></html>');
+await page.evaluate(()=>{window.safe=x=>String(x);window.t=x=>({'intake.floorBasement':'Basement','intake.floorGround':'Ground','intake.floor1st':'1st floor','intake.floor2nd':'2nd floor','intake.floor3rd':'3rd floor'}[x]||x);window.saved='';window.finished=0});
+await page.addScriptTag({content:source.slice(a,b)});
+await page.evaluate(()=>{document.querySelector('#picker').innerHTML=floorPickerHtml('');wireFloorPicker(document.querySelector('[data-floor-picker]'),'',v=>saved=v,()=>finished++)});
+for(let i=0;i<10;i++)await page.click('[data-floor-step="1"]');
+assert.equal(await page.evaluate(()=>saved),'11th floor');assert.equal(await page.evaluate(()=>finished),0);
+await page.click('[data-numbered-floor]');assert.equal(await page.evaluate(()=>finished),1);
+await page.evaluate(()=>{document.querySelector('#picker').innerHTML=floorPickerHtml(saved);wireFloorPicker(document.querySelector('[data-floor-picker]'),saved,v=>saved=v)});
+assert.equal(await page.textContent('[data-numbered-floor]'),'11th floor');
+fs.mkdirSync('floor-previews',{recursive:true});await page.screenshot({path:'floor-previews/FittersIQ-floor-picker.png',fullPage:true});
+for(let i=0;i<12;i++)await page.click('[data-floor-step="1"]');assert.equal(await page.evaluate(()=>saved),'23rd floor');
+await page.click('[data-floor="Basement"]');assert.equal(await page.evaluate(()=>saved),'Basement');
+await page.click('[data-floor="Ground"]');assert.equal(await page.evaluate(()=>saved),'Ground');
+await page.evaluate(()=>setFloorPickerValue(document.querySelector('[data-floor-picker]'),'1st floor'));assert(await page.isDisabled('[data-floor-step="-1"]'));
+assert.equal(await page.evaluate(()=>numberedFloor(21)),'21st floor');assert.equal(await page.evaluate(()=>numberedFloor(12)),'12th floor');
+// Exercise the actual wizard wiring and its saved room data across a reload.
+await page.evaluate(()=>{document.body.innerHTML='<div id="nsjFloorGrid"></div>';window.p={nsjStep:6,nsjPendingRoomId:'room1',rooms:[{id:'room1',location:'11th floor'}]};window.persisted='';window.save=()=>{persisted=JSON.stringify(p)};window.show=screen=>{window.destination=screen}});
+const pendingStart=source.indexOf('function nsjPendingRoom('),pendingEnd=source.indexOf('\n//',pendingStart);
+const wizardStart=source.indexOf('function renderNsjFloorGrid('),wizardEnd=source.indexOf("document.getElementById('nsjSkipFloor')",wizardStart);
+await page.addScriptTag({content:source.slice(pendingStart,pendingEnd)+'\n'+source.slice(wizardStart,wizardEnd)});
+await page.evaluate(()=>renderNsjFloorGrid(p));
+assert.equal(await page.textContent('[data-numbered-floor]'),'11th floor');
+await page.click('[data-floor-step="1"]');
+assert.equal(await page.evaluate(()=>JSON.parse(persisted).rooms[0].location),'12th floor');
+assert.equal(await page.evaluate(()=>p.nsjStep),6);
+await page.evaluate(()=>{p=JSON.parse(persisted);renderNsjFloorGrid(p)});
+assert.equal(await page.textContent('[data-numbered-floor]'),'12th floor');
+await page.click('[data-numbered-floor]');
+assert.equal(await page.evaluate(()=>destination),'measure');
+assert.equal(await page.evaluate(()=>JSON.parse(persisted).rooms[0].location),'12th floor');
+assert.equal(await page.evaluate(()=>p.nsjStep),undefined);
+for(const width of [320,390,430]){
+ await page.setViewportSize({width,height:300});
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Floor controls must fit at '+width+'px');
+ await page.screenshot({path:'floor-previews/FittersIQ-floor-picker-'+width+'.png',fullPage:true});
+}
+console.log('PASS: floor navigation, actual wizard persistence and completion, reopening, ordinal labels, lower bound, and 320/390/430px layouts.');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
