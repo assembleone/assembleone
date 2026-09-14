@@ -46,16 +46,6 @@
     return out;
   }
 
-  function clearActiveWorkspace(projectId){
-    try{
-      if(String(state.currentProject||'')!==String(projectId||''))return;
-      state.currentProject=null;
-      state.currentCabinet=null;
-      state.currentPart=null;
-      state.currentRoom=null;
-      state.screen='jobs';
-    }catch(e){}
-  }
 
   function installSendProtection(){
     if(window.__fiqDispatchSnapshotInstalled)return;
@@ -74,10 +64,12 @@
           var c=(p.cabinets||[]).find(function(x){return String(x.id)===String(item.id)});
           if(c){c.sentDrawingPreview=item.preview;c.sentDrawingPreviewAt=p.lastMobileSync}
         });
-        clearActiveWorkspace(p.id);
-        try{if(typeof save==='function')save()}catch(e){}
-        try{if(typeof renderAll==='function')renderAll()}catch(e){}
-        try{if(typeof show==='function')show('jobs')}catch(e){}
+        try{
+          if(typeof finishDesignToCard==='function')await finishDesignToCard(p.id);
+        }catch(error){
+          console.error('Sent job workspace could not close safely',error);
+          alert('The job was sent, but the workspace could not close safely. Please return to Job Overview again.');
+        }
         setTimeout(applyFrozenPreviews,30);
       }
       return result;
