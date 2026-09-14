@@ -4836,9 +4836,49 @@ load();
   el.addEventListener('pointercancel',()=>{if(drag){el.classList.remove('markup-dragging');if(drag.moved)save()}drag=null});
  }
  function render(){const m=ensure();if(!m)return;marksG.innerHTML=(m.marks||[]).map(x=>x.type==='curve'?`<polyline class="markup-curve" points="${x.points.map(p=>p.x+','+p.y).join(' ')}" data-id="${x.id}"/>`:lineMarkup(x)).join('');marksG.querySelectorAll('[data-id]').forEach(el=>{if(el.classList.contains('markup-label-group'))wireLabelDrag(el,m);else el.addEventListener('click',e=>{e.stopPropagation();const id=el.dataset.id,item=m.marks.find(x=>x.id===id);if(item?.type==='measure')openEditor(item)})})}
- function loadMarkup(){const m=ensure();if(!m){world.style.display='none';$('#markupEmpty').style.display='flex';return}if(m.image){world.style.display='block';$('#markupEmpty').style.display='none';const finish=()=>{m.w=img.naturalWidth||m.w||1200;m.h=img.naturalHeight||m.h||900;world.style.width=m.w+'px';world.style.height=m.h+'px';svg.setAttribute('viewBox',`0 0 ${m.w} ${m.h}`);requestAnimationFrame(()=>requestAnimationFrame(()=>{fit();render()}))};img.onload=finish;img.onerror=()=>{if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent=t('msg.couldNotLoad');world.style.display='none';$('#markupEmpty').style.display='flex'};img.src=m.image;if(img.complete&&img.naturalWidth)finish()}else{world.style.display='none';$('#markupEmpty').style.display='flex';if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent=''}render()}
- function openEditor(item){editingId=item?.id||null;pending=item||pending;$('#editorKind').textContent=measureKindLabel(pending.kind||kind);$('#editorValue').value=pending.value||'';$('#editorName').value=pending.name||pending.kind||kind;$('#deleteEditor').classList.toggle('hidden',!editingId);const uEl=$('#editorValueUnit');if(uEl)uEl.textContent=pending.unit||currentMeasureUnitLabel();$('#measureEditor').classList.remove('hidden');setTimeout(()=>{$('#editorValue').focus({preventScroll:true});window.scrollTo(0,0)},80)}
- function closeEditor(){editingId=null;pending=null;$('#measureEditor').classList.add('hidden');render()}
+ let markupLoadToken=0,displayedCaptureKey=null,displayedCaptureImage=null,markupReady=false;
+ function captureKey(m){return JSON.stringify([state.currentProject,state.currentRoom,m.id??state.currentCaptureIndex])}
+ function loadMarkup(){
+  const m=ensure();
+  if(!m||!m.image){
+   ++markupLoadToken;markupReady=false;displayedCaptureKey=null;displayedCaptureImage=null;
+   world.style.display='none';$('#markupEmpty').style.display='flex';return;
+  }
+  const key=captureKey(m);
+  if(displayedCaptureKey===key&&displayedCaptureImage===m.image&&markupReady){
+   world.style.display='block';$('#markupEmpty').style.display='none';render();return;
+  }
+  const token=++markupLoadToken,source=m.image;
+  markupReady=false;
+  world.style.display='block';$('#markupEmpty').style.display='none';
+  let finished=false;
+  const finish=()=>{
+   if(finished||token!==markupLoadToken)return;
+   const current=ensure();
+   if(!current||captureKey(current)!==key||current.image!==source)return;
+   finished=true;
+   current.w=img.naturalWidth||current.w||1200;current.h=img.naturalHeight||current.h||900;
+   world.style.width=current.w+'px';world.style.height=current.h+'px';
+   svg.setAttribute('viewBox',`0 0 ${current.w} ${current.h}`);
+   requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(token!==markupLoadToken)return;
+    const active=ensure(),bounds=stage.getBoundingClientRect();
+    if(!active||captureKey(active)!==key||active.image!==source||bounds.width<=0||bounds.height<=0)return;
+    fit();displayedCaptureKey=key;displayedCaptureImage=source;markupReady=true;render();
+   }));
+  };
+  img.onload=finish;
+  img.onerror=()=>{
+   if(token!==markupLoadToken)return;
+   if($('#measurePhotoStatus'))$('#measurePhotoStatus').textContent=t('msg.couldNotLoad');
+   world.style.display='none';$('#markupEmpty').style.display='flex';
+  };
+  if(img.getAttribute('src')!==source)img.src=source;
+  if(img.complete&&img.naturalWidth)finish();
+  render();
+ }
+ function openEditor(item){editingId=item?.id||null;pending=item||pending;$('#editorKind').textContent=measureKindLabel(pending.kind||kind);$('#editorValue').value=pending.value||'';$('#editorName').value=pending.name||pending.kind||kind;$('#deleteEditor').classList.toggle('hidden',!editingId);const uEl=$('#editorValueUnit');if(uEl)uEl.textContent=pending.unit||currentMeasureUnitLabel();$('#measureEditor').classList.remove('hidden');setTimeout(()=>{if(!$('#measureEditor').classList.contains('hidden'))$('#editorValue').focus({preventScroll:true})},80)}
+ function closeEditor(){editingId=null;pending=null;if($('#measureEditor').contains(document.activeElement))document.activeElement.blur();$('#measureEditor').classList.add('hidden');render()}
  $('#saveEditor').onclick=()=>{const m=ensure();if(!m||!pending)return;pending.value=$('#editorValue').value.trim();pending.unit=$('#editorValueUnit')?.textContent||currentMeasureUnitLabel();pending.name=$('#editorName').value.trim()||pending.kind;if(!pending.value)return alert(t('msg.enterMeasurement'));if(!editingId){pending.id=uid();m.marks.push(pending)}save();closeEditor();render();const st=$('#measurePhotoStatus');if(st)st.textContent=t('msg.measurementsAddedCount',[(m.marks||[]).filter(x=>x.type==='measure').length]);};
  $('#deleteEditor').onclick=()=>{const m=ensure();if(!m||!editingId)return;m.marks=m.marks.filter(x=>x.id!==editingId);save();closeEditor();render()};$('#closeEditor').onclick=closeEditor;
  // Mobile Site Measure is used standing at the job with the camera -- Add Picture goes
@@ -4977,9 +5017,9 @@ load();
  if($('#markupZoomIn'))$('#markupZoomIn').onclick=()=>{zoom=Math.min(5,zoom*1.2);applyTransform()};
  if($('#markupZoomOut'))$('#markupZoomOut').onclick=()=>{zoom=Math.max(.15,zoom/1.2);applyTransform()};
  stage.addEventListener('wheel',e=>{e.preventDefault();const old=zoom,n=e.deltaY<0?Math.min(5,zoom*1.12):Math.max(.15,zoom/1.12),r=stage.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;panX=cx-(cx-panX)*(n/old);panY=cy-(cy-panY)*(n/old);zoom=n;applyTransform()},{passive:false});
- stage.addEventListener('pointerdown',e=>{if(!ensure()?.image)return;stage.setPointerCapture(e.pointerId);const p=point(e);drawing={pointer:e.pointerId,start:p,last:p,points:[p],startPanX:panX,startPanY:panY,startClient:{x:e.clientX,y:e.clientY}};if(mode==='curve')previewG.innerHTML=`<polyline class="markup-curve" points="${p.x},${p.y}"/>`});
- stage.addEventListener('pointermove',e=>{if(!drawing||drawing.pointer!==e.pointerId)return;const p=point(e);drawing.last=p;if(mode==='move'){panX=drawing.startPanX+(e.clientX-drawing.startClient.x);panY=drawing.startPanY+(e.clientY-drawing.startClient.y);applyTransform();return}if(mode==='curve'){drawing.points.push(p);previewG.innerHTML=`<polyline class="markup-curve" points="${drawing.points.map(q=>q.x+','+q.y).join(' ')}"/>`}else{const previewType=mode==='measure'?'measure':mode==='rect'?'rect':mode==='circle'?'circle':'line';previewG.innerHTML=lineMarkup({type:previewType,x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y},true)}});
- stage.addEventListener('pointerup',e=>{if(!drawing||drawing.pointer!==e.pointerId)return;const m=ensure(),p=point(e);previewG.innerHTML='';if(mode==='move'){drawing=null;return}
+ stage.addEventListener('pointerdown',e=>{if(!ensure()?.image||!markupReady||pinchGesture)return;stage.setPointerCapture(e.pointerId);const p=point(e);drawing={pointer:e.pointerId,start:p,last:p,points:[p],startPanX:panX,startPanY:panY,startClient:{x:e.clientX,y:e.clientY}};if(mode==='curve')previewG.innerHTML=`<polyline class="markup-curve" points="${p.x},${p.y}"/>`});
+ stage.addEventListener('pointermove',e=>{if(pinchGesture||!drawing||drawing.pointer!==e.pointerId)return;const p=point(e);drawing.last=p;if(mode==='move'){panX=drawing.startPanX+(e.clientX-drawing.startClient.x);panY=drawing.startPanY+(e.clientY-drawing.startClient.y);applyTransform();return}if(mode==='curve'){drawing.points.push(p);previewG.innerHTML=`<polyline class="markup-curve" points="${drawing.points.map(q=>q.x+','+q.y).join(' ')}"/>`}else{const previewType=mode==='measure'?'measure':mode==='rect'?'rect':mode==='circle'?'circle':'line';previewG.innerHTML=lineMarkup({type:previewType,x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y},true)}});
+ stage.addEventListener('pointerup',e=>{if(pinchGesture||!drawing||drawing.pointer!==e.pointerId)return;const m=ensure(),p=point(e);previewG.innerHTML='';if(mode==='move'){drawing=null;return}
   // The minimum-drag distance must be measured in actual screen pixels, not world/content
   // coordinates -- when zoomed in (common while adding a precise line/curve), a real,
   // deliberate finger drag divides down to a tiny world-space distance and was being
@@ -4987,10 +5027,28 @@ load();
   const dxScreen=e.clientX-drawing.startClient.x,dyScreen=e.clientY-drawing.startClient.y;
   if(Math.hypot(dxScreen,dyScreen)<8){drawing=null;return}if(mode==='curve'){m.marks.push({id:uid(),type:'curve',points:drawing.points});save();render()}else if(mode==='line'){m.marks.push({id:uid(),type:'line',x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y});save();render()}else if(mode==='rect'||mode==='circle'){m.marks.push({id:uid(),type:mode,x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y});save();render()}else{pending={type:'measure',kind,x1:drawing.start.x,y1:drawing.start.y,x2:p.x,y2:p.y,value:'',name:kind};openEditor(null)}drawing=null});
  stage.addEventListener('pointercancel',()=>{drawing=null;previewG.innerHTML=''});
- // two-finger pinch zoom
- stage.addEventListener('touchstart',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1];pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),z:zoom};}}, {passive:true});
- stage.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);zoom=Math.max(.15,Math.min(5,pinch.z*d/pinch.d));applyTransform()}}, {passive:true});
- stage.addEventListener('touchend',e=>{if(e.touches.length<2)pinch=null},{passive:true});
+ // Keep the image point between both fingers anchored during a pinch.
+ // Suppress drawing until all fingers lift, including a cancelled gesture.
+ let pinchGesture=false;
+ stage.addEventListener('touchstart',e=>{
+  if(e.touches.length<2||!markupReady)return;
+  pinchGesture=true;drawing=null;previewG.innerHTML='';
+  const a=e.touches[0],b=e.touches[1],r=stage.getBoundingClientRect();
+  const cx=(a.clientX+b.clientX)/2-r.left,cy=(a.clientY+b.clientY)/2-r.top;
+  pinch={d:Math.max(1,Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)),z:zoom,x:(cx-panX)/zoom,y:(cy-panY)/zoom};
+ },{passive:true});
+ stage.addEventListener('touchmove',e=>{
+  if(e.touches.length!==2||!pinch)return;
+  const a=e.touches[0],b=e.touches[1],r=stage.getBoundingClientRect();
+  const d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+  zoom=Math.max(.15,Math.min(5,pinch.z*d/pinch.d));
+  panX=(a.clientX+b.clientX)/2-r.left-pinch.x*zoom;
+  panY=(a.clientY+b.clientY)/2-r.top-pinch.y*zoom;
+  applyTransform();
+ },{passive:true});
+ function endPinch(e){if(e.touches.length<2)pinch=null;if(!e.touches.length){pinchGesture=false;drawing=null;previewG.innerHTML=''}}
+ stage.addEventListener('touchend',endPinch,{passive:true});
+ stage.addEventListener('touchcancel',endPinch,{passive:true});
  const oldShow=show;show=function(id){oldShow(id);if(id==='measure'){setTimeout(loadMarkup,20);renderMeasureCurrentRoomLabel();renderPhotoPager()}if(id==='siteVisitSummary')renderSiteVisitSummary();if(id==='sentToStudio')renderSentToStudio();if(id==='newSiteJob')renderNewSiteJobScreen()};
  const oldRenderAll2=renderAll;renderAll=function(){oldRenderAll2();if(state.screen==='measure'||document.querySelector('#measure.active')){loadMarkup();renderMeasureCurrentRoomLabel();renderPhotoPager()}if(state.screen==='siteVisitSummary')renderSiteVisitSummary()};
  setMode('measure');loadMarkup();
@@ -5276,25 +5334,8 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
 .modern-bottom-nav .scan-main span{margin-top:-4px;color:#ffc600;font-size:14px;font-weight:950}
 @media(max-width:430px){.modern-bottom-nav .nav-img{width:46px;height:46px}.modern-bottom-nav .scan-main .nav-img{width:74px;height:74px}}
 </style>
-<script id="a176-keyboard-visibility">
-(()=>{
- const editor=document.getElementById('measureEditor');
- const value=document.getElementById('editorValue');
- const name=document.getElementById('editorName');
- function keepVisible(){
-  if(!editor||editor.classList.contains('hidden'))return;
-  requestAnimationFrame(()=>{
-   const sheet=editor.querySelector('.measure-sheet');
-   if(sheet)sheet.scrollTop=0;
-  });
- }
- [value,name].forEach(el=>el&&el.addEventListener('focus',keepVisible));
- if(window.visualViewport){
-  visualViewport.addEventListener('resize',keepVisible);
-  visualViewport.addEventListener('scroll',keepVisible);
- }
-})();
-</script>
+<!-- Native focus scrolling keeps the active measurement field visible.
+     Do not reset sheet.scrollTop on keyboard or visual viewport changes. -->
 
 
 <script id="a200-sync-v1088-fix">
@@ -6399,5 +6440,14 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   window.fiqResetMobileTestData=resetMobileLocalData;
 })();
 </script>
+
+<style id="mobile-input-stability">
+/* Avoid focus zoom on compact form fields while preserving deliberate page zoom. */
+@media (pointer:coarse){
+ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+ textarea,select{font-size:max(16px,1em)!important}
+ button,a,[role="button"]{touch-action:manipulation}
+}
+</style>
 
 </body></html>
