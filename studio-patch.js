@@ -333,6 +333,34 @@
         .jor-card-whatsapp{left:15px!important;top:72px!important;width:30px!important;height:30px!important}
         .jor-card-metrics{margin-left:0!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
       }
+
+      /* One card layout at every desktop width, including a half-screen window. */
+      .job-overview-row{container-type:inline-size}
+      .job-overview-row .jor-card-top{display:grid!important;grid-template-columns:36px minmax(100px,1fr) minmax(104px,1fr) 96px 106px 34px!important;grid-template-rows:auto 38px!important;gap:12px 6px!important;padding:0!important;align-items:center!important}
+      .job-overview-row .jor-thumb{grid-column:1 / 3!important;grid-row:1!important;width:86px!important;height:68px!important;margin:0!important;background:#f5f7fa!important}
+      .job-overview-row .jor-thumb img{object-fit:contain!important}
+      .job-overview-row .jor-main{grid-column:2 / -1!important;grid-row:1!important;padding-left:56px!important;min-width:0!important}
+      .job-overview-row .jor-room{white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.25!important}
+      .job-overview-row .jor-name{white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.3!important}
+      .job-overview-row .jor-fitter,.job-overview-row .jor-fitter .fitter-row,.job-overview-row .jor-top-actions{display:contents!important}
+      .job-overview-row .jor-card-whatsapp{position:static!important;grid-column:1!important;grid-row:2!important;width:34px!important;height:34px!important;min-width:0!important;margin:0!important;box-shadow:0 2px 5px rgba(37,211,102,.2)!important}
+      .job-overview-row .fitter-select{grid-column:2!important;grid-row:2!important;width:100%!important;min-width:0!important;height:38px!important;min-height:38px!important;margin:0!important;padding:4px 7px!important;font-size:11px!important;border-radius:9px!important}
+      .job-overview-row .fitter-send-mobile-btn{grid-column:3!important;grid-row:2!important;width:100%!important;min-width:0!important;height:38px!important;min-height:38px!important;margin:0!important;padding:4px 6px!important;font-size:11px!important;white-space:nowrap!important}
+      .job-overview-row .jor-completed-badge{grid-column:4!important;grid-row:2!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;height:38px!important;min-height:38px!important;margin:0!important;padding:5px 3px!important;font-size:8px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
+      .job-overview-row .jor-library-slim{grid-column:5!important;grid-row:2!important;width:100%!important;min-width:0!important;height:38px!important;min-height:38px!important;margin:0!important;padding:4px 5px!important;font-size:10px!important;white-space:nowrap!important}
+      .job-overview-row .jor-delete-job{grid-column:6!important;grid-row:2!important;width:34px!important;height:38px!important;min-width:0!important;margin:0!important}
+      .job-overview-row .jor-card-metrics{margin:12px 0 0!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}
+      .job-overview-row .jor-card-metrics>.jor-stat{min-width:0!important;min-height:62px!important;padding:7px 4px!important}
+      .job-overview-row .jor-card-metrics .jor-stat-label{line-height:1.2!important;overflow-wrap:anywhere!important}
+      .job-overview-row .jor-card-top>.jor-select{position:absolute!important;left:3px!important;top:3px!important}
+      @container(max-width:510px){
+        .job-overview-row .jor-card-top{grid-template-columns:36px minmax(0,1fr) minmax(0,1fr) 34px!important;grid-template-rows:auto 38px 38px!important}
+        .job-overview-row .fitter-send-mobile-btn{grid-column:3 / 5!important}
+        .job-overview-row .jor-completed-badge{grid-column:1 / 3!important;grid-row:3!important}
+        .job-overview-row .jor-library-slim{grid-column:3!important;grid-row:3!important}
+        .job-overview-row .jor-delete-job{grid-column:4!important;grid-row:3!important}
+        .job-overview-row .jor-card-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+      }
     `;
     document.head.appendChild(style);
   }
