@@ -8,6 +8,10 @@ vm.createContext(context);vm.runInContext(source.slice(start,end)+'\n'+navigatio
 context.newJob();assert.equal(context.screen,'newSiteJob');assert.equal(context.state.projects.length,2);assert.equal(context.state.currentRoom,null);assert.equal(context.state.currentCaptureIndex,0);assert.deepEqual(context.state.projects.find(x=>x.id==='unsent'),original);
 context.newJob();assert.equal(context.state.projects.length,2,'Repeated clicks must reuse a blank draft');
 const second=context.state.projects[0];second.notes='Second job notes';context.newJob();assert.equal(context.state.projects.length,3,'A notes-only draft must be preserved');
+const transferred={id:'awaiting',name:'New Site Job',pendingStudioReceiptDocId:'receipt'};
+context.state.projects=[transferred];context.newJob();assert.equal(context.state.projects.length,2,'Never reuse a job awaiting transfer');assert.deepEqual(context.state.projects[1],transferred);
+const blank=context.state.projects[0];delete blank.nsjStep;context.newJob();assert.equal(blank.nsjStep,1,'Reused blank draft starts at customer step');
+context.state.projects.push(structuredClone(original),second);context.save();
 context.openSavedSiteJobs();assert.equal(context.projectsListMode,'site');assert.equal(context.screen,'projects');
 context.state=JSON.parse(context.persisted);assert.deepEqual(context.state.projects.find(x=>x.id==='unsent'),original);assert.equal(context.state.projects.find(x=>x.id===second.id).notes,'Second job notes');
 for(const match of source.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)){if(!/\bsrc=|type=["'](?:module|application\/ld\+json)/i.test(match[1])&&match[2].trim())new vm.Script(match[2])}

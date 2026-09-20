@@ -1945,7 +1945,7 @@ function updateInstallNewBadge(){
 // blank, ready-to-fill job is enough at a time -- reuse it until it's actually started
 // on, and only then does tapping "New Job" create the next one.
 function isBlankSiteJob(p){
- return p.name==='New Site Job'&&!isStudioJob(p)&&!p.mobileArchived&&!p.customer&&!p.address&&!p.phone&&!p.email&&!p.notes&&p.geoLat==null&&p.geoLng==null&&
+ return p.name==='New Site Job'&&!isStudioJob(p)&&!p.mobileArchived&&!p.pendingStudioReceiptDocId&&!p.lastStudioSync&&!p.siteTransfer&&!p.customer&&!p.address&&!p.phone&&!p.email&&!p.notes&&p.geoLat==null&&p.geoLng==null&&
   !['rooms','cabinets','siteMeasurements','sitePhotos','measureCaptures','notePhotos'].some(key=>(p[key]||[]).length)&&
   !p.siteRoomName&&!p.siteRoomNotes&&!p.siteRoomLocation&&!p.siteMarkup?.image&&!(p.siteMarkup?.marks||[]).length;
 }
@@ -1953,7 +1953,7 @@ function blankUnstartedJob(){return state.projects.find(isBlankSiteJob)}
 function newJob(){
  state.currentRoom=null;state.currentCaptureIndex=0;
  const existing=blankUnstartedJob();
- if(existing){state.currentProject=existing.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob");return}
+ if(existing){existing.nsjStep=1;state.currentProject=existing.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob");return}
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('site_job_created');const p={id:uid(),name:"New Site Job",customer:"",address:"",phone:"",notes:"",cabinets:[],siteMeasurements:[],sitePhotos:[],rooms:[],nsjStep:1};state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;jobConfirmedThisSession=true;save();show("newSiteJob")}
 // Tapping the Site Measure nav tab resumes whatever's already in progress instead of
 // always starting from scratch: a visit with real content (a customer name or at least
@@ -3731,10 +3731,13 @@ async function syncAllJobs(){
 // repeatedly instead of once. This collapses a burst of taps into one sync
 // shortly after the fitter pauses, silently (no popup), so Studio still
 // gets live progress without a popup or a network call per tap.
-let progressSyncDebounce=null;
+const progressSyncDebounce=new Map();
 function syncProgressSoon(id){
-  if(progressSyncDebounce)clearTimeout(progressSyncDebounce);
-  progressSyncDebounce=setTimeout(()=>{if(typeof exportJob==='function')exportJob(id,true)},1500);
+  if(progressSyncDebounce.has(id))clearTimeout(progressSyncDebounce.get(id));
+  progressSyncDebounce.set(id,setTimeout(()=>{
+    progressSyncDebounce.delete(id);
+    if(typeof exportJob==='function')exportJob(id,true);
+  },1500));
 }
 
 // mobileInboxPackets/removeMobilePacket/receiveStudioDirect (the original,
@@ -4158,7 +4161,9 @@ let lastScannedQrText=null,lastScannedQrAt=0;
 function handleDetectedQrText(raw){
  $("#scanResult").textContent=t('msg.qrLabelFound');
  const now=Date.now();
- if(raw===lastScannedQrText&&(now-lastScannedQrAt)<QR_DEDUP_WINDOW_MS)return;
+ // Extend the quiet window on every detection, including ignored camera frames.
+ // A label held in view must not become another piece just because time passes.
+ if(raw===lastScannedQrText&&(now-lastScannedQrAt)<QR_DEDUP_WINDOW_MS){lastScannedQrAt=now;return;}
  lastScannedQrText=raw;lastScannedQrAt=now;
  const ok=openScannedText(raw);
  if(ok)playScanSuccessFeedback();else playScanErrorFeedback();
