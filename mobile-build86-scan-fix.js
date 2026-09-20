@@ -1,25 +1,6 @@
 (function(){
   'use strict';
 
-  function fixFindPanelCounting(){
-    if(window.__fiqFindPanelCountsInstalled)return;
-    if(typeof window.markCurrentPanelScanned!=='function')return;
-    window.__fiqFindPanelCountsInstalled=true;
-    window.markCurrentPanelScanned=function(){
-      var pt=typeof part==='function'?part():null;
-      var pr=typeof project==='function'?project():null;
-      if(!pt)return;
-      var q=Math.max(1,Number(pt.qty)||1);
-      pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
-      pt.lastScannedAt=new Date().toISOString();
-      try{if(typeof currentActorFitterId==='function')pt.lastScannedByFitterId=currentActorFitterId()}catch(e){}
-      try{if(typeof save==='function')save()}catch(e){}
-      try{if(pr&&typeof syncProgressSoon==='function')syncProgressSoon(pr.id)}catch(e){}
-      try{if(typeof renderScanDashboard==='function')renderScanDashboard()}catch(e){}
-    };
-    try{markCurrentPanelScanned=window.markCurrentPanelScanned}catch(e){}
-  }
-
   function fixScanBar(){
     var nav=document.querySelector('.nav.scan-main');
     if(!nav)return;
@@ -73,7 +54,7 @@
     document.head.appendChild(s);
   }
 
-  function apply(){addStyle();fixFindPanelCounting();fixScanBar()}
+  function apply(){addStyle();fixScanBar()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
   new MutationObserver(function(){setTimeout(apply,0)}).observe(document.documentElement,{childList:true,subtree:true});
   window.addEventListener('pageshow',apply);
