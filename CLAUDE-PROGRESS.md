@@ -41,7 +41,6 @@ Mads replaced the earlier instruction. Deleting a dot now deletes the panel.
 
 Test: tests/studio-dot-delete.cjs (replaces studio-dot-remove.cjs).
 
-Open issue: Studio sometimes shows Out of Memory. Corrected by Mads: it happens now and then, and a refresh fixes it straight away. It does not happen every time on sign-in. That points to memory building up over a long session, not to loading the data. Before sign-in the live code loads at 8MB. Suspects: the 30s poll plus the snapshot listener re-reading every siteJobPacket document, with no guard against overlapping autoImportSitePackets runs, each calling save(). Also the studio-dispatch-snapshot MutationObserver, and repeated full-state saves. Plan: a signed-in session in the pane with sync left on, sampling performance.memory and counting getDocs, autoImport and save calls over time.
 
 ## 2026-09-24: Cutting List kept in Customer Library (not live yet, publish not approved)
 
@@ -56,6 +55,20 @@ Follow-up, requested by Mads: an edit that clears Panel Check (reviewSignature) 
 Not changed: a job with no customer name gets its own "No customer name" customer.
 
 Test: tests/studio-cutting-list-library.cjs.
+
+## 2026-09-24: Studio Out of Memory crash, cause found and fixed (not live yet, publish not approved)
+
+Symptom: Edge sometimes shows "This page is having a problem", Error code: Out of Memory. A refresh fixes it.
+
+Measured on Mads's real account in the browser pane, reading only: right after sign-in, the live Studio started 5,962 siteJobPacket downloads (up to 136 at once), received 5,940 listener events, wrote 1,000+ "received" marks every 10s and saved 57,101 times in about two minutes. Heap went from 8MB to 1.5GB. The loop was stopped in the pane once the evidence was captured.
+
+Cause: removeInboxPacket wrote status "received" with serverTimestamp every time a packet was applied, even packets already received. Each write fired the onSnapshot listener, and each event started another autoImportSitePackets with no guard. Every run applied its whole stale list and wrote again, so runs multiplied.
+
+Fix, in Studio-Recovery.html: (1) autoImportSitePackets is single-flight; a request during a run gets one more pass. (2) removeInboxPacket skips the cloud write for a packet already received. (3) The listener only reacts to added packets or packets still waiting, not to Studio's own "received" marks.
+
+Evidence: tests/studio-sync-loop.cjs uses a Firestore-like fake. Old code: 42 downloads, 40 at once, and 20 writes in 8s. New code: 2 downloads, 1 write. On the real account, the fixed build served from localhost:8432 (fresh browser, signed in 75 minutes) peaked at 63MB, with 0 writes and 3 listener events.
+
+Still wasteful but not the crash: paintSiteInbox and autoImport each download all 58 siteJobPacket documents every 30s, and checkCompanyReset downloads all studioToMobilePacket documents about every 15s. The cloud queue is never cleaned up.
 
 ## Next candidates, in priority order
 
