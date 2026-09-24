@@ -49,10 +49,13 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  });
 
  // 1. Finish with the real Cutting List button (Return to Job Overview). Not sent to Mobile.
+ // Count every attempt to reach Mobile, not only finished sends.
+ await page.evaluate(()=>{window.__mobileSends=0;['exportProjectToMobile','sendPackToPhoneDirectly'].forEach(n=>{const f=window[n];window[n]=function(){window.__mobileSends++;return f.apply(this,arguments)}})});
  await page.locator('#panelCheckReturnBtn').click();
  await page.waitForFunction(()=>state.currentProject===null);
  let p=await page.evaluate(()=>{const p=state.projects.find(x=>x.id==='p1');return {customerId:p.customerId,lastMobileSync:p.lastMobileSync||null,moved:p.movedToLibraryAt||null,finished:p.overviewFinishedAt||null,annaCount:state.customers.filter(c=>c.name==='Anna Jensen').length,copies:state.projects.filter(x=>x.id==='p1').length}});
  assert.deepEqual(p,{customerId:'cust-anna',lastMobileSync:null,moved:null,finished:null,annaCount:1,copies:1},'saved under the existing customer, one record, not sent, not completed');
+ assert.equal(await page.evaluate(()=>window.__mobileSends),0,'Return to Job Overview makes no attempt to send to Mobile');
 
  // 2. It is an active card in Job Overview.
  await page.evaluate(()=>{show('jobs');renderAll()});
@@ -87,7 +90,8 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
 
  // 5b. Editing a checked panel through the real form clears its Panel Check. The room card
  // must stay in Job Overview marked Needs recheck, stay in Customer Library, and survive
- // reopening. Send to Mobile asks first. Checking the panel again clears the badge.
+ // reopening. Send to Mobile works exactly as before, with no extra question. Checking the
+ // panel again clears the badge.
  const recheckBadge=()=>page.locator('.job-overview-row[data-open-job-card="p1"] .jor-recheck-badge').count();
  assert.equal(await recheckBadge(),0,'no badge while every panel is checked');
  await page.evaluate(()=>{openJobDesignForRoom('p1','r1');state.currentPart='pt-top';renderAll()});
@@ -101,12 +105,16 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await open();
  await page.evaluate(()=>{show('jobs');renderAll()});
  assert.equal(await recheckBadge(),1,'Needs recheck survives reopening');
+ await page.evaluate(()=>{window.__mobileSends=0;['exportProjectToMobile','sendPackToPhoneDirectly'].forEach(n=>{const f=window[n];window[n]=function(){window.__mobileSends++;return f.apply(this,arguments)}})});
  const sendDialogs=[];
- page.removeAllListeners('dialog');page.on('dialog',d=>{sendDialogs.push(d.message());d.dismiss()});
+ page.removeAllListeners('dialog');page.on('dialog',d=>{sendDialogs.push(d.message());d.accept()});
  await page.locator('.job-overview-row[data-open-job-card="p1"] [data-owner-mobile-send]').first().click();
+ await page.waitForTimeout(500);
  page.removeAllListeners('dialog');page.on('dialog',d=>d.accept());
- assert.match(sendDialogs[0]||'',/need checking again/,'Send to Mobile warns before sending unchecked changes');
- assert.equal(await page.evaluate(()=>state.projects.find(x=>x.id==='p1').lastMobileSync||null),null,'cancelled send sends nothing');
+ // This offline test has no signed-in company, so the send itself stops at sign-in as it
+ // always has; what matters is that no recheck question was added in front of it.
+ assert(await page.evaluate(()=>window.__mobileSends)>0,'the send counter does see a real Send to Mobile press');
+ assert(!sendDialogs.some(m=>/Panel Check|recheck|checking again/i.test(m)),'Send to Mobile asks nothing extra: '+JSON.stringify(sendDialogs));
  await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
  assert.equal(await page.locator('[data-open-cutting-list-project="p1"][data-open-cutting-list="r1"]').count(),1,'still in Customer Library while it needs recheck');
  await page.locator('[data-open-cutting-list-project="p1"][data-open-cutting-list="r1"]').click();

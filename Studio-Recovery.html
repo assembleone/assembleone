@@ -8003,14 +8003,8 @@ body.fiq-locked .app{display:none!important}
     if(general)cards.push({project:p,room:'__general__',needsRecheck:general.needsRecheck});
     return cards;
   }
-  // Used by Finish (to stamp cards as listed before saving) and by Send to Mobile.
+  // Used by Finish to stamp cards as listed in Job Overview before saving.
   window.fiqMarkJobOverviewCards=p=>{try{return cardsForProject(p)}catch(e){return []}};
-  window.fiqCardNeedsRecheck=key=>{
-    const i=String(key).indexOf('::'),projectId=i===-1?key:key.slice(0,i);
-    const p=(state.projects||[]).find(x=>x.id===projectId);if(!p)return false;
-    const card=cardsForProject(p).find(c=>cardKey(c)===key);
-    return !!(card&&card.needsRecheck);
-  };
   function cardCabinets(card){
     const p=card.project;
     if(card.room===null||card.room==='__site_visit__')return p.cabinets||[];
@@ -8907,7 +8901,6 @@ body.fiq-locked .app{display:none!important}
         if(btn.disabled)return;
         const ctx=resolve(btn.dataset.ownerMobileSend);
         if(!ctx||!ctx.project){alert('This job could not be found. Refresh Studio and try again.');return}
-        if(typeof window.fiqCardNeedsRecheck==='function'&&window.fiqCardNeedsRecheck(btn.dataset.ownerMobileSend)&&!confirm('Some panels in this job were changed after Panel Check and need checking again. Send to Mobile anyway?'))return;
         const original=btn.textContent;
         btn.disabled=true;btn.textContent='Sending...';
         try{
