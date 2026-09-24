@@ -1784,6 +1784,12 @@ function applyAppLanguage(lang){
 }
 
 const STORE="buildSOS_v12";
+if(typeof window.aoMmToUnit!=='function'){
+ window.AO_UNIT_FACTORS={mm:1,cm:10,in:25.4};
+ window.aoCurrentUnit=function(){try{return state.units||'mm'}catch(e){return 'mm'}};
+ window.aoMmToUnit=function(mm){if(mm===''||mm==null||isNaN(mm))return mm;const f=AO_UNIT_FACTORS[aoCurrentUnit()]||1;return Math.round((Number(mm)/f)*100)/100};
+ window.aoUnitToMm=function(val){if(val===''||val==null||isNaN(val))return val;const f=AO_UNIT_FACTORS[aoCurrentUnit()]||1;return Math.round(Number(val)*f*100)/100};
+}
 const statuses=[["ready","Ready"],["installed","Installed"],["missing","Missing"]];
 let state={projects:[],customers:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,currentCustomerCard:null,lastChosenPartName:"",numbering:false,screen:"jobs"};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -2550,6 +2556,7 @@ function renderForm(){
  if(p&&(p.qty===""||p.qty==null))p.qty=1;
  const map={fLength:"length",fWidth:"width",fThickness:"thickness",fQty:"qty",fMaterial:"material",fNotes:"notes"};
  Object.entries(map).forEach(([id,key])=>{const v=p?.[key]??"";$("#"+id).value=["length","width","thickness"].includes(key)?(typeof aoMmToUnit==='function'?aoMmToUnit(v):v):v});
+ window.__fiqFormPartId=p?p.id:null;
  if(typeof aoRenderUnitLabels==='function')aoRenderUnitLabels();
  // Quantity is locked by default for every panel. Unlocking is deliberately temporary
  // and applies only to the currently selected panel.
@@ -5595,7 +5602,8 @@ body.guide-only .a131-back-studio{display:block}
       if(p){if(n&&n.value.trim())assign(p,'name',n.value.trim());if(cust&&cust.value.trim())assign(p,'customer',cust.value.trim())}
       if(partNow){
         const map={fThickness:'thickness',fLength:'length',fWidth:'width',fQty:'qty',fMaterial:'material',fNotes:'notes'};
-        Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el)return;let v=el.value;if(['thickness','length','width'].includes(k))v=v===''?'':(typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v));else if(k==='qty')v=clampPanelQty(v);if(v!==''||k==='notes'||k==='material')assign(partNow,k,v)});
+        const formIsForThisPanel=window.__fiqFormPartId===partNow.id;
+        Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(!el||!formIsForThisPanel)return;let v=el.value;if(['thickness','length','width'].includes(k)){const shown=typeof aoMmToUnit==='function'?aoMmToUnit(partNow[k]):partNow[k];if(String(v)===String(shown??''))return;v=v===''?'':(typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v))}else if(k==='qty')v=clampPanelQty(v);if(v!==''||k==='notes'||k==='material')assign(partNow,k,v)});
       }
       if(p&&edited)p.updatedAt=Date.now();
       const stage=document.getElementById('drawingStage');if(c&&stage){c.viewState=c.viewState||{};c.viewState.scrollLeft=stage.scrollLeft;c.viewState.scrollTop=stage.scrollTop;c.viewState.zoom=Number(state.drawingZoom||1)}
