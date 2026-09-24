@@ -274,6 +274,8 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 .marker-copy{box-shadow:0 0 0 4px rgba(183,121,60,.18)}
 .fiq-pin-menu{position:absolute;z-index:30;transform:translate(-50%,30px);pointer-events:auto;white-space:nowrap}
 .fiq-pin-menu .btn{box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.fiq-renumber-notice{margin:0 0 12px;padding:12px 14px;border:2px solid #d97706;border-radius:12px;background:#fff7e6;color:#5b3a06;font-size:14px;line-height:1.5}
+.fiq-renumber-notice .btn{margin-left:8px}
 .cut-details{font-weight:900;font-size:17px;white-space:nowrap}
 .cut-description{font-weight:700}
 .material-small{font-size:11px;color:var(--muted);margin-top:3px}
@@ -2250,6 +2252,7 @@ function renderSiteMeasurementOverlay(canvas,c){
  canvas.querySelectorAll('.site-measure-overlay').forEach(x=>x.remove());const svg=buildMeasureOverlaySvg(c?.siteMarkup);if(svg)canvas.appendChild(svg)
 }
 function renderRooms(){
+ renderPanelNumbersNotice();
  const c=cabinet(),stage=$("#drawingStage"),canvas=$("#drawingCanvas"),img=$("#drawingImage"),pdf=$("#drawingPdf"),empty=$("#drawingEmpty");
  const deleteDrawingBtn=$("#deleteDrawingBtn");if(deleteDrawingBtn)deleteDrawingBtn.disabled=!c?.drawing;
  // Zoom lives on state.drawingZoom (one shared value, not per-cabinet) purely as a cache
@@ -2297,25 +2300,74 @@ function openPinMenu(partId,copyIndex){
  const pin=[...document.querySelectorAll("#drawingCanvas .pin")].find(x=>x.dataset.id===partId&&Number(x.dataset.copy)===Number(copyIndex));
  const p=cabinet()?.parts.find(x=>x.id===partId);if(!pin||!p)return;
  const menu=document.createElement("div");menu.id="fiqPinMenu";menu.className="fiq-pin-menu";
- menu.innerHTML=`<button type="button" class="btn" data-remove-dot>Remove dot</button>`;
+ menu.innerHTML=`<button type="button" class="btn" data-delete-dot>Delete dot</button>`;
  menu.style.left=pin.style.left;menu.style.top=pin.style.top;
  menu.addEventListener("click",e=>e.stopPropagation());
  menu.addEventListener("mousedown",e=>e.stopPropagation());
- menu.querySelector("[data-remove-dot]").onclick=e=>{e.stopPropagation();removePanelDot(partId,copyIndex)};
+ menu.querySelector("[data-delete-dot]").onclick=e=>{e.stopPropagation();deletePanelDot(partId,copyIndex)};
  document.getElementById("drawingCanvas").appendChild(menu);
 }
 document.addEventListener("click",e=>{if(!e.target.closest?.("#fiqPinMenu,.pin"))closePinMenu()});
-// Removes only where the dot sits on the drawing. The panel, its measurements and its
-// quantity stay in the Cutting List, and the next click on the drawing (with this panel
-// selected) places the dot again.
-function removePanelDot(partId,copyIndex){
- const p=cabinet()?.parts.find(x=>x.id===partId);if(!p)return;
+// Deleting a dot deletes what it stands for. A panel's only dot deletes the whole panel
+// (measurements included) and renumbers the rest of the unit so there are no gaps. One
+// dot of a repeated panel removes just that piece (quantity down by one). Panel ids never
+// change, so QR labels keep pointing at the same physical panel after renumbering.
+function panelDotCount(p){return (hasMarkPosition(p)?1:0)+(p.copies||[]).filter(hasMarkPosition).length}
+function deletePanelAndRenumber(c,p){
+ if(!c||!p)return;
+ // Remember what each panel was called before this round of changes, so the notice can
+ // list old -> new numbers for anything already printed or exported.
+ const notice=c.panelNumbersNotice||{since:Date.now(),originalCodes:{},deleted:[]};
+ c.parts.forEach(x=>{if(!(x.id in notice.originalCodes))notice.originalCodes[x.id]=x.code});
+ notice.deleted.push(notice.originalCodes[p.id]||p.code);
+ c.parts=c.parts.filter(x=>x.id!==p.id);
+ // A phone still holding this panel resends it with every sync; this stops Studio from
+ // adding the deleted panel back (see mergeMobileProject).
+ c.deletedPartIds=[...new Set([...(c.deletedPartIds||[]),p.id])];
+ c.parts.forEach((x,i)=>x.code=`P-${String(i+1).padStart(3,"0")}`);
+ notice.changedAt=Date.now();
+ c.panelNumbersNotice=notice;
+ if(state.currentPart===p.id)state.currentPart=null;
+ state.selectedCopy=-1;
+}
+function deletePanelDot(partId,copyIndex){
+ const c=cabinet(),p=c?.parts.find(x=>x.id===partId);if(!p)return;
  const i=Number(copyIndex);
- if(i>=0&&p.copies?.[i]){p.copies.splice(i,1);p.unplacedCopies=(Number(p.unplacedCopies)||0)+1}
- else{p.x=null;p.y=null}
- state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=false;
- closePinMenu();save();renderAll();
- if(typeof toast==="function")toast(`Dot removed. ${p.code} is still in the Cutting List. Click the drawing to place it again.`);
+ if(panelDotCount(p)>1){
+  const qty=Math.max(Number(p.qty)||0,panelDotCount(p));
+  if(!confirm(`Remove one ${p.code}? Its quantity goes from ${qty} to ${qty-1}.`))return;
+  const wasReviewed=!!p.reviewSignature&&typeof window.panelReviewSignature==="function"&&p.reviewSignature===window.panelReviewSignature(p);
+  if(i>=0&&p.copies?.[i])p.copies.splice(i,1);
+  else{const next=p.copies.shift();p.x=next.x;p.y=next.y}
+  p.qty=qty-1;
+  // Removing a piece on purpose is itself the approval of the new quantity.
+  if(wasReviewed)p.reviewSignature=window.panelReviewSignature(p);
+  state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=false;
+  closePinMenu();renderAll();save();
+  if(typeof toast==="function")toast(`${p.code} now has quantity ${p.qty}.`);
+  return;
+ }
+ if(!confirm(`Delete panel ${p.code} and its measurements? The panels after it will be renumbered.`))return;
+ const code=p.code;
+ deletePanelAndRenumber(c,p);
+ closePinMenu();renderAll();save();
+ if(typeof toast==="function")toast(`${code} deleted. Panel numbers updated.`);
+}
+// Shown on the drawing and the Cutting List until the owner confirms that anything printed
+// or exported with the old numbers has been redone. Studio does not record every export or
+// print, so this is shown after any renumbering rather than guessing.
+function renderPanelNumbersNotice(){
+ const c=cabinet(),n=c?.panelNumbersNotice;
+ ["screen-mark","screen-cutting"].forEach(id=>{
+  const screen=document.getElementById(id);if(!screen)return;
+  let box=screen.querySelector(".fiq-renumber-notice");
+  if(!n){box?.remove();return}
+  if(!box){box=document.createElement("div");box.className="fiq-renumber-notice";screen.insertBefore(box,screen.firstChild)}
+  const moved=c.parts.filter(x=>n.originalCodes[x.id]&&n.originalCodes[x.id]!==x.code).map(x=>`${safe(n.originalCodes[x.id])} is now ${safe(x.code)}`);
+  const sentToPhone=!!project()?.lastMobileSync;
+  box.innerHTML=`<strong>Panel numbers changed.</strong> Deleted: ${n.deleted.map(safe).join(", ")}.${moved.length?` ${moved.join(", ")}.`:""}<br>Cutting lists, supplier CSV files and printed labels made before this show the old numbers. Export and print them again. QR codes still find the right panel.${sentToPhone?" The phone has the old numbers until you send this job to Mobile again.":""} <button type="button" class="btn" data-renumber-done>Done, all updated</button>`;
+  box.querySelector("[data-renumber-done]").onclick=()=>{delete c.panelNumbersNotice;save();renderPanelNumbersNotice()};
+ });
 }
 window.addEventListener("mousemove",e=>{if(!dragging)return;if(!dragging.moved){if(Math.hypot(e.clientX-dragging.startX,e.clientY-dragging.startY)<5)return;dragging.moved=true}const p=cabinet()?.parts.find(x=>x.id===dragging.id),r=$("#drawingCanvas").getBoundingClientRect();if(!p)return;const x=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100)),y=Math.max(0,Math.min(100,(e.clientY-r.top)/r.height*100));if(dragging.copy>=0&&p.copies?.[dragging.copy]){p.copies[dragging.copy].x=x;p.copies[dragging.copy].y=y}else{p.x=x;p.y=y}renderRooms()});
 window.addEventListener("mouseup",()=>{if(dragging){const moved=dragging.moved;dragging=null;document.body.style.userSelect="";if(moved){window.__fiqSwallowDragClick=true;setTimeout(()=>{window.__fiqSwallowDragClick=false},0);save()}}});
@@ -3495,7 +3547,7 @@ const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","meas
   Object.assign(br,clonedIr);
 });
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){bc.parts.push(ip);return}mergePanelFields(bp,ip,isStalePacket)})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,ip,isStalePacket)})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);if(!merged){alert("This job was deleted from Studio and can't be restored from a backup file.");return}switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
@@ -4068,7 +4120,7 @@ $("#saveNextBtn").onclick=()=>{
  setTimeout(()=>{renderMaterialPicker();closeMaterialPicker();closeNotesPicker()},40);
 };
 
-$("#deletePartBtn").onclick=()=>{const c=cabinet(),p=part();if(c&&p&&confirm(t("studio.drawing.deletePanelConfirm",[p.code]))){c.parts=c.parts.filter(x=>x.id!==p.id);c.parts.forEach((x,i)=>x.code=`P-${String(i+1).padStart(3,"0")}`);state.currentPart=null;save();renderAll()}};
+$("#deletePartBtn").onclick=()=>{const c=cabinet(),p=part();if(c&&p&&confirm(t("studio.drawing.deletePanelConfirm",[p.code]))){deletePanelAndRenumber(c,p);renderAll();save()}};
 $("#downloadCsvBtn").onclick=()=>{const c=cabinet(),complete=supplierParts();if(!complete.length){alert(t("studio.drawing.noCompletePartsReadyAddFirst"));return}const rows=[["Panel No.","Thickness","Length","Long edge lines","Width","Short edge lines","Qty","Material"],...complete.map(p=>[p.code,p.thickness,p.length,p.edgeLong||0,p.width,p.edgeShort||0,p.qty,materialForPanel(p)||""])];const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=((project()?.name||"Job")+"_"+(c?.name||"Wardrobe")).replace(/[^\w-]+/g,"_")+"_cutting_list.csv";a.click()};
 $("#printCuttingBtn").onclick=()=>{$$(".screen").forEach(x=>x.classList.remove("print-target"));$("#screen-cutting").classList.add("print-target");window.print()};
 $("#generateQrBtn").onclick=renderQr;$("#printQrBtn").onclick=()=>{$$(".screen").forEach(x=>x.classList.remove("print-target"));$("#screen-qr").classList.add("print-target");window.print()};

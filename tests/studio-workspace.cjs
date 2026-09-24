@@ -30,7 +30,7 @@ const returnScript=source.match(/<script id="a222-cutting-list-return-script">([
   IDBObjectStore.prototype.put=function(...args){writes[this.name]=(writes[this.name]||0)+1;return put.apply(this,args)};
   window.alerts=[];window.alert=x=>alerts.push(x);
  });
- await page.addScriptTag({content:fn('hasMarkPosition')+'\n'+fn('renderRooms')+'\n'+fn('renderForm')+'\n'+finish});
+ await page.addScriptTag({content:fn('hasMarkPosition')+'\n'+fn('renderPanelNumbersNotice')+'\n'+fn('renderRooms')+'\n'+fn('renderForm')+'\n'+finish});
  await page.evaluate(()=>{window.renderAll=()=>{renderRooms();renderForm();renderCutting()};renderAll()});
  await page.addScriptTag({content:'(function(){'+stability+'window.save=stableSave;window.readBackup=getProjectState;})();'});
  assert.equal(await page.evaluate(()=>save()),true);

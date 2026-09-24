@@ -29,6 +29,20 @@ Mads asked for a way to remove a dot that is in the wrong place on the drawing.
 
 Test: tests/studio-dot-remove.cjs. tests/studio-workspace.cjs now also loads hasMarkPosition.
 
+## 2026-09-24: Delete dot replaces Remove dot (not live yet)
+
+Mads replaced the earlier instruction. Deleting a dot now deletes the panel.
+
+1. The dot menu offers Delete dot (deletePanelDot). If it is the panel's only dot, the panel and its measurements are deleted after a confirmation, and the unit is renumbered P-001..P-n with no gaps (deletePanelAndRenumber, also used by the Delete panel button).
+2. If it is one dot of a repeated panel, only that piece goes: quantity drops by one and the review stamp is refreshed, so the panel stays on the Cutting List.
+3. Panel ids never change, so QR labels (which hold the id) still find the right panel. Deleted ids go into cabinet.deletedPartIds, and mergeMobileProject skips them, so a phone resync cannot bring a deleted panel back.
+4. cabinet.panelNumbersNotice shows a notice on the drawing and Cutting List screens. It lists the deleted panels and old to new numbers, and says that exported or printed lists and labels need redoing and that the job needs sending to Mobile again. It stays until the owner presses Done. Studio does not record exports, so the notice appears after any renumbering.
+5. The placing logic for positionless dots from the earlier release stays, for data created while that release was live.
+
+Test: tests/studio-dot-delete.cjs (replaces studio-dot-remove.cjs).
+
+Open issue: after the Remove dot release, Mads reported Studio showing Out of Memory after sign-in. Before sign-in, the live code loads normally at 8MB. Main suspect: Studio reads every siteJobPacket document ever written, every 30s and on every snapshot. Not confirmed yet; this needs a signed-in measurement.
+
 ## Next candidates, in priority order
 
 1. The sync queue in companies/{companyId}/jobs is never cleaned up. Studio re-reads every siteJobPacket document every 30s and on every change. Mobile re-reads every studioToMobilePacket document every 2.5s. The cost and delay keep growing.
