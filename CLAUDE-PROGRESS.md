@@ -41,7 +41,7 @@ Mads replaced the earlier instruction. Deleting a dot now deletes the panel.
 
 Test: tests/studio-dot-delete.cjs (replaces studio-dot-remove.cjs).
 
-Open issue: after the Remove dot release, Mads reported Studio showing Out of Memory after sign-in. Before sign-in, the live code loads normally at 8MB. Main suspect: Studio reads every siteJobPacket document ever written, every 30s and on every snapshot. Not confirmed yet; this needs a signed-in measurement.
+Open issue: Studio sometimes shows Out of Memory. Corrected by Mads: it happens now and then, and a refresh fixes it straight away. It does not happen every time on sign-in. That points to memory building up over a long session, not to loading the data. Before sign-in the live code loads at 8MB. Suspects: the 30s poll plus the snapshot listener re-reading every siteJobPacket document, with no guard against overlapping autoImportSitePackets runs, each calling save(). Also the studio-dispatch-snapshot MutationObserver, and repeated full-state saves. Plan: a signed-in session in the pane with sync left on, sampling performance.memory and counting getDocs, autoImport and save calls over time.
 
 ## Next candidates, in priority order
 
