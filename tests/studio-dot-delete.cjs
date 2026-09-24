@@ -180,6 +180,25 @@ function panel(id,n,name,length,qty,x,y,copies=[]){const p={id,code:'P-00'+n,nam
  await matchCheck('after Mobile round trip and reopening');
  assert.equal(await pieces(),3);
 
- console.log('PASS: dot click adds nothing, move keeps panel, cancel, delete panel 1 and a middle panel with renumbering and no gaps, totals, drawing matches Cutting List after reopening, ids kept, phone sync cannot restore, one dot = one piece (3 to 2 to 1 to row removed), row with more pieces than dots, notice for old lists and labels, Mobile round trip.');
+ // 14. Identical measurements never link pieces. Three separate shelf rows with the same
+ // sizes plus one grouped row of three shelves: deleting one dot removes only that piece.
+ await page.evaluate(()=>localStorage.clear());await page.reload();
+ await install([panel('s1',1,'Shelf',500,1,20,20),panel('s2',2,'Shelf',500,1,40,20),panel('s3',3,'Shelf',500,1,60,20),panel('g',4,'Shelf',500,3,20,70,[{x:50,y:70},{x:80,y:70}])].map(x=>JSON.parse(JSON.stringify(x))));
+ const layout=()=>page.evaluate(()=>cabinet().parts.map(p=>({id:p.id,qty:p.qty,dots:[[p.x,p.y],...(p.copies||[]).map(m=>[m.x,m.y])]})));
+ const before=await layout();
+ await clickPin('s2',-1);await page.locator('#fiqPinMenu [data-delete-dot]').click();
+ let after=await layout();
+ assert.deepEqual(after,before.filter(p=>p.id!=='s2'),'only the selected shelf goes; the other shelves and all their dots are unchanged');
+ assert.deepEqual((await cutting()).map(p=>p.id+':'+p.code),['s1:P-001','s3:P-002','g:P-003']);
+ await clickPin('g',0);await page.locator('#fiqPinMenu [data-delete-dot]').click();
+ after=await layout();
+ assert.deepEqual(after.find(p=>p.id==='g'),{id:'g',qty:2,dots:[[20,70],[80,70]]},'only the selected piece of the grouped row goes; its other dots stay where they were');
+ assert.deepEqual(after.filter(p=>p.id!=='g'),before.filter(p=>p.id==='s1'||p.id==='s3'),'separate shelves untouched');
+ await clickPin('g',-1);await page.locator('#fiqPinMenu [data-delete-dot]').click();
+ after=await layout();
+ assert.deepEqual(after.find(p=>p.id==='g'),{id:'g',qty:1,dots:[[80,70]]},'deleting the first dot of a group keeps the remaining dot in place');
+ await matchCheck('after identical-shelf deletions');
+
+ console.log('PASS: identical measurements never link pieces, dot click adds nothing, move keeps panel, cancel, delete panel 1 and a middle panel with renumbering and no gaps, totals, drawing matches Cutting List after reopening, ids kept, phone sync cannot restore, one dot = one piece (3 to 2 to 1 to row removed), row with more pieces than dots, notice for old lists and labels, Mobile round trip.');
  }finally{if(browser)await browser.close();server.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
