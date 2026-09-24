@@ -43,6 +43,18 @@ Test: tests/studio-dot-delete.cjs (replaces studio-dot-remove.cjs).
 
 Open issue: Studio sometimes shows Out of Memory. Corrected by Mads: it happens now and then, and a refresh fixes it straight away. It does not happen every time on sign-in. That points to memory building up over a long session, not to loading the data. Before sign-in the live code loads at 8MB. Suspects: the 30s poll plus the snapshot listener re-reading every siteJobPacket document, with no guard against overlapping autoImportSitePackets runs, each calling save(). Also the studio-dispatch-snapshot MutationObserver, and repeated full-state saves. Plan: a signed-in session in the pane with sync left on, sampling performance.memory and counting getDocs, autoImport and save calls over time.
 
+## 2026-09-24: Cutting List kept in Customer Library (not live yet, publish not approved)
+
+Mads asked for a finished Cutting List to always be saved in Customer Library, under the right customer and room, without needing Send to Mobile, while the job stays in Job Overview.
+
+Checked current behaviour with the real Studio page (Studio.html plus patches, network blocked): this already works. The Cutting List is the job record itself (project.cabinets[].parts), not a copy. finishDesignToCard links the job to a customer with ensureCustomerForProject, matching names without regard to case or spaces, and saves it. Customer Library lists all of a customer's jobs, active or filed, and each row has a Cutting List button. Move to Customer Library only sets movedToLibraryAt/overviewFinishedAt, so nothing is deleted.
+
+Gap fixed: customerJobDesignRows only showed the first unit per room, and nothing for units outside rooms in jobs that have rooms. Every unit with work now gets its own row and Cutting List button (data-open-*-cabinet), and openJobDesignForRoom/openCuttingListForRoom take a cabinet id.
+
+Observed and not changed: editing a panel's details clears its Panel Check approval (reviewSignature), so its room card leaves Job Overview until it is checked again. A job with no customer name gets its own "No customer name" customer.
+
+Test: tests/studio-cutting-list-library.cjs.
+
 ## Next candidates, in priority order
 
 1. The sync queue in companies/{companyId}/jobs is never cleaned up. Studio re-reads every siteJobPacket document every 30s and on every change. Mobile re-reads every studioToMobilePacket document every 2.5s. The cost and delay keep growing.

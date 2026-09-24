@@ -2189,15 +2189,15 @@ function startDesignFromSiteRoom(projectId,roomId){
 // safer than a Job/Design entry that could create a second cabinet for the same room.
 // roomId is optional -- a legacy no-rooms job's own single cabinet stands in for "the
 // job's own design" the same way it already does everywhere else in the Customer Card.
-function openJobDesignForRoom(projectId,roomId){
+function openJobDesignForRoom(projectId,roomId,cabinetId){
  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
- const c=roomId?(p.cabinets||[]).find(x=>x.roomId===roomId):(p.cabinets||[])[0];
+ const c=(cabinetId&&(p.cabinets||[]).find(x=>x.id===cabinetId))||(roomId?(p.cabinets||[]).find(x=>x.roomId===roomId):(p.cabinets||[])[0]);
  if(!c)return;
  switchToProject(p.id,c.id);renderAll();save();show('mark');
 }
-function openCuttingListForRoom(projectId,roomId){
+function openCuttingListForRoom(projectId,roomId,cabinetId){
  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
- const c=roomId?(p.cabinets||[]).find(x=>x.roomId===roomId):(p.cabinets||[])[0];
+ const c=(cabinetId&&(p.cabinets||[]).find(x=>x.id===cabinetId))||(roomId?(p.cabinets||[]).find(x=>x.roomId===roomId):(p.cabinets||[])[0]);
  if(!c)return;
  switchToProject(p.id,c.id);renderAll();save();show('cutting');
 }
@@ -2853,18 +2853,24 @@ function customerCabinetStatusInfo(cabinet){
 // own cabinet (Start Design was used for it), or -- for a legacy job that predates rooms --
 // the project's own single cabinet standing in for the whole job. Never grouped back into
 // one big per-project card; every row is already unambiguous on its own.
+// A room can hold several wardrobes or cabinets ("+ Add wardrobe or cabinet"), each with its
+// own Cutting List, and a job with rooms can also have units outside any room (Job
+// Overview's General card). Every such unit gets its own row, so no saved Cutting List is
+// unreachable from the Library. Extra empty units are skipped; the first unit always shows.
 function customerJobDesignRows(jobs){
  const rows=[];
+ const hasWork=c=>(c.parts||[]).length||c.drawing;
+ const addGroup=(p,room,units)=>{
+   const shown=units.filter((c,i)=>i===0||hasWork(c));
+   shown.forEach((cabinet,i)=>rows.push({project:p,room,cabinet,unitCount:shown.length,firstInGroup:i===0}));
+ };
  jobs.forEach(p=>{
    const namedRooms=(p.rooms||[]).filter(r=>r.name);
-   if(namedRooms.length){
-     namedRooms.forEach(r=>{
-       const cabinet=(p.cabinets||[]).find(c=>c.roomId===r.id);
-       if(cabinet)rows.push({project:p,room:r,cabinet});
-     });
-   }else if((p.cabinets||[]).length){
-     rows.push({project:p,room:null,cabinet:p.cabinets[0]});
-   }
+   const roomIds=new Set(namedRooms.map(r=>r.id));
+   namedRooms.forEach(r=>addGroup(p,r,(p.cabinets||[]).filter(c=>c.roomId===r.id)));
+   const outside=(p.cabinets||[]).filter(c=>!c.roomId||!roomIds.has(c.roomId));
+   if(!namedRooms.length)addGroup(p,null,outside);
+   else addGroup(p,null,outside.filter(hasWork));
  });
  return rows;
 }
@@ -2927,25 +2933,26 @@ function renderCustomerCard(){
    `<button type="button" class="btn primary customer-new-job-btn" data-new-job="${safe(c.id)}">${t("studio.customerLibrary.newJobBtn")}</button>`+
    `<button type="button" class="btn customer-select-toggle-btn" data-toggle-select>${customerCardSelectMode?t("studio.customerLibrary.cancelBtn"):t("studio.customerLibrary.selectBtn")}</button>`+
  `</div>`;
- const jobsTabRowsHtml=jobRows.length?jobRows.map(({project:p,room,cabinet})=>{
+ const jobsTabRowsHtml=jobRows.length?jobRows.map(({project:p,room,cabinet,unitCount,firstInGroup})=>{
    const icon=room?(room.icon||"⌂"):"⌂";
-   const name=room?room.name:(p.name||t("studio.customerLibrary.untitledJob"));
+   const outsideRooms=!room&&(p.rooms||[]).some(r=>r.name);
+   const name=(room?room.name:(p.name||t("studio.customerLibrary.untitledJob")))+((unitCount>1||outsideRooms)&&cabinet.name?" · "+cabinet.name:"");
    const subtitle=showSubtitle||!room?safe(p.name||t("studio.customerLibrary.untitledJob")):"";
    const status=customerCabinetStatusInfo(cabinet);
    const panelTotal=(cabinet.parts||[]).reduce((n,pt)=>n+Math.max(1,Number(pt.qty)||1),0);
    const panelHtml=panelTotal?`<span>${t(panelTotal===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[panelTotal])}</span>`:"";
    const updatedHtml=p.updatedAt?`<span class="customer-tab-row-updated">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:"";
    const rowCardKey=room?p.id+"::"+room.id:p.id;
-   const checkboxHtml=customerCardSelectMode?`<label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}" onclick="event.stopPropagation()"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(rowCardKey)}" ${supplierSelectedJobIds.has(rowCardKey)?"checked":""}></label>`:"";
-   const rowBtn=`<button type="button" class="customer-tab-row" data-open-job-design="${safe(room?room.id:"")}" data-open-job-design-project="${safe(p.id)}">`+
+   const checkboxHtml=customerCardSelectMode&&firstInGroup&&!outsideRooms?`<label class="customer-job-select" title="${t("studio.customerLibrary.selectForSupplierSend")}" onclick="event.stopPropagation()"><input type="checkbox" class="job-select-checkbox" data-select-job="${safe(rowCardKey)}" ${supplierSelectedJobIds.has(rowCardKey)?"checked":""}></label>`:"";
+   const rowBtn=`<button type="button" class="customer-tab-row" data-open-job-design="${safe(room?room.id:"")}" data-open-job-design-project="${safe(p.id)}" data-open-job-design-cabinet="${safe(cabinet.id)}">`+
      `<span class="customer-tab-row-icon">${safe(icon)}</span>`+
      `<span class="customer-tab-row-main"><strong>${safe(name)}</strong>${subtitle?`<span class="customer-tab-row-sub">${subtitle}</span>`:""}</span>`+
      `<span class="customer-tab-row-meta"><span class="customer-job-status ${status.cls}">${status.label}</span>${panelHtml}${updatedHtml}</span>`+
      `<span class="customer-tab-row-chevron">›</span>`+
    `</button>`;
-   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" title="${t("detail.cuttingList")}">📋 ${t("detail.cuttingList")}</button>`;
+   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" data-open-cutting-list-cabinet="${safe(cabinet.id)}" title="${t("detail.cuttingList")}">📋 ${t("detail.cuttingList")}</button>`;
    const overflowHtml=`<div class="customer-row-overflow"><button type="button" class="customer-row-overflow-btn" data-overflow-toggle title="${t("studio.customerLibrary.jobOptionsMenuTitle")}">⋮</button><div class="customer-row-overflow-menu" hidden><button type="button" class="customer-row-overflow-item" data-delete-customer-job="${safe(p.id)}">🗑 ${t("detail.delete")}</button></div></div>`;
-   return `<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${cuttingListBtn}${overflowHtml}</div>`;
+   return `<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${cuttingListBtn}${firstInGroup?overflowHtml:""}</div>`;
  }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsDesignsYetEmpty")}</div>`;
  const supplierSendHtml=(customerCardSelectMode&&supplierSelectedJobIds.size>0)?`<button type="button" class="btn primary customer-supplier-send-btn" data-send-selected-supplier>${t(supplierSelectedJobIds.size===1?"studio.customerLibrary.sendToSupplierSingular":"studio.customerLibrary.sendToSupplierPlural",[supplierSelectedJobIds.size])}</button>`:"";
  const jobsTabHtml=jobsToolbarHtml+jobsTabRowsHtml+supplierSendHtml;
@@ -3016,8 +3023,8 @@ function renderCustomerCard(){
  // A Job/Design row goes straight to that room's own drawing -- never through the Site
  // Measurement modal -- so an existing Design is never mistaken for its permanent
  // original record, or the other way round.
- body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=()=>openJobDesignForRoom(el.dataset.openJobDesignProject,el.dataset.openJobDesign));
- body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>openCuttingListForRoom(el.dataset.openCuttingListProject,el.dataset.openCuttingList));
+ body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=()=>openJobDesignForRoom(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet));
+ body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>openCuttingListForRoom(el.dataset.openCuttingListProject,el.dataset.openCuttingList,el.dataset.openCuttingListCabinet));
  // Each Site Measurement row (and every photo/photo-group) opens ONLY that room's own
  // photos/measurements -- passing its real roomId means openSiteRoomDetails uses that
  // exact room instead of falling back to "whichever room has a picture".
