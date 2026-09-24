@@ -1324,7 +1324,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL, listAll, deleteObject } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 
 const firebaseConfig = {
@@ -1344,7 +1344,7 @@ window.fiqFunctions = getFunctions(app);
 window.fiqFirestore = getFirestore(app);
 window.fiqStorage = getStorage(app);
 window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL, listAll, deleteObject };
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, onSnapshot };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, onSnapshot, runTransaction };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <body class="fiq-locked">
@@ -2642,6 +2642,7 @@ function deleteProjectRecord(id){
  state.projects=state.projects.filter(x=>x.id!==id);
  state.deletedProjectIds=state.deletedProjectIds||[];
  if(!state.deletedProjectIds.includes(id))state.deletedProjectIds.push(id);
+ if(typeof setMobileJobActive==='function')setMobileJobActive(id,false,'deleted');
  if(state.currentProject===id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
  return true;
 }
@@ -3369,13 +3370,28 @@ async function mobileSyncDb(){return new Promise((resolve,reject)=>{const q=inde
 // with or overwrite another, and resending an updated photo just overwrites the same
 // object instead of piling up old versions.
 const HEAVY_MEDIA_INLINE_THRESHOLD=6000;
-async function uploadIfHeavyDataUri(value,path){
+const MEDIA_URL_CACHE_KEY='fiq_studio_media_url_cache_v1';
+let mediaUrlCache=null;
+function mediaUrlCacheGet(k){if(!mediaUrlCache){try{mediaUrlCache=JSON.parse(localStorage.getItem(MEDIA_URL_CACHE_KEY)||'{}')||{}}catch(e){mediaUrlCache={}}}return mediaUrlCache[k]||null}
+function mediaUrlCacheSet(k,v){mediaUrlCacheGet(k);mediaUrlCache[k]=v;const keys=Object.keys(mediaUrlCache);if(keys.length>4000)keys.slice(0,keys.length-4000).forEach(x=>delete mediaUrlCache[x]);try{localStorage.setItem(MEDIA_URL_CACHE_KEY,JSON.stringify(mediaUrlCache))}catch(e){}}
+async function mediaContentHash(value){
+  if(!(window.crypto&&crypto.subtle&&window.TextEncoder))return null;
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes)).slice(0,16).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function uploadIfHeavyDataUri(value,path,jobFolder){
   if(typeof value!=='string'||!value.startsWith('data:')||value.length<HEAVY_MEDIA_INLINE_THRESHOLD)return value;
   const {ref,uploadString,getDownloadURL}=window.fiqStorageFns||{};
   if(!ref||!uploadString||!getDownloadURL||!window.fiqStorage)throw new Error('Photo storage is not ready. Please retry.');
+  const hash=jobFolder?await mediaContentHash(value):null;
+  if(hash)path=jobFolder+'/h/'+hash+(/^data:image\/png/i.test(value)?'.png':'.jpg');
+  const cached=hash&&mediaUrlCacheGet(path);if(cached)return cached;
   const objRef=ref(window.fiqStorage,path);
-  await uploadString(objRef,value,'data_url');
-  return await getDownloadURL(objRef);
+  let url=null;
+  if(hash){try{url=await getDownloadURL(objRef)}catch(e){url=null}}
+  if(!url){await uploadString(objRef,value,'data_url');url=await getDownloadURL(objRef)}
+  if(hash&&url)mediaUrlCacheSet(path,url);
+  return url;
 }
 async function offloadHeavyMediaForMobileSync(project,companyId){
   const p=JSON.parse(JSON.stringify(project));
@@ -3389,7 +3405,7 @@ async function offloadHeavyMediaForMobileSync(project,companyId){
       node.forEach((value,index)=>{
         if(typeof value==='string'&&value.startsWith('data:')&&value.length>=HEAVY_MEDIA_INLINE_THRESHOLD){
           const path=`companies/${companyId}/jobs/${jobId}/media/${transferId}/array-${counter++}-${index}`;
-          uploads.push(uploadIfHeavyDataUri(value,path).then(url=>{node[index]=url}));
+          uploads.push(uploadIfHeavyDataUri(value,path,`companies/${companyId}/jobs/${jobId}/media`).then(url=>{node[index]=url}));
         }else if(value&&typeof value==='object')walk(value);
       });return;
     }
@@ -3399,7 +3415,7 @@ async function offloadHeavyMediaForMobileSync(project,companyId){
         const fileId=node.id||('f'+(counter++));
         const ext=/^data:image\/png/i.test(val)?'png':'jpg';
         const path=`companies/${companyId}/jobs/${jobId}/media/${transferId}/${fileId}-${key}-${counter++}.${ext}`;
-        uploads.push(uploadIfHeavyDataUri(val,path).then(url=>{node[key]=url}));
+        uploads.push(uploadIfHeavyDataUri(val,path,`companies/${companyId}/jobs/${jobId}/media`).then(url=>{node[key]=url}));
       }else if(val&&typeof val==='object'){
         walk(val);
       }
@@ -3409,6 +3425,23 @@ async function offloadHeavyMediaForMobileSync(project,companyId){
   await Promise.all(uploads);
   return p;
 }
+function mobileJobDocId(projectId){return 'studio-job-'+String(projectId).replace(/[\/]/g,'_')}
+// A job leaving Job Overview (Move to Customer Library, or Delete Job) stops being live for
+// Mobile: its per-job message is switched off, so phones no longer read it in the background.
+// Nothing is deleted. Send to Mobile switches it on again. Jobs sent before this change have
+// no per-job message; there is nothing to switch off for them.
+async function setMobileJobActive(projectId,active,reason){
+ const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+ if(!projectId||!fs||!db||!user||!user.companyId)return false;
+ const ref=fs.doc(db,'companies',user.companyId,'jobs',mobileJobDocId(projectId));
+ try{
+   const snap=await fs.getDoc(ref);
+   if(!snap.exists()||(snap.data()||{}).active===active)return false;
+   await fs.updateDoc(ref,{active,activeChangedAt:fs.serverTimestamp(),activeChangedReason:reason||''});
+   return true;
+ }catch(e){console.warn('Could not update the job for Mobile',e);return false}
+}
+window.fiqSetMobileJobActive=setMobileJobActive;
 async function sendPackToPhoneDirectly(pack){
  const packet={...pack,syncId:pack.syncId||uid(),syncStatus:"waiting"};
  // The durable outbox owns retries. Send directly to the company queue so a local
@@ -3433,8 +3466,21 @@ async function sendPackToPhoneDirectly(pack){
        cloudError="This job could not be sent to the phone right now. Please try again in a moment.";
      }else{
        try{
-         cloudDocId='studio-'+packet.syncId;
-         await fs.setDoc(fs.doc(db2,"companies",user.companyId,"jobs",cloudDocId),envelope);
+         if(packet.project&&packet.project.id){
+           cloudDocId=mobileJobDocId(packet.project.id);
+           envelope.active=true;
+           const ref=fs.doc(db2,"companies",user.companyId,"jobs",cloudDocId);
+           const write=async tx=>{
+             const current=tx?await tx.get(ref):null;
+             const existing=current&&current.exists()?current.data():null;
+             if(existing&&existing.exportedAt&&envelope.exportedAt&&Date.parse(existing.exportedAt)>Date.parse(envelope.exportedAt))return;
+             if(tx)tx.set(ref,envelope);else await fs.setDoc(ref,envelope);
+           };
+           if(fs.runTransaction)await fs.runTransaction(db2,write);else await write(null);
+         }else{
+           cloudDocId='studio-'+packet.syncId;
+           await fs.setDoc(fs.doc(db2,"companies",user.companyId,"jobs",cloudDocId),envelope);
+         }
          cloudSent=true;
        }
        catch(e){console.error("Cloud send to Mobile failed",e);cloudError="Could not send this job to the phone right now. Please check your connection and try again."}
@@ -3573,17 +3619,20 @@ const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
 function studioSyncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open(DIRECT_SYNC_DB,1);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
 function fallbackPackets(){try{return JSON.parse(localStorage.getItem(DIRECT_SYNC_FALLBACK)||"[]")||[]}catch(e){return []}}
 function sitePacketIsAfterTestReset(pack){const cutoff=Number(localStorage.getItem('fittersiq_test_reset_at_v1')||0),sent=Date.parse(pack&&pack.exportedAt||'');return !cutoff||!Number.isFinite(sent)||sent>cutoff}
+// Only Mobile messages still waiting are read in normal operation. A message Studio has
+// already received is never downloaded again every 30s; that history grew with every scan
+// and send, forever. Anything another Studio tab acknowledged first is still picked up by
+// recoverAllCompanySiteJobs() on the next open. While the live listener runs, its copy of
+// the waiting set is used, so polling costs no cloud reads at all.
+let cloudWaitingSitePackets=null,cloudWaitingSitePacketsCompany=null;
+function waitingSitePacketsQuery(fs,db,companyId){return fs.query(fs.collection(db,'companies',companyId,'jobs'),fs.where('kind','==','siteJobPacket'),fs.where('status','==','waiting'))}
+function sitePacketsFromSnapshot(snap){const out=[];snap.forEach(docSnap=>{const data=docSnap.data()||{};out.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});return out}
 async function fetchCloudSitePackets(){
  try{
   const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
   if(!fs||!db||!user||!user.companyId)return [];
-  // Include already-received packets because another open Studio tab may have
-  // acknowledged the update before the tab the owner is viewing could merge it.
-  const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'));
-  const snap=await fs.getDocs(q);
-  const out=[];
-  snap.forEach(docSnap=>{const data=docSnap.data()||{};out.push({...data,syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id})});
-  return out;
+  if(cloudWaitingSitePackets&&cloudWaitingSitePacketsCompany===user.companyId&&window.__fiqCloudSitePacketUnsubscribe)return JSON.parse(JSON.stringify(cloudWaitingSitePackets));
+  return sitePacketsFromSnapshot(await fs.getDocs(waitingSitePacketsQuery(fs,db,user.companyId)));
  }catch(e){console.error('Cloud site job fetch failed',e);return []}
 }
 function sitePacketNeedsMerge(pack){
@@ -3646,7 +3695,7 @@ async function paintSiteInbox(){
   document.querySelector('.site-file-backup')?.classList.add('visible');
  }
 }
-async function removeInboxPacket(syncId,alreadyReceived=false){try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK);if(String(syncId||'').startsWith('cloud:')&&!alreadyReceived){try{const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;const cloudId=String(syncId).slice(6);if(fs&&db2&&user&&user.companyId){await fs.updateDoc(fs.doc(db2,'companies',user.companyId,'jobs',cloudId),{status:'received',receivedAt:fs.serverTimestamp()})}}catch(e){console.error('Could not mark cloud site job received',e)}}}
+async function removeInboxPacket(syncId,alreadyReceived=false,mergedExportedAt=''){try{const db=await studioSyncDb();const tx=db.transaction('studioInbox','readwrite');tx.objectStore('studioInbox').delete(syncId);await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){}const rest=fallbackPackets().filter(x=>(x.syncId||x.exportedAt)!==syncId);if(rest.length)localStorage.setItem(DIRECT_SYNC_FALLBACK,JSON.stringify(rest));else localStorage.removeItem(DIRECT_SYNC_FALLBACK);if(String(syncId||'').startsWith('cloud:')&&!alreadyReceived){try{const fs=window.fiqAuthFns,db2=window.fiqFirestore,user=window.fittersiqUser;const cloudId=String(syncId).slice(6);if(fs&&db2&&user&&user.companyId){const ref=fs.doc(db2,'companies',user.companyId,'jobs',cloudId);if(mergedExportedAt&&fs.runTransaction){await fs.runTransaction(db2,async tx=>{const snap=await tx.get(ref);if(!snap.exists())return;const d=snap.data()||{};if(d.status==='received'||d.exportedAt!==mergedExportedAt)return;tx.update(ref,{status:'received',receivedAt:fs.serverTimestamp()})})}else await fs.updateDoc(ref,{status:'received',receivedAt:fs.serverTimestamp()})}}catch(e){console.error('Could not mark cloud site job received',e)}}}
 async function applyOneSitePacket(pack,acknowledge=false){
  const incoming=ensureSharedProject(pack.project||pack);
  if(pack.exportedAt)incoming._packetExportedAt=pack.exportedAt;
@@ -3661,7 +3710,7 @@ async function applyOneSitePacket(pack,acknowledge=false){
  // mergeMobileProject's tombstone check) -- discard the packet's data, but still mark
  // it received so this same stale "waiting" packet stops being offered up by every
  // future sync cycle instead of being silently retried forever.
- if(!merged){await removeInboxPacket(pack.syncId||pack.exportedAt,pack.status==='received');return null}
+ if(!merged){await removeInboxPacket(pack.syncId||pack.exportedAt,pack.status==='received',pack.exportedAt||'');return null}
  // Persist this merge locally BEFORE telling Firestore the packet is
  // received. Marking it 'received' permanently excludes it from every
  // future fetchCloudSitePackets() query (status=='waiting' only, and there
@@ -3677,7 +3726,7 @@ async function applyOneSitePacket(pack,acknowledge=false){
  if(acknowledge)merged.siteMeasureAcceptedAt=new Date().toISOString();
  const saved=typeof save==='function'?await save():true;
  if(saved===false){merged._lastMobilePacketAt=0;throw new Error('Studio could not save this update. Receipt was not confirmed.')}
- if(acknowledge)await removeInboxPacket(syncId,pack.status==='received');
+ if(acknowledge)await removeInboxPacket(syncId,pack.status==='received',pack.exportedAt||'');
  // Site Measurements are permanent reference records only. Never create a Drawing
  // cabinet or copy a site photo into the Drawing Area. Remove only untouched legacy
  // auto-created Site Measurement cabinets, never a real design carrying panels.
@@ -3768,12 +3817,19 @@ async function autoImportSitePacketsOnce(){
 // this recovers a job that's still fully intact locally as a no-op, and
 // restores one that was lost. Runs once per app open (see unlockApp), not on
 // an ongoing interval, matching Mobile's own reasoning for the same pattern.
+// The full scan reads every phone message the company has ever sent, so it runs when this
+// browser has no jobs (a new or cleared PC) or once a week, not on every open. Waiting
+// messages are handled by the live listener at all times regardless.
+const FULL_SITE_RECOVERY_KEY='fiq_studio_full_recovery_at_v1';
 async function recoverAllCompanySiteJobs(){
  try{
   const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
   if(!fs||!db||!user||!user.companyId)return false;
+  const lastFull=Number(localStorage.getItem(FULL_SITE_RECOVERY_KEY+':'+user.companyId)||0);
+  if((state.projects||[]).length&&Date.now()-lastFull<7*24*60*60*1000)return false;
   const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'));
   const snap=await fs.getDocs(q);
+  try{localStorage.setItem(FULL_SITE_RECOVERY_KEY+':'+user.companyId,String(Date.now()))}catch(e){}
   let changed=false;
   snap.forEach(docSnap=>{
    const data=docSnap.data()||{};
@@ -3814,12 +3870,13 @@ window.addEventListener('storage',e=>{if(e.key===DIRECT_SYNC_FALLBACK){paintSite
 function startCloudSitePacketListener(){
  const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
  if(window.__fiqCloudSitePacketUnsubscribe||!fs||!fs.onSnapshot||!db||!user||!user.companyId)return !!window.__fiqCloudSitePacketUnsubscribe;
- const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'));
- window.__fiqCloudSitePacketUnsubscribe=fs.onSnapshot(q,snap=>{
-   if(snap.empty)return;
+ const companyId=user.companyId;
+ window.__fiqCloudSitePacketUnsubscribe=fs.onSnapshot(waitingSitePacketsQuery(fs,db,companyId),snap=>{
+   cloudWaitingSitePackets=sitePacketsFromSnapshot(snap);cloudWaitingSitePacketsCompany=companyId;
+   // A message leaving the waiting set (Studio's own receipt) is not new work.
    const changes=typeof snap.docChanges==='function'?snap.docChanges():null;
-   if(!changes||changes.some(ch=>ch.type==='added'||((ch.doc&&ch.doc.data&&ch.doc.data())||{}).status==='waiting'))autoImportSitePackets();
- },e=>{console.error('Live Mobile status listener failed',e);try{window.__fiqCloudSitePacketUnsubscribe()}catch(_){}window.__fiqCloudSitePacketUnsubscribe=null});
+   if(!changes||changes.some(ch=>ch.type==='added'||ch.type==='modified'))autoImportSitePackets();
+ },e=>{console.error('Live Mobile status listener failed',e);cloudWaitingSitePackets=null;try{window.__fiqCloudSitePacketUnsubscribe()}catch(_){}window.__fiqCloudSitePacketUnsubscribe=null});
  return true;
 }
 const cloudListenerStarter=setInterval(()=>{if(startCloudSitePacketListener())clearInterval(cloudListenerStarter)},2000);
@@ -8517,7 +8574,7 @@ body.fiq-locked .app{display:none!important}
       // Only when the parent job is genuinely filed do we also clear its matching
       // incoming Site Job from New Project. Both records remain under the same Customer
       // Library customerId; this only removes their front-screen clutter.
-      if(p.movedToLibraryAt)archiveMatchingIncomingSiteVisits(p,room,now);
+      if(p.movedToLibraryAt){archiveMatchingIncomingSiteVisits(p,room,now);setMobileJobActive(p.id,false,'library')}
       p.updatedAt=now;save();jorSelectedCardKeys.delete(room?cardKey({project:p,room}):p.id);renderAll();
       // Receipt only proves the fitters update arrived. This explicit, lightweight
       // command is what removes the matching completed card from Mobile.
@@ -9969,7 +10026,7 @@ document.addEventListener('mousedown',function(e){
     if(resetInProgress||Date.now()-lastCloudCheck<12000)return;lastCloudCheck=Date.now();
     const user=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;if(!user||!user.companyId||!fs||!db)return;
     try{
-      const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'));
+      const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'),fs.where('status','==','broadcast'));
       const snap=await fs.getDocs(q);let resetId=null,resetAt=0;
       snap.forEach(docSnap=>{const cmd=(docSnap.data()||{}).command;if(cmd&&cmd.type==='reset-all-test-data'&&cmd.resetId&&Number(cmd.resetAt||0)>=resetAt){resetId=cmd.resetId;resetAt=Number(cmd.resetAt||0)}});
       if(resetId&&localStorage.getItem(RESET_SEEN_KEY)!==resetId)await resetStudioLocalData(resetId,resetAt);

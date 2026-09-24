@@ -84,7 +84,9 @@ function loadStudio(c){
  media.fiqAuthFns.collection=(...x)=>x;media.fiqAuthFns.addDoc=async(_,v)=>{docs.set('return',structuredClone(v));return{id:'return'}};
  const returned=structuredClone(c.state.projects[0]);returned.cabinets[0].parts[0].status='installed';returned.cabinets[0].parts[0].statusUpdatedAt=8000;returned.jobLog=[{id:'installed',text:'Fitted',photos:[image]}];
  await media.sendPackDirectly({project:returned,exportedAt:new Date(8000).toISOString()});
- await d.applyOneSitePacket({...docs.get('return'),syncId:'cloud:return'},true);
+ // The phone now keeps one message per job (setDoc on mobile-<jobId>-<uid>) instead of a new one per send.
+ const returnKey=[...docs.keys()].find(k=>k.includes('/jobs/mobile-job-'));assert(returnKey,'phone writes its per-job message');assert(!docs.has('return'),'no new message per send');
+ await d.applyOneSitePacket({...docs.get(returnKey),syncId:'cloud:'+returnKey.split('/').pop()},true);
  const completed=d.state.projects.find(p=>p.id==='job');assert.equal(completed.cabinets[0].parts[0].status,'installed');assert(completed.jobLog.some(n=>n.id==='installed'&&n.photos[0].startsWith('https:')));
  console.log('PASS: actual transport and merge functions, two-way round trip, received history, duplicates, late notes, save failure/retry, fitter access, reset/deletion, acceptance, photos.');
 })().catch(e=>{console.error(e);process.exitCode=1});

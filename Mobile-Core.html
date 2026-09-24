@@ -808,7 +808,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 
 const firebaseConfig = {
@@ -826,7 +826,7 @@ window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
 window.fiqStorage = getStorage(fiqApp);
 window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL };
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <div id="fiqAuthGate" class="fiq-auth-gate">
@@ -3773,14 +3773,35 @@ try{const directChannel=new BroadcastChannel("assembleone-sync");directChannel.a
 // most one document per project still waiting on confirmation -- there is normally only
 // one such job at a time, so this is not a heavier retry loop, just one more cheap check
 // on an interval that already exists.
+// This phone's own messages still waiting for Studio, kept by one live listener. A message
+// in this set is known to be unconfirmed, so it is not fetched every 2.5s (a Site Measure can
+// wait days for acceptance). Only a message that leaves the set is read once, to confirm it.
+const ownWaitingMessages={key:null,ids:null,unsub:null};
+function watchOwnWaitingMessages(fs,db,user){
+ const key=user.companyId+'|'+user.uid;
+ if(ownWaitingMessages.key===key&&ownWaitingMessages.unsub)return;
+ try{if(ownWaitingMessages.unsub)ownWaitingMessages.unsub()}catch(e){}
+ ownWaitingMessages.key=key;ownWaitingMessages.ids=null;ownWaitingMessages.unsub=null;
+ if(!fs.onSnapshot)return;
+ const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'),fs.where('createdBy','==',user.uid),fs.where('status','==','waiting'));
+ ownWaitingMessages.unsub=fs.onSnapshot(q,function(snap){const ids=new Set();snap.forEach(function(d){ids.add(d.id)});ownWaitingMessages.ids=ids;checkPendingStudioReceipts()},function(e){console.error('Own message listener failed',e);ownWaitingMessages.ids=null;ownWaitingMessages.unsub=null;ownWaitingMessages.key=null});
+}
+let checkingStudioReceipts=false;
 async function checkPendingStudioReceipts(){
+ if(checkingStudioReceipts)return;
+ checkingStudioReceipts=true;
+ try{await checkPendingStudioReceiptsOnce()}finally{checkingStudioReceipts=false}
+}
+async function checkPendingStudioReceiptsOnce(){
  const pending=state.projects.filter(p=>p.pendingStudioReceiptDocId&&!p.mobileArchived);
  if(!pending.length)return;
  const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
  if(!fs||!db||!user||!user.companyId)return;
+ watchOwnWaitingMessages(fs,db,user);
  let changed=false;
  for(const p of pending){
   try{
+   if(ownWaitingMessages.ids&&ownWaitingMessages.ids.has(p.pendingStudioReceiptDocId))continue;
    const snap=await fs.getDoc(fs.doc(db,'companies',user.companyId,'jobs',p.pendingStudioReceiptDocId));
    const data=snap.exists()?snap.data():null;
    if(data&&data.status==='received'){
@@ -5397,6 +5418,15 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   // and resent on this device. Only the cloned cloud packet is changed to Storage URLs.
   // This mirrors the already proven Studio-to-Mobile media path and removes the Firestore
   // document size limit from both directions.
+  const MEDIA_URL_CACHE_KEY="fiq_mobile_media_url_cache_v1";
+  let mediaUrlCache=null;
+  function mediaUrlCacheGet(k){if(!mediaUrlCache){try{mediaUrlCache=JSON.parse(localStorage.getItem(MEDIA_URL_CACHE_KEY)||"{}")||{}}catch(e){mediaUrlCache={}}}return mediaUrlCache[k]||null}
+  function mediaUrlCacheSet(k,v){mediaUrlCacheGet(k);mediaUrlCache[k]=v;const keys=Object.keys(mediaUrlCache);if(keys.length>2000)keys.slice(0,keys.length-2000).forEach(function(x){delete mediaUrlCache[x]});try{localStorage.setItem(MEDIA_URL_CACHE_KEY,JSON.stringify(mediaUrlCache))}catch(e){}}
+  async function mediaContentHash(value){
+    if(!(window.crypto&&crypto.subtle&&window.TextEncoder))return null;
+    const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
+    return Array.from(new Uint8Array(bytes)).slice(0,16).map(function(b){return b.toString(16).padStart(2,"0")}).join("");
+  }
   async function offloadMobileMediaForStudio(project,companyId){
     const cloudProject=JSON.parse(JSON.stringify(project));
     const storage=window.fiqStorage,storageFns=window.fiqStorageFns||{};
@@ -5406,6 +5436,19 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     const uploads=[];
     const transferId=uid();
     let fallbackId=0;
+    const jobFolder="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media";
+    async function durableUrl(value,transferPath){
+      const hash=await mediaContentHash(value);
+      const objectPath=hash?jobFolder+"/h/"+hash+(/^data:image\/png/i.test(value)?".png":".jpg"):transferPath;
+      const cached=hash&&mediaUrlCacheGet(objectPath);if(cached)return cached;
+      const objectRef=storageFns.ref(storage,objectPath);
+      let url=null;
+      if(hash){try{url=await storageFns.getDownloadURL(objectRef)}catch(e){url=null}}
+      if(!url){await storageFns.uploadString(objectRef,value,"data_url");url=await storageFns.getDownloadURL(objectRef)}
+      if(!url)throw new Error("The uploaded photo could not be verified.");
+      if(hash)mediaUrlCacheSet(objectPath,url);
+      return url;
+    }
     function walk(node){
       if(!node||typeof node!=="object")return;
       if(Array.isArray(node)){
@@ -5414,13 +5457,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
             const mediaId="media-"+(fallbackId++);
             const extension=/^data:image\/png/i.test(value)?"png":"jpg";
             const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+transferId+"/"+mediaId+"-item."+extension;
-            uploads.push((async function(){
-              const objectRef=storageFns.ref(storage,objectPath);
-              await storageFns.uploadString(objectRef,value,"data_url");
-              const url=await storageFns.getDownloadURL(objectRef);
-              if(!url)throw new Error("The uploaded photo could not be verified.");
-              node[index]=url;
-            })());
+            uploads.push(durableUrl(value,objectPath).then(function(url){node[index]=url}));
           }else if(value&&typeof value==="object")walk(value);
         });
         return;
@@ -5431,13 +5468,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
           const mediaId=String(node.id||("media-"+(fallbackId++))).replace(/[^a-zA-Z0-9_-]/g,"-");
           const extension=/^data:image\/png/i.test(value)?"png":"jpg";
           const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+transferId+"/"+mediaId+"-"+key+"."+extension;
-          uploads.push((async function(){
-            const objectRef=storageFns.ref(storage,objectPath);
-            await storageFns.uploadString(objectRef,value,"data_url");
-            const url=await storageFns.getDownloadURL(objectRef);
-            if(!url)throw new Error("The uploaded photo could not be verified.");
-            node[key]=url;
-          })());
+          uploads.push(durableUrl(value,objectPath).then(function(url){node[key]=url}));
         }else if(value&&typeof value==="object")walk(value);
       });
     }
@@ -5476,7 +5507,12 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     // than let the job vanish behind a cryptic SDK error.
     let approxBytes=0;try{approxBytes=new Blob([JSON.stringify(envelope)]).size}catch(e){approxBytes=JSON.stringify(envelope).length}
     if(approxBytes>900000)throw new Error("This site job's photos are too large to send to Studio in one go (about "+Math.round(approxBytes/1024)+"KB). Remove a photo or two, or use the backup file instead.");
-    const ref=await fs.addDoc(fs.collection(db,"companies",user.companyId,"jobs"),envelope);
+    const jobId=pack.project&&pack.project.id?String(pack.project.id).replace(/[\/]/g,"_"):"";
+    let ref;
+    if(jobId&&fs.setDoc){
+      ref={id:"mobile-"+jobId+"-"+user.uid};
+      await fs.setDoc(fs.doc(db,"companies",user.companyId,"jobs",ref.id),envelope);
+    }else ref=await fs.addDoc(fs.collection(db,"companies",user.companyId,"jobs"),envelope);
     try{new BroadcastChannel("assembleone-sync").postMessage({type:"mobile-update",syncId:ref.id,channel:CHANNEL})}catch(e){}
     // The write resolving only proves the packet reached Studio's waiting queue, not that
     // Studio has it -- callers that need real confirmation (see checkPendingStudioReceipts)
@@ -5500,6 +5536,33 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   const CHANNEL="mads_assembleone_1089";
   const ROOT=`sync_v3/${CHANNEL}`;
   window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
+  const inbox={company:null,active:null,waiting:null,unsubs:[]};
+  function stopInboxListeners(){inbox.unsubs.forEach(function(u){try{u()}catch(e){}});inbox.unsubs=[];inbox.active=null;inbox.waiting=null;inbox.company=null}
+  function inboxQueries(fs,db,companyId){
+    const col=fs.collection(db,'companies',companyId,'jobs');
+    return {active:fs.query(col,fs.where('kind','==','studioToMobilePacket'),fs.where('active','==',true)),waiting:fs.query(col,fs.where('kind','==','studioToMobilePacket'),fs.where('status','==','waiting'))};
+  }
+  function inboxFromSnapshot(snap){const out=[];snap.forEach(function(d){out.push({...d.data(),syncId:'cloud:'+d.id,_cloudId:d.id})});return out}
+  function startInboxListeners(fs,db,companyId){
+    if(inbox.company===companyId&&inbox.unsubs.length)return;
+    stopInboxListeners();
+    if(!fs.onSnapshot)return;
+    inbox.company=companyId;
+    const q=inboxQueries(fs,db,companyId);
+    const listen=function(key){return fs.onSnapshot(q[key],function(snap){inbox[key]=inboxFromSnapshot(snap);if(typeof window.receiveStudioDirect==='function')window.receiveStudioDirect()},function(e){console.error('Live Studio job listener failed',e);stopInboxListeners()})};
+    inbox.unsubs=[listen('active'),listen('waiting')];
+  }
+  async function studioInboxDocs(fs,db,companyId){
+    startInboxListeners(fs,db,companyId);
+    let active=inbox.company===companyId?inbox.active:null,waiting=inbox.company===companyId?inbox.waiting:null;
+    if(!active||!waiting){
+      const q=inboxQueries(fs,db,companyId);
+      const snaps=await Promise.all([fs.getDocs(q.active),fs.getDocs(q.waiting)]);
+      active=inboxFromSnapshot(snaps[0]);waiting=inboxFromSnapshot(snaps[1]);
+    }
+    const byId=new Map();waiting.concat(active).forEach(function(p){byId.set(p._cloudId,p)});
+    return JSON.parse(JSON.stringify(Array.from(byId.values())));
+  }
   window.mobileInboxPackets=async function(){
     let legacy=[];
     // Company Firestore is the cross-device queue; the retired shared RTDB channel is not read.
@@ -5511,13 +5574,9 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     try{
       const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
       if(fs&&db&&user&&user.companyId){
-        const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'));
-        const snap=await fs.getDocs(q);
-        // Filter the queue state on the phone. Combining kind and status in Firestore
-        // requires a composite index; without it Studio successfully writes the packet
-        // but Mobile's polling query fails and the job appears never to arrive.
-        const packets=[];
-        snap.forEach(docSnap=>packets.push({...docSnap.data(),syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id}));
+        // Two equality filters (kind plus active, or kind plus status) need no composite
+        // index; checked read-only against the production database on 24 Sep 2026.
+        const packets=await studioInboxDocs(fs,db,user.companyId);
         const latest=new Map();
         packets.forEach(packet=>{if(packet.project){const prior=latest.get(packet.project.id);if(!prior||Date.parse(packet.exportedAt)>Date.parse(prior.exportedAt))latest.set(packet.project.id,packet)}});
         const cutoff=Number(localStorage.getItem('fittersiq_test_reset_at_v1')||0);
@@ -5546,7 +5605,12 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     if(packet&&packet._cloudId){
       try{
         const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
-        if(fs&&db&&user&&user.companyId)await fs.updateDoc(fs.doc(db,'companies',user.companyId,'jobs',packet._cloudId),{status:'received',receivedAt:fs.serverTimestamp()});
+        if(fs&&db&&user&&user.companyId){
+          const ref=fs.doc(db,'companies',user.companyId,'jobs',packet._cloudId);
+          if(packet.project&&packet.exportedAt&&fs.runTransaction){
+            await fs.runTransaction(db,async function(tx){const snap=await tx.get(ref);if(!snap.exists())return;const d=snap.data()||{};if(d.status==='received'||d.exportedAt!==packet.exportedAt)return;tx.update(ref,{status:'received',receivedAt:fs.serverTimestamp()})});
+          }else await fs.updateDoc(ref,{status:'received',receivedAt:fs.serverTimestamp()});
+        }
       }catch(e){console.error(e)}
       return;
     }
@@ -6042,15 +6106,25 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   // at all, not just be hidden from view once it's already there. The owner's blanket
   // access and a fitter's assignment-only access (see canSeeJob itself) both come from
   // this one check, so there is exactly one place that rule lives.
+  // A normal open recovers only jobs Studio has live in Job Overview. Every job ever sent is
+  // read only when this phone has no jobs at all (new, reset or cleared phone), or once a
+  // week, and a job Studio has switched off (Customer Library, deleted) never comes back.
+  const FULL_JOB_RECOVERY_KEY="fiq_mobile_full_recovery_at_v1";
+  window.fiqRecoverAccessibleCompanyJobs=function(companyId){return recoverAccessibleCompanyJobs(companyId)};
   async function recoverAccessibleCompanyJobs(companyId){
     try{
       const fs=window.fiqAuthFns,db=window.fiqFirestore;
       if(!fs||!db||!companyId)return;
-      const q=fs.query(fs.collection(db,'companies',companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'));
+      const lastFull=Number(localStorage.getItem(FULL_JOB_RECOVERY_KEY+":"+companyId)||0);
+      const full=!(state.projects||[]).length||Date.now()-lastFull>7*24*60*60*1000;
+      const col=fs.collection(db,'companies',companyId,'jobs');
+      const q=full?fs.query(col,fs.where('kind','==','studioToMobilePacket')):fs.query(col,fs.where('kind','==','studioToMobilePacket'),fs.where('active','==',true));
       const snap=await fs.getDocs(q);
+      if(full){try{localStorage.setItem(FULL_JOB_RECOVERY_KEY+":"+companyId,String(Date.now()))}catch(e){}}
       let changed=false;
       snap.forEach(function(docSnap){
         const data=docSnap.data()||{};
+        if(data.active===false)return;
         const incoming=data.project||data;
         if(!incoming||!incoming.id||!Array.isArray(incoming.cabinets))return;
         if((state.projects||[]).some(function(x){return x.id===incoming.id}))return;

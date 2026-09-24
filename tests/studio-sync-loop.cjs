@@ -28,29 +28,34 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   const docs=new Map(),listeners=[];let ts=0;
   const C=window.__cloud={docs,counts:{siteGetDocs:0,updateDoc:0,events:0,concurrent:0,maxConcurrent:0}};
   const clone=x=>JSON.parse(JSON.stringify(x));
-  function snapOf(kind,changes){
-   const list=[...docs.entries()].filter(([,d])=>d.kind===kind).map(([id,d])=>({id,ref:{path:'companies/co/jobs/'+id,id},data:()=>clone(d)}));
+  // Like Firestore: every equality filter of a query applies, and a listener hears only about
+  // documents entering, changing within, or leaving its result set.
+  const fits=(filters,d)=>(filters||[]).every(f=>d[f.field]===f.value);
+  function snapOf(filters,changes){
+   const list=[...docs.entries()].filter(([,d])=>fits(filters,d)).map(([id,d])=>({id,ref:{path:'companies/co/jobs/'+id,id},data:()=>clone(d)}));
    return {empty:!list.length,size:list.length,docs:list,forEach:f=>list.forEach(f),docChanges:()=>changes||list.map(doc=>({type:'added',doc}))};
   }
-  function emit(id){
+  function emit(id,before){
    const d=docs.get(id);if(!d)return;
-   listeners.filter(l=>l.kind===d.kind).forEach(l=>{C.counts.events++;l.next(snapOf(l.kind,[{type:'modified',doc:{id,data:()=>clone(d)}}]))});
+   listeners.forEach(l=>{const was=before?fits(l.filters,before):fits(l.filters,d),is=fits(l.filters,d);if(!was&&!is)return;C.counts.events++;l.next(snapOf(l.filters,[{type:!was?'added':!is?'removed':'modified',doc:{id,data:()=>clone(d)}}]))});
   }
+  C.emitAdded=id=>emit(id,{});
   window.fiqFirestore={};
   window.fittersiqUser={uid:'owner',companyId:'co',role:'company_owner',email:'owner@test'};
   window.fiqAuthFns={
    collection:(db,...p)=>({path:p.join('/')}),
    where:(field,op,value)=>({field,op,value}),
-   query:(c,...w)=>({...c,kind:(w.find(x=>x&&x.field==='kind')||{}).value}),
+   query:(c,...w)=>({...c,kind:(w.find(x=>x&&x.field==='kind')||{}).value,filters:w}),
    doc:(db,...p)=>({path:p.join('/'),id:p[p.length-1]}),
    serverTimestamp:()=>({ts:++ts}),
-   getDocs:async q=>{if(q.kind==='siteJobPacket'){C.counts.siteGetDocs++;C.counts.concurrent++;C.counts.maxConcurrent=Math.max(C.counts.maxConcurrent,C.counts.concurrent)}await new Promise(r=>setTimeout(r,30));if(q.kind==='siteJobPacket')C.counts.concurrent--;return snapOf(q.kind)},
+   getDocs:async q=>{if(q.kind==='siteJobPacket'){C.counts.siteGetDocs++;C.counts.concurrent++;C.counts.maxConcurrent=Math.max(C.counts.maxConcurrent,C.counts.concurrent)}await new Promise(r=>setTimeout(r,30));if(q.kind==='siteJobPacket')C.counts.concurrent--;return snapOf(q.filters)},
    getDoc:async ref=>({exists:()=>docs.has(ref.id),data:()=>clone(docs.get(ref.id))}),
    // Like Firestore: a write with a server timestamp notifies listeners locally and again
    // when the server confirms it.
-   updateDoc:async(ref,data)=>{C.counts.updateDoc++;const d=docs.get(ref.id);if(!d)throw new Error('missing');Object.assign(d,clone(data));emit(ref.id);setTimeout(()=>emit(ref.id),5)},
+   updateDoc:async(ref,data)=>{C.counts.updateDoc++;const d=docs.get(ref.id);if(!d)throw new Error('missing');const before=clone(d);Object.assign(d,clone(data));emit(ref.id,before);setTimeout(()=>emit(ref.id,clone(d)),5)},
    setDoc:async()=>{},addDoc:async()=>({id:'new'}),onAuthStateChanged:()=>()=>{},
-   onSnapshot:(q,next)=>{listeners.push({kind:q.kind,next});setTimeout(()=>next(snapOf(q.kind)),0);return()=>{}}
+   runTransaction:async(db,fn)=>{const writes=[];const tx={get:async r=>({exists:()=>docs.has(r.id),data:()=>clone(docs.get(r.id))}),update:(r,d)=>{writes.push([r,d]);return tx},set:(r,d)=>{writes.push([r,d]);return tx}};const out=await fn(tx);for(const [r,d] of writes)await window.fiqAuthFns.updateDoc(r,d);return out},
+   onSnapshot:(q,next)=>{listeners.push({filters:q.filters,next});setTimeout(()=>next(snapOf(q.filters)),0);return()=>{}}
   };
   // 20 phone updates for job1 (the last one marks the panel installed) and one Site Measure.
   const phoneJob=status=>({id:'job1',studioOrigin:true,name:'Kitchen job',customer:'Test Customer',rooms:[{id:'r1',name:'Kitchen'}],cabinets:[{id:'c1',roomId:'r1',name:'Kitchen',parts:[{id:'pa',code:'P-001',name:'Side',length:700,width:500,thickness:18,qty:1,material:'Oak',status,statusUpdatedAt:status==='installed'?Date.parse('2026-09-15T05:47:00Z'):1}]}],jobLog:[]});
@@ -75,8 +80,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert(r.siteInStudio&&r.siteAwaiting,'Site Measure is in Studio, awaiting acceptance');
  assert.equal(r.jobCount,1,'no duplicate job');
  // A new phone update arriving later is still picked up straight away.
- await page.evaluate(()=>{const d=window.__cloud.docs;const p=JSON.parse(JSON.stringify(d.get('pkt19')));p.status='waiting';p.exportedAt='2026-09-16T08:00:00.000Z';p.project.jobLog=[{id:'late-note',text:'Hinge loose',at:Date.parse('2026-09-16T08:00:00Z'),roomId:'r1'}];d.set('pkt20',p);});
- await page.evaluate(()=>autoImportSitePackets());
+ await page.evaluate(()=>{const d=window.__cloud.docs;const p=JSON.parse(JSON.stringify(d.get('pkt19')));p.status='waiting';p.exportedAt='2026-09-16T08:00:00.000Z';p.project.jobLog=[{id:'late-note',text:'Hinge loose',at:Date.parse('2026-09-16T08:00:00Z'),roomId:'r1'}];d.set('pkt20',p);window.__cloud.emitAdded('pkt20')});
  await page.waitForTimeout(500);
  const late=await page.evaluate(()=>({note:(0,eval)('state').projects.find(p=>p.id==='job1').jobLog.some(e=>e.id==='late-note'),status:window.__cloud.docs.get('pkt20').status,writes:window.__cloud.counts.updateDoc}));
  assert(late.note,'a later phone note arrives');assert.equal(late.status,'received');assert.equal(late.writes,2,'one more write for one more update');

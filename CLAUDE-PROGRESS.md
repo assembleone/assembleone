@@ -70,6 +70,21 @@ Evidence: tests/studio-sync-loop.cjs uses a Firestore-like fake. Old code: 42 do
 
 Still wasteful but not the crash: paintSiteInbox and autoImport each download all 58 siteJobPacket documents every 30s, and checkCompanyReset downloads all studioToMobilePacket documents about every 15s. The cloud queue is never cleaned up.
 
+## 2026-09-24: Data lifecycle stage 1 (branch claude/data-lifecycle, not merged, not published)
+
+Brief from Mads: Job Overview is live, the Customer Library is quiet, only new information is downloaded, and sync messages are no longer created for every send. Existing production messages must not be deleted, and waiting Site Measures must stay safe. The next stage is a permanent cloud master record per customer job.
+
+The inventory and proposal are in docs/data-lifecycle-inventory.md. The changes, measurements, tests and risks are in docs/data-lifecycle-results.md.
+
+Key facts for a future session:
+- Studio to Mobile uses one message per job, studio-job-<projectId>, with active true or false. Mobile to Studio uses mobile-<jobId>-<uid>. Commands keep studio-<syncId>.
+- Studio reads only kind siteJobPacket with status waiting (listener cache). Mobile listens to kind studioToMobilePacket with active true, and with status waiting.
+- Receipts are transactions checked on exportedAt.
+- Media is stored at .../media/h/<sha256> and .../mobile-media/h/<sha256>, cached in fiq_*_media_url_cache_v1, and never overwritten.
+- The full recovery scan runs only for an empty browser or phone, or once a week (fiq_studio_full_recovery_at_v1, fiq_mobile_full_recovery_at_v1).
+- Tests: tests/lifecycle.cjs and tests/perf-lifecycle.cjs, using tests/helpers/fake-cloud.cjs.
+- Found: Studio localStorage (5 MB) overflows at about 2,000 full jobs. The permanent cloud record should fix this.
+
 ## Next candidates, in priority order
 
 1. The sync queue in companies/{companyId}/jobs is never cleaned up. Studio re-reads every siteJobPacket document every 30s and on every change. Mobile re-reads every studioToMobilePacket document every 2.5s. The cost and delay keep growing.
