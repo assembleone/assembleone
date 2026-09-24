@@ -276,6 +276,7 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 .fiq-pin-menu .btn{box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .fiq-renumber-notice{margin:0 0 12px;padding:12px 14px;border:2px solid #d97706;border-radius:12px;background:#fff7e6;color:#5b3a06;font-size:14px;line-height:1.5}
 .fiq-renumber-notice .btn{margin-left:8px}
+.jor-recheck-badge{display:inline-block;width:max-content;align-self:flex-start;margin:0 0 4px;padding:3px 9px;border-radius:999px;background:#fff1d6;border:1px solid #e0a336;color:#8a5200;font-size:11px;font-weight:900;letter-spacing:.02em}
 .cut-details{font-weight:900;font-size:17px;white-space:nowrap}
 .cut-description{font-weight:700}
 .material-small{font-size:11px;color:var(--muted);margin-top:3px}
@@ -1898,6 +1899,7 @@ async function finishDesignToCard(projectId){
  if(!p)throw new Error('The design no longer exists.');
  const selection={currentProject:state.currentProject,currentCabinet:state.currentCabinet,currentPart:state.currentPart,currentRoom:state.currentRoom,screen:state.screen};
  if(typeof ensureCustomerForProject==='function')ensureCustomerForProject(p);
+ if(typeof window.fiqMarkJobOverviewCards==='function')window.fiqMarkJobOverviewCards(p);
  if(await save()!==true)throw new Error('The design could not be saved.');
  // Keep all job content in the existing record used by its card and Customer Library.
  // Only release the editor selection, and never close another job opened while saving.
@@ -7965,21 +7967,50 @@ body.fiq-locked .app{display:none!important}
   // extra "General" catch-all card so nothing silently disappears from the count -- see the
   // scoping note in the plan. room is: null (no-rooms project), '__general__' (the catch-all),
   // or the real room object.
+  // A card enters Job Overview once all its panels are complete and checked. After that
+  // it stays, even when an edit clears a panel's Panel Check. It is flagged needsRecheck
+  // instead, so an active job never vanishes from the fitting overview. The first time a
+  // card is ready, its cabinets are stamped with jobOverviewListedAt (saved with the job).
+  function overviewCardState(cabinets){
+    const cabs=cabinets||[];
+    const panels=cabs.flatMap(c=>c.parts||[]);
+    if(!panels.length)return null;
+    if(overviewReadyCabinets(cabs)){
+      cabs.forEach(c=>{if(!c.jobOverviewListedAt)c.jobOverviewListedAt=Date.now()});
+      return {needsRecheck:false};
+    }
+    return cabs.some(c=>c.jobOverviewListedAt)?{needsRecheck:true}:null;
+  }
   function cardsForProject(p){
     const rooms=(p.rooms||[]).filter(r=>r&&r.name);
-    if(!rooms.length)return !p.overviewFinishedAt&&overviewReadyCabinets(p.cabinets||[])?[{project:p,room:null}]:[];
+    if(!rooms.length){
+      const listed=!p.overviewFinishedAt&&overviewCardState(p.cabinets||[]);
+      return listed?[{project:p,room:null,needsRecheck:listed.needsRecheck}]:[];
+    }
     // Incoming Mobile measurements stay grouped in New Project. Once design work begins,
     // each room earns its own independent overview card only when that room has real,
     // checked panels. Empty sibling rooms remain linked to the parent project but hidden.
     if(isIncomingMeasurementProject(p))return [{project:p,room:'__site_visit__'}];
-    const cards=rooms
-      .filter(r=>!r.finished&&overviewReadyCabinets((p.cabinets||[]).filter(c=>c.roomId===r.id)))
-      .map(r=>({project:p,room:r}));
+    const cards=[];
+    rooms.forEach(r=>{
+      if(r.finished)return;
+      const listed=overviewCardState((p.cabinets||[]).filter(c=>c.roomId===r.id));
+      if(listed)cards.push({project:p,room:r,needsRecheck:listed.needsRecheck});
+    });
     const roomIds=new Set(rooms.map(r=>r.id));
     const generalCabinets=(p.cabinets||[]).filter(c=>!c.roomId||!roomIds.has(c.roomId));
-    if(overviewReadyCabinets(generalCabinets))cards.push({project:p,room:'__general__'});
+    const general=overviewCardState(generalCabinets);
+    if(general)cards.push({project:p,room:'__general__',needsRecheck:general.needsRecheck});
     return cards;
   }
+  // Used by Finish (to stamp cards as listed before saving) and by Send to Mobile.
+  window.fiqMarkJobOverviewCards=p=>{try{return cardsForProject(p)}catch(e){return []}};
+  window.fiqCardNeedsRecheck=key=>{
+    const i=String(key).indexOf('::'),projectId=i===-1?key:key.slice(0,i);
+    const p=(state.projects||[]).find(x=>x.id===projectId);if(!p)return false;
+    const card=cardsForProject(p).find(c=>cardKey(c)===key);
+    return !!(card&&card.needsRecheck);
+  };
   function cardCabinets(card){
     const p=card.project;
     if(card.room===null||card.room==='__site_visit__')return p.cabinets||[];
@@ -8399,7 +8430,7 @@ body.fiq-locked .app{display:none!important}
       // can remain true only as a recovery fallback if a project contains panel work from
       // another import path; normal Save and Next clears it with the first complete panel.
       const isNew=!!p.isNewFromSite;
-      const newBadge=isNew?'<span class="jor-new-badge">'+t("studio.jobOverview.newSiteJobBadge")+'</span>':'';
+      const newBadge=(isNew?'<span class="jor-new-badge">'+t("studio.jobOverview.newSiteJobBadge")+'</span>':'')+(card.needsRecheck?'<span class="jor-recheck-badge" title="A panel was changed after Panel Check. Open the Cutting List and check it again.">Needs recheck</span>':'');
       const roomLabel=cardRoomLabel(card);
       // The panel total is its own standalone, prominent figure next to the name -- not
       // buried only inside the Panel Check stat column, per the brief's §3/§6.
@@ -8412,7 +8443,7 @@ body.fiq-locked .app{display:none!important}
       const completionHtml=siteVisit?'':'<div class="jor-completion"><div class="jor-stat-label">Fitted</div><div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div></div>';
       const jobCompletedBadge=siteVisit?'':'<div class="jor-completed-badge '+(jobCompleted?'done':'')+'">JOB COMPLETED<b>'+(jobCompleted?'Yes ✓':'Waiting')+'</b></div>';
       const roomIdAttr=card.room===null?'':(card.room==='__general__'?'__general__':card.room==='__site_visit__'?'__site_visit__':safe(card.room.id));
-      return '<div class="job-overview-row'+(isNew?' jor-new':'')+'" data-open-job-card="'+safe(p.id)+'" data-card-room-id="'+roomIdAttr+'">'+
+      return '<div class="job-overview-row'+(isNew?' jor-new':'')+(card.needsRecheck?' jor-needs-recheck':'')+'" data-open-job-card="'+safe(p.id)+'" data-card-room-id="'+roomIdAttr+'">'+
         '<div class="jor-card-top">'+
         (multiSelectAvailable?'<label class="jor-select" title="'+t("studio.jobOverview.selectCardTitle")+'"><input type="checkbox" class="jor-select-checkbox" data-select-card="'+safe(key)+'" '+(jorSelectedCardKeys.has(key)?'checked':'')+'></label>':'')+
         '<div class="jor-thumb">'+thumb+'</div>'+
@@ -8876,6 +8907,7 @@ body.fiq-locked .app{display:none!important}
         if(btn.disabled)return;
         const ctx=resolve(btn.dataset.ownerMobileSend);
         if(!ctx||!ctx.project){alert('This job could not be found. Refresh Studio and try again.');return}
+        if(typeof window.fiqCardNeedsRecheck==='function'&&window.fiqCardNeedsRecheck(btn.dataset.ownerMobileSend)&&!confirm('Some panels in this job were changed after Panel Check and need checking again. Send to Mobile anyway?'))return;
         const original=btn.textContent;
         btn.disabled=true;btn.textContent='Sending...';
         try{

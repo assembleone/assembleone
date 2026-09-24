@@ -80,6 +80,38 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await page.evaluate(()=>{show('jobs');renderAll()});
  assert.equal(await page.evaluate(()=>state.projects.filter(x=>x.id==='p1').length),1,'editing from the Library changes the one record, no duplicate job');
 
+ // 5b. Editing a checked panel through the real form clears its Panel Check. The room card
+ // must stay in Job Overview marked Needs recheck, stay in Customer Library, and survive
+ // reopening. Send to Mobile asks first. Checking the panel again clears the badge.
+ const recheckBadge=()=>page.locator('.job-overview-row[data-open-job-card="p1"] .jor-recheck-badge').count();
+ assert.equal(await recheckBadge(),0,'no badge while every panel is checked');
+ await page.evaluate(()=>{openJobDesignForRoom('p1','r1');state.currentPart='pt-top';renderAll()});
+ await page.locator('#fLength').fill('1210');
+ await page.locator('#fLength').dispatchEvent('input');await page.locator('#fLength').dispatchEvent('change');
+ await page.evaluate(()=>save());
+ assert.equal(await page.evaluate(()=>{const pt=state.projects.find(x=>x.id==='p1').cabinets[0].parts.find(x=>x.id==='pt-top');return [pt.length,!!pt.reviewSignature&&pt.reviewSignature===window.panelReviewSignature(pt)].join('|')}),'1210|false','the real edit changed the length and cleared Panel Check');
+ await page.evaluate(()=>{show('jobs');renderAll()});
+ assert(await page.locator('[data-open-job-card="p1"]').count()>0,'edited room stays in Job Overview');
+ assert.equal(await recheckBadge(),1,'card shows Needs recheck');
+ await open();
+ await page.evaluate(()=>{show('jobs');renderAll()});
+ assert.equal(await recheckBadge(),1,'Needs recheck survives reopening');
+ const sendDialogs=[];
+ page.removeAllListeners('dialog');page.on('dialog',d=>{sendDialogs.push(d.message());d.dismiss()});
+ await page.locator('.job-overview-row[data-open-job-card="p1"] [data-owner-mobile-send]').first().click();
+ page.removeAllListeners('dialog');page.on('dialog',d=>d.accept());
+ assert.match(sendDialogs[0]||'',/need checking again/,'Send to Mobile warns before sending unchecked changes');
+ assert.equal(await page.evaluate(()=>state.projects.find(x=>x.id==='p1').lastMobileSync||null),null,'cancelled send sends nothing');
+ await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
+ assert.equal(await page.locator('[data-open-cutting-list-project="p1"][data-open-cutting-list="r1"]').count(),1,'still in Customer Library while it needs recheck');
+ await page.locator('[data-open-cutting-list-project="p1"][data-open-cutting-list="r1"]').click();
+ // Panel Check approval lives on the Panel Check screen (screen-parts).
+ await page.evaluate(()=>{show('parts');renderAll()});
+ await page.locator('#screen-parts [data-review-panel="pt-top"]').first().dblclick();
+ assert.equal(await page.evaluate(()=>{const pt=state.projects.find(x=>x.id==='p1').cabinets[0].parts.find(x=>x.id==='pt-top');return pt.reviewSignature===window.panelReviewSignature(pt)}),true,'real Panel Check approval');
+ await page.evaluate(()=>{show('jobs');renderAll()});
+ assert.equal(await recheckBadge(),0,'badge gone after checking again');
+
  // 6. Finish fitting: Move to Customer Library. Gone from Job Overview, kept in the Library.
  await page.evaluate(()=>{const b=document.querySelector('[data-finish-overview-job="p1"]');b.disabled=false});
  await page.locator('[data-finish-overview-job="p1"]').first().click();

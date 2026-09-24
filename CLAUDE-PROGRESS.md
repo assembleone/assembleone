@@ -51,7 +51,9 @@ Checked current behaviour with the real Studio page (Studio.html plus patches, n
 
 Gap fixed: customerJobDesignRows only showed the first unit per room, and nothing for units outside rooms in jobs that have rooms. Every unit with work now gets its own row and Cutting List button (data-open-*-cabinet), and openJobDesignForRoom/openCuttingListForRoom take a cabinet id.
 
-Observed and not changed: editing a panel's details clears its Panel Check approval (reviewSignature), so its room card leaves Job Overview until it is checked again. A job with no customer name gets its own "No customer name" customer.
+Follow-up, requested by Mads: an edit that clears Panel Check (reviewSignature) used to remove the room card from Job Overview, because the Panel Check patch replaces isCompleteSupplierPart with readyForSupplier. Now, once a card has been ready, its cabinets carry jobOverviewListedAt (stamped in cardsForProject and in finishDesignToCard via window.fiqMarkJobOverviewCards). The card stays and shows a Needs recheck badge (card.needsRecheck). The owner Send to Mobile button asks for confirmation while a card needs recheck (window.fiqCardNeedsRecheck). Approving on the Panel Check screen removes the badge. Cards that disappeared before this update come back once their panels are checked again.
+
+Not changed: a job with no customer name gets its own "No customer name" customer.
 
 Test: tests/studio-cutting-list-library.cjs.
 
