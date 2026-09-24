@@ -29,12 +29,12 @@ Mads asked for a way to remove a dot that is in the wrong place on the drawing.
 
 Test: tests/studio-dot-remove.cjs. tests/studio-workspace.cjs now also loads hasMarkPosition.
 
-## 2026-09-24: Delete dot replaces Remove dot (not live yet)
+## 2026-09-24: Delete dot replaces Remove dot (not live yet, behaviour confirmed, publish not approved)
 
 Mads replaced the earlier instruction. Deleting a dot now deletes the panel.
 
 1. The dot menu offers Delete dot (deletePanelDot). If it is the panel's only dot, the panel and its measurements are deleted after a confirmation, and the unit is renumbered P-001..P-n with no gaps (deletePanelAndRenumber, also used by the Delete panel button).
-2. If it is one dot of a repeated panel, only that piece goes: quantity drops by one and the review stamp is refreshed, so the panel stays on the Cutting List.
+2. Rule confirmed by Mads: one dot is one physical piece. Deleting a dot lowers the row quantity by one and refreshes the review stamp, so the row stays on the Cutting List. The row is deleted only when its last piece goes. A row with a typed quantity higher than its dots keeps its remaining pieces with no dot, and they can be placed again. Stored checked, fitted and damaged counts are capped at the quantity, both on delete and in mergePanelFields.
 3. Panel ids never change, so QR labels (which hold the id) still find the right panel. Deleted ids go into cabinet.deletedPartIds, and mergeMobileProject skips them, so a phone resync cannot bring a deleted panel back.
 4. cabinet.panelNumbersNotice shows a notice on the drawing and Cutting List screens. It lists the deleted panels and old to new numbers, and says that exported or printed lists and labels need redoing and that the job needs sending to Mobile again. It stays until the owner presses Done. Studio does not record exports, so the notice appears after any renumbering.
 5. The placing logic for positionless dots from the earlier release stays, for data created while that release was live.

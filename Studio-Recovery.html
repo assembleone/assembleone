@@ -2330,21 +2330,27 @@ function deletePanelAndRenumber(c,p){
  if(state.currentPart===p.id)state.currentPart=null;
  state.selectedCopy=-1;
 }
+// One dot is one physical piece. Deleting a dot takes one piece off the Cutting List row;
+// deleting the last piece deletes the row and renumbers the unit.
 function deletePanelDot(partId,copyIndex){
  const c=cabinet(),p=c?.parts.find(x=>x.id===partId);if(!p)return;
  const i=Number(copyIndex);
- if(panelDotCount(p)>1){
-  const qty=Math.max(Number(p.qty)||0,panelDotCount(p));
+ const qty=Math.max(1,Number(p.qty)||0,panelDotCount(p));
+ if(qty>1){
   if(!confirm(`Remove one ${p.code}? Its quantity goes from ${qty} to ${qty-1}.`))return;
   const wasReviewed=!!p.reviewSignature&&typeof window.panelReviewSignature==="function"&&p.reviewSignature===window.panelReviewSignature(p);
   if(i>=0&&p.copies?.[i])p.copies.splice(i,1);
-  else{const next=p.copies.shift();p.x=next.x;p.y=next.y}
+  else if((p.copies||[]).length){const next=p.copies.shift();p.x=next.x;p.y=next.y}
+  // A row whose quantity was typed higher than its dots can lose its last dot while
+  // pieces remain; it stays on the Cutting List and can be placed again (createPartAt).
+  else{p.x=null;p.y=null}
   p.qty=qty-1;
+  ["scannedQty","installedQty","damagedQty"].forEach(k=>{if(Number(p[k])>p.qty)p[k]=p.qty});
   // Removing a piece on purpose is itself the approval of the new quantity.
   if(wasReviewed)p.reviewSignature=window.panelReviewSignature(p);
   state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=false;
   closePinMenu();renderAll();save();
-  if(typeof toast==="function")toast(`${p.code} now has quantity ${p.qty}.`);
+  if(typeof toast==="function")toast(panelDotCount(p)?`${p.code} now has quantity ${p.qty}.`:`${p.code} now has quantity ${p.qty} and no dot. Click the drawing to place it.`);
   return;
  }
  if(!confirm(`Delete panel ${p.code} and its measurements? The panels after it will be renumbered.`))return;
@@ -3495,6 +3501,10 @@ function mergePanelFields(bp,ip,stalePacket=false){
     bp.lastScannedByFitterId=ip.lastScannedByFitterId||null;
   }
   mergePanelStatus(bp,ip);
+  // Studio owns the quantity. A phone copy from before a piece was deleted can carry a
+  // higher count; never store more checked/fitted/damaged pieces than the row has.
+  const q=Math.max(1,Number(bp.qty)||1);
+  ["scannedQty","installedQty","damagedQty"].forEach(k=>{if(Number(bp[k])>q)bp[k]=q});
 }
 function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
 // A job explicitly deleted from Studio must stay deleted even if its originating
