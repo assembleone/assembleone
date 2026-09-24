@@ -38,7 +38,12 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
    {id:'pt-shelf',code:'P-002',name:'Shelf',length:500,width:300,thickness:19,qty:3,material:'Oak',edgeLong:1,edgeShort:0,notes:'',status:'ready',x:45,y:50,copies:[]},
    {id:'pt-top',code:'P-003',name:'Top',length:1200,width:600,thickness:25,qty:1,material:'Walnut',edgeLong:2,edgeShort:2,notes:'',status:'ready',x:50,y:10,copies:[]}];
   parts.forEach(p=>p.reviewSignature=window.panelReviewSignature(p));
-  state.projects.push({id:'p1',name:'Jensen kitchen',customer:'Anna Jensen',address:'1 High Street',rooms:[{id:'r1',name:'Kitchen',icon:'🍳'}],cabinets:[{id:'c1',roomId:'r1',name:'Kitchen',drawing,parts}],jobLog:[],updatedAt:Date.now()});
+  // Like New Job: the job starts with no customer name (linked to a placeholder customer),
+  // and the name is typed in afterwards through the job fields.
+  const job={id:'p1',name:'Jensen kitchen',customer:'',address:'1 High Street',rooms:[{id:'r1',name:'Kitchen',icon:'🍳'}],cabinets:[{id:'c1',roomId:'r1',name:'Kitchen',drawing,parts}],jobLog:[],updatedAt:Date.now()};
+  ensureCustomerForProject(job);state.projects.push(job);
+  window.__placeholderCustomer=job.customerId;
+  job.customer='Anna Jensen';
   switchToProject('p1','c1');renderAll();show('cutting');
   return JSON.parse(JSON.stringify(parts));
  });
@@ -138,7 +143,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   switchToProject('p2','c2a');await finishDesignToCard('p2');
  });
  assert.equal(await page.evaluate(()=>state.projects.find(x=>x.id==='p2').customerId),'cust-anna','differently typed name joins the same customer');
- assert.equal(await page.evaluate(()=>state.customers.length),1,'no duplicate customer');
+ assert.equal(await page.evaluate(()=>state.customers.filter(c=>customerKeyFor(c.name)==='anna jensen').length),1,'no duplicate customer');
  await open();
  await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
  for(const [cab,codes] of [['c2a',['P-001']],['c2b',['P-001','P-002']],['c2c',['P-001']]]){
