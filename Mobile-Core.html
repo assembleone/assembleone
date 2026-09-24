@@ -3330,7 +3330,8 @@ function renderInstall(){
   mark.status=mark.status||"ready";
   const panelPositions=[{x:pt.x,y:pt.y,status:pt.status,copyIndex:-1},...(pt.copies||[]).map((m,i)=>({x:m.x,y:m.y,status:m.status||"ready",copyIndex:i}))];
   const multi=panelPositions.length>1;
-  const panelHighlights=panelPositions.map((m,i)=>{
+  // Studio can remove a dot (x/y null) while keeping the panel; draw only placed dots.
+  const panelHighlights=panelPositions.map((m,i)=>{if(!(m.x!=null&&m.y!=null&&m.x!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y))))return'';
    const active=m.copyIndex===Number(state.selectedCopy);
    return `<div class="panel-highlight status-${m.status}${active?' active':''}" data-copy="${m.copyIndex}" style="left:${Number(m.x)||50}%;top:${Number(m.y)||50}%">${multi?`<span class="panel-highlight-num">${i+1}</span>`:''}</div>`;
   }).join('');

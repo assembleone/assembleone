@@ -17,6 +17,18 @@ Test: tests/mobile-send-outbox.cjs. It fails on the old code and passes on the n
 
 Not yet checked: a real iPhone, and live Firebase.
 
+## 2026-09-24: Remove a wrongly placed dot in Studio
+
+Mads asked for a way to remove a dot that is in the wrong place on the drawing.
+
+1. Clicking a dot selects it and shows a Remove dot button next to it (openPinMenu).
+2. Remove dot clears only the position: x/y become null for the main dot, and a repeated dot is taken out of copies and counted in part.unplacedCopies. The panel, its measurements and its quantity stay in the Cutting List.
+3. With that panel selected, the next click on the drawing puts the dot back (createPartAt checks this first). A normal click still creates a new panel.
+4. The cause of new dots appearing under a clicked dot: any mouse wobble during a click counted as a drag and redrew the dots. A drag now only starts after 5px of movement, and the click that ends a drag is ignored.
+5. hasMarkPosition() is used in every Studio drawing view. Mobile renderInstall skips unplaced dots.
+
+Test: tests/studio-dot-remove.cjs. tests/studio-workspace.cjs now also loads hasMarkPosition.
+
 ## Next candidates, in priority order
 
 1. The sync queue in companies/{companyId}/jobs is never cleaned up. Studio re-reads every siteJobPacket document every 30s and on every change. Mobile re-reads every studioToMobilePacket document every 2.5s. The cost and delay keep growing.

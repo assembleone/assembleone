@@ -272,6 +272,8 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 .group-box{display:flex;gap:7px;align-items:center;flex-wrap:wrap;background:#eceff7;border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:8px}
 .group-count{font-size:18px;font-weight:900;color:var(--bronze)}
 .marker-copy{box-shadow:0 0 0 4px rgba(183,121,60,.18)}
+.fiq-pin-menu{position:absolute;z-index:30;transform:translate(-50%,30px);pointer-events:auto;white-space:nowrap}
+.fiq-pin-menu .btn{box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .cut-details{font-weight:900;font-size:17px;white-space:nowrap}
 .cut-description{font-weight:700}
 .material-small{font-size:11px;color:var(--muted);margin-top:3px}
@@ -2007,8 +2009,16 @@ function addCabinet(){
  p.cabinets.push(c);state.currentCabinet=c.id;state.currentPart=null;save();renderAll();show("mark")
 }
 function nextCode(c){return `P-${String(c.parts.length+1).padStart(3,"0")}`}
+// A panel's dot position is optional: Remove dot clears it (x/y null) while the panel and
+// its measurements stay in the Cutting List. Every drawing view skips unplaced dots.
+function hasMarkPosition(m){return !!m&&m.x!=null&&m.y!=null&&m.x!==''&&m.y!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y))}
 function createPartAt(x,y){
  const c=cabinet();if(!c)return;
+ // The selected panel has a removed dot waiting to be placed again: this click puts that
+ // dot back for the same panel instead of creating a new panel.
+ const pending=c.parts.find(p=>p.id===state.currentPart);
+ if(pending&&!hasMarkPosition(pending)){pending.x=x;pending.y=y;state.selectedCopy=-1;save();renderAll();return}
+ if(pending&&Number(pending.unplacedCopies)>0){pending.copies=pending.copies||[];pending.copies.push({x,y});pending.unplacedCopies=Number(pending.unplacedCopies)-1;state.selectedCopy=pending.copies.length-1;save();renderAll();return}
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('panel_created');
  const rememberedThickness=Number(c.lastThickness ?? 19) || 19;
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
@@ -2266,17 +2276,49 @@ function renderRooms(){
  if(!c?.drawing){img.onload=null;img.removeAttribute('src');pdf.removeAttribute('src');return}empty.style.display="none";
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
-   const marks=[{x:p.x,y:p.y,index:-1},...(p.copies||[]).map((m,index)=>({...m,index}))];
-   marks.forEach(m=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}`;d.textContent=isSelected?p.code.replace("P-",""):"";d.title=`${p.code}${p.name?" — "+p.name:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll()};canvas.appendChild(d)})
+   const marks=[{x:p.x,y:p.y,index:-1},...(p.copies||[]).map((m,index)=>({...m,index}))].filter(hasMarkPosition);
+   marks.forEach(m=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}`;d.textContent=isSelected?p.code.replace("P-",""):"";d.title=`${p.code}${p.name?" — "+p.name:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll();openPinMenu(p.id,m.index)};canvas.appendChild(d)})
  })
  if(state.currentPart&&state.focusMarker){requestAnimationFrame(()=>{const selected=stage.querySelector('.pin.selected');if(selected){const left=selected.offsetLeft-stage.clientWidth/2;const top=selected.offsetTop-stage.clientHeight/2;stage.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:'smooth'})}state.focusMarker=false})}
  else if(c?.viewState){requestAnimationFrame(()=>stage.scrollTo({left:Number(c.viewState.scrollLeft||0),top:Number(c.viewState.scrollTop||0)}))}
  return;
 }
 let dragging=null;
-function startDrag(e,id,copy=-1){e.stopPropagation();dragging={id,copy};document.body.style.userSelect="none"}
-window.addEventListener("mousemove",e=>{if(!dragging)return;const p=cabinet()?.parts.find(x=>x.id===dragging.id),r=$("#drawingCanvas").getBoundingClientRect();if(!p)return;const x=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100)),y=Math.max(0,Math.min(100,(e.clientY-r.top)/r.height*100));if(dragging.copy>=0&&p.copies?.[dragging.copy]){p.copies[dragging.copy].x=x;p.copies[dragging.copy].y=y}else{p.x=x;p.y=y}renderRooms()});
-window.addEventListener("mouseup",()=>{if(dragging){dragging=null;document.body.style.userSelect="";save()}});
+// A click on a dot used to count as a drag on the tiniest mouse wobble. The drag redrew
+// the dots, so the click then landed on the drawing and placed a new panel underneath.
+// A dot now only moves after the pointer travels a few pixels, and the click that ends a
+// real drag is swallowed.
+function startDrag(e,id,copy=-1){e.stopPropagation();closePinMenu();dragging={id,copy,startX:e.clientX,startY:e.clientY,moved:false};document.body.style.userSelect="none"}
+window.addEventListener("mousedown",()=>{window.__fiqSwallowDragClick=false},true);
+window.addEventListener("click",e=>{if(window.__fiqSwallowDragClick){window.__fiqSwallowDragClick=false;e.preventDefault();e.stopImmediatePropagation()}},true);
+function closePinMenu(){document.getElementById("fiqPinMenu")?.remove()}
+function openPinMenu(partId,copyIndex){
+ closePinMenu();
+ const pin=[...document.querySelectorAll("#drawingCanvas .pin")].find(x=>x.dataset.id===partId&&Number(x.dataset.copy)===Number(copyIndex));
+ const p=cabinet()?.parts.find(x=>x.id===partId);if(!pin||!p)return;
+ const menu=document.createElement("div");menu.id="fiqPinMenu";menu.className="fiq-pin-menu";
+ menu.innerHTML=`<button type="button" class="btn" data-remove-dot>Remove dot</button>`;
+ menu.style.left=pin.style.left;menu.style.top=pin.style.top;
+ menu.addEventListener("click",e=>e.stopPropagation());
+ menu.addEventListener("mousedown",e=>e.stopPropagation());
+ menu.querySelector("[data-remove-dot]").onclick=e=>{e.stopPropagation();removePanelDot(partId,copyIndex)};
+ document.getElementById("drawingCanvas").appendChild(menu);
+}
+document.addEventListener("click",e=>{if(!e.target.closest?.("#fiqPinMenu,.pin"))closePinMenu()});
+// Removes only where the dot sits on the drawing. The panel, its measurements and its
+// quantity stay in the Cutting List, and the next click on the drawing (with this panel
+// selected) places the dot again.
+function removePanelDot(partId,copyIndex){
+ const p=cabinet()?.parts.find(x=>x.id===partId);if(!p)return;
+ const i=Number(copyIndex);
+ if(i>=0&&p.copies?.[i]){p.copies.splice(i,1);p.unplacedCopies=(Number(p.unplacedCopies)||0)+1}
+ else{p.x=null;p.y=null}
+ state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=false;
+ closePinMenu();save();renderAll();
+ if(typeof toast==="function")toast(`Dot removed. ${p.code} is still in the Cutting List. Click the drawing to place it again.`);
+}
+window.addEventListener("mousemove",e=>{if(!dragging)return;if(!dragging.moved){if(Math.hypot(e.clientX-dragging.startX,e.clientY-dragging.startY)<5)return;dragging.moved=true}const p=cabinet()?.parts.find(x=>x.id===dragging.id),r=$("#drawingCanvas").getBoundingClientRect();if(!p)return;const x=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100)),y=Math.max(0,Math.min(100,(e.clientY-r.top)/r.height*100));if(dragging.copy>=0&&p.copies?.[dragging.copy]){p.copies[dragging.copy].x=x;p.copies[dragging.copy].y=y}else{p.x=x;p.y=y}renderRooms()});
+window.addEventListener("mouseup",()=>{if(dragging){const moved=dragging.moved;dragging=null;document.body.style.userSelect="";if(moved){window.__fiqSwallowDragClick=true;setTimeout(()=>{window.__fiqSwallowDragClick=false},0);save()}}});
 
 const MATERIAL_LIBRARY_KEY="assembleone_material_library_v1";
 function savedMaterials(){
@@ -3082,7 +3124,7 @@ function renderQr(){
 function renderPhone(){
  const parts=cabinetParts(),sel=$("#phonePartSelect"),old=state.currentPart||sel.value;sel.innerHTML=parts.length?parts.map(p=>`<option value="${p.id}">${p.code} ${safe(p.name)}</option>`).join(""):'<option>No parts</option>';if(parts.some(p=>p.id===old))sel.value=old;
  const p=parts.find(x=>x.id===sel.value)||parts[0],card=$("#phoneCard");if(!p){card.innerHTML='<div class="empty">No part selected.</div>';return}
- const c=cabinet();const drawing=c?.drawing&&c.drawingType!=="pdf"?`<div class="phone-drawing"><img src="${c.drawing}"><div class="phone-highlight" style="left:${p.x}%;top:${p.y}%"></div></div>`:'<div class="empty">No image drawing attached.</div>';
+ const c=cabinet();const drawing=c?.drawing&&c.drawingType!=="pdf"?`<div class="phone-drawing"><img src="${c.drawing}">${hasMarkPosition(p)?`<div class="phone-highlight" style="left:${p.x}%;top:${p.y}%"></div>`:''}</div>`:'<div class="empty">No image drawing attached.</div>';
  card.innerHTML=`${drawing}<h2>${p.code} — ${safe(p.name||"Unnamed part")}</h2><p><strong>${p.length||"—"} × ${p.width||"—"} × ${p.thickness||"—"} mm</strong></p><p>${safe(p.material)}<br>${edgeText(p)}<br>${safe(c?.name||"")}</p><p>${safe(p.notes)}</p><p><strong>Status:</strong> ${safe(statuses.find(s=>s[0]===p.status)?.[1]||p.status)}</p>`
 }
 function ensureSharedProject(p){
@@ -3986,7 +4028,7 @@ drop.addEventListener("drop",e=>{
 document.addEventListener("dragover",e=>e.preventDefault());
 document.addEventListener("drop",e=>{if(!drop.contains(e.target))e.preventDefault()});
 drop.addEventListener("click",e=>{
- if(e.target.closest(".pin"))return;
+ if(e.target.closest(".pin,.fiq-pin-menu"))return;
  const c=cabinet();
  if(!c?.drawing){$("#drawingInputTop").click();return}
  if(c.drawingType==="pdf")return alert(t("studio.drawing.pdfUseScreenshotForMarking"));
@@ -4005,7 +4047,7 @@ $("#zoomInBtn").onclick=e=>{e.stopPropagation();setRoomsZoom(Number(state.drawin
 $("#zoomOutBtn").onclick=e=>{e.stopPropagation();setRoomsZoom(Number(state.drawingZoom||1)-0.25)};
 $("#zoomFitBtn").onclick=e=>{e.stopPropagation();state.drawingZoom=1;renderRooms();$("#drawingStage").scrollTo({left:0,top:0,behavior:"smooth"})};
 $("#drawingStage").addEventListener("wheel",e=>{if(!e.ctrlKey)return;e.preventDefault();setRoomsZoom(Number(state.drawingZoom||1)+(e.deltaY<0?0.25:-0.25))},{passive:false});
-$("#drawingStage").addEventListener("dblclick",e=>{if(e.target.closest(".pin"))return;$("#drawingStage").classList.toggle("expanded");setTimeout(renderRooms,20)});
+$("#drawingStage").addEventListener("dblclick",e=>{if(e.target.closest(".pin,.fiq-pin-menu"))return;$("#drawingStage").classList.toggle("expanded");setTimeout(renderRooms,20)});
 $("#drawingStage").addEventListener("scroll",()=>{const c=cabinet();if(!c)return;c.viewState=c.viewState||{};c.viewState.scrollLeft=$("#drawingStage").scrollLeft;c.viewState.scrollTop=$("#drawingStage").scrollTop;c.viewState.zoom=Number(state.drawingZoom||1);clearTimeout(window.__a112ScrollSave);window.__a112ScrollSave=setTimeout(save,180)},{passive:true});
 window.addEventListener("resize",()=>{if(state.screen==="mark")renderRooms()});
 
@@ -4135,7 +4177,7 @@ function buildInstallPrint(){
  </section>`).join("");
  setTimeout(()=>p.cabinets.forEach(c=>{
    const stage=document.getElementById("installdrawing-"+c.id);if(!stage)return;
-   c.parts.forEach(x=>[{x:x.x,y:x.y},...(x.copies||[])].forEach(m=>{
+   c.parts.forEach(x=>[{x:x.x,y:x.y},...(x.copies||[])].filter(hasMarkPosition).forEach(m=>{
       const d=document.createElement("div");d.className="install-pin";d.textContent=x.code.replace("P-","");d.style.left=m.x+"%";d.style.top=m.y+"%";stage.appendChild(d)
    }))
  }),0);
@@ -4156,7 +4198,7 @@ let qrReturnScroll=0;
 function openGuidePreviewForPanel(p){
  const modal=$("#guidePreviewModal"),frame=$("#guidePreviewFrame"),c=cabinet(),pr=project();if(!modal||!frame||!p)return;
  qrReturnScroll=window.scrollY||0;
- const drawing=c?.drawing&&c.drawingType!=="pdf"?`<div class="drawing"><img src="${c.drawing}" alt="Highlighted panel drawing"><div class="highlight" style="left:${Number(p.x||50)}%;top:${Number(p.y||50)}%"><span>${safe(p.code)}</span></div></div>`:`<div class="missing">Drawing missing</div>`;
+ const drawing=c?.drawing&&c.drawingType!=="pdf"?`<div class="drawing"><img src="${c.drawing}" alt="Highlighted panel drawing">${hasMarkPosition(p)?`<div class="highlight" style="left:${Number(p.x)}%;top:${Number(p.y)}%"><span>${safe(p.code)}</span></div>`:''}</div>`:`<div class="missing">Drawing missing</div>`;
  frame.removeAttribute("src");
  frame.srcdoc=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;font-family:Arial,sans-serif;color:#223449;background:#f6f7f9}.wrap{padding:18px}.drawing{position:relative;background:#dfe2e9;border-radius:18px;overflow:hidden;min-height:300px;display:grid;place-items:center}.drawing img{display:block;max-width:100%;max-height:68vh}.highlight{position:absolute;transform:translate(-50%,-50%);width:78px;height:78px;border:7px solid #599138;border-radius:50%;background:rgba(76,145,56,.22);display:grid;place-items:center}.highlight span{background:#599138;color:#fff;border-radius:999px;padding:8px;font-weight:800}.card{background:#fff;border-radius:18px;padding:18px;margin-top:14px}.card h1{margin:0 0 10px;font-size:28px}.row{font-size:20px;margin:7px 0}.muted{color:#665f75}.missing{padding:50px;text-align:center}.back{display:block;width:100%;padding:16px;border:0;border-radius:14px;background:#0051ff;color:#223449;font-size:20px;font-weight:800;margin-top:14px}</style>
 
@@ -5157,7 +5199,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
    const modal=document.querySelector('#guidePreviewModal'),frame=document.querySelector('#guidePreviewFrame'),c=cabinet(),pr=project();if(!modal||!frame||!p)return;
    qrReturnScroll=window.scrollY||0;
    const ref=assembleOneJobRef(pr);
-   const drawing=c?.drawing&&c.drawingType!=="pdf"?`<div class="drawing"><img src="${c.drawing}" alt="Highlighted panel drawing"><div class="highlight" style="left:${Number(p.x||50)}%;top:${Number(p.y||50)}%"><span>${safe(p.code)}</span></div></div>`:`<div class="missing">Drawing missing</div>`;
+   const drawing=c?.drawing&&c.drawingType!=="pdf"?`<div class="drawing"><img src="${c.drawing}" alt="Highlighted panel drawing">${hasMarkPosition(p)?`<div class="highlight" style="left:${Number(p.x)}%;top:${Number(p.y)}%"><span>${safe(p.code)}</span></div>`:''}</div>`:`<div class="missing">Drawing missing</div>`;
    frame.removeAttribute('src');
    frame.srcdoc=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;font-family:Arial,sans-serif;color:#223449;background:#f6f7f9}.wrap{padding:18px}.drawing{position:relative;background:#dfe2e9;border-radius:18px;overflow:auto;min-height:360px;display:grid;place-items:center}.drawing img{display:block;max-width:100%;max-height:68vh}.highlight{position:absolute;transform:translate(-50%,-50%);width:82px;height:82px;border:7px solid #599138;border-radius:50%;background:rgba(76,145,56,.22);display:grid;place-items:center;animation:pulse 1.1s ease-in-out 3}.highlight span{background:#599138;color:#fff;border-radius:999px;padding:8px;font-weight:800}@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(76,145,56,.65)}50%{box-shadow:0 0 0 24px rgba(76,145,56,0)}}.card{background:#fff;border-radius:18px;padding:18px;margin-top:14px}.card h1{margin:0 0 10px;font-size:28px}.row{font-size:20px;margin:7px 0}.muted{color:#665f75}.job{font-weight:800;color:#003576;background:#d6e3ff;padding:10px;border-radius:12px;margin-bottom:12px}.missing{padding:50px;text-align:center}.back{display:block;width:100%;padding:16px;border:0;border-radius:14px;background:#0051ff;color:#223449;font-size:20px;font-weight:800;margin-top:14px}</style>
 
@@ -5739,7 +5781,7 @@ body.guide-only .a131-back-studio{display:block}
     canvas.addEventListener('pointerleave',function(){canvas.classList.remove('marker-ready')});
 
     canvas.addEventListener('click',function(e){
-      if(e.target.closest('.pin')) return;
+      if(e.target.closest('.pin,.fiq-pin-menu')) return;
       const c=typeof cabinet==='function'?cabinet():null;
       if(!c||!c.drawing) return;
       if(c.drawingType==='pdf') return alert(t("studio.drawing.pdfUseScreenshotForMarking"));
