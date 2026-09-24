@@ -3532,61 +3532,56 @@ async function sendPackDirectly(pack){const packet={...pack,syncId:firebaseSafeK
 // retried automatically by the same poll loop that already checks for incoming Studio
 // packets, so a transient failure recovers on its own instead of needing a manual export.
 const PENDING_STUDIO_SYNC_KEY="assembleone_pending_studio_sync_v1";
-function queuePendingStudioSync(pack){
-  try{
-    let arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]");
-    arr=arr.filter(x=>!(x.pack?.project&&pack.project&&x.pack.project.id===pack.project.id));
-    arr.push({pack:pack,queuedAt:Date.now(),gaveUp:false});
-    localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.slice(-10)));
-  }catch(e){}
+// The outbox stores only which job still needs sending, never the packet itself. A full
+// packet carries every hydrated photo and easily passes localStorage's ~5MB limit, so the
+// old "store the whole pack" queue failed silently on exactly the jobs that mattered: the
+// phone said "saved, will send automatically" and then never did. The job's own saved
+// state already holds every note and photo, so a retry simply rebuilds the latest packet
+// from it (which also means a retry can never resend an older copy than the phone has).
+// Entries written by the old format (x.pack) are read too, so nothing queued before this
+// update is dropped.
+function pendingStudioSyncEntries(){
+  try{return (JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]")||[]).map(x=>x&&(x.projectId?x:(x.pack?.project?.id?{projectId:x.pack.project.id,queuedAt:x.queuedAt||Date.now(),gaveUp:!!x.gaveUp}:null))).filter(Boolean)}catch(e){return []}
+}
+function writePendingStudioSync(arr){try{localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr))}catch(e){console.error('Could not record pending Studio send',e)}}
+function queuePendingStudioSync(projectId){
+  const arr=pendingStudioSyncEntries();
+  if(arr.some(x=>x.projectId===projectId))return;
+  arr.push({projectId,queuedAt:Date.now(),gaveUp:false});
+  writePendingStudioSync(arr);
 }
 function clearPendingStudioSync(projectId){
-  try{
-    let arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]");
-    localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.filter(x=>!(x.pack?.project&&x.pack.project.id===projectId))));
-  }catch(e){}
+  writePendingStudioSync(pendingStudioSyncEntries().filter(x=>x.projectId!==projectId));
 }
 // A transient failure only falls back to a manual ZIP download once it has genuinely
 // had time to recover on its own and still hasn't -- a normal hiccup (a few seconds of
 // bad signal, auth still settling) should just resolve quietly in the background on the
 // very next poll, not immediately hand the fitter a file to deal with.
 const SYNC_GIVE_UP_MS=45000;
+// Last packet that failed to send, kept in memory only, so the give-up backup ZIP still
+// contains the real photos without ever writing them into localStorage.
+const lastFailedStudioPack=new Map();
+let retryingStudioSync=false;
 window.retryPendingStudioSync=async function(){
-  let arr;try{arr=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]")}catch(e){arr=[]}
+  // pollStudioSync fires every 2.5s, and sending a job with photos can take far longer.
+  // Without this guard every poll started another upload of the same job.
+  if(retryingStudioSync)return;
+  const arr=pendingStudioSyncEntries();
   if(!arr.length)return;
-  let dirty=false,projectsChanged=false;
-  for(let i=0;i<arr.length;i++){
-    const entry=arr[i];
-    try{
-      const sendToStudio=window.sendPackDirectly||sendPackDirectly;
-      const result=await sendToStudio(entry.pack);
-      arr[i]=null;dirty=true;
-      // The write succeeding here only means the retry itself got through -- it's the
-      // exact same "not yet confirmed" situation as a first-try success, so this must
-      // feed the same pendingStudioReceiptDocId/checkPendingStudioReceipts path rather
-      // than being treated as done. Without this, a job that failed once and only
-      // recovered via this background retry would never get archived even after Studio
-      // genuinely confirms it, because nothing would be watching its doc.
-      const proj=state.projects.find(x=>x.id===entry.pack.project?.id);
-      if(proj){
-        proj.lastStudioSync=entry.pack.exportedAt;proj.studioSyncBlocked=false;proj.studioSyncBlockedReason='';
-        if(result&&result.docId)proj.pendingStudioReceiptDocId=result.docId;
-        if(proj.siteTransfer)proj.siteTransfer.status='awaiting-studio';
-        // Keep completed installation work on the phone until Studio confirms that this
-        // exact packet was received. checkPendingStudioReceipts performs the archive only
-        // after the Studio acknowledgement comes back.
-        projectsChanged=true;
-      }
-    }catch(e){
+  retryingStudioSync=true;
+  try{
+    for(const entry of arr){
+      if(!state.projects.some(x=>x.id===entry.projectId)){clearPendingStudioSync(entry.projectId);continue}
+      const result=await exportJob(entry.projectId,true);
+      if(result!=='queued')continue;
       if(!entry.gaveUp&&Date.now()-entry.queuedAt>SYNC_GIVE_UP_MS){
-        entry.gaveUp=true;dirty=true;
-        try{download(makeZip([{name:"updates.json",data:JSON.stringify(entry.pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(entry.pack.project?.name||"FittersIQ_Job").replace(/[^\w-]+/g,"_")+"_Site_Updates.zip")}catch(e2){}
+        writePendingStudioSync(pendingStudioSyncEntries().map(x=>x.projectId===entry.projectId?{...x,gaveUp:true}:x));
+        const pack=lastFailedStudioPack.get(entry.projectId);
+        if(pack){try{download(makeZip([{name:"updates.json",data:JSON.stringify(pack)},{name:"README.txt",data:"Direct sync was unavailable. Import this ZIP using Site Inbox inside FittersIQ Studio."}]),(pack.project?.name||"FittersIQ_Job").replace(/[^\w-]+/g,"_")+"_Site_Updates.zip")}catch(e2){}}
         alert(t('msg.directSyncUnavailableBackup'));
       }
     }
-  }
-  if(dirty){try{localStorage.setItem(PENDING_STUDIO_SYNC_KEY,JSON.stringify(arr.filter(Boolean)))}catch(e){}}
-  if(projectsChanged){save();renderAll()}
+  }finally{retryingStudioSync=false}
 };
 // A job's full export only ever grows -- every site photo, measurement capture and
 // damage/install photo it has ever collected gets resent every single time, because
@@ -3619,7 +3614,28 @@ function archiveIfFinishedInstallation(p){
  p.mobileArchived=true;p.mobileArchivedAt=new Date().toISOString();
  if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}
 }
-async function exportJob(id,silent){
+// One send per job at a time. A second request while one is still uploading (a note
+// saved during a slow photo upload, or a burst of scans) is remembered and sent once the
+// first finishes, so the newest notes always follow without parallel duplicate packets.
+const studioSendsInFlight=new Map();
+const STUDIO_SEND_TIMEOUT_MS=120000;
+function exportJob(id,silent){
+ const current=studioSendsInFlight.get(id);
+ if(current){if(!current.next)current.next=current.promise.catch(()=>{}).then(()=>exportJob(id,silent));return current.next}
+ const flight={};
+ flight.promise=exportJobOnce(id,silent).finally(()=>{if(studioSendsInFlight.get(id)===flight)studioSendsInFlight.delete(id)});
+ studioSendsInFlight.set(id,flight);
+ return flight.promise;
+}
+function sendToStudioWithTimeout(pack){
+ const sendToStudio=window.sendPackDirectly||sendPackDirectly;
+ let timer;
+ return Promise.race([
+  sendToStudio(pack),
+  new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('The connection timed out.')),STUDIO_SEND_TIMEOUT_MS)})
+ ]).finally(()=>clearTimeout(timer));
+}
+async function exportJobOnce(id,silent){
  const p=state.projects.find(x=>x.id===id);if(!p)return;
  // Photos are externalized to this phone's IndexedDB for reliable local storage.
  // Firestore and Studio cannot read an "idb:..." pointer from another device, so
@@ -3635,19 +3651,24 @@ async function exportJob(id,silent){
    if(!silent)alert(p.studioSyncBlockedReason);
    return'photo-loading';
  }
+ // Record that this job needs sending BEFORE the upload starts. If the phone locks, the
+ // signal drops mid-upload or iOS reloads the page, the next poll resends it instead of
+ // the note silently never reaching Studio.
+ queuePendingStudioSync(p.id);
  const exportedAt=new Date().toISOString();
  const transferManifest=!isStudioJob(p)?buildSiteTransferManifest(p,'site-'+p.id+'-'+Date.now()):null;
  if(transferManifest){p.siteTransfer={transferId:transferManifest.transferId,status:'sending',counts:{rooms:transferManifest.roomCount,pictures:transferManifest.pictureCount,measurements:transferManifest.measurementCount,notes:transferManifest.noteCount},sentAt:exportedAt};save()}
  const pack={app:"AssembleOne",schema:"assembleone-project-v9",source:"mobile",exportedAt,transferManifest,project:JSON.parse(JSON.stringify(p))};
- const sendToStudio=window.sendPackDirectly||sendPackDirectly;
- try{const sendResult=await sendToStudio(pack);clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+ try{const sendResult=await sendToStudioWithTimeout(pack);clearPendingStudioSync(p.id);lastFailedStudioPack.delete(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
-  queuePendingStudioSync(pack);
+  lastFailedStudioPack.set(p.id,pack);
   if(p.siteTransfer){p.siteTransfer.status='waiting-for-connection';save()}
   if(!silent)alert("No signal right now -- your update is saved on this phone and will send to Studio automatically once you're back online.");
   return'queued'}
+  // A permanent failure is not retried automatically; the fitter is told what to do.
+  clearPendingStudioSync(p.id);lastFailedStudioPack.delete(p.id);
   // Never report a Site Measure as sent after removing its pictures or measured
   // captures. The phone remains the complete safety copy and Studio receives nothing
   // partial; the fitter can retry after the media issue is resolved.
@@ -3661,7 +3682,7 @@ async function exportJob(id,silent){
   }
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
-    const slimResult=await sendToStudio(slimPack);
+    const slimResult=await sendToStudioWithTimeout(slimPack);
     clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.pendingStudioReceiptDocId=slimResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();
     if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
     return'sent';
@@ -3696,10 +3717,7 @@ async function exportJob(id,silent){
 // nothing needs doing yet.
 function studioSyncStatus(p){
   if(!p||!(p.rooms||[]).length)return null;
-  try{
-    const pending=JSON.parse(localStorage.getItem(PENDING_STUDIO_SYNC_KEY)||"[]");
-    if(pending.some(x=>x&&x.pack&&x.pack.project&&x.pack.project.id===p.id))return{cls:'pending',label:'⏳ Waiting to send'};
-  }catch(e){}
+  if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return{cls:'pending',label:'⏳ Waiting to send'};
   if(p.studioSyncBlocked)return{cls:'blocked',label:'⚠ Needs attention'};
   if(p.studioReceivedAt)return{cls:'synced',label:'✓ Received by Studio'};
   if(p.pendingStudioReceiptDocId||p.lastStudioSync)return{cls:'pending',label:'⏳ Waiting to send'};
