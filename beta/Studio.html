@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>FittersIQ Studio BETA</title>
+<script>
+// BETA TEST COPY of FittersIQ Studio (data lifecycle branch plus the Site Note photo fix).
+// Kept apart from the normal Studio on the same site: every browser storage name used here
+// gets its own "fiqbeta:" prefix, so this copy has its own saved jobs, databases and
+// sign-in, and can never read, change or clear the normal Studio's data in this browser.
+// Same prefix as beta/Mobile.html, whose storage names do not overlap with Studio's.
+(function(){
+  var P='fiqbeta:';
+  try{
+    var ls=window.localStorage,proto=Storage.prototype;
+    var getItem=proto.getItem,setItem=proto.setItem,removeItem=proto.removeItem,key=proto.key;
+    proto.getItem=function(k){return this===ls?getItem.call(this,P+k):getItem.call(this,k)};
+    proto.setItem=function(k,v){return this===ls?setItem.call(this,P+k,v):setItem.call(this,k,v)};
+    proto.removeItem=function(k){return this===ls?removeItem.call(this,P+k):removeItem.call(this,k)};
+    // Clearing only ever removes this copy's own keys.
+    proto.clear=(function(clear){return function(){if(this!==ls)return clear.call(this);var mine=[];for(var i=0;i<this.length;i++){var k=key.call(this,i);if(k&&k.indexOf(P)===0)mine.push(k)}mine.forEach(function(k){removeItem.call(ls,k)})}})(proto.clear);
+  }catch(e){}
+  try{
+    var factory=IDBFactory.prototype,open=factory.open,del=factory.deleteDatabase;
+    factory.open=function(name,version){return version===undefined?open.call(this,P+name):open.call(this,P+name,version)};
+    factory.deleteDatabase=function(name){return del.call(this,P+name)};
+  }catch(e){}
+  try{
+    var BC=window.BroadcastChannel;
+    if(BC){var Beta=function(name){return new BC(P+name)};Beta.prototype=BC.prototype;window.BroadcastChannel=Beta}
+  }catch(e){}
+})();
+</script>
+</head>
+<body style="font-family:Segoe UI,Arial,sans-serif;background:#7f1d1d;color:white;display:grid;place-items:center;min-height:100vh;margin:0">
+  <div id="studioLoader" style="text-align:center">Opening FittersIQ Studio BETA…</div>
+  <script>
+  (async function(){
+    try{
+      var stamp=Date.now();
+      var here=location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/,'');
+      var html=await fetch(here+'Studio-Recovery.html?beta=1&ts='+stamp,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('Could not load Studio core');return r.text()});
+      var lower=html.toLowerCase();
+      if(html.length<100000||lower.indexOf('<body')===-1||lower.lastIndexOf('</body>')===-1||lower.lastIndexOf('</html>')===-1||html.indexOf('FittersIQ Studio')===-1){
+        throw new Error('Studio core failed safety validation');
+      }
+      // Shared, unchanged files (icons, translations, help, sync helper and the three Studio
+      // patches) come from the normal site folder. The manifest is left out so the beta
+      // cannot be installed over the normal app.
+      html=html.replace('<link rel="manifest" href="manifest-studio.json?v=4">','');
+      html=html.replace(/<head([^>]*)>/i,function(m){return m+'<base href="'+here+'../">'});
+      var patch='<script src="studio-patch.js?build=86&beta=1&ts='+stamp+'"><\/script>';
+      var snapshot='<script src="studio-dispatch-snapshot.js?build=86&beta=1&ts='+stamp+'"><\/script>';
+      var hardening='<script src="studio-sync-hardening.js?build=90&beta=1&ts='+stamp+'"><\/script>';
+      var banner='<div id="fiqBetaBanner" style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#b91c1c;color:#fff;font:800 11px/1.6 Inter,Arial,sans-serif;text-align:center;letter-spacing:.04em;pointer-events:none">BETA TEST COPY - NOT YOUR NORMAL FITTERSIQ STUDIO - USE THE TEST ACCOUNT ONLY<\/div>';
+      var retitle='<script>document.title="BETA "+String(document.title).replace(/^BETA /,"")<\/script>';
+      var bodyClose=lower.lastIndexOf('</body>');
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+banner+retitle+html.slice(bodyClose);
+      document.open();document.write(html);document.close();
+    }catch(e){
+      console.error(e);
+      var loader=document.getElementById('studioLoader');
+      if(loader)loader.innerHTML='FittersIQ Studio BETA could not load.<br>Please refresh the page.';
+    }
+  })();
+  </script>
+</body>
+</html>
