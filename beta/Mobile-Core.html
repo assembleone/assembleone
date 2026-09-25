@@ -929,6 +929,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button type="button" id="measureHomeBtn" class="mini-btn measure61-home" aria-label="Back to Site Visit Summary">🏠</button>
    <button type="button" id="measureCurrentRoomLabel" class="mini-btn measure61-roomsel"></button>
    <button class="mini-btn measure61-picture" id="chooseMeasurePhoto" type="button"><span class="measure61-top-icon">📷</span><span data-i18n="measure.addPicture">Add Picture</span></button>
+   <button class="mini-btn measure61-note" id="openRoomNote" type="button" aria-label="Room Note"><span class="measure61-top-icon">📝</span><span>Room Note</span><span class="room-note-count" id="roomNoteCount"></span></button>
    <input id="markupCameraPhoto" class="js-file-input" type="file" accept="image/*" capture="environment">
    <span id="measurePhotoStatus" class="measure-photo-status" aria-live="polite"></span>
    <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b></span></button>
@@ -1041,7 +1042,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
  </div>
  <div id="svsRoomList" class="svs-room-list"></div>
  <button type="button" id="svsAddRoomBtn" class="btn primary svs-add-room-btn">＋ Add Room</button>
- <button type="button" id="measureNotesRow" class="measure-notes-row">📋 <span>Notes</span> <span id="measureNotesCount" class="notes-count">(0)</span> <span class="notes-chev">›</span></button>
+ <button type="button" id="measureNotesRow" class="measure-notes-row whole-site-note-row"><span class="wsn-icon">📋</span><span class="wsn-text"><b>Whole Site Note</b><small>For the complete Site Measure, not one room</small></span> <span id="measureNotesCount" class="notes-count">(0)</span> <span class="notes-chev">›</span></button>
  <div id="measureSendBar" class="measure-send-bar"></div>
 </section>
 
@@ -1071,12 +1072,24 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 
 <div class="site-room-modal" id="notesBoardModal" aria-hidden="true">
  <div class="site-room-dialog notes-board-dialog" role="dialog" aria-modal="true" aria-labelledby="notesBoardTitle">
-  <div class="site-room-head"><div class="room-badge">📋</div><div><h2 id="notesBoardTitle">Notes</h2><p>For the whole site visit</p></div><button class="site-room-close" id="notesBoardClose" type="button" aria-label="Close">×</button></div>
+  <div class="site-room-head"><div class="room-badge">📋</div><div><h2 id="notesBoardTitle">Whole Site Note</h2><p>For the complete Site Measure, not one room</p></div><button class="site-room-close" id="notesBoardClose" type="button" aria-label="Close">×</button></div>
   <div class="notes-board-body">
    <textarea id="notesBoardText" placeholder="Anything the customer wants noted..."></textarea>
    <div class="notes-photo-grid" id="notesPhotoGrid"></div>
    <button type="button" class="btn" id="addNotePhotoBtn2">📷 Add Photo</button>
    <input id="notesPhotoInput" type="file" accept="image/*" multiple hidden>
+  </div>
+ </div>
+</div>
+
+<div class="site-room-modal" id="roomNoteModal" aria-hidden="true">
+ <div class="site-room-dialog notes-board-dialog" role="dialog" aria-modal="true" aria-labelledby="roomNoteTitle">
+  <div class="site-room-head"><div class="room-badge" id="roomNoteIcon">📝</div><div><h2 id="roomNoteTitle">Room Note</h2><p>Only for this room</p></div><button class="site-room-close" id="roomNoteClose" type="button" aria-label="Close">×</button></div>
+  <div class="notes-board-body">
+   <textarea id="roomNoteText" placeholder="Anything to note about this room..."></textarea>
+   <div class="notes-photo-grid" id="roomNotePhotoGrid"></div>
+   <button type="button" class="btn" id="addRoomNotePhotoBtn">📷 Add Photo</button>
+   <input id="roomNotePhotoInput" type="file" accept="image/*" multiple hidden>
   </div>
  </div>
 </div>
@@ -2688,6 +2701,7 @@ function renderMeasureCurrentRoomLabel(){
  if(r&&r.name){const floor=floorDisplayLabel(r.location);box.innerHTML=`<span class="measure-current-room-chip"><span class="measure-current-room-icon">${r.icon||'📍'}</span>${safe(r.name)}${floor?' · '+safe(floor):''}</span>`}
  else{box.innerHTML=`<span class="measure-current-room-chip measure-current-room-placeholder">🏠 Choose Room</span>`}
  box.onclick=chooseRoomForCurrentPhoto;
+ if(typeof renderRoomNoteButton==='function')renderRoomNoteButton();
 }
 // The "1 / 2" pager above the photo -- a room can have several photos, each
 // with its own independent marks. This just reflects which one is showing;
@@ -2898,6 +2912,48 @@ document.getElementById('notesPhotoInput')?.addEventListener('change',e=>{
  const p=project();if(!p)return;
  files.forEach(file=>{compressImage(file,data=>{p.siteNotePhotos=p.siteNotePhotos||[];p.siteNotePhotos.push({id:uid(),data,takenAt:new Date().toISOString()});save();renderNotesPhotoGrid(p);renderNotesRow()},()=>alert('Photo could not be loaded.'))});
 });
+// Room Note: text and photos for the room being measured right now. It is saved on that
+// room (r.notes, r.notePhotos), so the carpenter never has to choose which room it belongs to.
+function roomHasNote(r){return !!(r&&(String(r.notes||'').trim()||(r.notePhotos||[]).length))}
+function measureNoteRoom(){const p=project();if(!p)return null;return {p,r:ensureCurrentRoomExists(p)}}
+function renderRoomNoteButton(){
+ const btn=document.getElementById('openRoomNote'),count=document.getElementById('roomNoteCount');
+ if(!btn)return;
+ const p=project(),r=p&&(p.rooms||[]).find(x=>x.id===state.currentRoom);
+ const n=r?(String(r.notes||'').trim()?1:0)+(r.notePhotos||[]).length:0;
+ btn.classList.toggle('has-note',n>0);
+ if(count)count.textContent=n?` (${n})`:'';
+}
+function renderRoomNotePhotoGrid(r){
+ const grid=document.getElementById('roomNotePhotoGrid');
+ if(!grid)return;
+ grid.innerHTML=(r.notePhotos||[]).map(ph=>`<div class="notes-photo-tile"><img src="${ph.data}"><button type="button" class="notes-photo-delete" data-id="${ph.id}">✕</button></div>`).join('');
+ grid.querySelectorAll('.notes-photo-delete').forEach(b=>b.onclick=()=>{r.notePhotos=(r.notePhotos||[]).filter(x=>x.id!==b.dataset.id);r.updatedAt=Date.now();save();renderRoomNotePhotoGrid(r);renderRoomNoteButton()});
+}
+function openRoomNote(){
+ const ctx=measureNoteRoom();if(!ctx)return;const r=ctx.r;
+ document.getElementById('roomNoteTitle').textContent=`${String(r.name||'').trim()||'Room'} Note`;
+ document.getElementById('roomNoteIcon').textContent=r.icon||'📝';
+ document.getElementById('roomNoteText').value=r.notes||'';
+ renderRoomNotePhotoGrid(r);
+ const m=document.getElementById('roomNoteModal');
+ m.classList.add('open');m.setAttribute('aria-hidden','false');
+}
+function closeRoomNote(){
+ const m=document.getElementById('roomNoteModal');
+ m.classList.remove('open');m.setAttribute('aria-hidden','true');
+ renderRoomNoteButton();
+}
+document.getElementById('openRoomNote')?.addEventListener('click',openRoomNote);
+document.getElementById('roomNoteClose')?.addEventListener('click',closeRoomNote);
+document.getElementById('roomNoteModal')?.addEventListener('click',e=>{if(e.target.id==='roomNoteModal')closeRoomNote()});
+document.getElementById('roomNoteText')?.addEventListener('input',e=>{const ctx=measureNoteRoom();if(!ctx)return;ctx.r.notes=e.target.value;ctx.r.updatedAt=Date.now();save()});
+document.getElementById('addRoomNotePhotoBtn')?.addEventListener('click',()=>document.getElementById('roomNotePhotoInput').click());
+document.getElementById('roomNotePhotoInput')?.addEventListener('change',e=>{
+ const files=[...(e.target.files||[])];e.target.value='';
+ const ctx=measureNoteRoom();if(!ctx)return;const r=ctx.r;
+ files.forEach(file=>{compressImage(file,data=>{r.notePhotos=r.notePhotos||[];r.notePhotos.push({id:uid(),data,takenAt:new Date().toISOString()});r.updatedAt=Date.now();save();renderRoomNotePhotoGrid(r);renderRoomNoteButton()},()=>alert('Photo could not be loaded.'))});
+});
 // The room list on the Site Visit Summary -- icon, name, photo count, a tick
 // for "has photos", and a chevron. Tapping a row edits ONLY that room
 // (loadRoomForEdit), same guarantee as everywhere else in this rebuild.
@@ -2910,7 +2966,7 @@ function renderSiteVisitSummary(){
  list.innerHTML=rooms.map(r=>{
   const n=(r.measureCaptures||[]).length;
   const floorPrefix=floorDisplayLabel(r.location);
-  return `<button type="button" class="svs-room-row" data-svs-room="${r.id}"><span class="svs-room-icon">${r.icon||'📍'}</span><span class="svs-room-info"><b>${safe(r.name||'Unnamed')}</b><small>${floorPrefix?safe(floorPrefix)+' · ':''}${n} photo${n===1?'':'s'}</small></span><span class="svs-room-check">✓</span><span class="svs-room-chev">›</span></button>`;
+  return `<button type="button" class="svs-room-row" data-svs-room="${r.id}"><span class="svs-room-icon">${r.icon||'📍'}</span><span class="svs-room-info"><b>${safe(r.name||'Unnamed')}</b><small>${floorPrefix?safe(floorPrefix)+' · ':''}${n} photo${n===1?'':'s'}</small></span>${roomHasNote(r)?'<span class="svs-room-note" title="Room Note" aria-label="Has a Room Note">📝</span>':''}<span class="svs-room-check">✓</span><span class="svs-room-chev">›</span></button>`;
  }).join('');
  list.querySelectorAll('[data-svs-room]').forEach(b=>b.onclick=()=>loadRoomForEdit(p,b.dataset.svsRoom));
  const custLine=document.getElementById('svsCustomerLine');
@@ -2938,7 +2994,7 @@ async function sendAllRoomsToStudio(p){
  if(!rooms.length)return;
  const btn=document.getElementById('sendAllRoomsBtn');
  if(btn){btn.disabled=true;const span=btn.querySelector('span');if(span)span.textContent='Sending…'}
- const notesCount=(p.siteNotePhotos||[]).length+(p.siteNotes&&p.siteNotes.trim()?1:0);
+ const notesCount=(p.siteNotePhotos||[]).length+(p.siteNotes&&p.siteNotes.trim()?1:0)+(p.rooms||[]).reduce((n,r)=>n+(String(r.notes||'').trim()?1:0)+(r.notePhotos||[]).length,0);
  // exportJob queues transient (no-signal) failures for automatic background retry rather
  // than throwing, so success can only be told apart from "queued" or "too large" by its
  // return value -- studioSyncBlocked alone is never set for the transient/no-signal case.
@@ -5234,6 +5290,20 @@ body:has(#measure.active) main{height:100dvh!important;overflow:hidden;padding-t
  #measure.active .three-main-measures .measure-kind span{font-size:9px}
  #measure.active .markup-stage{border-radius:9px}
 }
+/* Room Note beside Add Picture: five columns in the Measure top bar, labels may wrap. */
+#measure .measure61-topbar{grid-template-columns:40px minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr) minmax(0,.95fr)!important;gap:5px}
+#measure .measure61-topbar .measure61-picture,#measure .measure61-topbar .measure61-note{white-space:normal!important;line-height:1.1;text-align:center;gap:4px}
+#measure .measure61-note{background:#fff7e8!important;border:2px solid #e8b04e!important;color:#6b4300!important}
+#measure .measure61-note.has-note{background:#ffe9c2!important;border-color:#d38a12!important}
+#measure .measure61-note .room-note-count{font-weight:900}
+@media(max-width:430px){#measure .measure61-topbar .measure61-picture,#measure .measure61-topbar .measure61-note{flex-direction:column;font-size:10px!important;padding:3px 2px!important}#measure .measure61-roomsel{padding:3px!important}#measure .measure-current-room-chip{white-space:normal;line-height:1.1;font-size:12px;padding:4px 8px;text-align:center}#measure .measure-current-room-chip .measure-current-room-icon{display:none}}
+/* Whole Site Note sits apart from the rooms and says it is for the complete Site Measure. */
+.whole-site-note-row{margin:16px 12px 6px!important;padding:12px 14px!important;border:2px solid #e8b04e!important;background:#fff9ee!important;border-radius:14px!important;gap:10px!important;text-align:left}
+.whole-site-note-row .wsn-icon{font-size:22px}
+.whole-site-note-row .wsn-text{display:flex;flex-direction:column;min-width:0}
+.whole-site-note-row .wsn-text b{font-size:15px;font-weight:900}
+.whole-site-note-row .wsn-text small{font-size:12px;color:var(--muted);font-weight:700}
+.svs-room-note{font-size:18px;flex:none}
 </style>
 <script id="a174-mobile-notice">
 (()=>{
