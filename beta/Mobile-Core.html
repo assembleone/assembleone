@@ -6240,12 +6240,16 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       await authFns.signInWithEmailAndPassword(auth,email,password);
     }catch(err){
       btn.disabled=false; btn.textContent='Sign In';
+      // BETA ONLY: show the real Firebase error and what was actually sent, so a failed
+      // sign-in can be diagnosed on a phone. The password itself is never shown.
+      var detail=' [Firebase: '+((err&&err.code)||'no code')+' | email sent: "'+email+'" | password length: '+password.length+(password!==password.trim()?', has spaces at start or end':'')+']';
+      try{ console.error('BETA sign-in error', err); }catch(_){}
       if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].indexOf(err.code)>=0){
-        showMsg(msg,'Email or password is incorrect.','error');
+        showMsg(msg,'Email or password is incorrect.'+detail,'error');
       } else if(err.code==='auth/too-many-requests'){
-        showMsg(msg,'Too many attempts. Please wait a moment and try again.','error');
+        showMsg(msg,'Too many attempts. Please wait a moment and try again.'+detail,'error');
       } else {
-        showMsg(msg,'Something went wrong signing in. Please try again.','error');
+        showMsg(msg,'Something went wrong signing in. Please try again.'+detail,'error');
       }
     }
   });
