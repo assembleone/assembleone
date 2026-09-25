@@ -15,11 +15,11 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
  await normal.close();
  const beta=await open('/beta/Studio.html');
  const b=await beta.evaluate(()=>({ids:(0,eval)('state').projects.map(p=>p.id),banner:!!document.getElementById('fiqBetaBanner'),title:document.title,
-  noteFix:String(openSiteRoomDetails).includes('x?.data||'),lifecycle:typeof checkCompanyReset==='function'||String(window.autoImportSitePackets||'').length>0,
+  noteFix:String(openSiteRoomDetails).includes('x?.data||'),betaPatch:!!document.querySelector('script[src*="beta/studio-patch.js"]'),lifecycle:typeof checkCompanyReset==='function'||String(window.autoImportSitePackets||'').length>0,
   patches:typeof window.fiqMarkJobOverviewCards==='function',syncProtocol:!!window.FittersIQSyncProtocol,i18n:typeof window.t==='function',manifest:!!document.querySelector('link[rel=manifest]'),probe:localStorage.getItem('probe')}));
  assert(!b.ids.includes('normal1'),'beta cannot see the normal Studio jobs');assert.equal(b.probe,null,'beta cannot read normal storage');
  assert(b.banner,'beta banner shown');assert(/^BETA /.test(b.title),'title says BETA');assert(!b.manifest,'beta cannot be installed as the app');
- assert(b.noteFix,'beta runs the Site Note photo fix');assert(b.syncProtocol,'shared sync helper loads');assert(b.i18n,'translations load');
+ assert(b.noteFix,'beta runs the Site Note photo fix');assert(b.betaPatch,'beta loads its own studio-patch.js');assert(b.syncProtocol,'shared sync helper loads');assert(b.i18n,'translations load');
  await beta.evaluate(async()=>{const st=(0,eval)('state');st.projects.push({id:'beta1',name:'Beta job',rooms:[],cabinets:[],jobLog:[]});save();localStorage.setItem('probe','beta');await new Promise(r=>{const q=indexedDB.open('probe-db',1);q.onsuccess=()=>{q.result.close();r()};q.onerror=r})});
  const raw=await beta.evaluate(async()=>{const keys=[];for(let i=0;Storage.prototype.key.call(localStorage,i)!==null&&i<500;i++)keys.push(Storage.prototype.key.call(localStorage,i));const dbs=indexedDB.databases?(await indexedDB.databases()).map(d=>d.name):[];return {keys,dbs}});
  assert(raw.keys.includes('fiqbeta:probe')&&raw.keys.some(k=>k.startsWith('fiqbeta:')&&k!=='fiqbeta:probe'),'beta data stored under its own names');

@@ -49,17 +49,19 @@
       if(html.length<100000||lower.indexOf('<body')===-1||lower.lastIndexOf('</body>')===-1||lower.lastIndexOf('</html>')===-1||html.indexOf('FittersIQ Studio')===-1){
         throw new Error('Studio core failed safety validation');
       }
-      // Shared, unchanged files (icons, translations, help, sync helper and the three Studio
-      // patches) come from the normal site folder. The manifest is left out so the beta
-      // cannot be installed over the normal app.
+      // Shared, unchanged files (icons, translations, help, sync helper and two of the Studio
+      // patches) come from the normal site folder. studio-patch.js is changed for the beta
+      // (it no longer hides the Documents tab), so it comes from this beta folder. The
+      // manifest is left out so the beta cannot be installed over the normal app.
       html=html.replace('<link rel="manifest" href="manifest-studio.json?v=4">','');
       html=html.replace(/<head([^>]*)>/i,function(m){return m+'<base href="'+here+'../">'});
-      var patch='<script src="studio-patch.js?build=86&beta=1&ts='+stamp+'"><\/script>';
+      var patch='<script src="'+here+'studio-patch.js?build=86&beta=1&ts='+stamp+'"><\/script>';
       var snapshot='<script src="studio-dispatch-snapshot.js?build=86&beta=1&ts='+stamp+'"><\/script>';
       var hardening='<script src="studio-sync-hardening.js?build=90&beta=1&ts='+stamp+'"><\/script>';
       var banner='<div id="fiqBetaBanner" style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#b91c1c;color:#fff;font:800 11px/1.6 Inter,Arial,sans-serif;text-align:center;letter-spacing:.04em;pointer-events:none">BETA TEST COPY - NOT YOUR NORMAL FITTERSIQ STUDIO - USE THE TEST ACCOUNT ONLY<\/div>';
       var retitle='<script>document.title="BETA "+String(document.title).replace(/^BETA /,"")<\/script>';
-      var bodyClose=lower.lastIndexOf('</body>');
+      // Find </body> again: removing the manifest and adding <base> above changed the length.
+      var bodyClose=html.toLowerCase().lastIndexOf('</body>');
       html=html.slice(0,bodyClose)+patch+hardening+snapshot+banner+retitle+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
