@@ -58,10 +58,10 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
   const items=[...document.querySelectorAll('#siteRoomThumbs [data-site-thumb]')];
   return {strip:items.map(x=>({src:x.querySelector('img').getAttribute('src'),kind:x.dataset.thumbKind,badge:x.querySelector('.site-thumb-badge')?(x.querySelector('.site-thumb-badge.site-note')?'site-note':'room-note'):null})),
    stripTops:[...new Set(items.map(x=>Math.round(x.getBoundingClientRect().top)))].length,
-   notesImages:document.querySelectorAll('.site-notes-box img').length,notesHeading:!!document.querySelector('.site-notes-box h3'),
+   notesImages:document.querySelectorAll('.site-notes-box img').length,notesText:document.querySelector('.site-notes-box').textContent,notesHeading:!!document.querySelector('.site-notes-box h3'),
    modalImages:[...modal.querySelectorAll('img')].map(i=>i.getAttribute('src')),
-   roomNote:document.getElementById('siteRoomNotes').textContent,roomHint:document.getElementById('siteRoomNoteHint').textContent,
-   siteGroupShown:!document.getElementById('siteJobNoteGroup').hidden,siteNote:document.getElementById('siteJobNotes').textContent,siteHint:document.getElementById('siteJobNoteHint').textContent,
+   roomNote:document.getElementById('siteRoomNotes').textContent,
+   siteGroupShown:!document.getElementById('siteJobNoteGroup').hidden,siteNote:document.getElementById('siteJobNotes').textContent,
    measures:document.getElementById('siteJobMeasureList').textContent,measureCount:document.getElementById('siteRoomMeasureCount').textContent,
    large:document.querySelector('#siteRoomReferenceFrame img')?.getAttribute('src'),
    photoArea:box('.site-reference-pane'),notesBox:box('.site-notes-box'),notesScroll:(()=>{const n=document.querySelector('.site-notes-box');return n.scrollHeight-n.clientHeight})()};
@@ -78,9 +78,8 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
  assert.equal(kitchen.notesImages,0,'no photos repeated under the notes');assert(!kitchen.notesHeading,'no general Notes heading');
  [...roomNoteUrls,siteNoteUrl,sitePhotoUrl,capUrls[1],capUrls[2]].forEach((u,i)=>once(kitchen,u,'photo '+i));
  assert.equal(kitchen.roomNote,'Mind the pipe behind the sink','Room Note text');
- assert.equal(kitchen.roomHint,'✎ 2 Room Note photos in the photo strip above','Room Note points to its photos');
+ assert.equal(kitchen.notesText.includes('photo strip'),false,'no explanatory photo lines under the notes');
  assert(kitchen.siteGroupShown&&kitchen.siteNote==='Customer wants handles fitted last','Site Note text in its own group');
- assert.equal(kitchen.siteHint,'✎ 1 Site Note photo in the photo strip above','Site Note points to its photo');
  assert(kitchen.measures.includes('Ceiling height')&&kitchen.measures.includes('2480'),'typed Site Measure measurements shown');
  assert.equal(kitchen.measureCount,'4','room measurements counted');
  noOverlap(kitchen,'laptop');
@@ -95,7 +94,7 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
  const utility=await view('r2');
  assert.deepEqual(utility.strip.map(x=>x.kind),['photo','site-note','site'],'other room: its own photo plus the whole Site Measure photos, no Kitchen note photos');
  assert(!utility.strip.some(x=>roomNoteUrls.includes(x.src)),'Kitchen Room Note photos stay in the Kitchen');
- assert.equal(utility.roomNote,'No room note','a room without a note says so');assert.equal(utility.roomHint,'','no Room Note photo hint');
+ assert.equal(utility.roomNote,'No room note','a room without a note says so');
  assert.equal(utility.siteNote,'Customer wants handles fitted last','the Site Note follows the Site Measure into every room');
  assert.equal(utility.notesImages,0,'no photos under the notes in the other room either');
 

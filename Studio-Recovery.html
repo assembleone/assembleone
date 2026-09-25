@@ -1165,7 +1165,6 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .site-thumb-item{position:relative;flex:0 0 auto;display:block;cursor:pointer;line-height:0}
 .site-thumb-badge{position:absolute;right:3px;bottom:3px;width:17px;height:17px;border-radius:50%;background:rgba(11,37,69,.85);color:#fff;font:700 10px/17px Arial,sans-serif;text-align:center;box-shadow:0 0 0 1.5px #fff;pointer-events:none}
 .site-thumb-badge.site-note{background:rgba(22,101,52,.9)}
-.site-note-hint{font-size:12px;color:#5b6b7f;margin-top:3px}.site-note-hint:empty{display:none}
 @media(max-width:760px){.site-reference-frame{min-height:min(300px,42vh)}}
 </style>
 
@@ -2163,13 +2162,10 @@ function openSiteRoomDetails(projectId,roomId){
  const thumbLabel={photo:'Photo','room-note':'Room Note photo','site-note':'Site Note photo · whole Site Measure',site:'Site photo · whole Site Measure'};
  const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=strip.map((c,i)=>{const note=c.kind==='room-note'||c.kind==='site-note';const label=thumbLabel[c.kind]+' '+(i+1);return `<span class="site-thumb-item" data-site-thumb="${i}" data-thumb-kind="${c.kind}" title="${label}"><img class="site-thumb ${i===0?'active':''}" src="${safe(c.image)}" alt="${label}">${note?`<span class="site-thumb-badge${c.kind==='site-note'?' site-note':''}" aria-hidden="true">✎</span>`:''}</span>`}).join('');
  document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;
- const photoHint=(n,kind)=>n?`✎ ${n} ${kind} photo${n===1?'':'s'} in the photo strip above`:'';
  document.getElementById('siteRoomNotes').textContent=notes||(roomNotePhotos.length?'':'No room note');
- const roomHint=document.getElementById('siteRoomNoteHint');if(roomHint)roomHint.textContent=photoHint(roomNotePhotos.length,'Room Note');
  const siteGroup=document.getElementById('siteJobNoteGroup');
  if(siteGroup)siteGroup.hidden=!(siteNoteParts.length||siteNotePhotos.length||siteMeasureList.length);
  const siteNotesEl=document.getElementById('siteJobNotes');if(siteNotesEl)siteNotesEl.textContent=siteNoteParts.join('\n\n');
- const siteHint=document.getElementById('siteJobNoteHint');if(siteHint)siteHint.textContent=photoHint(siteNotePhotos.length,'Site Note');
  const measureList=document.getElementById('siteJobMeasureList');
  if(measureList)measureList.innerHTML=siteMeasureList.length?`<div class="site-note-subtitle">Measurements</div>`+siteMeasureList.map(m=>`<div class="site-job-measure">${safe([m.area,m.name].filter(Boolean).join(' · ')||'Measurement')}: <b>${safe(m.value)}</b>${m.note?` <span>${safe(m.note)}</span>`:''}</div>`).join(''):'';
  function showCapture(i){
@@ -4424,7 +4420,7 @@ load();
   <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div class="site-room-head-main"><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p><div class="site-measure-summary"><b id="siteRoomMeasureCount">0</b><span>Measurements from site</span><b id="siteRoomFloor" class="site-room-floor-data">—</b></div><div class="site-room-status-row"><span class="site-room-kind-badge" id="siteRoomDetailsKindBadge"></span><div class="site-room-address" id="siteRoomDetailsAddress"></div></div></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
   <div class="site-room-body">
    <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-photo-measure-label" id="siteRoomPhotoMeasureLabel"></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
-   <section class="site-design-pane"><div class="site-notes-box"><div class="site-note-group" id="siteRoomNoteGroup"><div class="site-note-group-title">Room note</div><div id="siteRoomNotes">No room note</div><div class="site-note-hint" id="siteRoomNoteHint"></div></div><div class="site-note-group" id="siteJobNoteGroup" hidden><div class="site-note-group-title">Site Note · whole Site Measure</div><div id="siteJobNotes"></div><div class="site-note-hint" id="siteJobNoteHint"></div><div class="site-job-measure-list" id="siteJobMeasureList"></div></div></div></section>
+   <section class="site-design-pane"><div class="site-notes-box"><div class="site-note-group" id="siteRoomNoteGroup"><div class="site-note-group-title">Room note</div><div id="siteRoomNotes">No room note</div></div><div class="site-note-group" id="siteJobNoteGroup" hidden><div class="site-note-group-title">Site Note · whole Site Measure</div><div id="siteJobNotes"></div><div class="site-job-measure-list" id="siteJobMeasureList"></div></div></div></section>
   </div>
  </div>
 </div>
