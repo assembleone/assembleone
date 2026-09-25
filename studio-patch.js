@@ -20,11 +20,6 @@
     logo.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome()}});
   }
 
-  function removeDocumentsTab(){
-    document.querySelectorAll('.customer-tab[data-tab="documents"]').forEach(function(el){el.remove()});
-    document.querySelectorAll('.customer-tab-panel[data-tab-panel="documents"]').forEach(function(el){el.remove()});
-  }
-
   function projectById(id){
     try{if(typeof state!=='undefined'&&state&&Array.isArray(state.projects))return state.projects.find(function(p){return String(p.id)===String(id)})||null}catch(e){}
     return null;
@@ -368,7 +363,7 @@
   var applying=false;
   function apply(){
     if(applying)return;applying=true;
-    try{addStyles();wireLogoHome();removeDocumentsTab();addCompactCustomerSearch();addCustomerCuttingListTab();mirrorSiteNotesIntoNotesTab();polishOverviewCards()}finally{applying=false}
+    try{addStyles();wireLogoHome();addCompactCustomerSearch();addCustomerCuttingListTab();mirrorSiteNotesIntoNotesTab();polishOverviewCards()}finally{applying=false}
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
