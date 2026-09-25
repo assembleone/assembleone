@@ -1147,6 +1147,24 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .site-notes-box{min-height:76px;max-height:180px}
 .site-detail-actions{display:none!important}
 @media(max-width:760px){.site-room-head{padding:9px 10px;gap:7px}.site-room-head .room-badge{font-size:25px}.site-room-head h2{font-size:21px}.site-measure-summary{margin-top:4px;padding:3px 7px;font-size:10px}.site-measure-summary b{font-size:11px}.site-reference-pane{padding:6px 8px}.site-reference-frame{min-height:300px}.site-thumb{width:56px;height:43px}.site-design-pane{padding:7px 8px 9px}.site-notes-box{min-height:68px;max-height:135px}}
+/* Site Measure room view: the measurement photo keeps its own space and the Notes section
+   sits below it. The room view scrolls instead of letting the two overlap on a short screen,
+   and the Notes section grows to fit its text and photos instead of clipping them. */
+.site-room-body{overflow-y:auto}
+.site-reference-pane{flex:1 0 auto}
+.site-reference-frame{min-height:min(360px,48vh)}
+.site-design-pane{border-top:0}
+.site-notes-box{max-height:none;overflow:visible;padding:9px 11px}
+.site-note-group+.site-note-group{margin-top:10px;padding-top:9px;border-top:1px solid #e1ebea}
+.site-note-group[hidden]{display:none}
+.site-note-group-title{font-size:11px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;color:#5b6b7f;margin-bottom:3px}
+#siteJobNotes{white-space:pre-wrap;font-size:13px}
+.site-note-subtitle{font-size:11px;font-weight:800;color:#5b6b7f;margin-top:8px}
+.site-job-measure{font-size:13px;margin-top:2px}.site-job-measure span{color:#5b6b7f}
+.site-note-photo-row{flex-wrap:wrap;overflow:visible}
+.site-note-photo-row:empty{display:none}
+.site-note-photo{width:72px;height:56px}
+@media(max-width:760px){.site-reference-frame{min-height:min(300px,42vh)}.site-note-photo{width:64px;height:50px}}
 </style>
 
 
@@ -2091,11 +2109,21 @@ function openSiteRoomDetails(projectId,roomId){
  const room=p.rooms.find(r=>r.id===roomId)||p.rooms.find(r=>siteRoomPictures(r).length)||p.rooms[0]||{name:t("studio.siteRoom.siteRoomFallback"),icon:'📍'};
  // Mobile has both a room note and the whole Site Job Notes button. The room card used to
  // ignore p.siteNotes completely, which made a successfully sent Site Job note look lost.
- // Show both scopes here, without repeating identical text, so the note follows the Site
- // Job into every relevant room while a room-specific instruction remains visible too.
- const noteParts=[room.notes,room.siteNotes,p.siteNotes,p.notes].map(x=>String(x||'').trim()).filter((x,i,a)=>x&&a.indexOf(x)===i);
- const caps=siteRoomCaptures(room),measures=siteRoomMeasureCount(room),floor=room.floor||room.location||t("studio.siteRoom.notSelectedFallback"),notes=noteParts.join('\n\n');
- const notePhotos=[...(room.notePhotos||[]),...(room.siteNotePhotos||[]),...(p.notePhotos||[]),...(p.siteNotePhotos||[])].map(x=>typeof x==='string'?x:(x?.data||x?.src||x?.image||x?.dataUrl||'')).filter((x,i,a)=>x&&a.indexOf(x)===i);
+ // Show both scopes here, each with its own photos, so the Site Note follows the Site
+ // Measure into every room while a room-specific instruction stays with its room.
+ // Mobile stores note photos as {id,data,takenAt}.
+ const photoSrc=x=>typeof x==='string'?x:(x?.data||x?.src||x?.image||x?.dataUrl||'');
+ const uniqueText=list=>list.map(x=>String(x||'').trim()).filter((x,i,a)=>x&&a.indexOf(x)===i);
+ const uniquePhotos=(list,skip)=>list.map(photoSrc).filter((x,i,a)=>x&&a.indexOf(x)===i&&!(skip||[]).includes(x));
+ const roomNoteParts=uniqueText([room.notes,room.siteNotes]);
+ const siteNoteParts=uniqueText([p.siteNotes,p.notes]).filter(x=>!roomNoteParts.includes(x));
+ const caps=siteRoomCaptures(room),measures=siteRoomMeasureCount(room),floor=room.floor||room.location||t("studio.siteRoom.notSelectedFallback"),notes=roomNoteParts.join('\n\n');
+ const roomNotePhotos=uniquePhotos([...(room.notePhotos||[]),...(room.siteNotePhotos||[])]);
+ const siteNotePhotos=uniquePhotos([...(p.notePhotos||[]),...(p.siteNotePhotos||[])],roomNotePhotos);
+ // Whole-Site-Measure items Mobile can also record: typed measurements and general site photos.
+ const siteMeasureList=(p.siteMeasurements||[]).filter(m=>m&&String(m.value??'').trim());
+ const siteGeneralPhotos=uniquePhotos(p.sitePhotos||[],[...roomNotePhotos,...siteNotePhotos,...caps.map(c=>c.image)]);
+ const notePhotos=[...roomNotePhotos,...siteNotePhotos,...siteGeneralPhotos];
  const overlay=document.getElementById('siteRoomDetailsModal');if(!overlay)return;overlay.dataset.projectId=p.id;overlay.dataset.roomId=room.id||'';overlay.dataset.pictureIndex='0';
  document.getElementById('siteRoomDetailsTitle').textContent=room.name||t("studio.siteRoom.siteRoomFallback");document.getElementById('siteRoomDetailsIcon').textContent=room.icon||'📍';document.getElementById('siteRoomDetailsMeta').textContent=`${p.name||t("proj.projectFallback")} · ${floor}`;
  const addressBox=document.getElementById('siteRoomDetailsAddress');
@@ -2124,9 +2152,19 @@ function openSiteRoomDetails(projectId,roomId){
  if(startDesignBtn)startDesignBtn.textContent=t("studio.siteRoom.startDesignBtn");
  const frame=document.getElementById('siteRoomReferenceFrame');
  const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=caps.map((c,i)=>`<img class="site-thumb ${i===0?'active':''}" data-site-thumb="${i}" src="${c.image}" alt="Photo ${i+1}">`).join('');
- document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;document.getElementById('siteRoomNotes').textContent=notes||'No extra notes';
- const notePhotoRow=document.getElementById('siteRoomNotePhotos');
- if(notePhotoRow)notePhotoRow.innerHTML=notePhotos.map((src,i)=>`<img class="site-note-photo" data-site-note-photo="${i}" src="${safe(src)}" alt="Note picture ${i+1}">`).join('');
+ document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;document.getElementById('siteRoomNotes').textContent=notes||(roomNotePhotos.length?'':'No room note');
+ // One index across every note photo row, so a click on any of them opens that photo large.
+ const photoTiles=(list,offset,label)=>list.map((src,i)=>`<img class="site-note-photo" data-site-note-photo="${offset+i}" src="${safe(src)}" alt="${label} ${i+1}">`).join('');
+ const fill=(id,html)=>{const el=document.getElementById(id);if(el)el.innerHTML=html};
+ fill('siteRoomNotePhotos',photoTiles(roomNotePhotos,0,'Room note picture'));
+ const siteGroup=document.getElementById('siteJobNoteGroup');
+ const hasSiteGroup=!!(siteNoteParts.length||siteNotePhotos.length||siteMeasureList.length||siteGeneralPhotos.length);
+ if(siteGroup)siteGroup.hidden=!hasSiteGroup;
+ const siteNotesEl=document.getElementById('siteJobNotes');if(siteNotesEl)siteNotesEl.textContent=siteNoteParts.join('\n\n');
+ fill('siteJobNotePhotos',photoTiles(siteNotePhotos,roomNotePhotos.length,'Site Note picture'));
+ fill('siteJobMeasureList',siteMeasureList.length?`<div class="site-note-subtitle">Measurements</div>`+siteMeasureList.map(m=>`<div class="site-job-measure">${safe([m.area,m.name].filter(Boolean).join(' · ')||'Measurement')}: <b>${safe(m.value)}</b>${m.note?` <span>${safe(m.note)}</span>`:''}</div>`).join(''):'');
+ fill('siteJobPhotos',siteGeneralPhotos.length?`<div class="site-note-subtitle">Site photos</div><div class="site-note-photo-row">${photoTiles(siteGeneralPhotos,roomNotePhotos.length+siteNotePhotos.length,'Site photo')}</div>`:'');
+ const notePhotoRow=overlay.querySelector('.site-notes-box');
  function showCapture(i){
   overlay.dataset.pictureIndex=i;
   const c=caps[i];
@@ -2969,31 +3007,9 @@ function renderCustomerCard(){
    `</button>`;
  }).join(""):`<div class="empty">${t("studio.customerLibrary.noSiteMeasurementsYetEmpty")}</div>`;
 
- // One Notes row per room's own Job/Design (reusing jobRows -- the exact same rooms that
- // have real dispatched work) so Kitchen and Wardrobe each get their own row and their own
- // filtered note count -- never one shared project-wide log. A project's already-synced
- // notes that predate room attribution (or whose room was since removed) still surface via
- // one extra "General" row per project instead of silently disappearing.
- const notesTabRows=(()=>{
-   const rows=jobRows.map(({project:p,room})=>({project:p,room}));
-   jobs.forEach(p=>{
-     const hasNamedRooms=(p.rooms||[]).some(r=>r&&r.name);
-     if(hasNamedRooms&&jobLogEntriesForRoom(p,null).length)rows.push({project:p,room:null});
-   });
-   return rows;
- })();
- const notesTabHtml=notesTabRows.length?notesTabRows.map(({project:p,room})=>{
-   const isGeneral=!room&&(p.rooms||[]).some(r=>r&&r.name);
-   const logCount=jobLogEntriesForRoom(p,room?room.id:null).length;
-   const name=room?room.name:(isGeneral?t("studio.jobOverview.generalLabel"):(p.name||t("studio.customerLibrary.untitledJob")));
-   const subtitle=(showSubtitle||room||isGeneral)?safe(p.name||t("studio.customerLibrary.untitledJob")):"";
-   return `<button type="button" class="customer-tab-row" data-job-notes="${safe(p.id)}" data-job-notes-room="${safe(room?room.id:"")}">`+
-     `<span class="customer-tab-row-icon">📝</span>`+
-     `<span class="customer-tab-row-main"><strong>${safe(name)}</strong>${subtitle?`<span class="customer-tab-row-sub">${subtitle}</span>`:""}</span>`+
-     `<span class="customer-tab-row-meta">${logCount?t("studio.customerLibrary.jobNotesBtnWithCount",[logCount]):t("studio.customerLibrary.jobNotesBtn")}</span>`+
-     `<span class="customer-tab-row-chevron">›</span>`+
-   `</button>`;
- }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsYetEmpty")}</div>`;
+ // No separate Notes tab: customer communication happens on WhatsApp and email. Site
+ // Measure notes stay with their room in Site Measurements, and fitters' Job Notes open
+ // from Site Updates on each Job Overview card.
 
  // Read-only browsing of the same permanent site photos Site Measurements already owns --
  // grouped by room, reusing siteRoomPictures(room) exactly as the modal does, and opening
@@ -3011,7 +3027,6 @@ function renderCustomerCard(){
  const tabs=[
    {key:"jobs",label:t("studio.customerLibrary.tabJobsDesigns"),html:jobsTabHtml},
    {key:"site",label:t("studio.customerLibrary.tabSiteMeasurements"),html:siteTabHtml},
-   {key:"notes",label:t("studio.customerLibrary.tabNotes"),html:notesTabHtml},
    {key:"photos",label:t("studio.customerLibrary.tabPhotos"),html:photosTabHtml},
    {key:"documents",label:t("studio.customerLibrary.tabDocuments"),html:documentsTabHtml}
  ];
@@ -4403,7 +4418,7 @@ load();
   <div class="site-room-head"><div class="room-badge" id="siteRoomDetailsIcon">📍</div><div class="site-room-head-main"><h2 id="siteRoomDetailsTitle">Site room</h2><p id="siteRoomDetailsMeta">Project details</p><div class="site-measure-summary"><b id="siteRoomMeasureCount">0</b><span>Measurements from site</span><b id="siteRoomFloor" class="site-room-floor-data">—</b></div><div class="site-room-status-row"><span class="site-room-kind-badge" id="siteRoomDetailsKindBadge"></span><div class="site-room-address" id="siteRoomDetailsAddress"></div></div></div><button class="site-room-close" id="siteRoomDetailsClose" type="button" aria-label="Close">×</button></div>
   <div class="site-room-body">
    <section class="site-reference-pane"><div class="site-reference-frame" id="siteRoomReferenceFrame"><div class="site-reference-empty">No picture</div></div><div class="site-photo-measure-label" id="siteRoomPhotoMeasureLabel"></div><div class="site-thumb-row" id="siteRoomThumbs"></div></section>
-   <section class="site-design-pane"><div class="site-notes-box"><h3>Notes</h3><div id="siteRoomNotes">No extra notes</div><div class="site-note-photo-row" id="siteRoomNotePhotos"></div></div></section>
+   <section class="site-design-pane"><div class="site-notes-box"><h3>Notes</h3><div class="site-note-group" id="siteRoomNoteGroup"><div class="site-note-group-title">Room note</div><div id="siteRoomNotes">No extra notes</div><div class="site-note-photo-row" id="siteRoomNotePhotos"></div></div><div class="site-note-group" id="siteJobNoteGroup" hidden><div class="site-note-group-title">Site Note · whole Site Measure</div><div id="siteJobNotes"></div><div class="site-note-photo-row" id="siteJobNotePhotos"></div><div class="site-job-measure-list" id="siteJobMeasureList"></div><div class="site-job-photos" id="siteJobPhotos"></div></div></div></section>
   </div>
  </div>
 </div>
