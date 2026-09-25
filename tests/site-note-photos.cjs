@@ -61,7 +61,7 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
    notesImages:document.querySelectorAll('.site-notes-box img').length,notesText:document.querySelector('.site-notes-box').textContent,notesHeading:!!document.querySelector('.site-notes-box h3'),
    modalImages:[...modal.querySelectorAll('img')].map(i=>i.getAttribute('src')),
    roomNote:document.getElementById('siteRoomNotes').textContent,
-   siteGroupShown:!document.getElementById('siteJobNoteGroup').hidden,siteNote:document.getElementById('siteJobNotes').textContent,
+   siteGroupShown:!document.getElementById('siteJobNoteGroup').hidden,roomGroupHidden:document.getElementById('siteRoomNoteGroup').hidden,modalText:modal.innerText,siteNote:document.getElementById('siteJobNotes').textContent,
    measures:document.getElementById('siteJobMeasureList').textContent,measureCount:document.getElementById('siteRoomMeasureCount').textContent,
    large:document.querySelector('#siteRoomReferenceFrame img')?.getAttribute('src'),
    photoArea:box('.site-reference-pane'),notesBox:box('.site-notes-box'),notesScroll:(()=>{const n=document.querySelector('.site-notes-box');return n.scrollHeight-n.clientHeight})()};
@@ -94,7 +94,7 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
  const utility=await view('r2');
  assert.deepEqual(utility.strip.map(x=>x.kind),['photo','site-note','site'],'other room: its own photo plus the whole Site Measure photos, no Kitchen note photos');
  assert(!utility.strip.some(x=>roomNoteUrls.includes(x.src)),'Kitchen Room Note photos stay in the Kitchen');
- assert.equal(utility.roomNote,'No room note','a room without a note says so');
+ assert(utility.roomGroupHidden&&!utility.modalText.includes('No room note'),'a room without a note shows no Room Note section');
  assert.equal(utility.siteNote,'Customer wants handles fitted last','the Site Note follows the Site Measure into every room');
  assert.equal(utility.notesImages,0,'no photos under the notes in the other room either');
 
