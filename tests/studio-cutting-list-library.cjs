@@ -81,7 +81,8 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  const listText=await page.locator('#screen-cutting').innerText();
  ['P-001','P-002','P-003'].forEach(code=>assert(listText.includes(code),'Cutting List shows '+code));
  const download=page.waitForEvent('download');
- await page.locator('#exportSupplierCsvBtn').click();
+ await page.locator('#supplierSystemSelect').selectOption('standard');
+ await page.locator('#fiqProductionFileBtn').click();
  const csv=fs.readFileSync(await (await download).path(),'utf8');
  assert.match(csv,/P-001/);assert.match(csv,/1200/);assert.match(csv,/Walnut/);
  await page.evaluate(()=>{const pt=state.projects.find(x=>x.id==='p1').cabinets[0].parts.find(x=>x.id==='pt-top');pt.notes='Check wall';pt.reviewSignature=window.panelReviewSignature(pt);save()});
