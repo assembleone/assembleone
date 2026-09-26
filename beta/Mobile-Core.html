@@ -1779,7 +1779,7 @@ function save(){
  if(pendingPhotoWrites.length)schedulePhotoPersist();
  return ok;
 }
-function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}:null}
+function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):([^:]+)(?::(-?\d+))?$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}:null}
 // Re-enabled now that the real cause of that sync bug (an empty packet being
 // silently discarded, fixed separately) is known -- this filter was never it.
 // Checked by permanent fitterId first (set once a phone pairs, see a214/a215
@@ -1896,7 +1896,7 @@ function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=
  // resolves a scan to a panel without ever leaving the Panel Check screen, so this must
  // not silently overwrite state.screen out from under it. Callers that do want to
  // navigate (Find Panel, applyPanelRoute) already call show("install") themselves.
- state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;const ci=q.copyIndex;state.selectedCopy=(ci!=null&&pt.copies&&pt.copies[ci])?ci:-1;save();return true}return false}
+ state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;const ci=q.copyIndex;state.selectedCopy=(ci!=null&&pt.copies&&pt.copies[ci])?ci:-1;state.scannedPiece=pieceFromCopyIndex(pt,ci);save();return true}return false}
 function applyPanelRoute(route){
  if(!route)return;
  if(openPanelRoute(route)){
@@ -3239,7 +3239,7 @@ function renderRoomDetail(r){
    <button type="button" id="panelsMenuFit"><span>▦</span><b>${t('mobile.fitPanelsBtn')}</b></button>
   </div>
  </div>
- <section class="room-section installer-check-section" id="panelCheckSection"><div class="panel-check-list">${filteredParts.length?filteredParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=pt.status||'ready';return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}</div></div><span class="panel-check-badge">${safe(statusLabel(pt.status))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div>${r.panelCheckFinished?`<div class="panel-check-complete-banner">✓ ${t('mobile.panelCheckComplete')}</div>`:(roomParts.length?`<button type="button" class="btn primary panel-check-finish-btn" id="finishPanelCheckBtn">✓ ${t('mobile.finishPanelCheckBtn')}</button>`:'')}</section>
+ <section class="room-section installer-check-section" id="panelCheckSection"><div class="panel-check-list">${filteredParts.length?filteredParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=(pt.status&&pt.status!=='ready')?pt.status:(pieceIssueStatus(pt)||pt.status||'ready');return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}${safe(pieceSummaryText(pt))}</div></div><span class="panel-check-badge">${safe(statusLabel(st))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div>${r.panelCheckFinished?`<div class="panel-check-complete-banner">✓ ${t('mobile.panelCheckComplete')}</div>`:(roomParts.length?`<button type="button" class="btn primary panel-check-finish-btn" id="finishPanelCheckBtn">✓ ${t('mobile.finishPanelCheckBtn')}</button>`:'')}</section>
  <div class="room-action-row">
   <button type="button" class="btn warn" id="roomReportMissing">❔ Missing Panel</button>
   <button type="button" class="btn danger" id="roomReportDamage">⚠ Damaged Panel</button>
@@ -3446,6 +3446,29 @@ function mergePanelStatus(basePt,updatePt){
   basePt.statusUpdatedAt=updatePt.statusUpdatedAt;
   basePt.updatedByFitterId=updatePt.updatedByFitterId||null;
 }
+// Individual physical pieces. A panel QR may carry copyIndex, the existing per-instance
+// field (build of 16 Aug 2026): -1 = the primary piece (piece 1), 0,1,.. = copies[0],
+// copies[1],.. (pieces 2,3,..) -- the same numbering the drawing already shows for
+// repeated markers. Pieces beyond the drawn markers (Qty higher than dots) continue the
+// same numbering. A QR WITHOUT copyIndex (every sticker printed before per-piece QRs) is
+// a whole-panel legacy QR and keeps the old counting exactly.
+// Per-piece Panel Check results live in pt.pieceStates {"<piece>":{checkedAt,checkedBy,
+// status,statusAt,statusBy,note}}; the existing scannedQty/damagedQty counters are still
+// kept, so everything that reads them (and older Studio/Mobile) keeps working.
+function panelPieceCount(pt){return Math.max(1,Number(pt?.qty)||1,1+((pt&&pt.copies)||[]).length)}
+function pieceFromCopyIndex(pt,ci){if(ci==null||!Number.isInteger(ci)||ci<-1)return null;const n=ci===-1?1:ci+2;return n<=panelPieceCount(pt)?n:null}
+function pieceState(pt,n,create){if(!pt)return null;if(!pt.pieceStates||typeof pt.pieceStates!=='object'){if(!create)return null;pt.pieceStates={}}const k=String(n);if(!pt.pieceStates[k]&&create)pt.pieceStates[k]={};return pt.pieceStates[k]||null}
+function mergePieceStates(base,inc){
+ if(!base||!inc||typeof inc!=='object')return;
+ if(!base.pieceStates||typeof base.pieceStates!=='object')base.pieceStates={};
+ Object.keys(inc).forEach(k=>{const v=inc[k];if(!v||typeof v!=='object')return;const b=base.pieceStates[k]||(base.pieceStates[k]={});
+  if(v.checkedAt&&(!b.checkedAt||Date.parse(v.checkedAt)<Date.parse(b.checkedAt))){b.checkedAt=v.checkedAt;b.checkedBy=v.checkedBy||null}
+  if(v.statusAt&&(!b.statusAt||Number(v.statusAt)>Number(b.statusAt))){b.status=v.status||null;b.statusAt=v.statusAt;b.statusBy=v.statusBy||null;b.note=v.note||''}});
+}
+function pieceIssueCount(pt,status){const s=pt&&pt.pieceStates;if(!s||typeof s!=='object')return 0;return Object.keys(s).filter(k=>s[k]&&s[k].status===status).length}
+function pieceIssueStatus(pt){return pieceIssueCount(pt,'damaged')?'damaged':pieceIssueCount(pt,'missing')?'missing':null}
+function pieceSummaryText(pt){const s=pt&&pt.pieceStates;if(!s||typeof s!=='object'||!Object.keys(s).length)return '';const n=panelPieceCount(pt),out=[];
+ for(let i=1;i<=n;i++){const v=s[String(i)]||{};out.push(i+(v.status==='damaged'?' ⚠':v.status==='missing'?' ❔':v.checkedAt?' ✓':' —'))}return ' · Pieces: '+out.join('  ')}
 function mergeStudioProject(incoming){
  if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
  const old=state.projects.find(x=>x.id===incoming.id);ensureExtras(incoming);
@@ -3503,6 +3526,7 @@ function mergeStudioProject(incoming){
   incoming.address=incoming.address||old.address||"";incoming.phone=incoming.phone||old.phone||"";incoming.notes=incoming.notes||old.notes||"";
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;
     ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(op[k]!==undefined)ip[k]=Math.max(Number(ip[k])||0,Number(op[k])||0)});
+    mergePieceStates(ip,op.pieceStates);
     ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});
     mergePanelStatus(ip,op);
   })});
@@ -3984,7 +4008,7 @@ function partStatusCategory(pt){
  const q=Math.max(1,Number(pt.qty)||1);
  if(pt.status==='installed'||(Number(pt.installedQty)||0)>=q)return 'installed';
  if(pt.status==='damaged'||(Number(pt.damagedQty)||0)>0)return 'damaged';
- if(pt.status==='missing')return 'missing';
+ if(pt.status==='missing'||pieceIssueCount(pt,'missing')>0)return 'missing';
  if((Number(pt.scannedQty)||0)>=q)return 'checked';
  return 'remaining';
 }
@@ -4024,7 +4048,7 @@ function handlePanelIdentified(){
   if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
   stopCamera();
   const pr=project(),cab=cabinet(),pt=part();
-  if(pr&&pt)setDamagePanelTarget(pr,cab,pt);
+  if(pr&&pt)setDamagePanelTarget(pr,cab,pt,state.scannedPiece||null);
   $('#damagePanelOverlay').classList.remove('hidden');
   $('#damagePanelCode').value=pt?.code||'';
   $('#damageNote').focus();
@@ -4137,8 +4161,9 @@ positionScanModeSwitch();
  },{passive:true});
 })();
 function openScannedText(text){
+ state.scannedPiece=null;
  let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
- if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
+ if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(-?\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
  // Build 2 (§E) -- extended for per-room dispatch: a combined Panel Check session (2+
  // cards in state.activeCardKeys) must never let a scan silently swap which job/room the
  // fitter is looking at -- only Find Panel needs that switch, and it keeps doing so
@@ -4384,23 +4409,25 @@ function resolveLastPanelCheckHit(){
  const pr=state.projects.find(x=>x.id===lastPanelCheckHit.prId)||null;
  const cab=pr?(pr.cabinets||[]).find(x=>x.id===lastPanelCheckHit.cabId)||null:null;
  const pt=cab?(cab.parts||[]).find(x=>x.id===lastPanelCheckHit.ptId)||null:null;
- return{pr,cab,pt};
+ return{pr,cab,pt,piece:lastPanelCheckHit.piece||null};
 }
 function handlePanelCheckScan(){
  const pr=project(),pt=part(),cab=cabinet();
  if(!pr||!pt)return;
- lastPanelCheckHit={prId:pr.id,cabId:cab?cab.id:null,ptId:pt.id};
+ const piece=state.scannedPiece||null;
+ lastPanelCheckHit={prId:pr.id,cabId:cab?cab.id:null,ptId:pt.id,piece};
  const q=Math.max(1,Number(pt.qty)||1);
- pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
+ if(piece){const ps=pieceState(pt,piece,true);if(!ps.checkedAt){ps.checkedAt=new Date().toISOString();ps.checkedBy=currentActorFitterId();pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1)}}
+ else pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
  pt.lastScannedAt=new Date().toISOString();
  pt.lastScannedByFitterId=currentActorFitterId();
  save();
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderScanDashboard();
- renderPanelCheckResult(pt,'checked');
+ renderPanelCheckResult(pt,'checked',piece);
  scanLoopTimer=setTimeout(scanLoop,1100);
 }
-function renderPanelCheckResult(pt,status){
+function renderPanelCheckResult(pt,status,piece){
  const box=$('#panelCheckResult');if(!box||!pt)return;
  box.classList.remove('hidden','status-missing','status-damaged');
  if(status==='missing')box.classList.add('status-missing');
@@ -4408,7 +4435,7 @@ function renderPanelCheckResult(pt,status){
  const cab=cabinet();
  const room=(project()?.rooms||[]).find(r=>r.id===(cab?.roomId));
  $('#pcResultIcon').textContent=status==='missing'?'❔':status==='damaged'?'⚠':'✓';
- $('#pcResultCode').textContent=pt.code||t('msg.panelFallback');
+ $('#pcResultCode').textContent=(pt.code||t('msg.panelFallback'))+(piece?' · '+piece+'/'+panelPieceCount(pt):'');
  $('#pcResultName').textContent=pt.name||cab?.name||'';
  $('#pcResultRoom').textContent=room?.name||cab?.name||'';
  $('#pcResultStatus').textContent=status==='missing'?'Missing':status==='damaged'?'Damaged':'Checked';
@@ -4436,21 +4463,22 @@ function currentActorDisplayName(){
 }
 // Shared by the Problem Panel menu (Find Panel) and Panel Check's own Missing button so
 // both ways of flagging a panel missing behave identically and stay in sync.
-function applyMissingStatus(pr,pt){
- const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=currentActorFitterId();
- addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[],state.currentRoom||null);
+function applyMissingStatus(pr,pt,piece){
+ if(piece){const ps=pieceState(pt,piece,true);ps.status="missing";ps.statusAt=Date.now();ps.statusBy=currentActorFitterId()}
+ else{const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=currentActorFitterId()}
+ addJobLogEntry(pr,"🔍 Missing: "+pt.code+(piece?" piece "+piece+"/"+panelPieceCount(pt):"")+(pt.name?" — "+pt.name:""),[],state.currentRoom||null);
  save();
  if(typeof exportJob==="function")exportJob(pr.id);
 }
 $('#pcMarkMissing').onclick=()=>{
- const {pr,pt}=resolveLastPanelCheckHit();if(!pr||!pt)return;
- applyMissingStatus(pr,pt);
- renderPanelCheckResult(pt,'missing');
+ const {pr,pt,piece}=resolveLastPanelCheckHit();if(!pr||!pt)return;
+ applyMissingStatus(pr,pt,piece);
+ renderPanelCheckResult(pt,'missing',piece);
  if(typeof renderInstall==='function')renderInstall();
 };
 $('#pcMarkDamaged').onclick=()=>{
- const {pr,cab,pt}=resolveLastPanelCheckHit();if(!pr||!pt)return;
- setDamagePanelTarget(pr,cab,pt);
+ const {pr,cab,pt,piece}=resolveLastPanelCheckHit();if(!pr||!pt)return;
+ setDamagePanelTarget(pr,cab,pt,piece);
  $('#damagePanelOverlay').classList.remove('hidden');
  $('#damagePanelCode').value=pt.code||'';
  $('#damageNote').focus();
@@ -4509,7 +4537,7 @@ function renderPanelCheckSummary(){
  // counter -- status is a single flag for the whole row -- so it's counted separately,
  // by quantity, from rows explicitly marked missing.
  let missing=0;
- t2.rows.forEach(({pt})=>{if(pt.status==='missing')missing+=Math.max(1,Number(pt.qty)||1)});
+ t2.rows.forEach(({pt})=>{if(pt.status==='missing')missing+=Math.max(1,Number(pt.qty)||1);else missing+=Math.min(Math.max(1,Number(pt.qty)||1),pieceIssueCount(pt,'missing'))});
  body.innerHTML=`<div class="pc-summary-grid"><div class="pc-summary-stat"><b>${t2.total}</b><span>Expected</span></div><div class="pc-summary-stat checked"><b>${t2.scanned}</b><span>Checked</span></div><div class="pc-summary-stat missing"><b>${missing}</b><span>Missing</span></div><div class="pc-summary-stat damaged"><b>${t2.damaged}</b><span>Damaged</span></div></div>`;
 }
 $('#pcSummaryBtn').onclick=()=>{renderPanelCheckSummary();$('#pcSummaryOverlay').classList.remove('hidden')};
@@ -4552,13 +4580,13 @@ $('#bompMarkRoomComplete').onclick=()=>{
  renderInstall();
 };
 let damagePanelTarget=null;
-function setDamagePanelTarget(pr,cab,pt){damagePanelTarget=pr&&pt?{projectId:pr.id,cabinetId:cab&&cab.id,panelId:pt.id}:null}
+function setDamagePanelTarget(pr,cab,pt,piece){damagePanelTarget=pr&&pt?{projectId:pr.id,cabinetId:cab&&cab.id,panelId:pt.id,piece:piece||null}:null}
 function resolveDamagePanelTarget(){
  if(!damagePanelTarget)return null;
  const pr=state.projects.find(x=>x.id===damagePanelTarget.projectId);
  const cab=pr&&(pr.cabinets||[]).find(x=>x.id===damagePanelTarget.cabinetId);
  const pt=cab&&(cab.parts||[]).find(x=>x.id===damagePanelTarget.panelId);
- return pr&&cab&&pt?{pr,cab,pt}:null;
+ return pr&&cab&&pt?{pr,cab,pt,piece:damagePanelTarget.piece||null}:null;
 }
 $("#openDamage").onclick=()=>{setDamagePanelTarget(null,null,null);$("#damagePanelOverlay").classList.remove("hidden");$("#damagePanelCode").focus()};
 $("#closeDamagePanel").onclick=()=>{setDamagePanelTarget(null,null,null);$("#damagePanelOverlay").classList.add("hidden")};
@@ -4716,14 +4744,21 @@ $("#saveDamage").onclick=async()=>{
  const found=resolveDamagePanelTarget()||locatePanelByCode($("#damagePanelCode").value);
  if(!found){alert(t('msg.panelNotFoundCheckNumber'));return}
  state.currentProject=found.pr.id;state.currentCabinet=found.cab.id;state.currentPart=found.pt.id;state.currentRoom=found.cab.roomId||null;
- const q=Math.max(1,Number(found.pt.qty)||1);
- found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
- found.pt.status="damaged";
- found.pt.statusUpdatedAt=Date.now();
- found.pt.updatedByFitterId=currentActorFitterId();
+ const q=Math.max(1,Number(found.pt.qty)||1),piece=found.piece||null;
+ if(piece){
+  // One physical piece: only that piece becomes damaged; the others keep their own state.
+  const ps=pieceState(found.pt,piece,true);
+  if(ps.status!=="damaged")found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
+  ps.status="damaged";ps.statusAt=Date.now();ps.statusBy=currentActorFitterId();ps.note=$("#damageNote").value.trim();
+ }else{
+  found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
+  found.pt.status="damaged";
+  found.pt.statusUpdatedAt=Date.now();
+  found.pt.updatedByFitterId=currentActorFitterId();
+ }
  found.pt.damageNote=$("#damageNote").value.trim();
  if(damagePhotoData){found.pt.panelPhotos=found.pt.panelPhotos||[];found.pt.panelPhotos.push({id:uid(),data:damagePhotoData})}
- addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[],found.cab.roomId||null);
+ addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(piece?" piece "+piece+"/"+panelPieceCount(found.pt):"")+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[],found.cab.roomId||null);
  save();
  const studioResult=typeof exportJob==='function'?await exportJob(found.pr.id,true):null;
  lastDamageShare={code:found.pt.code,name:found.pt.name||"",note:found.pt.damageNote,job:found.pr.name||t('msg.jobFallback'),photo:damagePhotoData};
@@ -4732,7 +4767,7 @@ $("#saveDamage").onclick=async()=>{
  renderScanDashboard();
  if(typeof renderInstallDashboard==='function')renderInstallDashboard();
  if(typeof renderInstall==='function')renderInstall();
- if(state.scanMode==='check')renderPanelCheckResult(found.pt,'damaged');
+ if(state.scanMode==='check')renderPanelCheckResult(found.pt,'damaged',piece);
  if(state.scanMode==='find'&&typeof renderFindPanelResult==='function')renderFindPanelResult();
  $("#shareDamageWhatsapp").classList.remove("hidden");
  if(studioResult==='sent')alert("Damaged panel saved and sent to Studio.");
