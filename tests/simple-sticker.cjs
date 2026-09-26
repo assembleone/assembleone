@@ -1,7 +1,7 @@
 // The panel sticker is kept simple. Left: Part Name (large, upper case), L × W × T mm,
 // material, customer name (small). Right: panel number above a large QR. No Qty anywhere,
-// no extra code, one sticker per physical panel, and every copy's QR is the panel's
-// existing phoneQrText identity. Checked on the on-screen Sticker Preview at laptop and
+// no extra code, one sticker per physical panel, each with its own QR (the panel's
+// existing identity plus the piece's copyIndex). Checked on the on-screen Sticker Preview at laptop and
 // one-third-screen width (the PDF stickers are checked against it in supplier-pack-pdf.cjs).
 // Runs the real public Studio loader with every network request blocked except the QR library.
 const {chromium}=require('playwright');
@@ -54,8 +54,8 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  }
  // Same QR for every copy of a panel, and different panels differ.
  const byCode={};printed.rows.forEach(r=>(byCode[r.code]=byCode[r.code]||new Set()).add(r.qr));
- assert.deepEqual(Object.values(byCode).map(s=>s.size),[1,1,1],'copies share one QR');
- assert.equal(new Set(printed.rows.map(r=>r.qr)).size,3,'each panel has its own QR');
+ assert.deepEqual(Object.values(byCode).map(s=>s.size),[2,3,1],'every physical piece has its own QR, also identical pieces');
+ assert.equal(new Set(printed.rows.map(r=>r.qr)).size,6,'six stickers, six different QR codes');
 
  // 2. The on-screen Sticker preview, same sticker, one per physical panel.
  for(const w of [1366,512,455]){

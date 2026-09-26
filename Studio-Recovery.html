@@ -3157,10 +3157,10 @@ function panelDetailsHtml(p){
 // printed per physical panel (fiqStickerCopies), each carrying the same panel number and QR,
 // which is what Mobile's per-piece scan count already expects.
 function fiqStickerCopies(list){const out=[];(list||[]).forEach(p=>{const n=Math.max(1,Math.min(500,Math.floor(Number(p?.qty)||1)));for(let i=0;i<n;i++)out.push({p,i})});return out}
-function fiqStickerData(p){
+function fiqStickerData(p,piece){
  const pr=project(),v=x=>x==null||x===""?"—":String(x);
  return {code:String(p.code??""),name:String(p.name||"Unnamed part").toUpperCase(),length:v(p.length),width:v(p.width),thickness:v(p.thickness),
-  material:String(materialForPanel(p)||"Material not set"),customer:pr?.customer?String(pr.customer):"",qr:phoneQrText(p)};
+  material:String(materialForPanel(p)||"Material not set"),customer:pr?.customer?String(pr.customer):"",piece:piece||null,qr:phoneQrText(p,piece)};
 }
 function fiqStickerHtml(p,qrHtml,extra){
  const d=fiqStickerData(p);
@@ -3190,18 +3190,27 @@ function renderCutting(){
  setTimeout(()=>rows.forEach(p=>{
    makeQr(document.getElementById("cutqr-"+p.id),phoneQrText(p),68);
  }),0);
- setTimeout(()=>stickerCopies.forEach(({p,i})=>makeQr(document.getElementById("supplierqr-"+p.id+"-"+i),phoneQrText(p),150)),0);
+ setTimeout(()=>stickerCopies.forEach(({p,i})=>makeQr(document.getElementById("supplierqr-"+p.id+"-"+i),phoneQrText(p,i+1),150)),0);
  if(window.fiqRefreshProductionSub)window.fiqRefreshProductionSub();
 }
 function localGuideUrl(p){return location.href.split("#")[0]+`#guide=${encodeURIComponent(state.currentProject)}:${encodeURIComponent(state.currentCabinet)}:${encodeURIComponent(p.id)}`}
 function mobileAppBase(){return (localStorage.getItem("assembleone_mobile_app_url")||"").trim().replace(/#.*$/,'')}
-function phoneQrText(p){
+// piece (1..n) names one physical piece and is written with the existing copyIndex field
+// Mobile has read since the per-marker build of 16 Aug 2026: piece 1 = -1 (the primary
+// instance), piece k = k-2 (copies[k-2], shown on the drawing as marker k). Without a
+// piece the text is exactly the old whole-panel QR, which Mobile still counts the old way.
+function phoneQrText(p,piece){
  const pr=project(),c=cabinet();
  const route=`${encodeURIComponent(pr?.id||"")}:${encodeURIComponent(c?.id||"")}:${encodeURIComponent(p.id)}`;
+ const ci=Number.isInteger(piece)&&piece>=1?(piece===1?-1:piece-2):null;
  const base=mobileAppBase();
- if(base)return `${base}#panel=${route}`;
- return JSON.stringify({a:"A1",v:8,projectId:pr?.id||"",cabinetId:c?.id||"",panelId:p.id});
+ if(base)return `${base}#panel=${route}${ci!=null?":"+ci:""}`;
+ const o={a:"A1",v:8,projectId:pr?.id||"",cabinetId:c?.id||"",panelId:p.id};if(ci!=null)o.copyIndex=ci;
+ return JSON.stringify(o);
 }
+function fiqPieceIssues(part){const s=part&&part.pieceStates;if(!s||typeof s!=="object")return [];return Object.keys(s).filter(k=>s[k]&&(s[k].status==="missing"||s[k].status==="damaged")).map(k=>({piece:Number(k),status:s[k].status,note:s[k].note||""})).sort((a,b)=>a.piece-b.piece)}
+function fiqPanelIssue(part){if(part&&(part.status==="missing"||part.status==="damaged"))return part.status;const i=fiqPieceIssues(part);return i.some(x=>x.status==="damaged")?"damaged":i.length?"missing":null}
+function fiqPieceIssueText(part){const n=Math.max(1,Number(part?.qty)||1);return fiqPieceIssues(part).map(x=>"piece "+x.piece+"/"+n+" "+x.status).join(", ")}
 function makeQr(el,text,size){
  if(!el)return;
  el.innerHTML="";
@@ -3629,8 +3638,18 @@ function mergePanelStatus(bp,ip){
   // is on a job.
   bp.updatedByFitterId=ip.updatedByFitterId||null;
 }
+// Per-piece Panel Check results reported by Mobile (pt.pieceStates, see Mobile-Core
+// pieceState). Merged per piece: earliest check kept, newest status wins.
+function fiqMergePieceStates(base,inc){
+ if(!base||!inc||typeof inc!=="object")return;
+ if(!base.pieceStates||typeof base.pieceStates!=="object")base.pieceStates={};
+ Object.keys(inc).forEach(k=>{const v=inc[k];if(!v||typeof v!=="object")return;const b=base.pieceStates[k]||(base.pieceStates[k]={});
+  if(v.checkedAt&&(!b.checkedAt||Date.parse(v.checkedAt)<Date.parse(b.checkedAt))){b.checkedAt=v.checkedAt;b.checkedBy=v.checkedBy||null}
+  if(v.statusAt&&(!b.statusAt||Number(v.statusAt)>Number(b.statusAt))){b.status=v.status||null;b.statusAt=v.statusAt;b.statusBy=v.statusBy||null;b.note=v.note||""}});
+}
 function mergePanelFields(bp,ip,stalePacket=false){
   ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=Math.max(Number(bp[k])||0,Number(ip[k])||0)});
+  fiqMergePieceStates(bp,ip.pieceStates);
   if(!stalePacket)["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(ip[k]!==undefined&&(!Array.isArray(ip[k])||ip[k].length))bp[k]=ip[k]});
   // Who most recently scanned this panel (a fitter, or "__owner__"), kept in step with
   // scannedQty above -- only overwrite if the incoming scan is actually newer, the same
@@ -4388,7 +4407,7 @@ function buildStickerPrint(){
  if(!rows.length){el.innerHTML="<p>No complete parts are ready for the supplier. Add the name, thickness, length and width first.</p>";return}
  const copies=fiqStickerCopies(rows),qr=Math.round(Math.min(dims.height*.72,dims.width*.46)*3.78);
  el.innerHTML=`<div class="sticker-sheet">${copies.map(({p,i})=>fiqStickerHtml(p,`<div id="printstqr-${p.id}-${i}"></div>`,` style="width:${dims.width}mm;height:${dims.height}mm;--fs-qr:${qr}px"`)).join("")}</div>`;
- setTimeout(()=>copies.forEach(({p,i})=>makeQr(document.getElementById("printstqr-"+p.id+"-"+i),phoneQrText(p),qr)),0);
+ setTimeout(()=>copies.forEach(({p,i})=>makeQr(document.getElementById("printstqr-"+p.id+"-"+i),phoneQrText(p,i+1),qr)),0);
 }
 function buildInstallPrint(){
  const p=project();
@@ -5857,10 +5876,10 @@ body.guide-only .a131-back-studio{display:block}
   doc.setProperties({title:fileName(info).replace(/\.pdf$/,''),subject:'Cutting list and print-ready QR stickers',creator:'FittersIQ'});
   try{doc.viewerPreferences({PrintScaling:'None'},true)}catch(e){}
   cuttingPages(doc,info,list);
-  const data={},grid={};list.forEach(p=>{data[p.id]=fiqStickerData(p);grid[p.id]=qrModules(data[p.id].qr)});
+  const pieces=copies.map(({p,i})=>{const d=fiqStickerData(p,i+1);return {d,g:qrModules(d.qr)}});
   const per=ST.cols*ST.rows,pages=Math.ceil(copies.length/per),x0=(PAGE.w-(ST.cols*ST.w+(ST.cols-1)*ST.gapX))/2;
   copies.forEach(({p},i)=>{const k=i%per;if(k===0){doc.addPage('a4','portrait');stickerHeader(doc,info,i/per+1,pages)}
-   drawSticker(doc,data[p.id],grid[p.id],x0+(k%ST.cols)*(ST.w+ST.gapX),ST.top+Math.floor(k/ST.cols)*(ST.h+ST.gapY))});
+   drawSticker(doc,pieces[i].d,pieces[i].g,x0+(k%ST.cols)*(ST.w+ST.gapX),ST.top+Math.floor(k/ST.cols)*(ST.h+ST.gapY))});
   const n=doc.getNumberOfPages();
   for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
    doc.text(pdfText('FittersIQ supplier pack · '+[info.customer,info.job].filter(Boolean).join(' · ')+(info.ref?' · '+info.ref:'')),PAGE.margin,PAGE.h-7);doc.text('Page '+i+' of '+n,PAGE.w-PAGE.margin,PAGE.h-7,{align:'right'})}
@@ -5898,7 +5917,7 @@ body.guide-only .a131-back-studio{display:block}
   const ref=typeof window.assembleOneJobRef==='function'?window.assembleOneJobRef(pr):'';
   const copies=fiqStickerCopies(list||supplierParts()),count={};copies.forEach(({p})=>count[p.id]=(count[p.id]||0)+1);
   const rows=copies.map(({p,i})=>{
-   const d=fiqStickerData(p),[top,bottom]=edgePair(p.edgeLong),[left,right]=edgePair(p.edgeShort),n=count[p.id];
+   const d=fiqStickerData(p,i+1),[top,bottom]=edgePair(p.edgeLong),[left,right]=edgePair(p.edgeShort),n=count[p.id];
    return {panelId:p.id,panelNumber:d.code,piece:i+1,pieces:n,pieceLabel:(i+1)+'/'+n,pieceRef:d.code+'-'+(i+1),
     partName:String(p.name||''),length:num(p.length),width:num(p.width),thickness:num(p.thickness),units:'mm',
     material:String(materialForPanel(p)||''),quantity:1,totalQuantity:n,
@@ -7133,7 +7152,7 @@ body.guide-only .a131-back-studio{display:block}
   function exportMissingPanelsCsv(flagged,pr){
     if(!flagged.length)return;
     const data=[['Panel No.','Part name','Unit','Status','Quantity','Thickness mm','Length mm','Width mm','Material'],
-      ...flagged.map(({pt,c})=>[pt.code||'',pt.name||'',c.name||'',statusWord(pt.status),Number(pt.qty||1),pt.thickness||'',pt.length||'',pt.width||'',(typeof materialForPanel==='function'?materialForPanel(pt):pt.material)||''])];
+      ...flagged.map(({pt,c})=>[pt.code||'',pt.name||'',c.name||'',statusWord(fiqPanelIssue(pt))+(fiqPieceIssueText(pt)&&pt.status!=='missing'&&pt.status!=='damaged'?' ('+fiqPieceIssueText(pt)+')':''),(pt.status==='missing'||pt.status==='damaged')?Number(pt.qty||1):fiqPieceIssues(pt).length,pt.thickness||'',pt.length||'',pt.width||'',(typeof materialForPanel==='function'?materialForPanel(pt):pt.material)||''])];
     const csv='﻿'+data.map(r=>r.map(escCsv).join(',')).join('\r\n');
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
     const a=document.createElement('a');a.href=url;a.download=((pr&&pr.name||'Job')+'_missing_panels.csv').replace(/[^a-z0-9_-]+/gi,'_');
@@ -7147,8 +7166,8 @@ body.guide-only .a131-back-studio{display:block}
     // attentionSorted is the same "dealt with" flag the Needs Attention widget uses -- once
     // the boss sorts a problem from either place, it should stop showing as outstanding in
     // both, not just the one it was sorted from.
-    const flagged=t.rows.filter(({pt})=>(pt.status==='missing'||pt.status==='damaged')&&!pt.attentionSorted);
-    box.innerHTML=`${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">⚠️ Reported missing or damaged on site (${flagged.length})</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row" data-outstanding-row="${safe(pt.id)}"><span class="install-outstanding-icon">${pt.status==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${pt.status}">${statusWord(pt.status)}</span><button type="button" class="btn install-outstanding-sorted-btn" data-outstanding-sorted="${safe(pt.id)}">✓ Sorted</button></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
+    const flagged=t.rows.filter(({pt})=>fiqPanelIssue(pt)&&!pt.attentionSorted);
+    box.innerHTML=`${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">⚠️ Reported missing or damaged on site (${flagged.length})</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row" data-outstanding-row="${safe(pt.id)}"><span class="install-outstanding-icon">${fiqPanelIssue(pt)==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}${fiqPieceIssueText(pt)?' · '+safe(fiqPieceIssueText(pt)):''}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${fiqPanelIssue(pt)}">${statusWord(fiqPanelIssue(pt))}</span><button type="button" class="btn install-outstanding-sorted-btn" data-outstanding-sorted="${safe(pt.id)}">✓ Sorted</button></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
         :''}`;
     const orderBtn=document.getElementById('orderMissingPanelsBtn');
     if(orderBtn)orderBtn.onclick=()=>exportMissingPanelsCsv(flagged,p);
@@ -7949,7 +7968,7 @@ body.fiq-locked .app{display:none!important}
    (state.projects||[]).forEach(p=>{
      (p.cabinets||[]).forEach(c=>{
        (c.parts||[]).forEach(part=>{
-         if((part.status==='missing'||part.status==='damaged')&&!part.attentionSorted)items.push({projectId:p.id,cabinetId:c.id,partId:part.id,reason:part.status});
+         if(fiqPanelIssue(part)&&!part.attentionSorted)items.push({projectId:p.id,cabinetId:c.id,partId:part.id,reason:fiqPanelIssue(part)});
        });
      });
    });
@@ -8328,6 +8347,7 @@ body.fiq-locked .app{display:none!important}
     let missing=0;
     (cabinets||[]).forEach(c=>(c.parts||[]).forEach(part=>{
       if(part.status==='missing')missing+=Math.max(1,Number(part.qty)||1);
+      else missing+=Math.min(Math.max(1,Number(part.qty)||1),fiqPieceIssues(part).filter(x=>x.status==='missing').length);
     }));
     return missing;
   }
@@ -9019,7 +9039,7 @@ body.fiq-locked .app{display:none!important}
     (state.projects||[]).forEach(p=>{
       (p.cabinets||[]).forEach(c=>{
         (c.parts||[]).forEach(part=>{
-          if((part.status==='missing'||part.status==='damaged')&&!part.attentionSorted){
+          if(fiqPanelIssue(part)&&!part.attentionSorted){
             const room=(p.rooms||[]).find(r=>r.id===c.roomId);
             items.push({
               projectId:p.id,cabinetId:c.id,partId:part.id,
@@ -9027,8 +9047,8 @@ body.fiq-locked .app{display:none!important}
               jobName:(room&&room.name)||c.name||p.name||'Job',
               code:part.code||'',name:part.name||'',
               length:part.length||'',width:part.width||'',thickness:part.thickness||'',
-              reason:part.status,
-              note:part.status==='damaged'?(part.damageNote||''):'',
+              reason:fiqPanelIssue(part),pieces:fiqPieceIssueText(part),
+              note:fiqPanelIssue(part)==='damaged'?(part.damageNote||''):'',
               photo:(part.panelPhotos||[])[0]?.data||null,
               reportedBy:reporterFor(p,part.code),
               at:part.updatedAt||p.updatedAt||0

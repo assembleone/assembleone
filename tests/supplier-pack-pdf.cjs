@@ -48,8 +48,12 @@ const allowed=/^https:\/\/(cdnjs\.cloudflare\.com\/ajax\/libs\/(qrcodejs|jspdf|p
   return {code:t('.fs-code'),left:[t('.fs-name'),t('.fs-dims'),t('.fs-mat'),t('.fs-cust')].filter(Boolean).join(' '),qr:q?q.data:null}}));
  assert.equal(preview.length,10,'preview: one sticker per physical panel');
  assert.ok(preview.every(p=>p.qr),'preview QRs scan');
- const expectQr=await page.evaluate(()=>Object.fromEntries(cabinet().parts.map(p=>[p.code,phoneQrText(p)])));
- preview.forEach(p=>assert.equal(p.qr,expectQr[p.code],'preview QR is the existing identity for '+p.code));
+ const pieceQr=(legacy,piece)=>{const o=JSON.parse(legacy);o.copyIndex=piece===1?-1:piece-2;return JSON.stringify(o)};
+ const legacyQr=await page.evaluate(()=>Object.fromEntries(cabinet().parts.map(p=>[p.code,phoneQrText(p)])));
+ // Sticker n of a panel is piece n: its QR is that panel's existing identity plus copyIndex.
+ const seen={},expectList=preview.map(p=>{seen[p.code]=(seen[p.code]||0)+1;return pieceQr(legacyQr[p.code],seen[p.code])});
+ preview.forEach((p,i)=>assert.equal(p.qr,expectList[i],'preview QR of '+p.code+' is its own piece identity'));
+ assert.equal(new Set(preview.map(p=>p.qr)).size,10,'ten stickers, ten different QR codes');
 
  // The button, by its new name.
  const btn=page.locator('#printSupplierPackBtn');
@@ -87,8 +91,8 @@ const allowed=/^https:\/\/(cdnjs\.cloudflare\.com\/ajax\/libs\/(qrcodejs|jspdf|p
   assert.ok(Math.abs(s.wMm-90)<0.2,s.code+' width 90 mm: '+s.wMm);
   assert.ok(Math.abs(s.hMm-50)<0.2,s.code+' height 50 mm: '+s.hMm);
   assert.ok(Math.abs(s.qrMm-37)<0.6,s.code+' QR 37 mm: '+s.qrMm);
-  assert.equal(s.qr,expectQr[s.code],s.code+' QR scans to the existing identity');
-  assert.equal(s.qrWhole,expectQr[s.code],s.code+' QR scans from the whole cut sticker');
+  assert.equal(s.qr,expectList[a.stickers.indexOf(s)],s.code+' QR scans to its own piece identity');
+  assert.equal(s.qrWhole,expectList[a.stickers.indexOf(s)],s.code+' QR scans from the whole cut sticker');
  }
  assert.deepEqual(a.stickers.map(s=>({code:s.code,left:s.left,qr:s.qr})),preview.map(p=>({code:p.code,left:p.left,qr:p.qr})),'PDF stickers match Sticker Preview exactly, in order');
  // Lower print resolution still scans.

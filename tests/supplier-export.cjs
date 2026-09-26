@@ -56,10 +56,12 @@ const MAP={
  });
  await page.waitForTimeout(700);
  const before=await page.evaluate(()=>JSON.stringify(state.projects.find(p=>p.id==='xj')));
- const qrOf=await page.evaluate(()=>Object.fromEntries(cabinet().parts.map(p=>[p.code,phoneQrText(p)])));
+ const pieceQr=(legacy,piece)=>{const o=JSON.parse(legacy);o.copyIndex=piece===1?-1:piece-2;return JSON.stringify(o)};
+ const legacyQr=await page.evaluate(()=>Object.fromEntries(cabinet().parts.map(p=>[p.code,phoneQrText(p)])));
+ const qrOf=(code,piece)=>pieceQr(legacyQr[code],piece);
  const parts=await page.evaluate(()=>Object.fromEntries(cabinet().parts.map(p=>[p.code,{name:p.name,L:p.length,W:p.width,T:p.thickness,qty:p.qty,mat:p.material,eL:p.edgeLong,eS:p.edgeShort,notes:p.notes}])));
  // The expected physical pieces, in Cutting List order.
- const pieces=[];Object.entries(parts).forEach(([code,p])=>{for(let i=1;i<=p.qty;i++)pieces.push({code,piece:i+'/'+p.qty,ref:code+'-'+i})});
+ const pieces=[];Object.entries(parts).forEach(([code,p])=>{for(let i=1;i<=p.qty;i++)pieces.push({code,n:i,piece:i+'/'+p.qty,ref:code+'-'+i})});
  assert.equal(pieces.length,9);
 
  // UI.
@@ -82,7 +84,7 @@ const MAP={
   assert.equal(rows.length,9,sys+': one row per physical panel');
   rows.forEach((r,i)=>{const pc=pieces[i],p=parts[pc.code];
    const got={panel:r[m.panel],ref:r[m.ref],piece:r[m.piece],name:r[m.name],L:r[m.L],W:r[m.W],T:r[m.T],mat:r[m.mat],qty:r[m.qty],qr:r[m.qr],edges:[r[m.et],r[m.eb],r[m.el],r[m.er]].join(''),grain:r[m.grain],notes:r[m.notes],cust:r[m.cust],job:r[m.job],room:r[m.room]};
-   assert.deepEqual(got,{panel:pc.code,ref:pc.ref,piece:pc.piece,name:p.name,L:String(p.L),W:String(p.W),T:String(p.T),mat:p.mat,qty:'1',qr:qrOf[pc.code],
+   assert.deepEqual(got,{panel:pc.code,ref:pc.ref,piece:pc.piece,name:p.name,L:String(p.L),W:String(p.W),T:String(p.T),mat:p.mat,qty:'1',qr:qrOf(pc.code,pc.n),
     edges:[p.eL>=1?1:0,p.eL>=2?1:0,p.eS>=1?1:0,p.eS>=2?1:0].join(''),grain:'Length',notes:p.notes,cust:'Åse Møller',job:'Bedroom fit',room:'Bedroom · Wardrobe A'},sys+' row '+(i+1));
   });
   exported[sys]=rows.map(r=>[r[m.panel],r[m.L],r[m.W],r[m.T],r[m.mat],r[m.qr]]);
@@ -103,15 +105,17 @@ const MAP={
   return [s.code,m[2],m[3],m[4],m[5],s.qr]});
 
  // The same physical panel through all five exports.
- const expected=pieces.map(pc=>{const p=parts[pc.code];return [pc.code,String(p.L),String(p.W),String(p.T),p.mat,qrOf[pc.code]]});
+ const expected=pieces.map(pc=>{const p=parts[pc.code];return [pc.code,String(p.L),String(p.W),String(p.T),p.mat,qrOf(pc.code,pc.n)]});
  for(const [k,v] of Object.entries({...exported,pdf:pdfRows}))assert.deepEqual(v,expected,k+': same panel number, dimensions, material and QR identity for every physical panel');
 
  // Identical panels keep their own identity.
- assert.notEqual(qrOf['P-005'],qrOf['P-006'],'identical separate panels keep separate QR codes');
- assert.deepEqual(exported.standard.filter(r=>r[1]==='700').map(r=>[r[0],r[5]]),[['P-005',qrOf['P-005']],['P-006',qrOf['P-006']]]);
+ assert.notEqual(qrOf('P-005',1),qrOf('P-006',1),'identical separate panels keep separate QR codes');
+ assert.deepEqual(exported.standard.filter(r=>r[1]==='700').map(r=>[r[0],r[5]]),[['P-005',qrOf('P-005',1)],['P-006',qrOf('P-006',1)]]);
+ assert.equal(new Set(exported.standard.map(r=>r[5])).size,9,'nine physical panels, nine different QR codes');
  const std=parseCsv((await (async()=>{await page.locator('#supplierSystemSelect').selectOption('standard');return click('#fiqProductionFileBtn')})()).bytes.toString('utf8'),',');
  assert.equal(new Set(std.map(r=>r['Piece Ref'])).size,9,'every physical panel has its own piece reference');
- assert.deepEqual(std.filter(r=>r['Panel Number']==='P-002').map(r=>[r['Piece Ref'],r.Piece,r['FittersIQ QR']]),[1,2,3].map(i=>['P-002-'+i,i+'/3',qrOf['P-002']]),'Qty 3 panel: three rows, each its own piece, all on P-002\'s existing QR');
+ assert.deepEqual(std.filter(r=>r['Panel Number']==='P-002').map(r=>[r['Piece Ref'],r.Piece,r['FittersIQ QR']]),[1,2,3].map(i=>['P-002-'+i,i+'/3',qrOf('P-002',i)]),'Qty 3 panel: three rows, each its own piece and its own QR on P-002');
+ assert.deepEqual([1,2,3].map(i=>JSON.parse(qrOf('P-002',i)).copyIndex),[-1,0,1],'pieces 1, 2, 3 use copyIndex -1, 0, 1');
 
  // Choice remembered for this browser.
  assert.equal(await page.evaluate(()=>{try{return localStorage.getItem('assembleone_supplier_system')||localStorage.getItem('fiqbeta:assembleone_supplier_system')}catch(e){return 'x'}}),'standard');
@@ -120,7 +124,7 @@ const MAP={
  const prof=await page.evaluate(()=>{const p=fiqSupplierProfile({name:'Selima',system:'ardis',mapping:'Selima ARDIS',delimiter:',',units:'cm',decimal:',',columns:[{header:'Id',field:'pieceRef'},{header:'L',field:'length'},{header:'QR',field:'qr'}]});
   return {sys:p.system,name:p.name,text:fiqSupplierExport(p,fiqSupplierDataset()).split('\r\n').slice(0,3)}});
  assert.equal(prof.sys,'ardis');assert.equal(prof.name,'Selima');
- assert.deepEqual(prof.text.slice(0,2),['﻿Id,L,QR','P-001-1,223,"'+qrOf['P-001'].replace(/"/g,'""')+'"'],'profile: own columns, delimiter and units (2230 mm = 223 cm)');
+ assert.deepEqual(prof.text.slice(0,2),['﻿Id,L,QR','P-001-1,223,"'+qrOf('P-001',1).replace(/"/g,'""')+'"'],'profile: own columns, delimiter and units (2230 mm = 223 cm)');
 
  assert.equal(await page.evaluate(()=>JSON.stringify(state.projects.find(p=>p.id==='xj'))),before,'job and panel data unchanged by exporting');
  assert.deepEqual(errors,[],'no page errors');
