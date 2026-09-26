@@ -1,8 +1,8 @@
 // The panel sticker is kept simple. Left: Part Name (large, upper case), L × W × T mm,
 // material, customer name (small). Right: panel number above a large QR. No Qty anywhere,
 // no extra code, one sticker per physical panel, and every copy's QR is the panel's
-// existing phoneQrText identity. Checked on the printed Supplier Pack (real button click)
-// and the on-screen Sticker preview, at laptop and one-third-screen width.
+// existing phoneQrText identity. Checked on the on-screen Sticker Preview at laptop and
+// one-third-screen width (the PDF stickers are checked against it in supplier-pack-pdf.cjs).
 // Runs the real public Studio loader with every network request blocked except the QR library.
 const {chromium}=require('playwright');
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
@@ -18,7 +18,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await page.route(/^https?:\/\/(?!127\.0\.0\.1|cdnjs\.cloudflare\.com\/ajax\/libs\/qrcodejs\/)/,r=>r.abort());
  await page.route(/^https?:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/qrcodejs\//,r=>r.continue());
  await page.goto(`http://127.0.0.1:${server.address().port}${process.env.STUDIO_PAGE||'/Studio.html'}`);
- await page.waitForFunction(()=>typeof window.fiqStickerHtml==='function'&&typeof window.a131OpenPrintPreview==='function');
+ await page.waitForFunction(()=>typeof window.fiqStickerHtml==='function'&&typeof window.fiqDownloadSupplierPackPdf==='function');
  await page.waitForTimeout(800);
  await page.evaluate(()=>{
   document.body.classList.remove('fiq-locked');const g=document.getElementById('fiqAuthGate');if(g)g.style.display='none';
@@ -37,35 +37,25 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   cust:(s.querySelector('.fs-cust')||{}).innerText||'',code:s.querySelector('.fs-code').innerText.trim(),text:s.innerText.replace(/\s+/g,' ').trim()}));
  const want=[...Array(2).fill(['TOP / BOTTOM','2230 × 240 × 19 mm','Oak melamine','Sam Sticker','P-001']),...Array(3).fill(['SHELF','800 × 400 × 18 mm','White melamine','Sam Sticker','P-002']),['BACK','2200 × 1200 × 8 mm','MDF','Sam Sticker','P-003']];
 
- // 1. The printed Supplier Pack, through the real button.
- await page.locator('#printSupplierPackBtn').scrollIntoViewIfNeeded();
- await page.locator('#printSupplierPackBtn').click();
- await page.waitForTimeout(800);
- const frame=page.frameLocator('#a131PrintFrame');
- const printed=await page.locator('#a131PrintFrame').evaluate(f=>{const d=f.contentDocument;const st=[...d.querySelectorAll('.stickers .fiq-sticker')];
-  return {rows:[...st].map(s=>({name:s.querySelector('.fs-name').innerText.trim(),dims:s.querySelector('.fs-dims').innerText.replace(/\u00a0/g,' ').trim(),mat:s.querySelector('.fs-mat').innerText.trim(),cust:s.querySelector('.fs-cust').innerText.trim(),code:s.querySelector('.fs-code').innerText.trim(),text:s.innerText,
-   qr:s.querySelector('.fs-qr img')?.getAttribute('src')||'',left:s.querySelector('.fs-left').getBoundingClientRect(),right:s.querySelector('.fs-right').getBoundingClientRect(),codeBox:s.querySelector('.fs-code').getBoundingClientRect(),qrBox:s.querySelector('.fs-qr img').getBoundingClientRect(),box:s.getBoundingClientRect(),
-   nameSize:parseFloat(getComputedStyle(s.querySelector('.fs-name')).fontSize),custSize:parseFloat(getComputedStyle(s.querySelector('.fs-cust')).fontSize)})),
-   oldStickers:d.querySelectorAll('.stickers .sticker').length,stickerSection:d.querySelector('.stickers').closest('section').innerText}});
- assert.deepEqual(printed.rows.map(r=>[r.name,r.dims,r.mat,r.cust,r.code]),want,'one printed sticker per physical panel, with exactly these fields');
- assert.equal(printed.oldStickers,0,'old sticker layout gone');
- assert.doesNotMatch(printed.stickerSection,/Qty/i,'no Qty on the stickers');
+ // 1. The sticker layout (Sticker Preview; the printed stickers are the PDF's, see
+ //    tests/supplier-pack-pdf.cjs, which checks they match this preview exactly).
+ const printed=await S(()=>{const st=[...document.querySelectorAll('#supplierLabels .fiq-sticker')];const qrEl=s=>[...s.querySelectorAll('.fs-qr canvas,.fs-qr img')].find(e=>e.getBoundingClientRect().width>0);
+  return {rows:st.map(s=>({name:s.querySelector('.fs-name').innerText.trim(),dims:s.querySelector('.fs-dims').innerText.replace(/\u00a0/g,' ').trim(),mat:s.querySelector('.fs-mat').innerText.trim(),cust:s.querySelector('.fs-cust').innerText.trim(),code:s.querySelector('.fs-code').innerText.trim(),text:s.innerText,
+   qr:s.querySelector('.fs-qr canvas').toDataURL(),left:s.querySelector('.fs-left').getBoundingClientRect(),right:s.querySelector('.fs-right').getBoundingClientRect(),codeBox:s.querySelector('.fs-code').getBoundingClientRect(),qrBox:qrEl(s).getBoundingClientRect(),box:s.getBoundingClientRect(),
+   nameSize:parseFloat(getComputedStyle(s.querySelector('.fs-name')).fontSize),custSize:parseFloat(getComputedStyle(s.querySelector('.fs-cust')).fontSize)}))}});
+ assert.deepEqual(printed.rows.map(r=>[r.name,r.dims,r.mat,r.cust,r.code]),want,'one sticker per physical panel, with exactly these fields');
  for(const r of printed.rows){
-  assert.equal(r.text.replace(/\s+/g,' ').trim(),[r.name,r.dims,r.mat,r.cust,r.code].join(' '),'nothing else printed on '+r.code);
+  assert.equal(r.text.replace(/\s+/g,' ').trim(),[r.name,r.dims,r.mat,r.cust,r.code].join(' '),'nothing else on '+r.code);
   assert.ok(r.left.right<=r.right.left,'text on the left, number and QR on the right: '+r.code);
   assert.ok(r.codeBox.bottom<=r.qrBox.top,'panel number above the QR: '+r.code);
-  assert.ok(r.qrBox.width>=130&&r.qrBox.width===r.qrBox.height,'large square QR: '+r.qrBox.width);
+  assert.ok(r.qrBox.width>=130&&Math.abs(r.qrBox.width-r.qrBox.height)<1,'large square QR: '+r.qrBox.width);
   assert.ok(r.qrBox.right<=r.box.right&&r.qrBox.bottom<=r.box.bottom,'QR inside the sticker');
   assert.ok(r.nameSize>r.custSize*2,'part name prominent, customer small');
  }
- // Same QR image for every copy of a panel, and different panels differ.
+ // Same QR for every copy of a panel, and different panels differ.
  const byCode={};printed.rows.forEach(r=>(byCode[r.code]=byCode[r.code]||new Set()).add(r.qr));
  assert.deepEqual(Object.values(byCode).map(s=>s.size),[1,1,1],'copies share one QR');
  assert.equal(new Set(printed.rows.map(r=>r.qr)).size,3,'each panel has its own QR');
- // The QR encodes the existing identity: decode check by regenerating from phoneQrText.
- const regen=await page.evaluate(codes=>Object.fromEntries(Object.entries(codes).map(([c,t])=>[c,qrData(t)])),expectQr);
- for(const r of printed.rows)assert.equal(r.qr,regen[r.code],'QR is the panel\'s existing phoneQrText for '+r.code);
- await page.locator('#a131ClosePrint').click();
 
  // 2. The on-screen Sticker preview, same sticker, one per physical panel.
  for(const w of [1366,512,455]){
