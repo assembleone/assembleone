@@ -104,6 +104,10 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   const b=await S(()=>{const cs=id=>getComputedStyle(document.getElementById(id));const L=cs('lengthMeasureWrap'),W=cs('widthMeasureWrap');
    const tag=document.querySelector('#lengthMeasureWrap .edge-count').getBoundingClientRect(),box=document.getElementById('lengthMeasureWrap').getBoundingClientRect();
    return {lenBottom:[L.borderBottomStyle,L.borderBottomWidth],lenTop:[L.borderTopStyle,L.borderTopWidth],widLeft:[W.borderLeftStyle,W.borderLeftWidth],widRight:[W.borderRightStyle,W.borderRightWidth],tagInside:tag.left>=box.left&&tag.right<=box.right&&tag.top>=box.top&&tag.bottom<=box.bottom}});
+  const size=await S(()=>{const box=id=>document.getElementById(id).getBoundingClientRect();const u=document.getElementById('unitsToggle').getBoundingClientRect();return {fonts:['fThickness','fLength','fWidth','fQty'].map(id=>parseFloat(getComputedStyle(document.getElementById(id)).fontSize)),lenH:box('lengthMeasureWrap').height,widH:box('widthMeasureWrap').height,unitsH:u.height,label:getComputedStyle(document.getElementById('unitsToggle'),'::before').content}});
+  assert(size.fonts.every(x=>x>=34),`measurement numbers stay large at ${w}px: ${size.fonts}`);
+  assert(size.lenH>=70&&size.widH>=70,`Length and Width boxes stay large at ${w}px`);
+  assert(size.unitsH<=40&&size.label==='"Measurements"',`slim Measurements line with mm / cm / in at ${w}px`);
   assert.deepEqual(b,{lenBottom:['solid','5px'],lenTop:['dashed','2px'],widLeft:['solid','5px'],widRight:['solid','5px'],tagInside:true},`edging on the boxes at ${w}x${h}`);
  }
  await page.setViewportSize({width:1366,height:657});
