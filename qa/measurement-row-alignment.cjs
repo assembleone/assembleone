@@ -31,7 +31,7 @@ const root=path.resolve(__dirname,'..'),tag='measure-row',out=require('node:os')
   fs.writeFileSync(file,Buffer.from(b64,'base64'));
  }
  const results=[];
- for(const vp of JSON.parse(process.env.VPS||'[{"w":1366,"h":760,"n":"laptop"},{"w":1024,"h":760,"n":"w1024"},{"w":960,"h":900,"n":"split"},{"w":820,"h":800,"n":"narrow"}]')){
+ for(const vp of JSON.parse(process.env.VPS||'[{"w":455,"h":820,"n":"third455"},{"w":512,"h":820,"n":"third512"},{"w":640,"h":820,"n":"third640"},{"w":820,"h":800,"n":"w820"},{"w":960,"h":900,"n":"w960"},{"w":1366,"h":760,"n":"laptop"}]')){
   const page=await browser.newPage({viewport:{width:vp.w,height:vp.h}});page.on('dialog',d=>d.accept());
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());

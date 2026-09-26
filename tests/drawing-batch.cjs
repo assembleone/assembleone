@@ -105,7 +105,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   const row=document.querySelector('#screen-mark .measure-entry-row').getBoundingClientRect();r.row=[row.left,row.top+scrollY,row.width,row.height].map(x=>Math.round(x)).join(',');
   const covered=['fLength','fWidth'].filter(id=>{const e=document.getElementById(id),b=e.getBoundingClientRect();return document.elementFromPoint(b.left+Math.min(30,b.width/3),b.top+b.height/2)!==e});
   return {r,covered}},ids);
- for(const [w,h] of [[1366,657],[1024,700],[960,900],[820,800]]){
+ for(const [w,h] of [[1366,657],[1024,700],[960,900],[820,800],[640,820],[512,820],[455,820]]){
   await page.setViewportSize({width:w,height:h});await page.waitForTimeout(250);
   await S(()=>{const m=document.querySelector('#screen-mark .measurement-entry-card');window.scrollTo(0,m.getBoundingClientRect().top+scrollY-250)});
   const base=await geo();
@@ -137,8 +137,10 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  // Units: one small "Units: mm ▾" control in the drawing toolbar. Sizes stay exact and the
  // layout does not move.
  const layout0=await S(()=>{const s=document.getElementById('drawingStage').getBoundingClientRect(),m=document.querySelector('#screen-mark .measure-entry-row').getBoundingClientRect();return [s.height,s.width,m.top+scrollY,m.height].map(Math.round).join(',')});
- assert.equal(await S(()=>document.getElementById('fiqUnitsBtn').textContent),'Units: mm ▾');
- assert.equal(await S(()=>!!document.querySelector('#screen-mark .drawing-toolbar #fiqUnits')&&!document.getElementById('unitsToggle')),true,'units live in the drawing toolbar only');
+ assert.equal(await S(()=>document.getElementById('fiqUnitsBtn').textContent),'mm ▾');
+ assert.equal(await S(()=>!!document.querySelector('#screen-mark .measurement-entry-card .fiq-measure-head #fiqUnits')&&!document.getElementById('unitsToggle')&&document.querySelector('#screen-mark .fiq-measure-head b').textContent==='Measurements'),true,'one unit control on the Measurements line');
+ assert.deepEqual(await S(()=>['thicknessUnitLabel','lengthUnitLabel','widthUnitLabel'].map(id=>getComputedStyle(document.getElementById(id)).display)),['none','none','none'],'no unit repeated inside the boxes');
+ assert.equal(await S(()=>{const l=document.getElementById('fQtyUnlockBtn'),q=document.getElementById('fQty');return l.getBoundingClientRect().bottom<=q.getBoundingClientRect().top+1&&l.getBoundingClientRect().width>=28}),true,'Qty lock in the Qty header, comfortable size');
  for(const [u,shown] of [['cm','80'],['in','31.5'],['mm','800']]){
   await click('#fiqUnitsBtn');
   assert.equal(await S(()=>document.getElementById('fiqUnitsMenu').hidden),false,'the list opens');
@@ -146,7 +148,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   await click(`#fiqUnitsMenu .unit-choice[data-unit="${u}"]`);await page.waitForTimeout(120);
   const r=await S(()=>({label:document.getElementById('fiqUnitsBtn').textContent,closed:document.getElementById('fiqUnitsMenu').hidden,len:document.getElementById('fLength').value,stored:cabinet().parts[0].length,
    layout:(()=>{const s=document.getElementById('drawingStage').getBoundingClientRect(),m=document.querySelector('#screen-mark .measure-entry-row').getBoundingClientRect();return [s.height,s.width,m.top+scrollY,m.height].map(Math.round).join(',')})()}));
-  assert.deepEqual(r,{label:`Units: ${u} ▾`,closed:true,len:shown,stored:800,layout:layout0},`units ${u}: exact size kept, layout unchanged`);
+  assert.deepEqual(r,{label:`${u} ▾`,closed:true,len:shown,stored:800,layout:layout0},`units ${u}: exact size kept, layout unchanged`);
  }
 
  // 6. Panel-number warning: same logic, compact bar, Done removes it. Panel ids stay.
