@@ -1714,9 +1714,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="supplier-summary" id="supplierSummary"></div>
 <div class="supplier-materials-card"><h3 data-i18n="bom.materials">Materials</h3><div id="supplierMaterialSummary"></div></div>
 <div class="supplier-materials-card sheet-optim-card" id="sheetOptimiserCard" hidden><h3 data-i18n="studio.supplier.sheetOptimiserHeading">Sheet Optimiser</h3><div class="muted" data-i18n="studio.supplier.sheetOptimiserSubtitle">Full sheets required, cutting layout and offcut for each material — check this before ordering.</div><div id="sheetOptimiserBody"></div></div>
+<div class="supplier-export-head"><h3>Export for Supplier</h3><label for="supplierSystemSelect">Supplier system:</label><select id="supplierSystemSelect"><option value="ardis">ARDIS</option><option value="cutrite">HOMAG / Cut Rite</option><option value="maestro">SCM Maestro</option><option value="standard">Standard CSV</option></select></div>
 <div class="supplier-actions supplier-actions-simple">
-<button class="supplier-action export" id="exportSupplierCsvBtn" type="button"><span class="supplier-action-icon">⇩</span><strong data-i18n="studio.supplier.downloadCsvBtnLabel">Download CSV</strong><small data-i18n="studio.supplier.downloadCsvBtnSub">Excel and CNC suppliers</small></button>
-<button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong>Download Supplier Pack PDF</strong><small>Cutting list + print-ready QR stickers</small></button>
+<button class="supplier-action export" id="fiqProductionFileBtn" type="button"><span class="supplier-action-icon">⇩</span><strong>Download Production File</strong><small id="fiqProductionFileSub">CSV for the selected supplier system</small></button>
+<button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong>Download Supplier PDF</strong><small>Cutting list + print-ready QR stickers</small></button>
+<button hidden id="exportSupplierCsvBtn" type="button"></button>
 </div>
 <div class="supplier-feedback" id="supplierActionStatus" aria-live="polite"></div>
 <h3 class="supplier-section-title">Cutting List</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
@@ -3189,6 +3191,7 @@ function renderCutting(){
    makeQr(document.getElementById("cutqr-"+p.id),phoneQrText(p),68);
  }),0);
  setTimeout(()=>stickerCopies.forEach(({p,i})=>makeQr(document.getElementById("supplierqr-"+p.id+"-"+i),phoneQrText(p),150)),0);
+ if(window.fiqRefreshProductionSub)window.fiqRefreshProductionSub();
 }
 function localGuideUrl(p){return location.href.split("#")[0]+`#guide=${encodeURIComponent(state.currentProject)}:${encodeURIComponent(state.currentCabinet)}:${encodeURIComponent(p.id)}`}
 function mobileAppBase(){return (localStorage.getItem("assembleone_mobile_app_url")||"").trim().replace(/#.*$/,'')}
@@ -5567,6 +5570,10 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
 .supplier-action strong{font-size:34px!important;line-height:1.1!important}
 .supplier-action small{font-size:16px!important;line-height:1.35!important}
 .supplier-action.print-pack{background:#eef3ff;border-color:#8fa8df}
+.supplier-export-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:18px 0 10px}
+.supplier-export-head h3{margin:0 12px 0 0;font:700 22px 'Inter',sans-serif;flex-basis:100%}
+.supplier-export-head label{font-weight:800;display:inline!important;margin:0!important}
+.supplier-export-head select{width:auto!important;flex:0 1 auto;margin:0!important;min-width:190px;max-width:100%;font-size:16px;padding:8px 10px;border-radius:10px}
 .supplier-action.print-pack:hover{border-color:#496ebf;box-shadow:0 0 0 4px rgba(73,111,191,.12)}
 .supplier-action.export:hover{border-color:#004ca9;box-shadow:0 0 0 4px rgba(255,196,0,.18)}
 @media(max-width:760px){.supplier-actions-simple{grid-template-columns:1fr!important}.supplier-action{min-height:132px!important;grid-template-columns:70px 1fr!important}.supplier-action .supplier-action-icon{font-size:54px!important}.supplier-action strong{font-size:24px!important}}
@@ -5867,6 +5874,98 @@ body.guide-only .a131-back-studio{display:block}
   catch(e){say('Supplier pack PDF could not be made: '+(e?.message||e),true)}
   finally{if(btn)btn.disabled=false}
  };
+})();
+</script>
+
+<script>
+// Export for Supplier.
+// fiqSupplierDataset: the ONE canonical supplier dataset -- one row per physical panel,
+// built only from the existing panel records (the same list and the same fiqStickerData
+// fields as Sticker Preview and the Supplier PDF). Each row carries the panel's existing
+// QR payload (phoneQrText, never regenerated) plus its piece number (e.g. 2 of 3) so
+// identical panels are still separate rows.
+// FIQ_SUPPLIER_ADAPTERS: one isolated adapter per production system. An adapter is only
+// data -- column headers mapped to dataset fields, delimiter, decimal mark, units, BOM --
+// so a saved supplier profile (e.g. "Selima", system ARDIS, mapping "Selima ARDIS") can
+// later override any of it through fiqSupplierProfile() without touching the Cutting List
+// or the panel data. Each adapter writes a clean CSV for that system's configurable CSV
+// import; no proprietary machine file format is generated.
+(function(){
+ const num=v=>{const n=Number(v);return v!==''&&v!=null&&Number.isFinite(n)?n:(v==null?'':String(v))};
+ const edgePair=v=>{const n=Math.max(0,Math.min(2,Math.floor(Number(v)||0)));return [n>=1?1:0,n>=2?1:0]};
+ window.fiqSupplierDataset=function(list){
+  const pr=project(),unit=cabinet(),room=(pr?.rooms||[]).find(r=>r.id===unit?.roomId);
+  const ref=typeof window.assembleOneJobRef==='function'?window.assembleOneJobRef(pr):'';
+  const copies=fiqStickerCopies(list||supplierParts()),count={};copies.forEach(({p})=>count[p.id]=(count[p.id]||0)+1);
+  const rows=copies.map(({p,i})=>{
+   const d=fiqStickerData(p),[top,bottom]=edgePair(p.edgeLong),[left,right]=edgePair(p.edgeShort),n=count[p.id];
+   return {panelId:p.id,panelNumber:d.code,piece:i+1,pieces:n,pieceLabel:(i+1)+'/'+n,pieceRef:d.code+'-'+(i+1),
+    partName:String(p.name||''),length:num(p.length),width:num(p.width),thickness:num(p.thickness),units:'mm',
+    material:String(materialForPanel(p)||''),quantity:1,totalQuantity:n,
+    // Edging: FittersIQ records how many long and short edges are edged. With Length
+    // horizontal, the long edges are Top and Bottom, the short edges Left and Right.
+    edgeTop:top,edgeBottom:bottom,edgeLeft:left,edgeRight:right,edgeLong:Number(p.edgeLong||0),edgeShort:Number(p.edgeShort||0),
+    // FittersIQ has no per-panel grain setting: Length is always the grain direction.
+    grainDirection:'Length',
+    customer:d.customer,job:String(pr?.name||''),room:String(room?.name||''),unit:String(unit?.name||''),
+    roomUnit:[room?.name,unit?.name].filter(Boolean).filter((v,k,a)=>a.indexOf(v)===k).join(' · '),jobRef:ref,
+    notes:String(p.notes||''),qr:d.qr};
+  });
+  return {generatedFrom:'FittersIQ',customer:pr?.customer||'',job:pr?.name||'',roomUnit:rows[0]?.roomUnit||'',jobRef:ref,units:'mm',rows};
+ };
+ const C=(header,field)=>({header,field});
+ const EDGES=[C('EdgeTop','edgeTop'),C('EdgeBottom','edgeBottom'),C('EdgeLeft','edgeLeft'),C('EdgeRight','edgeRight')];
+ window.FIQ_SUPPLIER_ADAPTERS={
+  ardis:{id:'ardis',label:'ARDIS',fileLabel:'ARDIS',note:'ARDIS-oriented CSV for an ARDIS custom CSV import',delimiter:';',decimal:'.',units:'mm',bom:true,newline:'\r\n',columns:[
+   C('PartID','pieceRef'),C('PanelNumber','panelNumber'),C('Description','partName'),C('Material','material'),C('Length','length'),C('Width','width'),C('Thickness','thickness'),C('Quantity','quantity'),C('Grain','grainDirection'),
+   ...EDGES,C('Customer','customer'),C('Job','job'),C('Room','roomUnit'),C('Info1_FittersIQ_QR','qr'),C('Info2_Piece','pieceLabel'),C('Info3_Notes','notes')]},
+  cutrite:{id:'cutrite',label:'HOMAG / Cut Rite',fileLabel:'Cut Rite',note:'Cut Rite-oriented CSV for a Cut Rite part list import with information fields',delimiter:';',decimal:'.',units:'mm',bom:true,newline:'\r\n',columns:[
+   C('Part reference','pieceRef'),C('Panel number','panelNumber'),C('Material','material'),C('Length','length'),C('Width','width'),C('Thickness','thickness'),C('Quantity','quantity'),C('Grain','grainDirection'),C('Description','partName'),
+   C('Edge top','edgeTop'),C('Edge bottom','edgeBottom'),C('Edge left','edgeLeft'),C('Edge right','edgeRight'),C('Info 1 FittersIQ QR','qr'),C('Info 2 Customer','customer'),C('Info 3 Job','job'),C('Info 4 Room','roomUnit'),C('Info 5 Piece','pieceLabel'),C('Info 6 Notes','notes')]},
+  maestro:{id:'maestro',label:'SCM Maestro',fileLabel:'SCM Maestro',note:'SCM Maestro-oriented CSV for a cutting list / order CSV import',delimiter:';',decimal:'.',units:'mm',bom:true,newline:'\r\n',columns:[
+   C('Code','pieceRef'),C('PanelNumber','panelNumber'),C('Description','partName'),C('Material','material'),C('Length','length'),C('Width','width'),C('Thickness','thickness'),C('Quantity','quantity'),C('Grain','grainDirection'),
+   ...EDGES,C('Customer','customer'),C('Order','job'),C('Room','roomUnit'),C('LabelQR','qr'),C('Piece','pieceLabel'),C('Notes','notes')]},
+  standard:{id:'standard',label:'Standard CSV',fileLabel:'Standard CSV',note:'All FittersIQ supplier fields, one row per physical panel',delimiter:',',decimal:'.',units:'mm',bom:true,newline:'\r\n',columns:[
+   C('Panel Number','panelNumber'),C('Piece','pieceLabel'),C('Piece Ref','pieceRef'),C('Part Name','partName'),C('Length (mm)','length'),C('Width (mm)','width'),C('Thickness (mm)','thickness'),C('Material','material'),C('Quantity','quantity'),
+   C('Edge Top','edgeTop'),C('Edge Bottom','edgeBottom'),C('Edge Left','edgeLeft'),C('Edge Right','edgeRight'),C('Grain Direction','grainDirection'),C('Customer','customer'),C('Job','job'),C('Room / Unit','roomUnit'),C('Job Ref','jobRef'),C('Notes','notes'),C('FittersIQ QR','qr')]}
+ };
+ // A supplier profile = an adapter plus the supplier's own overrides, e.g.
+ // {name:'Selima',system:'ardis',mapping:'Selima ARDIS',delimiter:',',units:'cm',columns:[{header:'Id',field:'pieceRef'},...]}.
+ // Plain data, so profiles can later be saved and edited without code changes.
+ window.fiqSupplierProfile=function(systemOrProfile){
+  const o=typeof systemOrProfile==='string'?{system:systemOrProfile}:(systemOrProfile||{});
+  const base=window.FIQ_SUPPLIER_ADAPTERS[o.system]||window.FIQ_SUPPLIER_ADAPTERS.standard;
+  return {...base,...o,system:base.id,columns:(o.columns||base.columns).map(c=>({header:String(c.header),field:String(c.field)}))};
+ };
+ const DIMS=new Set(['length','width','thickness']);
+ window.fiqSupplierExport=function(profile,dataset){
+  const p=profile,dl=p.delimiter||',',nl=p.newline||'\r\n';
+  const fmt=(v,field)=>{if(v==null)return '';if(typeof v==='number'){const x=DIMS.has(field)&&p.units==='cm'?v/10:v;let t=String(x);if(p.decimal&&p.decimal!=='.')t=t.replace('.',p.decimal);return t}return String(v)};
+  const q=t=>(t.includes(dl)||/["\r\n]/.test(t)||/^\s|\s$/.test(t))?'"'+t.replace(/"/g,'""')+'"':t;
+  const lines=[p.columns.map(c=>q(c.header)).join(dl),...dataset.rows.map(r=>p.columns.map(c=>q(fmt(r[c.field],c.field))).join(dl))];
+  return (p.bom?'\uFEFF':'')+lines.join(nl)+nl;
+ };
+ const SYS_KEY='assembleone_supplier_system';
+ const sel=()=>document.getElementById('supplierSystemSelect');
+ function remembered(){try{return localStorage.getItem(SYS_KEY)||''}catch(e){return ''}}
+ function refreshSub(){const s=sel(),sub=document.getElementById('fiqProductionFileSub');if(!s||!sub)return;const a=window.FIQ_SUPPLIER_ADAPTERS[s.value]||window.FIQ_SUPPLIER_ADAPTERS.standard;
+  let n=0;try{n=fiqStickerCopies(supplierParts()).length}catch(e){}sub.textContent=a.fileLabel+' CSV · '+n+' row'+(n===1?'':'s')+', one per physical panel'}
+ function fileName(profile,ds){return (profile.fileLabel+' production file - '+[ds.customer,ds.job,ds.roomUnit].filter(Boolean).join(' - ')).replace(/[\\/:*?"<>|\x00-\x1F]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150)+'.csv'}
+ window.fiqDownloadProductionFile=function(system){
+  const msg=document.getElementById('supplierActionStatus'),say=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle('error',!!err)}};
+  const list=(typeof supplierParts==='function'?supplierParts():[]).filter(Boolean);
+  if(!list.length){say('No complete panels are ready for the supplier yet.',true);return null}
+  const profile=window.fiqSupplierProfile(system||sel()?.value||'standard'),ds=window.fiqSupplierDataset(list),text=window.fiqSupplierExport(profile,ds),name=fileName(profile,ds);
+  const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+  say('Downloaded '+name+' — '+ds.rows.length+' row'+(ds.rows.length===1?'':'s')+', one per physical panel.');
+  return {name,text,rows:ds.rows.length};
+ };
+ function wire(){const s=sel();if(!s||s.dataset.wired)return;s.dataset.wired='1';const r=remembered();if(r&&window.FIQ_SUPPLIER_ADAPTERS[r])s.value=r;
+  s.addEventListener('change',()=>{try{localStorage.setItem(SYS_KEY,s.value)}catch(e){}refreshSub()});refreshSub()}
+ document.addEventListener('click',e=>{if(e.target.closest('#fiqProductionFileBtn')){e.preventDefault();window.fiqDownloadProductionFile()}
+},true);
+ window.fiqRefreshProductionSub=refreshSub;
+ wire();
 })();
 </script>
 
