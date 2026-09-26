@@ -1716,7 +1716,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="supplier-materials-card sheet-optim-card" id="sheetOptimiserCard" hidden><h3 data-i18n="studio.supplier.sheetOptimiserHeading">Sheet Optimiser</h3><div class="muted" data-i18n="studio.supplier.sheetOptimiserSubtitle">Full sheets required, cutting layout and offcut for each material — check this before ordering.</div><div id="sheetOptimiserBody"></div></div>
 <div class="supplier-actions supplier-actions-simple">
 <button class="supplier-action export" id="exportSupplierCsvBtn" type="button"><span class="supplier-action-icon">⇩</span><strong data-i18n="studio.supplier.downloadCsvBtnLabel">Download CSV</strong><small data-i18n="studio.supplier.downloadCsvBtnSub">Excel and CNC suppliers</small></button>
-<button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong data-i18n="studio.supplier.printSupplierPackBtnLabel">Print Supplier Pack</strong><small data-i18n="studio.supplier.printSupplierPackBtnSub">Cutting list + matching QR stickers</small></button>
+<button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong>Download Supplier Pack PDF</strong><small>Cutting list + print-ready QR stickers</small></button>
 </div>
 <div class="supplier-feedback" id="supplierActionStatus" aria-live="polite"></div>
 <h3 class="supplier-section-title">Cutting List</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
@@ -3155,9 +3155,14 @@ function panelDetailsHtml(p){
 // printed per physical panel (fiqStickerCopies), each carrying the same panel number and QR,
 // which is what Mobile's per-piece scan count already expects.
 function fiqStickerCopies(list){const out=[];(list||[]).forEach(p=>{const n=Math.max(1,Math.min(500,Math.floor(Number(p?.qty)||1)));for(let i=0;i<n;i++)out.push({p,i})});return out}
+function fiqStickerData(p){
+ const pr=project(),v=x=>x==null||x===""?"—":String(x);
+ return {code:String(p.code??""),name:String(p.name||"Unnamed part").toUpperCase(),length:v(p.length),width:v(p.width),thickness:v(p.thickness),
+  material:String(materialForPanel(p)||"Material not set"),customer:pr?.customer?String(pr.customer):"",qr:phoneQrText(p)};
+}
 function fiqStickerHtml(p,qrHtml,extra){
- const pr=project(),mm=v=>safe(v==null||v===""?"—":v);
- return `<article class="fiq-sticker"${extra||""}><div class="fs-left"><div class="fs-name">${safe(String(p.name||"Unnamed part").toUpperCase())}</div><div class="fs-dims">${mm(p.length)} × ${mm(p.width)} × ${mm(p.thickness)}&nbsp;mm</div><div class="fs-mat">${safe(materialForPanel(p)||"Material not set")}</div>${pr?.customer?`<div class="fs-cust">${safe(pr.customer)}</div>`:""}</div><div class="fs-right"><div class="fs-code">${safe(p.code)}</div><div class="fs-qr">${qrHtml||""}</div></div></article>`;
+ const d=fiqStickerData(p);
+ return `<article class="fiq-sticker"${extra||""}><div class="fs-left"><div class="fs-name">${safe(d.name)}</div><div class="fs-dims">${safe(d.length)} × ${safe(d.width)} × ${safe(d.thickness)}&nbsp;mm</div><div class="fs-mat">${safe(d.material)}</div>${d.customer?`<div class="fs-cust">${safe(d.customer)}</div>`:""}</div><div class="fs-right"><div class="fs-code">${safe(d.code)}</div><div class="fs-qr">${qrHtml||""}</div></div></article>`;
 }
 function edgeText(p){return `${Number(p.edgeLong||0)} long edge(s), ${Number(p.edgeShort||0)} short edge(s)`}
 function isCompleteSupplierPart(p){
@@ -5734,27 +5739,134 @@ body.guide-only .a131-back-studio{display:block}
     e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
     stableSave(false);
     const list=(typeof supplierParts==='function'?supplierParts():[]).filter(Boolean);if(!list.length){alert(t("studio.drawing.noCompletePanelsReadyToPrint"));return}
-    const pr=project(),unit=cabinet(),mat=p=>typeof materialForPanel==='function'?(materialForPanel(p)||'Not set'):(p.material||'Not set');
-    const esc=x=>safe(x==null?'':x),edge=(v,n)=>Number(v||0)+' '+n+' edge'+(Number(v||0)===1?'':'s');
-    // Room name on every card/sticker (§ small but important addition): the printed pack
-    // still only ever covers one cabinet/unit at a time (unchanged scope), but a whole
-    // project's stickers end up sorted/mixed together physically once several units are
-    // printed and cut -- the room tag lets a fitter tell them apart without scanning.
-    // Reads the existing room already on the job (unit.roomId -> pr.rooms), never a new
-    // field; a no-rooms job (or a stray cabinet with no roomId) has roomTag='' and every
-    // card/sticker prints exactly as it did before this change.
-    const room=(pr?.rooms||[]).find(r=>r.id===unit?.roomId);
-    const roomTag=room?'<div class="room-tag">'+esc(room.name)+'</div>':'';
-    const cutting='<section><h1>Supplier Cutting List</h1><p>'+esc(pr?.name||'Project')+' · '+esc(unit?.name||'Unit')+'</p>'+list.map(p=>'<div class="card">'+roomTag+'<div class="row"><div><div class="code">'+esc(p.code)+'</div><div class="name">'+esc(p.name||'')+'</div></div><strong>Qty '+Number(p.qty||1)+'</strong></div><div class="measure">'+esc(p.thickness)+' mm · '+esc(p.length)+' × '+esc(p.width)+' mm</div><div class="small">Material: '+esc(mat(p))+'</div><div class="small">Edging: '+edge(p.edgeLong,'long')+' · '+edge(p.edgeShort,'short')+'</div>'+(p.notes?'<div class="small">Notes: '+esc(p.notes)+'</div>':'')+'</div>').join('')+'</section>';
-    // One simple sticker per physical panel (see fiqStickerHtml); the QR image is made once per
-    // panel and reused for its copies, so every copy carries the identical existing QR.
-    const qrCache={},qrFor=p=>{if(!(p.id in qrCache)){let q='';try{q=typeof qrData==='function'?qrData(phoneQrText(p)):''}catch(err){}qrCache[p.id]=q}return qrCache[p.id]};
-    const stickers='<section style="page-break-before:always"><h1>Supplier QR Stickers</h1><div class="stickers">'+fiqStickerCopies(list).map(({p})=>{const q=qrFor(p);return fiqStickerHtml(p,q?'<img src="'+q+'" alt="QR">':'')}).join('')+'</div></section>';
-    const sheetSection=(typeof window.a181SheetOptimPrintHtml==='function')?window.a181SheetOptimPrintHtml():'';
-    window.a131OpenPrintPreview(t("studio.drawing.supplierPackTitle"),cutting+sheetSection+stickers);
+    window.fiqDownloadSupplierPackPdf(list);
   },true);
   // QR label print also stays inside Studio.
   document.addEventListener('click',function(e){const btn=e.target.closest('#printQrBtn');if(!btn)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();stableSave(false);if(typeof renderQr==='function')renderQr();setTimeout(()=>{const grid=document.getElementById('qrGrid');if(!grid||!grid.children.length){alert(t("studio.drawing.generateQrCodesFirst"));return}window.a131OpenPrintPreview(t("studio.drawing.qrLabelsTitle"),'<div class="stickers">'+grid.innerHTML+'</div>')},80)},true);
+})();
+</script>
+
+<script>
+// Download Supplier Pack PDF: one self-contained PDF to attach to an email; the supplier
+// needs no FittersIQ and no login. Pages: job/customer identification + cutting list, then
+// print-ready sticker pages. The stickers are exactly Sticker Preview's (fiqStickerData:
+// same panel number, part name, sizes, material, customer and phoneQrText QR identity), one
+// per physical panel (fiqStickerCopies), at a fixed physical size in millimetres on A4, with
+// the "Print at 100%" instruction and a 100 mm check ruler on every sticker page. QR codes
+// are drawn as vector squares from the same QR library and error correction as the preview,
+// so they stay sharp at any printer resolution. Nothing on the job is saved or changed, so
+// downloading again gives the same panels and the same QR codes.
+(function(){
+ const JSPDF_URL='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+ const ST={w:90,h:50,pad:3,qr:37,cols:2,rows:4,gapX:6,gapY:5,top:44,radius:3};
+ const PAGE={w:210,h:297,margin:12};
+ let loading=null;
+ function loadJsPdf(){
+  if(window.jspdf?.jsPDF)return Promise.resolve(window.jspdf.jsPDF);
+  if(!loading)loading=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src=JSPDF_URL;
+   sc.onload=()=>window.jspdf?.jsPDF?res(window.jspdf.jsPDF):rej(new Error('PDF library missing'));
+   sc.onerror=()=>{loading=null;sc.remove();rej(new Error('The PDF library could not load. Check the internet connection and try again.'))};document.head.appendChild(sc)});
+  return loading;
+ }
+ // Same QR library and settings as makeQr (Sticker Preview), read as a module grid.
+ function qrModules(text){
+  if(!window.QRCode)throw new Error('The QR library is not loaded. Check the internet connection and reload Studio.');
+  const box=document.createElement('div');box.style.cssText='position:fixed;left:-9999px;top:0';document.body.appendChild(box);
+  try{const m=new QRCode(box,{text,width:64,height:64,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})._oQRCode,n=m.getModuleCount(),g=[];
+   for(let r=0;r<n;r++){const row=[];for(let c=0;c<n;c++)row.push(!!m.isDark(r,c));g.push(row)}return g}
+  finally{box.remove()}
+ }
+ function drawQr(doc,g,x,y,size){
+  const n=g.length,m=size/n;doc.setFillColor(0,0,0);
+  for(let r=0;r<n;r++){let c=0;while(c<n){if(!g[r][c]){c++;continue}let e=c;while(e<n&&g[r][e])e++;
+   doc.rect(x+c*m,y+r*m,(e-c)*m,m+(r<n-1?0.02:0),'F');c=e}}
+ }
+ // Standard PDF fonts cover Western European text; anything else prints as "?".
+ const pdfText=v=>String(v??'').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[^\x20-\x7E\xA0-\xFF\u2013\u2014\u20AC]/g,'?');
+ const PT=0.3528;
+ function lines(doc,text,width,max){let ls=doc.splitTextToSize(pdfText(text),width);if(ls.length>max){ls=ls.slice(0,max);let l=ls[max-1];while(l&&doc.getTextWidth(l+'…')>width)l=l.slice(0,-1);ls[max-1]=l+'…'}return ls}
+ function wrapTokens(doc,tokens,width){const out=[];let cur='';tokens.forEach(t=>{const next=cur?cur+' '+t:t;if(cur&&doc.getTextWidth(next)>width){out.push(cur);cur=t}else cur=next});if(cur)out.push(cur);return out}
+ function drawSticker(doc,d,g,x,y){
+  doc.setDrawColor(17,17,17);doc.setLineWidth(0.5);doc.roundedRect(x,y,ST.w,ST.h,ST.radius,ST.radius,'S');
+  const qx=x+ST.w-ST.pad-ST.qr,qy=y+ST.h-ST.pad-ST.qr;
+  doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text(pdfText(d.code),qx+ST.qr/2,qy-1.3,{align:'center'});
+  drawQr(doc,g,qx,qy,ST.qr);
+  const lx=x+ST.pad,lw=ST.w-2*ST.pad-ST.qr-3;let ty=y+ST.pad;
+  doc.setFontSize(17);lines(doc,d.name,lw,3).forEach((l,i)=>{doc.text(l,lx,ty+17*PT*0.8+i*17*PT*1.05)});
+  ty+=17*PT*0.8+(Math.min(3,doc.splitTextToSize(pdfText(d.name),lw).length)-1)*17*PT*1.05+1.5;
+  doc.setFontSize(10);
+  const dims=wrapTokens(doc,[pdfText(d.length)+' ×',pdfText(d.width)+' ×',pdfText(d.thickness)+'\u00A0mm'],lw).map(l=>l.replace(/\u00A0/g,' '));
+  dims.forEach((l,i)=>doc.text(l,lx,ty+10*PT*0.8+i*10*PT*1.15));ty+=10*PT*0.8+(dims.length-1)*10*PT*1.15+1.5;
+  lines(doc,d.material,lw,2).forEach((l,i)=>doc.text(l,lx,ty+10*PT*0.8+i*10*PT*1.15));
+  if(d.customer){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(68,68,68);doc.text(lines(doc,d.customer,lw,1)[0],lx,y+ST.h-ST.pad-0.4);doc.setTextColor(17,17,17)}
+ }
+ function stickerHeader(doc,info,page,pages){
+  const x0=PAGE.margin,x1=PAGE.w-PAGE.margin;
+  doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(12);
+  doc.text(pdfText('QR stickers — '+info.customer+' · '+info.job),x0,14,{maxWidth:x1-x0-40});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text('Sticker page '+page+' of '+pages,x1,14,{align:'right'});
+  doc.setDrawColor(200,30,30);doc.setLineWidth(0.8);doc.rect(x0,18,x1-x0,14,'S');
+  doc.setTextColor(200,30,30);doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text('Print at 100% / Actual Size — Do not Fit to Page',PAGE.w/2,24,{align:'center'});
+  doc.setTextColor(17,17,17);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+  doc.text('Each sticker is '+ST.w+' × '+ST.h+' mm. Before printing all pages, check the ruler below measures exactly 100 mm.',PAGE.w/2,29.3,{align:'center'});
+  const rx=x0,ry=39;doc.setDrawColor(17,17,17);doc.setLineWidth(0.3);doc.line(rx,ry,rx+100,ry);
+  for(let i=0;i<=10;i++){const tx=rx+i*10;doc.line(tx,ry,tx,ry-(i%5===0?3:1.8))}
+  doc.setFontSize(7.5);doc.text('0',rx,ry+3,{align:'center'});doc.text('100 mm',rx+100,ry+3,{align:'center'});
+ }
+ function cuttingPages(doc,info,list){
+  const x0=PAGE.margin;let y=18;
+  doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('Supplier Cutting List',x0,y);y+=8;
+  doc.setFontSize(10);
+  [['Customer',info.customer],['Job',info.job],['Room / unit',info.unit],['Job ref',info.ref],['Date',info.date],['Panels',info.count+' panel'+(info.count===1?'':'s')+' — one QR sticker per panel on the sticker pages']].forEach(([k,v])=>{
+   doc.setFont('helvetica','bold');doc.text(k+':',x0,y);doc.setFont('helvetica','normal');doc.text(pdfText(v||'—'),x0+26,y,{maxWidth:PAGE.w-2*PAGE.margin-26});y+=5.2});
+  y+=3;
+  const cols=[['Panel',18],['Part name',36],['Length',17],['Width',17],['Thick',13],['Qty',10],['Material',42],['Edging',33]];
+  const head=()=>{doc.setFillColor(232,236,244);doc.rect(x0,y-4.2,186,6.2,'F');doc.setFont('helvetica','bold');doc.setFontSize(8.5);let cx=x0+1.2;cols.forEach(([n,w])=>{doc.text(n,cx,y);cx+=w});y+=5};
+  head();
+  list.forEach(p=>{
+   const cells=[p.code,p.name||'',String(p.length??''),String(p.width??''),String(p.thickness??''),String(Math.max(1,Math.floor(Number(p.qty)||1))),
+    typeof materialForPanel==='function'?(materialForPanel(p)||'Not set'):(p.material||'Not set'),Number(p.edgeLong||0)+' long · '+Number(p.edgeShort||0)+' short'];
+   doc.setFont('helvetica','normal');doc.setFontSize(9);
+   const wrapped=cells.map((c,i)=>doc.splitTextToSize(pdfText(c),cols[i][1]-2.4));
+   const note=p.notes?doc.splitTextToSize(pdfText('Note: '+p.notes),184):[];
+   const h=Math.max(...wrapped.map(w=>w.length))*4+note.length*3.6+2.2;
+   if(y+h>PAGE.h-16){doc.addPage('a4','portrait');y=18;head();doc.setFont('helvetica','normal');doc.setFontSize(9)}
+   let cx=x0+1.2;wrapped.forEach((w,i)=>{doc.setFont('helvetica',i===0?'bold':'normal');doc.text(w,cx,y,{lineHeightFactor:1.25});cx+=cols[i][1]});
+   let ny=y+Math.max(...wrapped.map(w=>w.length))*4-0.4;
+   if(note.length){doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(80,80,80);doc.text(note,x0+1.2,ny,{lineHeightFactor:1.25});doc.setTextColor(17,17,17);ny+=note.length*3.6}
+   y=ny;doc.setDrawColor(190,190,190);doc.setLineWidth(0.2);doc.line(x0,y-2.2,x0+186,y-2.2);y+=2.6;
+  });
+ }
+ function fileName(info){return ('Supplier Pack - '+[info.customer,info.job,info.unit].filter(Boolean).join(' - ')).replace(/[\\/:*?"<>|\x00-\x1F]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150)+'.pdf'}
+ window.fiqBuildSupplierPackPdf=async function(list){
+  const JsPDF=await loadJsPdf();
+  const pr=project(),unit=cabinet(),room=(pr?.rooms||[]).find(r=>r.id===unit?.roomId);
+  const copies=fiqStickerCopies(list);
+  const info={customer:pr?.customer||'',job:pr?.name||'Project',unit:[room?.name,unit?.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · '),
+   ref:typeof window.assembleOneJobRef==='function'?window.assembleOneJobRef(pr):'',date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),count:copies.length};
+  const doc=new JsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+  doc.setProperties({title:fileName(info).replace(/\.pdf$/,''),subject:'Cutting list and print-ready QR stickers',creator:'FittersIQ'});
+  try{doc.viewerPreferences({PrintScaling:'None'},true)}catch(e){}
+  cuttingPages(doc,info,list);
+  const data={},grid={};list.forEach(p=>{data[p.id]=fiqStickerData(p);grid[p.id]=qrModules(data[p.id].qr)});
+  const per=ST.cols*ST.rows,pages=Math.ceil(copies.length/per),x0=(PAGE.w-(ST.cols*ST.w+(ST.cols-1)*ST.gapX))/2;
+  copies.forEach(({p},i)=>{const k=i%per;if(k===0){doc.addPage('a4','portrait');stickerHeader(doc,info,i/per+1,pages)}
+   drawSticker(doc,data[p.id],grid[p.id],x0+(k%ST.cols)*(ST.w+ST.gapX),ST.top+Math.floor(k/ST.cols)*(ST.h+ST.gapY))});
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
+   doc.text(pdfText('FittersIQ supplier pack · '+[info.customer,info.job].filter(Boolean).join(' · ')+(info.ref?' · '+info.ref:'')),PAGE.margin,PAGE.h-7);doc.text('Page '+i+' of '+n,PAGE.w-PAGE.margin,PAGE.h-7,{align:'right'})}
+  return {doc,fileName:fileName(info),stickers:copies.length,stickerSize:{w:ST.w,h:ST.h,qr:ST.qr},pages:n};
+ };
+ window.fiqDownloadSupplierPackPdf=async function(list){
+  const btn=document.getElementById('printSupplierPackBtn'),msg=document.getElementById('supplierActionStatus');
+  const say=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle('error',!!err)}};
+  if(btn)btn.disabled=true;say('Building the supplier pack PDF…');
+  try{const r=await window.fiqBuildSupplierPackPdf(list);r.doc.save(r.fileName);say('Downloaded '+r.fileName+' — '+r.stickers+' sticker'+(r.stickers===1?'':'s')+'. Attach it to your email to the supplier.')}
+  catch(e){say('Supplier pack PDF could not be made: '+(e?.message||e),true)}
+  finally{if(btn)btn.disabled=false}
+ };
 })();
 </script>
 
