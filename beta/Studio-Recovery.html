@@ -10117,7 +10117,7 @@ document.addEventListener('mousedown',function(e){
 .fiq-units{position:relative;flex:none;margin-left:auto}
 #fiqUnitsBtn{width:106px;height:30px;padding:0 8px;border:1px solid #cfd6e2;border-radius:8px;background:#fff;color:#171c46;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer;text-align:center}
 #fiqUnitsBtn b{font-weight:900}
-.fiq-units-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:200;min-width:190px;padding:4px;border:1px solid #cfd6e2;border-radius:10px;background:#fff;box-shadow:0 10px 24px rgba(20,30,50,.18)}
+.fiq-units-menu{position:absolute;left:0;right:auto;top:calc(100% + 4px);z-index:200;min-width:190px;padding:4px;border:1px solid #cfd6e2;border-radius:10px;background:#fff;box-shadow:0 10px 24px rgba(20,30,50,.18)}
 .fiq-units-menu[hidden]{display:none}
 .fiq-units-menu .unit-choice{display:block;width:100%;margin:0;padding:9px 10px;border:0;border-radius:7px;background:#fff;color:#171c46;font-size:14px;font-weight:700;text-align:left;cursor:pointer}
 .fiq-units-menu .unit-choice:hover{background:#eef3fb}
@@ -10128,51 +10128,77 @@ document.addEventListener('mousedown',function(e){
 #screen-mark .measurement-entry-card{padding-top:8px!important}
 #screen-mark .material-picker>summary,#screen-mark .notes-picker>summary{padding:10px 18px!important;min-height:50px!important;font-size:18px!important;font-weight:700!important}
 
-/* Measurement row: ONE fixed grid. Four columns - Thickness, Length, Width, Quantity - with
-   Length and Width getting most of the width. Every column has the same two zones:
-   a 30 px header zone (label, With Grain, ?, edge text) and a 78 px value zone.
-   Every value box has the same 5 px border, the same height and the same 34 px number, so
-   all four values share one centre line. Nothing in the header, the edging (colour only) or
-   a smaller glyph for a very long value can change the value zone. */
-#screen-mark .measure-entry-row{display:grid!important;grid-template-columns:minmax(130px,.6fr) minmax(0,1.4fr) minmax(0,1.4fr) minmax(160px,.75fr)!important;gap:0!important;align-items:start!important;border:1px solid #dfe3ea;border-radius:12px;background:#fff}
-#screen-mark .measure-entry-row>.measure-box,#screen-mark .measure-entry-row>.quantity-card{display:contents!important}
-#screen-mark .measure-entry-row .measure-field{display:grid!important;grid-template-rows:30px 78px!important;grid-template-columns:minmax(0,1fr)!important;align-content:start!important;row-gap:0!important;min-width:0!important;width:auto!important;height:auto!important;margin:0!important;padding:8px 8px 10px!important;border:0!important;border-right:1px solid #eef0f4!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;position:relative}
-#screen-mark .measure-entry-row>.quantity-card .measure-field{border-right:0!important}
-#screen-mark .measure-entry-row .measure-field>span:first-child{grid-row:1!important;display:flex!important;align-items:center!important;gap:6px;height:30px!important;margin:0!important;padding:0!important;overflow:hidden;white-space:nowrap;font-size:13px!important;line-height:1!important;font-weight:800;color:#5b6472}
-#screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{padding-right:64px!important}
-#screen-mark .measure-entry-row .measure-wrap{grid-row:2!important;height:78px!important;min-height:0!important;max-height:78px!important;margin:0!important;padding:0 8px!important;border:5px solid #e8ebf0!important;border-radius:8px!important;box-sizing:border-box!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:minmax(0,1fr)!important;align-content:stretch!important;align-items:center!important;gap:4px!important;background:#fff;position:relative;overflow:hidden}
-#screen-mark .measure-entry-row .measure-wrap.unit-qty{grid-template-columns:minmax(0,1fr) auto auto!important}
-/* An older rule gave only the Length and Width boxes 11 px extra bottom padding, lifting their
-   numbers above Thickness and Quantity. All four boxes use exactly the same padding. */
-#screen-mark #lengthMeasureWrap,#screen-mark #widthMeasureWrap{padding:0 8px!important}
-#screen-mark .measure-entry-row .measure-wrap input{align-self:stretch!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0 2px!important;border:0!important;border-radius:0!important;box-shadow:none!important;font-size:34px!important;line-height:normal!important;font-weight:900!important;text-align:left!important;box-sizing:border-box!important;min-width:0!important}
-#screen-mark .measure-entry-row .measure-wrap>span{align-self:center!important;font-size:13px!important;line-height:1!important;font-weight:800;margin:0!important;padding:0!important}
-#screen-mark .measure-entry-row .measure-wrap>button{align-self:center!important;margin:0!important}
-#screen-mark .measure-wrap .edge-lines{display:none!important}
-/* Older rules drew a dark underline under the number when edging was on; never draw it. */
-#screen-mark #lengthMeasureWrap input,#screen-mark #widthMeasureWrap input,#screen-mark #lengthMeasureWrap.edge-one input,#screen-mark #widthMeasureWrap.edge-one input,#screen-mark #lengthMeasureWrap.edge-two input,#screen-mark #widthMeasureWrap.edge-two input{border:0!important;box-shadow:none!important}
-#screen-mark .measure-wrap::before,#screen-mark .measure-wrap::after{display:none!important}
+/* ============================================================================================
+   Drawing measurement area (final design). Built for a Studio window about one third of a
+   laptop screen, beside SketchUp or AutoCAD.
 
-/* Edging: only the border colour changes (light grey, or green on a banded side).
-   Length edges = top and bottom sides, Width edges = left and right sides. */
-#screen-mark #lengthMeasureWrap.edge-one{border-bottom-color:#2f8f1b!important}
-#screen-mark #lengthMeasureWrap.edge-two{border-top-color:#2f8f1b!important;border-bottom-color:#2f8f1b!important}
-#screen-mark #widthMeasureWrap.edge-one{border-left-color:#2f8f1b!important}
-#screen-mark #widthMeasureWrap.edge-two{border-left-color:#2f8f1b!important;border-right-color:#2f8f1b!important}
-/* The edge text lives in the header zone, in a fixed spot on the right. */
-#screen-mark .edge-count{position:absolute;top:15px;right:10px;width:58px;text-align:right;font:800 12px/16px Arial,sans-serif;color:#8a93a3;white-space:nowrap;cursor:help}
-#screen-mark .edge-count.on{color:#1d5f0f}
-#screen-mark .edge-count .ec-short{display:none}
-#screen-mark .edge-help-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;margin:0;padding:0;border:1px solid #b9c1ce;border-radius:50%;background:#fff;color:#5b6472;font:900 11px/1 Arial,sans-serif;cursor:pointer}
-#screen-mark .edge-help-pop{position:absolute;left:8px;top:36px;z-index:60;width:min(320px,80vw);padding:9px 11px;border:1px solid #cfd6e2;border-radius:10px;background:#fff;color:#293a4e;font-size:13px;font-weight:600;line-height:1.4;box-shadow:0 10px 24px rgba(20,30,50,.18)}
+     Measurements  mm ▾
+     Thk | Length        | Width         | Qty 🔒
+     19  | 2400          | 600           | 1
+
+   - One global unit control on the "Measurements" line; no unit inside the boxes, no "pcs".
+   - One grid: small Thickness and Quantity (only the width they need), Length and Width take
+     everything else.
+   - Every column: a fixed 36 px header zone and a fixed 72 px value box with the same 1 px
+     outline, padding and 34 px number, so all four numbers share one centre line.
+   - Header: label left, "1 edge"/"2 edges" right, "With Grain" on its own second line under
+     Length. The Qty lock sits in the Qty header.
+   - Green edge lines are absolutely positioned overlays: they never change a size or position.
+   ============================================================================================ */
+#screen-mark .measurement-entry-card{padding:6px 8px 8px!important}
+#screen-mark .fiq-measure-head{display:flex;align-items:center;gap:10px;height:34px;margin:0 0 4px;padding:0 2px}
+#screen-mark .fiq-measure-head b{font-size:15px;font-weight:900;color:#171c46}
+#screen-mark .fiq-measure-head .fiq-units{margin:0!important}
+#screen-mark #fiqUnitsBtn{width:64px;height:30px;padding:0 6px;font-size:14px}
+
+#screen-mark .measure-entry-row{display:grid!important;grid-template-columns:clamp(68px,14%,104px) minmax(0,1fr) minmax(0,1fr) clamp(64px,12%,100px)!important;gap:0!important;align-items:start!important;border:1px solid #dfe3ea;border-radius:12px;background:#fff}
+#screen-mark .measure-entry-row>.measure-box,#screen-mark .measure-entry-row>.quantity-card{display:contents!important}
+#screen-mark .measure-entry-row .measure-field{display:grid!important;grid-template-rows:36px 72px!important;grid-template-columns:minmax(0,1fr)!important;min-width:0!important;width:auto!important;height:auto!important;margin:0!important;padding:4px 2px 6px!important;border:0!important;border-right:1px solid #eef0f4!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;position:relative}
+#screen-mark .measure-entry-row>.quantity-card .measure-field{border-right:0!important}
+
+/* Header zone (36 px, fixed). */
+#screen-mark .measure-entry-row .measure-field>span:first-child{grid-row:1!important;display:flex!important;flex-wrap:wrap!important;align-content:flex-start!important;padding-top:4px!important;align-items:center!important;column-gap:5px;row-gap:3px;height:36px!important;margin:0!important;padding:0 2px!important;overflow:hidden;white-space:nowrap;font-size:13px!important;line-height:1!important;font-weight:800;color:#5b6472}
+#screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{padding-right:50px!important}
+/* "With Grain" always on its own second header line: a zero-height break item before it. */
+#screen-mark .measure-entry-row .measure-field:has(.with-grain-tag)>span:first-child::after{content:'';flex:0 0 100%;height:0;order:1}
+#screen-mark .measure-entry-row .measure-field>span:first-child .edge-help-btn{order:0}
+#screen-mark .measure-entry-row .measure-field>span:first-child .with-grain-tag{order:2;flex:0 0 auto;max-width:max-content;margin:0!important;padding:1px 5px!important;font-size:10px!important;line-height:1.2!important;letter-spacing:0!important}
+/* Short headers for the two small columns; the full word stays for screen readers. */
+#screen-mark .measure-entry-row>.measure-box>.measure-field:first-child>span:first-child,
+#screen-mark .measure-entry-row>.quantity-card .measure-field>span:first-child{font-size:0!important;padding-right:0!important}
+#screen-mark .measure-entry-row>.measure-box>.measure-field:first-child>span:first-child::before{content:'Thk';font-size:13px}
+#screen-mark .measure-entry-row>.quantity-card .measure-field>span:first-child::before{content:'Qty';font-size:13px}
+#screen-mark .edge-count{position:absolute;top:8px;right:5px;width:46px;text-align:right;font:800 12px/14px Arial,sans-serif;color:#1d5f0f;white-space:nowrap;cursor:help}
+#screen-mark #fQtyUnlockBtn.fiq-qty-lock{position:absolute!important;top:5px;right:3px;width:28px!important;height:28px!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;display:inline-flex;align-items:center;justify-content:center;font-size:15px!important;line-height:1!important}
+#screen-mark #fQtyUnlockBtn.fiq-qty-lock[hidden]{display:none!important}
+
+/* Value zone (72 px, fixed). Number only: no unit label, no "pcs", no spinner arrows. */
+#screen-mark .measure-entry-row .measure-wrap,#screen-mark #lengthMeasureWrap,#screen-mark #widthMeasureWrap{grid-row:2!important;position:relative;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:100%!important;align-items:center!important;gap:0!important;height:72px!important;min-height:0!important;max-height:72px!important;margin:0!important;padding:0 5px!important;border:1px solid #d5dae3!important;border-radius:8px!important;box-sizing:border-box!important;background:#fff;overflow:hidden}
+#screen-mark .measure-entry-row .measure-wrap>span,#screen-mark .measure-entry-row .measure-wrap>button:not(#fQtyUnlockBtn){display:none!important}
+#screen-mark .measure-entry-row .measure-wrap input,#screen-mark #lengthMeasureWrap input,#screen-mark #widthMeasureWrap input,#screen-mark #lengthMeasureWrap.edge-one input,#screen-mark #widthMeasureWrap.edge-one input,#screen-mark #lengthMeasureWrap.edge-two input,#screen-mark #widthMeasureWrap.edge-two input{width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;outline-offset:-3px;font-size:34px!important;line-height:normal!important;font-weight:900!important;text-align:left!important;box-sizing:border-box!important;-moz-appearance:textfield;appearance:textfield}
+#screen-mark .measure-entry-row .measure-wrap input::-webkit-inner-spin-button,#screen-mark .measure-entry-row .measure-wrap input::-webkit-outer-spin-button{-webkit-appearance:none!important;margin:0!important;display:none!important}
+#screen-mark .measure-wrap .edge-lines{display:none!important}
+
+/* Green edge lines: overlays. Length = top and bottom, Width = left and right. */
+#screen-mark .measure-entry-row .measure-wrap::before,#screen-mark .measure-entry-row .measure-wrap::after{content:none;display:none!important}
+#screen-mark #lengthMeasureWrap.edge-one::after,#screen-mark #lengthMeasureWrap.edge-two::after,#screen-mark #lengthMeasureWrap.edge-two::before,
+#screen-mark #widthMeasureWrap.edge-one::before,#screen-mark #widthMeasureWrap.edge-two::before,#screen-mark #widthMeasureWrap.edge-two::after{content:''!important;display:block!important;position:absolute!important;background:#2f8f1b!important;pointer-events:none;z-index:2;border:0!important;margin:0!important}
+#screen-mark #lengthMeasureWrap.edge-two::before{left:0!important;right:0!important;top:0!important;bottom:auto!important;height:5px!important;width:auto!important}
+#screen-mark #lengthMeasureWrap.edge-one::after,#screen-mark #lengthMeasureWrap.edge-two::after{left:0!important;right:0!important;bottom:0!important;top:auto!important;height:5px!important;width:auto!important}
+#screen-mark #widthMeasureWrap.edge-one::before,#screen-mark #widthMeasureWrap.edge-two::before{top:0!important;bottom:0!important;left:0!important;right:auto!important;width:5px!important;height:auto!important}
+#screen-mark #widthMeasureWrap.edge-two::after{top:0!important;bottom:0!important;right:0!important;left:auto!important;width:5px!important;height:auto!important}
+
+
+/* Narrow Studio windows (about a third of a laptop screen): less padding around the Drawing
+   screen, so the room goes to the Length and Width numbers instead of empty margins. */
+@media(max-width:440px){#screen-mark .measure-entry-row .measure-field>span:first-child{font-size:12px!important;column-gap:3px}#screen-mark .edge-count{font-size:10px!important;width:36px;right:3px}#screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{padding-right:37px!important}}
+@media(max-width:760px){#screen-mark{padding:4px!important}#screen-mark .panel-form{padding:4px!important}#screen-mark .measurement-entry-card{padding:4px 2px 6px!important;margin-left:0!important;margin-right:0!important}}
+
+/* Edging help: "?" only where the header has room; the edge text also opens it. */
+#screen-mark .edge-help-btn{display:none}
+#screen-mark .edge-help-pop{position:absolute;left:4px;top:40px;z-index:60;width:min(300px,78vw);padding:9px 11px;border:1px solid #cfd6e2;border-radius:10px;background:#fff;color:#293a4e;font-size:13px;font-weight:600;line-height:1.4;box-shadow:0 10px 24px rgba(20,30,50,.18)}
 #screen-mark .edge-help-pop[hidden]{display:none}
-@media(max-width:1100px){
- #screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{padding-right:30px!important}
- #screen-mark .edge-count{width:26px}
- #screen-mark .edge-count .ec-long{display:none}
- #screen-mark .edge-count .ec-short{display:inline!important}
- #screen-mark .edge-help-btn{display:none}
-}
+@media(min-width:1000px){#screen-mark .edge-help-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;margin:0;padding:0;border:1px solid #b9c1ce;border-radius:50%;background:#fff;color:#5b6472;font:900 11px/1 Arial,sans-serif;cursor:pointer}}
 
 /* Help bubble docked at the bottom of the left navigation: it never floats over the work. */
 .app>.sidebar .fiq-help-fab.fiq-help-docked{position:static!important;right:auto!important;bottom:auto!important;width:44px!important;height:44px!important;margin:0 auto!important;flex:none!important;font-size:19px!important;box-shadow:0 3px 10px rgba(11,37,69,.25)!important}
@@ -10197,10 +10223,14 @@ document.addEventListener('mousedown',function(e){
     btn.addEventListener('click',toggle);
     // The "Edge" text opens the same help (the only way when the header is too narrow for "?").
     document.addEventListener('click',e=>{const ec=e.target.closest&&e.target.closest('#screen-mark .edge-count');if(ec){toggle(e);return}if(!pop.hidden&&!pop.contains(e.target)&&e.target!==btn)pop.hidden=true},true);
-    head.appendChild(btn);lenField.appendChild(pop);
+    const grain=head.querySelector('.with-grain-tag');
+    if(grain)head.insertBefore(btn,grain);else head.appendChild(btn);
+    lenField.appendChild(pop);
   }
   window.fiqRenderEdgeBoxes=function(p){
     ensureEdgeHelp();
+    const lock=document.getElementById('fQtyUnlockBtn'),qtyField=document.getElementById('fQty')?.closest('.measure-field');
+    if(lock&&qtyField){if(lock.parentElement!==qtyField)qtyField.appendChild(lock);lock.classList.add('fiq-qty-lock')}
     [['lengthMeasureWrap',Number(p?.edgeLong||0),'Length'],['widthMeasureWrap',Number(p?.edgeShort||0),'Width']].forEach(([id,n,label])=>{
       const wrap=document.getElementById(id);if(!wrap)return;
       wrap.querySelectorAll('.edge-count').forEach(x=>x.remove());
@@ -10208,7 +10238,7 @@ document.addEventListener('mousedown',function(e){
       field.classList.add('has-edge-count');
       let tag=field.querySelector(':scope>.edge-count');
       if(!tag){tag=document.createElement('span');tag.className='edge-count';field.appendChild(tag)}
-      tag.innerHTML='<span class="ec-long">Edge: '+n+'</span><span class="ec-short">E'+n+'</span>';tag.title=label+' edging: '+n;tag.classList.toggle('on',n>0);
+      tag.textContent=n===2?'2 edges':n===1?'1 edge':'';tag.title=label+' edging: '+(n||'none');
       wrap.title=label+' edging: '+(n===2?'2 edges':n===1?'1 edge':'none')+'. Double-click to change.';
     });
     renderUnits();
@@ -10221,18 +10251,25 @@ document.addEventListener('mousedown',function(e){
   // Text width is measured directly: number inputs do not report overflow reliably. The box
   // keeps its size; only the glyphs get smaller, and they stay centred on the same line.
   const measureCanvas=document.createElement('canvas').getContext('2d');
-  function textFits(e){
-    const cs=getComputedStyle(e);
-    measureCanvas.font=cs.fontWeight+' '+cs.fontSize+' '+cs.fontFamily;
-    const room=e.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0)-2;
-    return measureCanvas.measureText(String(e.value||'')).width<=room;
-  }
+  // Room is the value box's own inner width; a long value is first narrowed sideways (scaleX),
+  // which keeps its height and centre line exactly the same. Only if it still does not fit is
+  // the glyph size reduced, as a last resort.
+  function textWidth(e,size){const cs=getComputedStyle(e);measureCanvas.font=cs.fontWeight+' '+(size||cs.fontSize)+' '+cs.fontFamily;return measureCanvas.measureText(String(e.value||'')).width}
+  function roomFor(e){const w=e.closest('.measure-wrap');if(!w)return e.clientWidth;const ws=getComputedStyle(w);return w.clientWidth-parseFloat(ws.paddingLeft||0)-parseFloat(ws.paddingRight||0)-2}
+  function textFits(e){const sc=Number(e.dataset.fitScale||1);return textWidth(e)*sc<=roomFor(e)+0.5}
   function fitNumbers(){
     ['fThickness','fLength','fWidth','fQty'].forEach(id=>{
       const e=document.getElementById(id);if(!e||!e.offsetParent)return;
-      e.style.removeProperty('font-size');
+      ['font-size','transform','transform-origin','width'].forEach(p=>e.style.removeProperty(p));delete e.dataset.fitScale;
+      const room=roomFor(e),full=textWidth(e);
+      if(full<=room)return;
+      const sc=Math.max(0.72,room/full);
+      e.dataset.fitScale=String(sc);
+      e.style.setProperty('transform-origin','left center','important');
+      e.style.setProperty('transform','scaleX('+sc+')','important');
+      e.style.setProperty('width',(100/sc)+'%','important');
       let size=parseFloat(getComputedStyle(e).fontSize)||34;
-      while(!textFits(e)&&size>24){size-=2;e.style.setProperty('font-size',size+'px','important')}
+      while(textWidth(e)*sc>room&&size>24){size-=2;e.style.setProperty('font-size',size+'px','important')}
     });
   }
   window.fiqTextFits=textFits;
@@ -10246,12 +10283,17 @@ document.addEventListener('mousedown',function(e){
   const unitNames={mm:'Millimetres',cm:'Centimetres',in:'Inches'};
   function currentUnit(){try{return typeof aoCurrentUnit==='function'?aoCurrentUnit():'mm'}catch(e){return 'mm'}}
   function ensureUnits(){
-    const bar=document.querySelector('#screen-mark .drawing-toolbar');
-    if(!bar)return null;
+    const card=document.querySelector('#screen-mark .measurement-entry-card'),row=card&&card.querySelector('.measure-entry-row');
+    if(!card||!row)return null;
+    let head=card.querySelector('.fiq-measure-head');
+    if(!head){head=document.createElement('div');head.className='fiq-measure-head';head.innerHTML='<b></b>';}
+    head.querySelector('b').textContent=tr('studio.panelCheck.measurementsLabel','Measurements');
+    const rowParent=row.parentElement;
+    if(head.parentElement!==rowParent||head.nextElementSibling!==row)rowParent.insertBefore(head,row);
     let box=document.getElementById('fiqUnits');
     if(!box){
       box=document.createElement('div');box.className='fiq-units';box.id='fiqUnits';
-      box.innerHTML='<button type="button" id="fiqUnitsBtn" aria-haspopup="true" aria-expanded="false" title="Units for this drawing"></button><div class="fiq-units-menu" id="fiqUnitsMenu" role="menu" hidden>'+
+      box.innerHTML='<button type="button" id="fiqUnitsBtn" aria-haspopup="true" aria-expanded="false" aria-label="Units"></button><div class="fiq-units-menu" id="fiqUnitsMenu" role="menu" hidden>'+
         Object.keys(unitNames).map(u=>'<button type="button" class="unit-choice" role="menuitemradio" data-unit="'+u+'">'+u+' — '+unitNames[u]+'</button>').join('')+'</div>';
       const btn=box.querySelector('#fiqUnitsBtn'),menu=box.querySelector('#fiqUnitsMenu');
       btn.addEventListener('click',e=>{e.stopPropagation();menu.hidden=!menu.hidden;btn.setAttribute('aria-expanded',String(!menu.hidden))});
@@ -10261,14 +10303,13 @@ document.addEventListener('mousedown',function(e){
       });
       document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!menu.hidden){menu.hidden=true;btn.setAttribute('aria-expanded','false');btn.focus()}});
     }
-    const zoom=bar.querySelector('.zoom-controls');
-    if(zoom&&box.nextElementSibling!==zoom)bar.insertBefore(box,zoom);else if(!zoom&&box.parentElement!==bar)bar.appendChild(box);
+    if(box.parentElement!==head)head.appendChild(box);
     return box;
   }
   function renderUnits(){
     const box=ensureUnits();if(!box)return;
     const u=currentUnit(),btn=box.querySelector('#fiqUnitsBtn');
-    btn.innerHTML='Units: <b>'+u+'</b> ▾';
+    btn.innerHTML='<b>'+u+'</b> ▾';btn.title='Units for this drawing: '+unitNames[u];
     box.querySelectorAll('.unit-choice').forEach(b=>{const on=b.dataset.unit===u;b.classList.toggle('active',on);b.setAttribute('aria-checked',on?'true':'false')});
   }
   window.fiqRenderUnits=renderUnits;
