@@ -2062,6 +2062,9 @@ function createPartAt(x,y){
   const draft=state.newPanelDraft;
   if(draft){p.edgeLong=Number(draft.edgeLong||0);p.edgeShort=Number(draft.edgeShort||0)}
  }
+ // Every panel needs a material and a part name. If one is missing, nothing is created and
+ // nothing typed or prepared is cleared; the missing control is shown.
+ if(typeof window.fiqMissingBasics==='function'){const missing=window.fiqMissingBasics(p);if(missing.length){window.fiqShowMissingBasics(missing);return}window.fiqClearMissingBasics&&window.fiqClearMissingBasics()}
  state.newPanelDraft=null;
  c.parts.push(p);state.currentPart=p.id;
  if(typeof renderForm==='function')renderForm();
@@ -2482,6 +2485,7 @@ function chooseMaterial(name){
  const custom=$("#materialCustomInput");if(custom)custom.value="";
  save();
  renderMaterialPicker();
+ if(typeof window.fiqRefreshMissingBasics==='function')window.fiqRefreshMissingBasics();
  closeMaterialPicker();
  const summary=$("#materialSummary");if(summary)summary.textContent=`Material — ${name}`;
  // Keep the selector closed even after other render work finishes.
@@ -2560,7 +2564,12 @@ function renderForm(){
  const p=part();const banner=$("#selectedPartBanner");banner.textContent=p?`${p.code} — ${p.name||t("studio.drawing.partSelectedFallback")}`:t("studio.drawing.noPanelSelected");banner.classList.toggle("has-panel",!!p);banner.classList.toggle("no-panel",!p);
  if(p&&(p.qty===""||p.qty==null))p.qty=1;
  const map={fLength:"length",fWidth:"width",fThickness:"thickness",fQty:"qty",fMaterial:"material",fNotes:"notes"};
- Object.entries(map).forEach(([id,key])=>{const v=p?.[key]??"";$("#"+id).value=["length","width","thickness"].includes(key)?(typeof aoMmToUnit==='function'?aoMmToUnit(v):v):v});
+ // While the same blank new-panel entry stays on screen, a redraw (for example choosing a part
+ // name) keeps the length, width and note typed so far. Coming from a panel, or from another
+ // drawing, the blank entry starts empty, so nothing from an earlier panel can carry over.
+ const blankCab=!p?(cabinet()?.id||"none"):null,keepTyped=!p&&window.__fiqBlankCabinet===blankCab;
+ window.__fiqBlankCabinet=blankCab;
+ Object.entries(map).forEach(([id,key])=>{if(keepTyped&&(key==="length"||key==="width"||key==="notes"))return;const v=p?.[key]??"";$("#"+id).value=["length","width","thickness"].includes(key)?(typeof aoMmToUnit==='function'?aoMmToUnit(v):v):v});
  // No panel selected (for example right after Save & next): a clean new-panel entry still
  // shows the job's working thickness and quantity 1. Length, width, edging and name stay empty.
  if(!p){
@@ -5837,6 +5846,17 @@ body.guide-only .a131-back-studio{display:block}
       if(pr)pr.defaultMaterial=activeMaterial;
       if(typeof storeMaterialName==='function')storeMaterialName(activeMaterial);
     }
+    {
+      const missing=[];
+      if(!activeMaterial)missing.push('material');
+      if(!String(p.name||'').trim())missing.push('name');
+      if(missing.length){
+        if(typeof save==='function')save();
+        if(typeof window.fiqShowMissingBasics==='function')window.fiqShowMissingBasics(missing);
+        return;
+      }
+      if(typeof window.fiqClearMissingBasics==='function')window.fiqClearMissingBasics();
+    }
     if(c){
       // The panel's own exact thickness (not the rounded cm/inch display) is the working default.
       c.lastThickness=Number(p.thickness)||19;
@@ -6441,6 +6461,7 @@ body.guide-only .a131-back-studio{display:block}
     if(pr)pr.defaultMaterial=name;
     if(c)c.lastMaterial=name;
     if(typeof storeMaterialName==='function')storeMaterialName(name);
+    setTimeout(()=>{if(typeof window.fiqRefreshMissingBasics==='function')window.fiqRefreshMissingBasics()},0);
     const hidden=document.getElementById('fMaterial');
     if(hidden){hidden.value=name;hidden.dispatchEvent(new Event('input',{bubbles:true}));hidden.dispatchEvent(new Event('change',{bubbles:true}));}
     const input=document.getElementById('materialCustomInput');
@@ -10225,6 +10246,11 @@ document.addEventListener('mousedown',function(e){
 #screen-mark .edge-help-pop[hidden]{display:none}
 @media(min-width:1000px){#screen-mark .edge-help-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;margin:0;padding:0;border:1px solid #b9c1ce;border-radius:50%;background:#fff;color:#5b6472;font:900 11px/1 Arial,sans-serif;cursor:pointer}}
 
+/* Missing material or part name: a clear message above the part-name buttons, and a red
+   outline around the control(s) still to choose. */
+.fiq-missing-msg{margin:0 0 6px;padding:8px 10px;border:2px solid #c62828;border-radius:10px;background:#fdecec;color:#8e1b1b;font-size:14px;font-weight:800;line-height:1.4}
+#screen-mark .fiq-missing{outline:3px solid #c62828!important;outline-offset:2px;border-radius:10px}
+
 /* Help bubble docked at the bottom of the left navigation: it never floats over the work. */
 .app>.sidebar .fiq-help-fab.fiq-help-docked{position:static!important;right:auto!important;bottom:auto!important;width:44px!important;height:44px!important;margin:0 auto!important;flex:none!important;font-size:19px!important;box-shadow:0 3px 10px rgba(11,37,69,.25)!important}
 </style>
@@ -10254,6 +10280,7 @@ document.addEventListener('mousedown',function(e){
   }
   window.fiqRenderEdgeBoxes=function(p){
     ensureEdgeHelp();
+    if(typeof window.fiqRefreshMissingBasics==='function')window.fiqRefreshMissingBasics();
     const lock=document.getElementById('fQtyUnlockBtn'),qtyField=document.getElementById('fQty')?.closest('.measure-field');
     if(lock&&qtyField){if(lock.parentElement!==qtyField)qtyField.appendChild(lock);lock.classList.add('fiq-qty-lock')}
     [['lengthMeasureWrap',Number(p?.edgeLong||0),'Length'],['widthMeasureWrap',Number(p?.edgeShort||0),'Width']].forEach(([id,n,label])=>{
@@ -10338,6 +10365,62 @@ document.addEventListener('mousedown',function(e){
     box.querySelectorAll('.unit-choice').forEach(b=>{const on=b.dataset.unit===u;b.classList.toggle('active',on);b.setAttribute('aria-checked',on?'true':'false')});
   }
   window.fiqRenderUnits=renderUnits;
+
+
+  // ---- Material and part name are required ------------------------------------------------
+  window.fiqMissingBasics=function(p){
+    const pr=typeof project==='function'?project():null,c=typeof cabinet==='function'?cabinet():null;
+    if(!String(p.material||'').trim()){
+      // A material typed in the box but not saved yet still counts: save it now.
+      const typed=document.getElementById('materialCustomInput');
+      if(typed&&typed.value.trim()&&typeof window.commitAssembleOneMaterial==='function')window.commitAssembleOneMaterial(typed.value.trim());
+      p.material=String(pr?.defaultMaterial||c?.lastMaterial||'').trim();
+    }
+    const missing=[];
+    if(!String(p.material||'').trim())missing.push('material');
+    if(!String(p.name||'').trim())missing.push('name');
+    return missing;
+  };
+  function nameControls(){return [document.querySelector('#screen-mark .quick-main'),document.querySelector('#screen-mark .common-part-library')].filter(Boolean)}
+  function materialControl(){return document.getElementById('materialPickerDetails')}
+  window.fiqClearMissingBasics=function(which){
+    if(!which||which==='name')nameControls().forEach(x=>x.classList.remove('fiq-missing'));
+    if(!which||which==='material'){const m=materialControl();if(m)m.classList.remove('fiq-missing')}
+    const msg=document.getElementById('fiqMissingMsg');
+    if(msg){const left=[...document.querySelectorAll('#screen-mark .fiq-missing')].length;if(!left)msg.remove()}
+  };
+  window.fiqShowMissingBasics=function(missing){
+    const text=missing.map(k=>k==='material'?'Choose a material first':'Choose a part name first');
+    const quick=document.querySelector('#screen-mark .quick-main');
+    let msg=document.getElementById('fiqMissingMsg');
+    if(!msg){msg=document.createElement('div');msg.id='fiqMissingMsg';msg.className='fiq-missing-msg';msg.setAttribute('role','alert')}
+    if(quick&&quick.parentElement&&msg.nextElementSibling!==quick)quick.parentElement.insertBefore(msg,quick);
+    msg.innerHTML=text.map(x=>'<div>⚠ '+x+'</div>').join('');
+    window.fiqClearMissingBasics();
+    const targets=[];
+    if(missing.includes('name'))nameControls().forEach(x=>{x.classList.add('fiq-missing');targets.push(x)});
+    if(missing.includes('material')){const m=materialControl();if(m){m.classList.add('fiq-missing');targets.push(m)}}
+    if(!msg.isConnected&&quick)quick.parentElement.insertBefore(msg,quick);
+    const first=msg.isConnected?msg:targets[0];
+    if(first&&first.scrollIntoView)first.scrollIntoView({block:'center',behavior:'smooth'});
+  };
+  // A warning goes away as soon as what it asks for exists (checked on every form redraw).
+  window.fiqRefreshMissingBasics=function(){
+    if(!document.querySelector('#screen-mark .fiq-missing'))return;
+    const p=typeof part==='function'?part():null,pr=typeof project==='function'?project():null;
+    const name=String((p&&p.name)||state.lastChosenPartName||'').trim();
+    const material=String((p&&p.material)||pr?.defaultMaterial||'').trim();
+    if(name)window.fiqClearMissingBasics('name');
+    if(material)window.fiqClearMissingBasics('material');
+  };
+  // Choosing a part name or a material clears its warning.
+  document.addEventListener('click',e=>{
+    if(e.target.closest&&e.target.closest('#screen-mark [data-quick-name],#materialLibraryGrid [data-material-name],#saveMaterialBtn'))setTimeout(window.fiqRefreshMissingBasics,0);
+  },true);
+  document.addEventListener('change',e=>{
+    if(e.target&&e.target.id==='partNamePicker'&&e.target.value.trim())window.fiqClearMissingBasics('name');
+    if(e.target&&e.target.id==='materialCustomInput'&&e.target.value.trim())window.fiqClearMissingBasics('material');
+  },true);
 
   // ---- Help bubble -------------------------------------------------------------------------
   // The same button and chat, moved into the bottom of the left navigation so it never covers
