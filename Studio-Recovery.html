@@ -2059,7 +2059,10 @@ function createPartAt(x,y){
   // A value still showing the job default (thickness) keeps its exact millimetres.
   [['fLength','length'],['fWidth','width'],['fThickness','thickness']].forEach(([id,k])=>{const v=typed(id);if(v===''||isNaN(Number(v)))return;const shown=typeof aoMmToUnit==='function'?aoMmToUnit(p[k]):p[k];if(p[k]!==''&&String(v)===String(shown))return;p[k]=mm(v)});
   const note=typed('fNotes');if(note)p.notes=note;
+  const draft=state.newPanelDraft;
+  if(draft){p.edgeLong=Number(draft.edgeLong||0);p.edgeShort=Number(draft.edgeShort||0)}
  }
+ state.newPanelDraft=null;
  c.parts.push(p);state.currentPart=p.id;
  if(typeof renderForm==='function')renderForm();
  save();renderAll();$("#fLength").focus()
@@ -4274,6 +4277,9 @@ $("#printCuttingBtn").onclick=()=>{$$(".screen").forEach(x=>x.classList.remove("
 $("#generateQrBtn").onclick=renderQr;$("#printQrBtn").onclick=()=>{$$(".screen").forEach(x=>x.classList.remove("print-target"));$("#screen-qr").classList.add("print-target");window.print()};
 $("#phonePartSelect").onchange=e=>{state.currentPart=e.target.value;save();renderPhone()};
 
+// Edging can be set before the first dot: with no panel selected, the blank new-panel entry
+// keeps its own edging (state.newPanelDraft), which the first dot then takes over.
+function edgeTarget(){const p=part();if(p)return p;if(!state.newPanelDraft)state.newPanelDraft={edgeLong:0,edgeShort:0};return state.newPanelDraft}
 function updateEdgePreview(){
  const p=part(),length=$("#fLength").value||p?.length||"2400",width=$("#fWidth").value||p?.width||"600",thick=$("#fThickness").value||p?.thickness||"19";
  if($("#edgeThickness")) $("#edgeThickness").textContent=thick+" "+(typeof aoCurrentUnit==='function'?aoCurrentUnit():"mm");
@@ -4281,17 +4287,18 @@ function updateEdgePreview(){
  if($("#widthEdgeText")) $("#widthEdgeText").textContent=width;
  const lw=$("#lengthMeasureWrap"),ww=$("#widthMeasureWrap");
  // Toggle only the edge classes, so the box keeps its other classes and never changes shape.
- const el=Number(p?.edgeLong||0),es=Number(p?.edgeShort||0);
+ const src=p||state.newPanelDraft||null;
+ const el=Number(src?.edgeLong||0),es=Number(src?.edgeShort||0);
  if(lw){lw.classList.toggle("edge-one",el===1);lw.classList.toggle("edge-two",el===2)}
  if(ww){ww.classList.toggle("edge-one",es===1);ww.classList.toggle("edge-two",es===2)}
- if(typeof window.fiqRenderEdgeBoxes==='function')window.fiqRenderEdgeBoxes(p);
+ if(typeof window.fiqRenderEdgeBoxes==='function')window.fiqRenderEdgeBoxes(src);
 }
-$("#lengthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeLong=(Number(p.edgeLong||0)+1)%3;save();updateEdgePreview();renderCutting()};
-$("#widthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeShort=(Number(p.edgeShort||0)+1)%3;save();updateEdgePreview();renderCutting()};
+$("#lengthEdgeBtn").onclick=()=>{const p=edgeTarget();p.edgeLong=(Number(p.edgeLong||0)+1)%3;save();updateEdgePreview();renderCutting()};
+$("#widthEdgeBtn").onclick=()=>{const p=edgeTarget();p.edgeShort=(Number(p.edgeShort||0)+1)%3;save();updateEdgePreview();renderCutting()};
 ["fLength","fWidth","fThickness"].forEach(id=>$("#"+id).addEventListener("input",updateEdgePreview));
 function cycleMeasurementEdge(kind,e){
  if(e){e.preventDefault();e.stopPropagation()}
- const p=part();if(!p)return alert(t("studio.drawing.markOrSelectPanelFirst"));
+ const p=edgeTarget();
  const key=kind==="length"?"edgeLong":"edgeShort";
  p[key]=(Number(p[key]||0)+1)%3;
  save();updateEdgePreview();renderCutting();
@@ -5794,7 +5801,14 @@ body.guide-only .a131-back-studio{display:block}
     const p=typeof part==='function'?part():null;
     const c=typeof cabinet==='function'?cabinet():null;
     const pr=typeof project==='function'?project():null;
-    if(!p)return;
+    // No panel yet (nothing placed): still give a clean entry - no prepared edging, size or name.
+    if(!p){
+      state.newPanelDraft=null;state.lastChosenPartName='';
+      const l=field('fLength'),w=field('fWidth');if(l)l.value='';if(w)w.value='';
+      if(typeof renderForm==='function')renderForm();
+      if(typeof updateEdgePreview==='function')updateEdgePreview();
+      return;
+    }
 
     const thickness=field('fThickness')?.value ?? p.thickness ?? 19;
     const length=field('fLength')?.value ?? '';
@@ -5841,6 +5855,7 @@ body.guide-only .a131-back-studio{display:block}
     // thickness stay as the job settings.
     state.currentPart=null;
     state.lastChosenPartName='';
+    state.newPanelDraft=null;
     const stored=typeof save==='function'?save():true;
     if(typeof showPanelSavedToast==='function')showPanelSavedToast(stored!==false);
     if(typeof renderAll==='function')renderAll();
@@ -6094,8 +6109,8 @@ body.guide-only .a131-back-studio{display:block}
 
   function reliableCycle(kind,e){
     if(e){e.preventDefault();e.stopPropagation();}
-    const p=typeof part==='function'?part():null;
-    if(!p)return alert(t("studio.drawing.markOrSelectPanelFirst"));
+    const p=typeof edgeTarget==='function'?edgeTarget():(typeof part==='function'?part():null);
+    if(!p)return;
     const key=kind==='length'?'edgeLong':'edgeShort';
     p[key]=(Number(p[key]||0)+1)%3;
     if(typeof save==='function')save();
