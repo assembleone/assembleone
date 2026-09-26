@@ -3830,6 +3830,7 @@ async function applyOneSitePacket(pack,acknowledge=false){
  if(acknowledge)merged.siteMeasureAcceptedAt=new Date().toISOString();
  const saved=typeof save==='function'?await save():true;
  if(saved===false){merged._lastMobilePacketAt=0;throw new Error('Studio could not save this update. Receipt was not confirmed.')}
+ try{await writeSiteReceipt(pack,merged)}catch(e){console.error('Site Measure receipt',e)}
  if(acknowledge)await removeInboxPacket(syncId,pack.status==='received',pack.exportedAt||'');
  // Site Measurements are permanent reference records only. Never create a Drawing
  // cabinet or copy a site photo into the Drawing Area. Remove only untouched legacy
@@ -3837,6 +3838,46 @@ async function applyOneSitePacket(pack,acknowledge=false){
  merged.cabinets=(merged.cabinets||[]).filter(c=>!(c&&c.siteReference&&!(c.parts||[]).length&&(!c.drawingName||/site measurements/i.test(c.drawingName))));
  const room=merged.rooms?.find(r=>bestSiteReference(r).image)||merged.rooms?.[0]||null;
  return {merged,room};
+}
+// Site Measure receipt for Mobile. Written into the Site Measure's own cloud message only
+// after Studio has SAVED the merged job, and "complete" only when Studio's saved record
+// really holds everything the phone listed: every picture (by kind, room and id, so a photo
+// on the wrong room does not count) as a stored cloud copy, the same measurement marks per
+// capture, the same room notes and whole-site notes, and packet totals equal to the phone's
+// manifest. The phone shows "Received in Studio" and offers to free its own photo copies
+// only from a complete receipt for its latest send. Acceptance is unchanged: the message
+// stays "waiting" until the owner accepts it.
+function siteReceiptFor(pack,merged){
+ const m=pack&&pack.transferManifest;if(!m||!m.transferId||!merged)return null;
+ const incoming=pack.project||{};
+ const key=x=>x.kind+'|'+(x.roomId||'')+'|'+String(x.id);
+ const saved=new Map(sitePacketInventory(merged).pictures.map(x=>[key(x),x.value]));
+ const photoUrls={},missing=[];
+ (m.pictures||[]).forEach(x=>{const k=key(x),v=saved.get(k);if(typeof v==='string'&&/^https:\/\//.test(v))photoUrls[k]=v;else missing.push(k)});
+ const marks=list=>(list||[]).map(c=>(c&&c.id||'')+':'+((c&&c.marks)||[]).length).join(',');
+ const same=(a,b)=>String(a||'').trim()===String(b||'').trim();
+ const roomsOk=(incoming.rooms||[]).every(r=>{const mr=(merged.rooms||[]).find(x=>x.id===r.id);return !!mr&&same(mr.notes,r.notes)&&marks(mr.measureCaptures)===marks(r.measureCaptures)});
+ const notesOk=same(merged.siteNotes,incoming.siteNotes)&&same(merged.notes,incoming.notes)&&marks(merged.measureCaptures)===marks(incoming.measureCaptures)&&(merged.siteMeasurements||[]).length===(incoming.siteMeasurements||[]).length;
+ const packetOk=verifySitePacket(pack).complete===true;
+ const complete=packetOk&&roomsOk&&notesOk&&!missing.length&&Object.keys(photoUrls).length===Number(m.pictureCount);
+ return {transferId:String(m.transferId),complete,photosExpected:Number(m.pictureCount)||0,photosReceived:Object.keys(photoUrls).length,
+  rooms:Number(m.roomCount)||0,measurements:Number(m.measurementCount)||0,notes:Number(m.noteCount)||0,
+  missing:missing.slice(0,20),problem:complete?'':(!packetOk?'totals':!roomsOk?'rooms':!notesOk?'notes':'photos'),
+  photoUrls:complete?photoUrls:{},checkedAt:new Date().toISOString(),exportedAt:pack.exportedAt||''};
+}
+const writtenSiteReceipts=new Map();
+async function writeSiteReceipt(pack,merged){
+ const syncId=String(pack&&pack.syncId||'');if(!syncId.startsWith('cloud:'))return;
+ const r=siteReceiptFor(pack,merged);if(!r)return;
+ const sig=r.transferId+'|'+r.complete+'|'+r.photosReceived;
+ if(writtenSiteReceipts.get(syncId)===sig)return;
+ const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;if(!fs||!db||!user||!user.companyId)return;
+ const ref=fs.doc(db,'companies',user.companyId,'jobs',syncId.slice(6));
+ try{
+  if(fs.runTransaction){await fs.runTransaction(db,async tx=>{const snap=await tx.get(ref);if(!snap.exists())return;const d=snap.data()||{};if(pack.exportedAt&&d.exportedAt!==pack.exportedAt)return;const o=d.receipt;if(o&&o.transferId===r.transferId&&o.complete===r.complete&&o.photosReceived===r.photosReceived)return;tx.update(ref,{receipt:r})})}
+  else await fs.updateDoc(ref,{receipt:r});
+  writtenSiteReceipts.set(syncId,sig);
+ }catch(e){console.error('Could not write the Site Measure receipt',e)}
 }
 async function receiveSitePacket(syncId){
  try{

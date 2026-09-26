@@ -797,6 +797,10 @@ input:focus,textarea:focus,select:focus{outline:3px solid rgba(107,191,58,.20)!i
 @media(max-width:430px){.fitters-header{min-height:76px!important}.fitters-tagline{font-size:10px}.fitters-logo-mark{width:48px;height:48px}}
 </style>
 <script src="sync-protocol.js?build=90"></script>
+<style id="fiq-site-receipt-style">
+.send-bar-sync-detail,.job-sync-detail{display:block;font-size:12px;font-weight:700;color:#16794a;margin-top:2px}
+.send-bar-delete-photos,.job-delete-photos{display:block;margin-top:8px;min-height:40px;padding:8px 12px;font-size:14px;font-weight:800;border:2px solid #d8dde6;background:#fff;color:#1f2d3d;border-radius:12px}
+</style>
 </head>
 <body class="fiq-locked">
 <!-- TEMPORARY build marker, kept through the Mobile front-end rebuild so it's obvious on the phone which build loaded -- remove once the rebuild is fully confirmed -->
@@ -1190,7 +1194,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-mode-opt .scan-mode-lock{font-size:14px}
 #scan .scan-tool{padding-bottom:calc(80px + 92px + env(safe-area-inset-bottom))}
 .scan-tool.scanning .scan55-current,.scan-tool.scanning .scan55-recent-head,.scan-tool.scanning #recentScans,.scan-tool.scanning .scan-tools-more,.scan-tool.scanning .quick-help-pill{display:none}
-.fp-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.fp-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.fp-pieces{display:flex;flex-wrap:wrap;gap:6px}.fp-pieces .fp-piece{min-height:40px}.fp-pieces .fp-piece.active{background:#174E98;color:#fff;border-color:#174E98}
+.fp-piece-status{font-weight:800}.fp-shared-spot{font-size:13px;color:var(--muted);font-weight:700}
+.panel-check-row[data-open-panel]{cursor:pointer}.panel-check-row[data-open-panel]:active{background:#f3f6fb}
+#damagePanelOverlay{z-index:5300!important}
 .fp-actions .btn{min-height:54px}
 </style>
 
@@ -1465,6 +1473,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <div class="pc-sheet-head"><strong>Find Panel</strong><button type="button" id="findPanelResultClose">×</button></div>
   <div id="findPanelResultBody" class="panel-detail"></div>
   <div class="fp-actions">
+   <button type="button" id="fpMarkFitted" class="btn primary">Fitted</button>
    <button type="button" id="fpMarkMissing" class="btn warn">Missing</button>
    <button type="button" id="fpMarkDamaged" class="btn danger">Damaged</button>
   </div>
@@ -2134,7 +2143,7 @@ function renderProjects(){
   const finished=realRoom?!!realRoom.finished:allRoomsFinished(p);
   const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);
   const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
-  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>`:'';
+  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>${sync.detail?`<span class="job-sync-detail">${safe(sync.detail)}</span>`:''}${sync.deletable?`<button type="button" class="btn job-delete-photos" data-delete-device-photos="${safe(p.id)}">Delete photos from this device</button>`:''}`:'';
   const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);
   const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';
   // NEW badge reads the room's own mobileSeen where a real room exists (set the moment
@@ -2205,7 +2214,7 @@ function renderProjects(){
  // stay in local storage for recovery but disappear from the working screen, so Mobile
  // remains a tool rather than a long-term storage list.
  const SITE_RECEIVED_SAFETY_MS=24*60*60*1000;
- const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0);
+ const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0||deletableSitePhotos(x.project).length>0);
  const installCardsActive=installCards.filter(c=>!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
   .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?!!a.room.finished:allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?!!b.room.finished:allRoomsFinished(b.project))?1:0;return fa-fb});
  const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt));
@@ -2616,6 +2625,67 @@ function buildSiteTransferManifest(p,transferId){
  const noteCount=[p.notes,p.siteNotes,p.siteRoomNotes,...rooms.map(r=>r.notes)].filter(x=>String(x||'').trim()).length+(p.notePhotos||[]).length+(p.siteNotePhotos||[]).length+rooms.reduce((n,r)=>n+(r.notePhotos||[]).length,0);
  return {version:1,transferId,projectId:p.id,roomCount:rooms.length,pictureCount:pictures.length,measurementCount,noteCount,pictures,createdAt:new Date().toISOString()};
 }
+// Which pictures a send contained, as a short fingerprint: a Site Measure changed after
+// its last send (a photo added, a room added) must never keep showing "Received".
+function siteManifestFingerprint(m){const t=[m.roomCount,m.pictureCount,m.measurementCount,m.noteCount,...(m.pictures||[]).map(x=>x.kind+'|'+(x.roomId||'')+'|'+x.id).sort()].join(';');let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return (h>>>0).toString(36)+'.'+t.length}
+// Studio writes a receipt into the Site Measure's cloud message once it has SAVED the job
+// (see Studio siteReceiptFor). Only a complete receipt for this phone's LATEST send counts.
+// An incomplete one is sent again automatically (at most 3 times), never shown as received.
+const SITE_RECEIPT_RETRIES=3;
+function applySiteReceipt(p,rc){
+ const st=p&&p.siteTransfer;if(!st||!rc||String(rc.transferId)!==String(st.transferId))return false;
+ if(st.receipt&&st.receipt.checkedAt===rc.checkedAt)return false;
+ st.receipt={complete:rc.complete===true,photosExpected:Number(rc.photosExpected)||0,photosReceived:Number(rc.photosReceived)||0,missing:(rc.missing||[]).length,problem:rc.problem||'',checkedAt:rc.checkedAt||'',photoUrls:rc.complete===true?(rc.photoUrls||{}):{}};
+ if(st.receipt.complete){st.status='received';st.receivedAt=new Date().toISOString();p.siteReceiptRetries=0}
+ else{st.status='incomplete';p.siteReceiptRetries=(Number(p.siteReceiptRetries)||0)+1;if(p.siteReceiptRetries<=SITE_RECEIPT_RETRIES)setTimeout(()=>{if(typeof exportJob==='function')exportJob(p.id,true)},1500)}
+ return true;
+}
+// Photos of this Site Measure that are still stored on this phone (data or idb copies),
+// keyed exactly like the transfer manifest.
+function localSitePhotoItems(p){
+ const out=[];const add=(items,kind,roomId,field)=>(items||[]).forEach((it,i)=>{if(!it)return;const v=it[field];if(typeof v==='string'&&(v.startsWith('data:')||v.startsWith('idb:')))out.push({item:it,field,key:kind+'|'+(roomId||'')+'|'+String(it.id||kind+'-'+i)})});
+ add(p.sitePhotos,'site-photo',null,'data');add(p.notePhotos,'job-note-photo',null,'data');add(p.siteNotePhotos,'site-note-photo',null,'data');add(p.measureCaptures,'measure-photo',null,'image');
+ (p.rooms||[]).forEach(r=>{add(r.measureCaptures,'measure-photo',r.id,'image');add(r.notePhotos,'room-note-photo',r.id,'data');add(r.beforePhotos,'room-photo',r.id,'data')});
+ return out;
+}
+function siteTransferChanged(p){const st=p&&p.siteTransfer;return !!(st&&st.fingerprint&&st.fingerprint!==siteManifestFingerprint(buildSiteTransferManifest(p,'check')))}
+// Only photos Studio confirmed it holds (with their stored cloud copy) can be removed here.
+function deletableSitePhotos(p){
+ const st=p&&p.siteTransfer,rc=st&&st.receipt;
+ if(!st||st.status!=='received'||!rc||!rc.complete||siteTransferChanged(p))return [];
+ const urls=rc.photoUrls||{};return localSitePhotoItems(p).filter(x=>/^https:\/\//.test(urls[x.key]||''));
+}
+// Always a manual action. Removes only this phone's copies of photos Studio already holds:
+// each local copy is replaced by Studio's stored cloud copy, so the job, measurements, notes
+// and history stay exactly as they are and the photos still show when there is signal.
+function deleteSitePhotosFromDevice(p){
+ const list=deletableSitePhotos(p);if(!list.length)return 0;
+ if(!confirm(list.length+' photo'+(list.length===1?'':'s')+' will be removed from this device. They have been received in Studio.'))return 0;
+ const urls=p.siteTransfer.receipt.photoUrls;
+ list.forEach(x=>{x.item[x.field]=urls[x.key];if(x.item.id){deletePhotoBlob(x.item.id);photoPersistedIds.delete(x.item.id)}});
+ p.siteTransfer.photosRemovedAt=new Date().toISOString();p.siteTransfer.photosRemoved=(Number(p.siteTransfer.photosRemoved)||0)+list.length;
+ save();renderAll();if(typeof renderSendBar==='function')renderSendBar();
+ return list.length;
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-delete-device-photos]');if(!b)return;e.preventDefault();e.stopPropagation();const p=state.projects.find(x=>x.id===b.dataset.deleteDevicePhotos);if(p)deleteSitePhotosFromDevice(p)},true);
+// The Site Measure's real transfer state, for the send bar and the job list.
+function siteTransferStatus(p){
+ if(!p||isStudioJob(p)||!p.siteTransfer||p.studioSyncBlocked)return null;
+ const st=p.siteTransfer,rc=st.receipt||{};
+ if(typeof studioSendsInFlight!=='undefined'&&studioSendsInFlight.has(p.id))return{cls:'pending',label:'⏳ Sending…'};
+ if(siteTransferChanged(p))return{cls:'unsent',label:'Changed since last send — tap Send to Studio'};
+ if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return{cls:'pending',label:'⏳ No signal — will send automatically'};
+ if(st.status==='received'&&rc.complete){
+  const removed=Number(st.photosRemoved)||0,left=deletableSitePhotos(p).length;
+  const detail=rc.photosExpected?rc.photosReceived+' of '+rc.photosExpected+' photos received'+(removed&&!left?' · removed from this device':''):'';
+  return{cls:'synced',label:'✓ Received in Studio',detail,deletable:left};
+ }
+ if(st.status==='incomplete')return (Number(p.siteReceiptRetries)||0)>SITE_RECEIPT_RETRIES?{cls:'blocked',label:'⚠ Studio did not receive everything — tap Send to Studio'}:{cls:'pending',label:'⚠ Studio did not receive everything — sending again'};
+ if(st.status==='studio-received')return{cls:'synced',label:'✓ Accepted in Studio'};
+ if(st.status==='awaiting-studio')return{cls:'pending',label:'⏳ Waiting for confirmation…'};
+ if(st.status==='sending'||st.status==='waiting-for-connection')return{cls:'pending',label:'⏳ No signal — will send automatically'};
+ return null;
+}
 function renderSendBar(){
  const p=project(),box=document.getElementById('measureSendBar');
  if(!box)return;
@@ -2625,7 +2695,7 @@ function renderSendBar(){
  const summary=buildSiteTransferManifest(p,'preview');
  const totalPhotos=summary.pictureCount;
  const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
- const syncLine=sync&&sync.cls!=='unsent'?`<div class="send-bar-sync ${sync.cls}">${sync.label}</div>`:'';
+ const syncLine=sync&&sync.label!=='Not sent yet'?`<div class="send-bar-sync ${sync.cls}">${sync.label}</div>${sync.detail?`<small class="send-bar-sync-detail">${safe(sync.detail)}</small>`:''}${sync.deletable?`<button type="button" class="btn send-bar-delete-photos" data-delete-device-photos="${safe(p.id)}">Delete photos from this device</button>`:''}`:'';
  box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>`;
  document.getElementById('sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
 }
@@ -3239,7 +3309,7 @@ function renderRoomDetail(r){
    <button type="button" id="panelsMenuFit"><span>▦</span><b>${t('mobile.fitPanelsBtn')}</b></button>
   </div>
  </div>
- <section class="room-section installer-check-section" id="panelCheckSection"><div class="panel-check-list">${filteredParts.length?filteredParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=(pt.status&&pt.status!=='ready')?pt.status:(pieceIssueStatus(pt)||pt.status||'ready');return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}${safe(pieceSummaryText(pt))}</div></div><span class="panel-check-badge">${safe(statusLabel(st))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div>${r.panelCheckFinished?`<div class="panel-check-complete-banner">✓ ${t('mobile.panelCheckComplete')}</div>`:(roomParts.length?`<button type="button" class="btn primary panel-check-finish-btn" id="finishPanelCheckBtn">✓ ${t('mobile.finishPanelCheckBtn')}</button>`:'')}</section>
+ <section class="room-section installer-check-section" id="panelCheckSection"><div class="panel-check-list">${filteredParts.length?filteredParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=(pt.status&&pt.status!=='ready')?pt.status:(pieceIssueStatus(pt)||pt.status||'ready');return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}" data-open-panel="${safe(pt.id)}" role="button" tabindex="0"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}${safe(pieceSummaryText(pt))}</div></div><span class="panel-check-badge">${safe(statusLabel(st))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div>${r.panelCheckFinished?`<div class="panel-check-complete-banner">✓ ${t('mobile.panelCheckComplete')}</div>`:(roomParts.length?`<button type="button" class="btn primary panel-check-finish-btn" id="finishPanelCheckBtn">✓ ${t('mobile.finishPanelCheckBtn')}</button>`:'')}</section>
  <div class="room-action-row">
   <button type="button" class="btn warn" id="roomReportMissing">❔ Missing Panel</button>
   <button type="button" class="btn danger" id="roomReportDamage">⚠ Damaged Panel</button>
@@ -3281,6 +3351,7 @@ function renderRoomDetail(r){
  $('#panelsMenu').addEventListener('click',e=>{if(e.target.id==='panelsMenu')$('#panelsMenu').classList.add('hidden')});
  $('#panelsMenuCheck').onclick=()=>{$('#panelsMenu').classList.add('hidden');roomPanelFilter='all';renderRoomDetail(r);$('#panelCheckSection').scrollIntoView({behavior:'smooth',block:'start'})};
  $('#panelsMenuFit').onclick=()=>{$('#panelsMenu').classList.add('hidden');const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('scan')};
+ $$('#panelCheckSection [data-open-panel]').forEach(el=>{const open=()=>{const cab=roomCabinets.find(c=>(c.parts||[]).some(x=>x.id===el.dataset.openPanel));const pt=cab&&cab.parts.find(x=>x.id===el.dataset.openPanel);if(cab&&pt)openPanelFromCard(p,cab,pt)};el.onclick=open;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}}});
  $$('[data-room-filter]').forEach(b=>b.onclick=()=>{const f=b.dataset.roomFilter;roomPanelFilter=(roomPanelFilter===f)?'all':f;renderRoomDetail(r);$('#panelCheckSection').scrollIntoView({behavior:'smooth',block:'start'})});
  // Folded in from the old Install screen (§8/§B) -- same overlays, same handlers
  // (#saveJobNote/#saveDamage etc., defined once at top level), just reachable from this
@@ -3468,7 +3539,7 @@ function mergePieceStates(base,inc){
 function pieceIssueCount(pt,status){const s=pt&&pt.pieceStates;if(!s||typeof s!=='object')return 0;return Object.keys(s).filter(k=>s[k]&&s[k].status===status).length}
 function pieceIssueStatus(pt){return pieceIssueCount(pt,'damaged')?'damaged':pieceIssueCount(pt,'missing')?'missing':null}
 function pieceSummaryText(pt){const s=pt&&pt.pieceStates;if(!s||typeof s!=='object'||!Object.keys(s).length)return '';const n=panelPieceCount(pt),out=[];
- for(let i=1;i<=n;i++){const v=s[String(i)]||{};out.push(i+(v.status==='damaged'?' ⚠':v.status==='missing'?' ❔':v.checkedAt?' ✓':' —'))}return ' · Pieces: '+out.join('  ')}
+ for(let i=1;i<=n;i++){const v=s[String(i)]||{};out.push(i+(v.status==='installed'?' ▦':v.status==='damaged'?' ⚠':v.status==='missing'?' ❔':v.checkedAt?' ✓':' —'))}return ' · Pieces: '+out.join('  ')}
 function mergeStudioProject(incoming){
  if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
  const old=state.projects.find(x=>x.id===incoming.id);ensureExtras(incoming);
@@ -3738,7 +3809,7 @@ async function exportJobOnce(id,silent){
  queuePendingStudioSync(p.id);
  const exportedAt=new Date().toISOString();
  const transferManifest=!isStudioJob(p)?buildSiteTransferManifest(p,'site-'+p.id+'-'+Date.now()):null;
- if(transferManifest){p.siteTransfer={transferId:transferManifest.transferId,status:'sending',counts:{rooms:transferManifest.roomCount,pictures:transferManifest.pictureCount,measurements:transferManifest.measurementCount,notes:transferManifest.noteCount},sentAt:exportedAt};save()}
+ if(transferManifest){p.siteTransfer={transferId:transferManifest.transferId,status:'sending',counts:{rooms:transferManifest.roomCount,pictures:transferManifest.pictureCount,measurements:transferManifest.measurementCount,notes:transferManifest.noteCount},sentAt:exportedAt,fingerprint:siteManifestFingerprint(transferManifest)};save();if(typeof renderSendBar==='function')renderSendBar()}
  const pack={app:"AssembleOne",schema:"assembleone-project-v9",source:"mobile",exportedAt,transferManifest,project:JSON.parse(JSON.stringify(p))};
  try{const sendResult=await sendToStudioWithTimeout(pack);clearPendingStudioSync(p.id);lastFailedStudioPack.delete(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
@@ -3798,6 +3869,7 @@ async function exportJobOnce(id,silent){
 // nothing needs doing yet.
 function studioSyncStatus(p){
   if(!p||!(p.rooms||[]).length)return null;
+  const site=typeof siteTransferStatus==='function'?siteTransferStatus(p):null;if(site)return site;
   if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return{cls:'pending',label:'⏳ Waiting to send'};
   if(p.studioSyncBlocked)return{cls:'blocked',label:'⚠ Needs attention'};
   if(p.studioReceivedAt)return{cls:'synced',label:'✓ Received by Studio'};
@@ -3864,7 +3936,7 @@ function watchOwnWaitingMessages(fs,db,user){
  ownWaitingMessages.key=key;ownWaitingMessages.ids=null;ownWaitingMessages.unsub=null;
  if(!fs.onSnapshot)return;
  const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'),fs.where('createdBy','==',user.uid),fs.where('status','==','waiting'));
- ownWaitingMessages.unsub=fs.onSnapshot(q,function(snap){const ids=new Set();snap.forEach(function(d){ids.add(d.id)});ownWaitingMessages.ids=ids;checkPendingStudioReceipts()},function(e){console.error('Own message listener failed',e);ownWaitingMessages.ids=null;ownWaitingMessages.unsub=null;ownWaitingMessages.key=null});
+ ownWaitingMessages.unsub=fs.onSnapshot(q,function(snap){const ids=new Set();const data=new Map();snap.forEach(function(d){ids.add(d.id);data.set(d.id,d.data())});ownWaitingMessages.ids=ids;ownWaitingMessages.data=data;checkPendingStudioReceipts()},function(e){console.error('Own message listener failed',e);ownWaitingMessages.ids=null;ownWaitingMessages.unsub=null;ownWaitingMessages.key=null});
 }
 let checkingStudioReceipts=false;
 async function checkPendingStudioReceipts(){
@@ -3881,13 +3953,14 @@ async function checkPendingStudioReceiptsOnce(){
  let changed=false;
  for(const p of pending){
   try{
-   if(ownWaitingMessages.ids&&ownWaitingMessages.ids.has(p.pendingStudioReceiptDocId))continue;
+   if(ownWaitingMessages.ids&&ownWaitingMessages.ids.has(p.pendingStudioReceiptDocId)){const w=ownWaitingMessages.data&&ownWaitingMessages.data.get(p.pendingStudioReceiptDocId);if(w&&w.receipt&&applySiteReceipt(p,w.receipt))changed=true;continue}
    const snap=await fs.getDoc(fs.doc(db,'companies',user.companyId,'jobs',p.pendingStudioReceiptDocId));
    const data=snap.exists()?snap.data():null;
+   if(data&&data.receipt&&applySiteReceipt(p,data.receipt))changed=true;
    if(data&&data.status==='received'){
     p.pendingStudioReceiptDocId=null;
     p.studioReceivedAt=new Date().toISOString();
-    if(p.siteTransfer)p.siteTransfer.status='studio-received';
+    if(p.siteTransfer&&p.siteTransfer.status!=='received')p.siteTransfer.status='studio-received';
     // Site Measures leave the active queue after confirmed receipt and keep their 24 hour
     // safety copy. Installation work stays visible until Studio presses Move to Library.
     if(!isStudioJob(p)){p.mobileArchived=true;p.mobileArchivedAt=p.studioReceivedAt}
@@ -4066,26 +4139,71 @@ function handlePanelIdentified(){
 // only ever appears when this exact panel (or scanned copy) genuinely has a placed x/y on
 // the drawing -- a missing position is reported as missing, never defaulted to the drawing
 // centre, since a wrong guess here would send a fitter to the wrong physical spot.
+// The piece this view is about: set by a piece QR (openPanelRoute), by tapping a Panel
+// Check card, or by the piece picker below. null = an old whole-panel QR (legacy counting).
+function identifiedPiece(pt){const n=Number(state.scannedPiece);return pt&&Number.isInteger(n)&&n>=1&&n<=panelPieceCount(pt)?n:null}
+// Piece k has its own drawn dot when the drawing has a repeated marker for it (copies[k-2]).
+function pieceDotIndex(pt,piece){return piece&&piece>=2&&pt.copies&&pt.copies[piece-2]?piece-2:-1}
+function pieceStatusOf(pt,piece){const v=pieceState(pt,piece,false)||{};return v.status==='installed'?'installed':v.status==='damaged'?'damaged':v.status==='missing'?'missing':v.checkedAt?'checked':'ready'}
+const PIECE_WORDS={installed:'Fitted',damaged:'Damaged',missing:'Missing',checked:'Checked',ready:'Not checked yet'};
+const PIECE_MARKS={installed:' ▦',damaged:' ⚠',missing:' ❔',checked:' ✓',ready:''};
+// Find Panel's one job is "this is panel P-XX, this is where it goes". A missing position is
+// reported as missing, never defaulted to the drawing centre.
 function renderFindPanelResult(){
  const body=$('#findPanelResultBody');if(!body)return;
  const p=project(),c=cabinet(),pt=part();
  if(!p||!c||!pt){body.innerHTML='<div class="muted">Panel not found on this phone.</div>';return}
  const room=(p.rooms||[]).find(r=>r.id===c.roomId);
+ const n=panelPieceCount(pt),piece=identifiedPiece(pt),usesPieces=!!(pt.pieceStates&&Object.keys(pt.pieceStates).length)||piece!=null;
  const ci=Number(state.selectedCopy);
- const activePos=(ci>=0&&pt.copies&&pt.copies[ci])?pt.copies[ci]:pt;
+ const activeDot=piece?pieceDotIndex(pt,piece):(ci>=0&&pt.copies&&pt.copies[ci]?ci:-1);
+ const placed=m=>m&&m.x!=null&&m.y!=null&&m.x!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y));
+ const dots=[{x:pt.x,y:pt.y,ci:-1,status:pt.status},...(pt.copies||[]).map((m,i)=>({x:m.x,y:m.y,ci:i,status:m.status}))].filter(placed);
+ const dotStatus=d=>{if(usesPieces){const st=pieceStatusOf(pt,d.ci<0?1:d.ci+2);return st==='checked'?'ready':st}return d.status||'ready'};
  const hasDrawing=!!(c.drawing&&c.drawingType!=='pdf');
- const hasPosition=hasDrawing&&activePos&&activePos.x!=null&&activePos.y!=null;
  let drawingHtml;
- if(!hasDrawing){
-  drawingHtml='<div class="panel-drawing"><div class="muted">No drawing available for this panel yet.</div></div>';
- }else if(!hasPosition){
-  drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"></div><div class="muted" style="margin-top:6px">This panel has not been marked on the drawing yet. Check the panel manually or ask the office to place it.</div>`;
- }else{
-  drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"><div class="panel-highlight active status-${safe(activePos.status||'ready')}" style="left:${Number(activePos.x)}%;top:${Number(activePos.y)}%"></div></div>`;
+ if(!hasDrawing)drawingHtml='<div class="panel-drawing"><div class="muted">No drawing available for this panel yet.</div></div>';
+ else if(!dots.length)drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"></div><div class="muted" style="margin-top:6px">This panel has not been marked on the drawing yet. Check the panel manually or ask the office to place it.</div>`;
+ else{
+  const multi=dots.length>1,target=dots.some(d=>d.ci===activeDot)?activeDot:dots[0].ci;
+  drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing">${dots.map((d,i)=>`<div class="panel-highlight status-${safe(dotStatus(d))}${d.ci===target?' active':''}" style="left:${Number(d.x)}%;top:${Number(d.y)}%">${multi?`<span class="panel-highlight-num">${d.ci<0?1:d.ci+2}</span>`:''}</div>`).join('')}</div>`
+   +(n>1&&dots.length===1?`<div class="fp-shared-spot">All ${n} pieces of ${safe(pt.code)} go at the marked spot.</div>`:'');
  }
- body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${drawingHtml}`;
+ const pieces=n>1?`<div class="fp-pieces">${Array.from({length:n},(_,i)=>i+1).map(k=>`<button type="button" class="bomp-chip fp-piece${k===piece?' active':''}" data-fp-piece="${k}">Piece ${k}${PIECE_MARKS[pieceStatusOf(pt,k)]}</button>`).join('')}</div>`:'';
+ const status=piece?`<div class="fp-piece-status">${n>1?'Piece '+piece+' of '+n+' · ':''}${PIECE_WORDS[pieceStatusOf(pt,piece)]}</div>`
+  :`<div class="fp-piece-status">${n>1?'Old sticker without a piece number — tap a piece above to choose it':safe(statusLabel(pt.status||'ready'))}</div>`;
+ body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${pieces}${status}${drawingHtml}`;
+ body.querySelectorAll('[data-fp-piece]').forEach(el=>el.onclick=()=>{const k=Number(el.dataset.fpPiece);state.scannedPiece=k;state.selectedCopy=pieceDotIndex(pt,k);save();renderFindPanelResult()});
 }
-function openFindPanelResult(){renderFindPanelResult();$('#findPanelOverlay').classList.remove('hidden')}
+// Tapping a Panel Check card identifies the panel exactly like scanning its sticker: it
+// builds the route a piece QR carries (project, unit, panel, copyIndex) and goes through
+// the same openPanelRoute into the same panel view. It opens the first piece not yet fitted.
+function openPanelFromCard(pr,cab,pt){
+ if(!pr||!cab||!pt)return;
+ const n=panelPieceCount(pt);let piece=1;for(let k=1;k<=n;k++){if(pieceStatusOf(pt,k)!=='installed'){piece=k;break}}
+ if(!openPanelRoute({projectId:pr.id,cabinetId:cab.id,panelId:pt.id,copyIndex:piece===1?-1:piece-2}))return;
+ openFindPanelResult(true);
+}
+// After Fitted / Missing / Damaged: refresh the panel view and whatever list is behind it.
+function refreshAfterPanelAction(){
+ if(!$('#findPanelOverlay').classList.contains('hidden'))renderFindPanelResult();
+ if(typeof renderInstall==='function')renderInstall();
+ if(typeof renderScanDashboard==='function')renderScanDashboard();
+ if(state.screen==='drawings'&&typeof currentRoom==='function'){const cr=currentRoom();if(cr&&typeof renderRoomDetail==='function')renderRoomDetail(cr)}
+}
+// Fitted, per physical piece when a piece is identified; an old whole-panel QR keeps the
+// original counting (applyFittedLegacy).
+function applyFittedStatus(pr,pt,piece){
+ if(!piece){if(applyFittedLegacy(pt)===false)return;save();if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);return}
+ const total=panelPieceCount(pt),ps=pieceState(pt,piece,true),now=Date.now(),who=currentActorFitterId();
+ if(ps.status!=='installed')pt.installedQty=Math.min(total,(Number(pt.installedQty)||0)+1);
+ ps.status='installed';ps.statusAt=now;ps.statusBy=who;
+ const dot=pieceDotIndex(pt,piece);if(dot>=0){pt.copies[dot].status='installed';pt.copies[dot].statusUpdatedAt=now;pt.copies[dot].updatedByFitterId=who}
+ if((Number(pt.installedQty)||0)>=total){pt.status='installed';pt.statusUpdatedAt=now;pt.updatedByFitterId=who}
+ save();if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
+}
+let fpOpenedFromCard=false;
+function openFindPanelResult(fromCard){fpOpenedFromCard=!!fromCard;renderFindPanelResult();const next=$('#findPanelScanNextBtn');if(next)next.classList.toggle('hidden',fpOpenedFromCard);$('#findPanelOverlay').classList.remove('hidden')}
 function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden')}
 $('#findPanelResultClose').onclick=closeFindPanelResult;
 $('#findPanelOverlay').addEventListener('click',e=>{if(e.target.id==='findPanelOverlay')closeFindPanelResult()});
@@ -4096,13 +4214,17 @@ $('#findPanelScanNextBtn').onclick=()=>{closeFindPanelResult();startCamera()};
 // point into it so the fitter never has to leave the drawing they just landed on.
 $('#fpMarkMissing').onclick=()=>{
  const pr=project(),pt=part();if(!pr||!pt)return;
- applyMissingStatus(pr,pt);
- renderFindPanelResult();
- if(typeof renderInstall==='function')renderInstall();
+ applyMissingStatus(pr,pt,identifiedPiece(pt));
+ refreshAfterPanelAction();
+};
+$('#fpMarkFitted').onclick=()=>{
+ const pr=project(),pt=part();if(!pr||!pt)return;
+ applyFittedStatus(pr,pt,identifiedPiece(pt));
+ refreshAfterPanelAction();
 };
 $('#fpMarkDamaged').onclick=()=>{
  const pr=project(),cab=cabinet(),pt=part();if(!pr||!pt)return;
- setDamagePanelTarget(pr,cab,pt);
+ setDamagePanelTarget(pr,cab,pt,identifiedPiece(pt));
  $('#damagePanelOverlay').classList.remove('hidden');
  $('#damagePanelCode').value=pt.code||'';
  $('#damageNote').focus();
@@ -4632,12 +4754,9 @@ $("#markPanelCheckChoice").onclick=()=>{
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderInstall();
 };
-$("#markPanelInstallChoice").onclick=()=>{
- const found=locatePanelByCode(markPanelCode);
- closeMarkPanelMenu();
- if(!found)return;
- const{pr,cab,pt}=found;
- state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+// Fitted for a whole panel (old whole-panel QR, or the Mark Panel menu): a Qty row without
+// repeated markers counts fitted pieces; otherwise the selected marker is marked Fitted.
+function applyFittedLegacy(pt){
  const totalUnits=Math.max(1,Number(pt.qty)||1,1+(pt.copies||[]).length);
  const multi=(pt.copies||[]).length>0;
  if(totalUnits>1&&!multi){
@@ -4645,13 +4764,22 @@ $("#markPanelInstallChoice").onclick=()=>{
   // same press -- without this it would silently count as two pieces fitted instead of
   // one. A deliberate second piece a moment later still increments normally.
   const now=Date.now();
-  if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return;
+  if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return false;
   state.lastFittedIncrement={partId:pt.id,at:now};
   pt.installedQty=Math.min(totalUnits,(Number(pt.installedQty)||0)+1);
   if(pt.installedQty>=totalUnits){pt.status="installed";pt.statusUpdatedAt=Date.now();pt.updatedByFitterId=currentActorFitterId()}
  }else{
   const installedMark=currentMark(pt);installedMark.status="installed";installedMark.statusUpdatedAt=Date.now();installedMark.updatedByFitterId=currentActorFitterId();
  }
+ return true;
+}
+$("#markPanelInstallChoice").onclick=()=>{
+ const found=locatePanelByCode(markPanelCode);
+ closeMarkPanelMenu();
+ if(!found)return;
+ const{pr,cab,pt}=found;
+ state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+ if(applyFittedLegacy(pt)===false)return;
  save();
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderInstall();
@@ -4768,7 +4896,7 @@ $("#saveDamage").onclick=async()=>{
  if(typeof renderInstallDashboard==='function')renderInstallDashboard();
  if(typeof renderInstall==='function')renderInstall();
  if(state.scanMode==='check')renderPanelCheckResult(found.pt,'damaged',piece);
- if(state.scanMode==='find'&&typeof renderFindPanelResult==='function')renderFindPanelResult();
+ if(typeof refreshAfterPanelAction==='function')refreshAfterPanelAction();
  $("#shareDamageWhatsapp").classList.remove("hidden");
  if(studioResult==='sent')alert("Damaged panel saved and sent to Studio.");
  else if(studioResult==='queued')alert("Damaged panel saved on this phone. It will send to Studio automatically when the connection returns.");
