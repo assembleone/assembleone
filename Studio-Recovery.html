@@ -1509,18 +1509,22 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </div>
 </div>
 <div class="edge-help" data-i18n="studio.drawing.edgeBandingHelp">Double-click the length or width number to add edge banding: no line → one line → double line.</div>
+<div class="edge-diagram" id="edgeDiagram">
+<div class="edge-diagram-panel" title="Tap an edge to change it">
+<button type="button" class="edge-side edge-top" data-edge-cycle="length" aria-label="Length edge 1"></button>
+<button type="button" class="edge-side edge-bottom" data-edge-cycle="length" aria-label="Length edge 2"></button>
+<button type="button" class="edge-side edge-left" data-edge-cycle="width" aria-label="Width edge 1"></button>
+<button type="button" class="edge-side edge-right" data-edge-cycle="width" aria-label="Width edge 2"></button>
+<span class="edge-diagram-grain">Length ↔</span>
+</div>
+<div class="edge-diagram-text"><span class="edge-state" id="lengthEdgeState"></span><span class="edge-state" id="widthEdgeState"></span></div>
+</div>
 <div aria-hidden="true" class="edge-control hidden-edge-control">
 <span id="edgeThickness"></span><button id="lengthEdgeBtn" type="button"><span id="lengthEdgeText"></span></button><button id="widthEdgeBtn" type="button"><span id="widthEdgeText"></span></button>
 </div>
 </div><div class="quick-main">
-<div class="quick-group">
-<button class="quick-main-btn" data-quick-menu="lr" type="button" data-i18n="studio.drawing.leftRightMenu">Left / Right</button>
-<div class="quick-pop" id="quick-lr"><button data-quick-name="Side" type="button">Side</button><button data-quick-name="Left-hand side" type="button">Left-hand side</button><button data-quick-name="Right-hand side" type="button">Right-hand side</button></div>
-</div>
-<div class="quick-group">
-<button class="quick-main-btn" data-quick-menu="tb" type="button" data-i18n="studio.drawing.topBottomMenu">Top / Bottom</button>
-<div class="quick-pop" id="quick-tb"><button data-quick-name="Top" type="button">Top</button><button data-quick-name="Bottom" type="button">Bottom</button></div>
-</div>
+<button class="quick-main-btn" data-quick-name="Side" type="button" title="A side panel that can be left or right">Side</button>
+<button class="quick-main-btn" data-quick-name="Top / Bottom" type="button" data-i18n="studio.drawing.topBottomMenu" title="A panel used as top or bottom">Top / Bottom</button>
 <button class="quick-main-btn" data-quick-name="Back panel" type="button" data-i18n="studio.drawing.backPanelBtn">Back</button>
 <details class="chosen-parts">
 <summary id="chosenPartSummary">Chosen Parts</summary>
@@ -1530,7 +1534,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <input autocomplete="off" id="partNamePicker" list="partNameChoices" data-i18n-placeholder="studio.drawing.partNamePlaceholder" placeholder="Choose or type a part name…" spellcheck="true" type="text"/>
 </label>
 <datalist id="partNameChoices">
-<option value="Side"></option><option value="Side panel"></option><option value="Left-hand side"></option><option value="Right-hand side"></option><option value="Top"></option><option value="Bottom"></option><option value="Top and bottom"></option><option value="Back"></option><option value="Back panel"></option><option value="Divider"></option><option value="Centre divider"></option><option value="Middle divider"></option><option value="Vertical divider"></option><option value="Horizontal divider"></option><option value="Fixed shelf"></option><option value="Adjustable shelf"></option><option value="Shelf"></option><option value="Left shelf"></option><option value="Right shelf"></option><option value="Corner shelf"></option><option value="Hanging shelf"></option><option value="Top infill"></option><option value="Bottom infill"></option><option value="Infill"></option><option value="Left infill"></option><option value="Right infill"></option><option value="Plinth"></option><option value="Kickboard"></option><option value="Toe kick"></option><option value="Cover panel"></option><option value="End panel"></option><option value="Scribe panel"></option><option value="Filler panel"></option><option value="Door"></option><option value="Left door"></option><option value="Right door"></option><option value="Centre door"></option><option value="Pair of doors"></option><option value="Sliding door"></option><option value="Pocket door"></option><option value="Drawer front"></option><option value="Drawer side"></option><option value="Drawer left side"></option><option value="Drawer right side"></option><option value="Drawer back"></option><option value="Drawer bottom"></option><option value="Drawer divider"></option><option value="Drawer support"></option><option value="Base side"></option><option value="Wall cabinet side"></option><option value="Tall cabinet side"></option><option value="Base top"></option><option value="Base bottom"></option><option value="Wall cabinet top"></option><option value="Wall cabinet bottom"></option><option value="Base shelf"></option><option value="Wall shelf"></option><option value="Sink rail"></option><option value="Oven rail"></option><option value="Hob rail"></option><option value="Appliance panel"></option><option value="Fridge panel"></option><option value="Dishwasher panel"></option><option value="Worktop"></option><option value="Splashback"></option><option value="Desk top"></option><option value="Desk side"></option><option value="Modesty panel"></option><option value="Keyboard shelf"></option><option value="Printer shelf"></option><option value="Monitor shelf"></option><option value="TV panel"></option><option value="TV shelf"></option><option value="TV top"></option><option value="TV side"></option><option value="TV divider"></option><option value="Fireplace panel"></option><option value="Speaker shelf"></option><option value="Cable panel"></option><option value="Slatted panel"></option><option value="Bench top"></option><option value="Bench side"></option><option value="Seat top"></option><option value="Book shelf"></option><option value="Wine shelf"></option><option value="Bottle shelf"></option><option value="Washer shelf"></option><option value="Dryer shelf"></option><option value="Utility shelf"></option><option value="Hanging rail"></option><option value="LED profile"></option><option value="Light panel"></option><option value="Mirror panel"></option><option value="Glass shelf"></option><option value="Support"></option><option value="Cleat"></option><option value="Batten"></option><option value="Bracket"></option><option value="Handle"></option><option value="Clip"></option><option value="Custom panel"></option>
+<option value="Side"></option><option value="Side panel"></option><option value="Left-hand side"></option><option value="Right-hand side"></option><option value="Top"></option><option value="Bottom"></option><option value="Top and bottom"></option><option value="Top / Bottom"></option><option value="Back"></option><option value="Back panel"></option><option value="Divider"></option><option value="Centre divider"></option><option value="Middle divider"></option><option value="Vertical divider"></option><option value="Horizontal divider"></option><option value="Fixed shelf"></option><option value="Adjustable shelf"></option><option value="Shelf"></option><option value="Left shelf"></option><option value="Right shelf"></option><option value="Corner shelf"></option><option value="Hanging shelf"></option><option value="Top infill"></option><option value="Bottom infill"></option><option value="Infill"></option><option value="Left infill"></option><option value="Right infill"></option><option value="Plinth"></option><option value="Kickboard"></option><option value="Toe kick"></option><option value="Cover panel"></option><option value="End panel"></option><option value="Scribe panel"></option><option value="Filler panel"></option><option value="Door"></option><option value="Left door"></option><option value="Right door"></option><option value="Centre door"></option><option value="Pair of doors"></option><option value="Sliding door"></option><option value="Pocket door"></option><option value="Drawer front"></option><option value="Drawer side"></option><option value="Drawer left side"></option><option value="Drawer right side"></option><option value="Drawer back"></option><option value="Drawer bottom"></option><option value="Drawer divider"></option><option value="Drawer support"></option><option value="Base side"></option><option value="Wall cabinet side"></option><option value="Tall cabinet side"></option><option value="Base top"></option><option value="Base bottom"></option><option value="Wall cabinet top"></option><option value="Wall cabinet bottom"></option><option value="Base shelf"></option><option value="Wall shelf"></option><option value="Sink rail"></option><option value="Oven rail"></option><option value="Hob rail"></option><option value="Appliance panel"></option><option value="Fridge panel"></option><option value="Dishwasher panel"></option><option value="Worktop"></option><option value="Splashback"></option><option value="Desk top"></option><option value="Desk side"></option><option value="Modesty panel"></option><option value="Keyboard shelf"></option><option value="Printer shelf"></option><option value="Monitor shelf"></option><option value="TV panel"></option><option value="TV shelf"></option><option value="TV top"></option><option value="TV side"></option><option value="TV divider"></option><option value="Fireplace panel"></option><option value="Speaker shelf"></option><option value="Cable panel"></option><option value="Slatted panel"></option><option value="Bench top"></option><option value="Bench side"></option><option value="Seat top"></option><option value="Book shelf"></option><option value="Wine shelf"></option><option value="Bottle shelf"></option><option value="Washer shelf"></option><option value="Dryer shelf"></option><option value="Utility shelf"></option><option value="Hanging rail"></option><option value="LED profile"></option><option value="Light panel"></option><option value="Mirror panel"></option><option value="Glass shelf"></option><option value="Support"></option><option value="Cleat"></option><option value="Batten"></option><option value="Bracket"></option><option value="Handle"></option><option value="Clip"></option><option value="Custom panel"></option>
 </datalist>
 </div>
 </details>
@@ -1541,9 +1545,13 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="common-part-category">Wardrobes and cabinets</div>
 <button data-quick-name="Side" type="button">Side</button>
 <button data-quick-name="Side panel" type="button">Side panel</button>
+<button data-quick-name="Left-hand side" type="button">Left-hand side</button>
+<button data-quick-name="Right-hand side" type="button">Right-hand side</button>
 <button data-quick-name="Top" type="button">Top</button>
 <button data-quick-name="Bottom" type="button">Bottom</button>
 <button data-quick-name="Top and bottom" type="button">Top and bottom</button>
+<button data-quick-name="Top / Bottom" type="button">Top / Bottom</button>
+<button data-quick-name="Back" type="button">Back</button>
 <button data-quick-name="Back panel" type="button">Back panel</button>
 <button data-quick-name="Divider" type="button">Divider</button>
 <button data-quick-name="Centre divider" type="button">Centre divider</button>
@@ -2047,7 +2055,14 @@ function createPartAt(x,y){
  const rememberedThickness=Number(c.lastThickness ?? 19) || 19;
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
  const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:"",width:"",thickness:rememberedThickness,qty:"",material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
- c.parts.push(p);state.currentPart=p.id;save();renderAll();$("#fLength").focus()
+ if(typeof window.fiqApplyKeptSettings==='function')window.fiqApplyKeptSettings(c,p);
+ // save() copies the visible form into the selected panel. Save the panel that is still
+ // selected first, then show the new panel's own empty size and quantity before saving it,
+ // so the previous panel's length, width and quantity never slip into the new one.
+ if(state.currentPart)save();
+ c.parts.push(p);state.currentPart=p.id;
+ if(typeof renderForm==='function')renderForm();
+ save();renderAll();$("#fLength").focus()
 }
 function renderHeader(){
  const p=project(),c=cabinet();$("#headerContext").textContent=p?(p.name+(c?"  ›  "+c.name:"")):"Choose a job folder"
@@ -2225,13 +2240,8 @@ function startDesignFromSiteRoom(projectId,roomId){
  let c=p.cabinets.find(x=>x.roomId===room.id);
  const alreadyHasDrawing=!!(c&&c.drawing);
  if(!c){c={id:uid(),name:room.name+' design',roomId:room.id,drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
- if(!alreadyHasDrawing){
-   const ref=bestSiteReference(room);
-   if(ref.image){
-     c.drawing=ref.image;c.drawingType='image';c.drawingName=room.name+' site measurements';c.siteReference=true;c.beforePicture=ref.image;
-     c.siteMarkup=ref.siteMarkup?JSON.parse(JSON.stringify(ref.siteMarkup)):null;
-   }
- }
+ // Site Measurements stay the reference: the new design starts with an empty drawing area
+ // for the finished (CAD) drawing. Designs that already copied a site photo keep it.
  switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');
  toast(t(alreadyHasDrawing?"studio.siteRoom.designOpenedToast":"studio.siteRoom.designStartedToast"));
 }
@@ -2325,7 +2335,10 @@ function renderRooms(){
  // or address is never stale here.
  const viewBtn=$("#drawingViewSiteMeasurementBtn");
  if(viewBtn){
-   const refRoom=c?.siteReference?(project()?.rooms||[]).find(r=>r.id===c.roomId):null;
+   // Opens the room's Site Measurement as a reference whenever the design belongs to a room
+   // that has one, not only for older designs that copied the site photo.
+   const linkedRoom=c?.roomId?(project()?.rooms||[]).find(r=>r.id===c.roomId):null;
+   const refRoom=linkedRoom&&(c.siteReference||siteRoomPictures(linkedRoom).length)?linkedRoom:null;
    viewBtn.hidden=!refRoom;
    viewBtn.onclick=refRoom?()=>openSiteRoomDetails(project().id,refRoom.id):null;
  }
@@ -2422,9 +2435,12 @@ function renderPanelNumbersNotice(){
   let box=screen.querySelector(".fiq-renumber-notice");
   if(!n){box?.remove();return}
   if(!box){box=document.createElement("div");box.className="fiq-renumber-notice";screen.insertBefore(box,screen.firstChild)}
-  const moved=c.parts.filter(x=>n.originalCodes[x.id]&&n.originalCodes[x.id]!==x.code).map(x=>`${safe(n.originalCodes[x.id])} is now ${safe(x.code)}`);
+  // Compact bar: which numbers changed, what to redo, and the same Done button as before.
+  const moved=c.parts.filter(x=>n.originalCodes[x.id]&&n.originalCodes[x.id]!==x.code).map(x=>`${safe(n.originalCodes[x.id])} → ${safe(x.code)}`);
   const sentToPhone=!!project()?.lastMobileSync;
-  box.innerHTML=`<strong>Panel numbers changed.</strong> Deleted: ${n.deleted.map(safe).join(", ")}.${moved.length?` ${moved.join(", ")}.`:""}<br>Cutting lists, supplier CSV files and printed labels made before this show the old numbers. Export and print them again. QR codes still find the right panel.${sentToPhone?" The phone has the old numbers until you send this job to Mobile again.":""} <button type="button" class="btn" data-renumber-done>Done, all updated</button>`;
+  const changes=[...n.deleted.map(x=>`${safe(x)} deleted`),...moved];
+  const shown=changes.slice(0,6),more=changes.slice(6);
+  box.innerHTML=`<span class="rn-icon" aria-hidden="true">⚠</span><div class="rn-main"><div class="rn-line"><b>Panel numbers changed:</b> <span class="rn-changes">${shown.join(" · ")}</span>${more.length?` <details class="rn-more"><summary>+${more.length} more</summary>${more.join(" · ")}</details>`:""}</div><div class="rn-sub">Old cutting lists, CSV files and labels show the old numbers. Make them again. QR codes still work.${sentToPhone?" Send the job to Mobile again.":""}</div></div><button type="button" class="btn" data-renumber-done>Done, all updated</button>`;
   box.querySelector("[data-renumber-done]").onclick=()=>{delete c.panelNumbersNotice;save();renderPanelNumbersNotice()};
  });
 }
@@ -4256,6 +4272,8 @@ function updateEdgePreview(){
  const lw=$("#lengthMeasureWrap"),ww=$("#widthMeasureWrap");
  if(lw) lw.className="measure-wrap "+(Number(p?.edgeLong||0)===1?"edge-one":Number(p?.edgeLong||0)===2?"edge-two":"");
  if(ww) ww.className="measure-wrap "+(Number(p?.edgeShort||0)===1?"edge-one":Number(p?.edgeShort||0)===2?"edge-two":"");
+ if(typeof window.fiqRenderEdgeState==='function')window.fiqRenderEdgeState(p);
+ if(typeof window.fiqRenderKeepSettings==='function')window.fiqRenderKeepSettings();
 }
 $("#lengthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeLong=(Number(p.edgeLong||0)+1)%3;save();updateEdgePreview();renderCutting()};
 $("#widthEdgeBtn").onclick=()=>{const p=part();if(!p)return;p.edgeShort=(Number(p.edgeShort||0)+1)%3;save();updateEdgePreview();renderCutting()};
@@ -5799,6 +5817,7 @@ body.guide-only .a131-back-studio{display:block}
       c.viewState.scrollTop=stage?.scrollTop||0;
     }
 
+    if(typeof window.fiqRememberKeptSettings==='function')window.fiqRememberKeptSettings(c,p);
     if(typeof closeMaterialPicker==='function')closeMaterialPicker();
     if(typeof closeNotesPicker==='function')closeNotesPicker();
     window.fiqQtyUnlockedPartId=null;
@@ -10074,5 +10093,173 @@ document.addEventListener('mousedown',function(e){
 </script>
 <script src="fittersiq-help.js?v=20260911-clean1"></script>
 <script src="fittersiq-studio-ui.js?v=20260911-build70"></script>
+<style id="fiq-drawing-batch-style">
+/* Drawing area: panel-number warning as a compact bar. */
+.fiq-renumber-notice{display:flex!important;align-items:center;gap:10px;margin:0 0 8px!important;padding:6px 8px 6px 12px!important;border:1.5px solid #d97706!important;border-left-width:5px!important;border-radius:10px!important;background:#fff7e6!important;color:#5b3a06!important;font-size:13px!important;line-height:1.35!important}
+.fiq-renumber-notice .rn-icon{font-size:16px;flex:none}
+.fiq-renumber-notice .rn-main{flex:1;min-width:0}
+.fiq-renumber-notice .rn-sub{font-size:12px;color:#7a5410}
+.fiq-renumber-notice .rn-more{display:inline}
+.fiq-renumber-notice .rn-more summary{display:inline;cursor:pointer;font-weight:800;text-decoration:underline}
+.fiq-renumber-notice .btn{margin:0!important;flex:none;padding:5px 10px!important;min-height:0!important;font-size:12px!important}
+
+/* Edge banding: green, solid and ticked when an edge is banded; thin, dashed and grey when not. */
+#screen-mark #lengthMeasureWrap.edge-one input,#screen-mark #widthMeasureWrap.edge-one input{border-bottom:4px solid #2f8f1b!important}
+#screen-mark #lengthMeasureWrap.edge-two input,#screen-mark #widthMeasureWrap.edge-two input{border-bottom:7px double #2f8f1b!important}
+.edge-diagram{display:flex;align-items:center;gap:12px;margin:6px 2px 2px}
+.edge-diagram-panel{position:relative;width:118px;height:58px;flex:none;background:#f5f1e8;border-radius:3px}
+.edge-side{position:absolute;padding:0;border:0;background:transparent;cursor:pointer}
+.edge-side::before{content:'';position:absolute;background:transparent}
+.edge-top,.edge-bottom{left:0;right:0;height:14px}
+.edge-top{top:-7px}.edge-bottom{bottom:-7px}
+.edge-left,.edge-right{top:0;bottom:0;width:14px}
+.edge-left{left:-7px}.edge-right{right:-7px}
+.edge-top::before,.edge-bottom::before{left:0;right:0;top:6px;border-top:2px dashed #a7adb7}
+.edge-left::before,.edge-right::before{top:0;bottom:0;left:6px;border-left:2px dashed #a7adb7}
+.edge-side.on::before{border-style:solid!important;border-color:#2f8f1b!important}
+.edge-top.on::before,.edge-bottom.on::before{top:4px;border-top-width:6px!important}
+.edge-left.on::before,.edge-right.on::before{left:4px;border-left-width:6px!important}
+.edge-side.on::after{content:'✓';position:absolute;width:16px;height:16px;border-radius:50%;background:#2f8f1b;color:#fff;font:900 11px/16px Arial,sans-serif;text-align:center}
+.edge-top.on::after,.edge-bottom.on::after{left:50%;margin-left:-8px;top:-1px}
+.edge-left.on::after,.edge-right.on::after{top:50%;margin-top:-8px;left:-1px}
+.edge-diagram-grain{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#8a8f98;pointer-events:none}
+.edge-diagram-text{display:flex;flex-direction:column;gap:4px;min-width:0}
+.edge-state{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid #d5d9e1;color:#5b6472;background:#fff;white-space:nowrap}
+.edge-state.on{border-color:#2f8f1b;background:#eaf7e4;color:#1d5f0f}
+
+/* Keep settings for next panel: impossible to miss while it is on. */
+.keep-settings-toggle{white-space:nowrap}
+.keep-settings-toggle[aria-pressed="true"]{background:#1d5f0f!important;border-color:#1d5f0f!important;color:#fff!important}
+.fiq-keep-bar{display:none;align-items:center;gap:8px;margin:0 0 8px;padding:8px 10px;border:2px solid #2f8f1b;border-radius:10px;background:#eaf7e4;color:#1d3f12;font-size:13px;line-height:1.35}
+body.fiq-keep-on .fiq-keep-bar{display:flex}
+.fiq-keep-bar .keep-main{flex:1;min-width:0}
+.fiq-keep-bar b{font-weight:900}
+.fiq-keep-bar .btn{flex:none;padding:5px 10px!important;min-height:0!important;font-size:12px!important}
+body.fiq-keep-on #screen-mark .measurement-entry-card{outline:3px solid #2f8f1b;outline-offset:2px;border-radius:12px}
+body.fiq-keep-on #saveNextBtn::after{content:' 🔁'}
+
+/* Help bubble docked at the bottom of the left navigation: it never floats over the work. */
+.app>.sidebar .fiq-help-fab.fiq-help-docked{position:static!important;right:auto!important;bottom:auto!important;width:44px!important;height:44px!important;margin:0 auto!important;flex:none!important;font-size:19px!important;box-shadow:0 3px 10px rgba(11,37,69,.25)!important}
+</style>
+<script id="fiq-drawing-batch">
+(function(){
+  'use strict';
+  const $id=id=>document.getElementById(id);
+  const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const edgeText=n=>n===2?'2 edges':n===1?'1 edge':'no edge';
+
+  // ---- Edge banding picture -------------------------------------------------------------
+  // Length edges are the long sides (top and bottom), width edges the short sides. 1 = one
+  // edge banded, 2 = both. The picture and the labels read the same edgeLong/edgeShort as the
+  // double-click on Length and Width.
+  window.fiqRenderEdgeState=function(p){
+    const el=Number(p?.edgeLong||0),es=Number(p?.edgeShort||0),box=$id('edgeDiagram');
+    if(!box)return;
+    const set=(sel,on)=>{const x=box.querySelector(sel);if(x){x.classList.toggle('on',on);x.setAttribute('aria-pressed',on?'true':'false')}};
+    set('.edge-top',el>=1);set('.edge-bottom',el>=2);set('.edge-left',es>=1);set('.edge-right',es>=2);
+    const ls=$id('lengthEdgeState'),ws=$id('widthEdgeState');
+    if(ls){ls.textContent=(el?'✓ ':'')+'Length: '+edgeText(el);ls.classList.toggle('on',el>0)}
+    if(ws){ws.textContent=(es?'✓ ':'')+'Width: '+edgeText(es);ws.classList.toggle('on',es>0)}
+  };
+  document.addEventListener('click',function(e){
+    const b=e.target.closest&&e.target.closest('#edgeDiagram [data-edge-cycle]');
+    if(!b)return;
+    e.preventDefault();e.stopPropagation();
+    const p=typeof part==='function'?part():null;
+    if(!p)return alert(t("studio.drawing.markOrSelectPanelFirst"));
+    const key=b.dataset.edgeCycle==='length'?'edgeLong':'edgeShort';
+    p[key]=(Number(p[key]||0)+1)%3;
+    if(typeof save==='function')save();
+    if(typeof updateEdgePreview==='function')updateEdgePreview();
+    if(typeof renderCutting==='function')renderCutting();
+  },true);
+
+  // ---- Keep settings for next panel --------------------------------------------------------
+  // Off by default and only for this browser session and this drawing. While on, every new
+  // panel copies thickness, material, edge banding and panel note from the last saved panel.
+  // Length, width, quantity and the panel name are never copied by this.
+  const keep={on:false,cabinetId:null,template:null};
+  window.fiqKeepSettings=keep;
+  const templateFrom=p=>({code:p.code,thickness:p.thickness,material:String(p.material||''),edgeLong:Number(p.edgeLong||0),edgeShort:Number(p.edgeShort||0),notes:String(p.notes||'')});
+  function currentCabinetId(){try{return state.currentCabinet||null}catch(e){return null}}
+  function setKeep(on){
+    const c=typeof cabinet==='function'?cabinet():null;
+    keep.on=!!on&&!!c;
+    keep.cabinetId=keep.on?c.id:null;
+    if(keep.on){
+      const p=typeof part==='function'?part():null;
+      const last=p||(c.parts||[]).slice().reverse().find(x=>x&&x.length!==''&&x.length!=null)||null;
+      keep.template=last?templateFrom(last):null;
+    }else keep.template=null;
+    window.fiqRenderKeepSettings();
+  }
+  window.fiqRememberKeptSettings=function(c,p){
+    if(!keep.on||!c||!p||keep.cabinetId!==c.id)return;
+    keep.template=templateFrom(p);
+  };
+  window.fiqApplyKeptSettings=function(c,p){
+    if(!keep.on||!keep.template||!c||keep.cabinetId!==c.id)return;
+    const tpl=keep.template;
+    if(tpl.thickness!==''&&tpl.thickness!=null)p.thickness=tpl.thickness;
+    if(tpl.material)p.material=tpl.material;
+    p.edgeLong=tpl.edgeLong;p.edgeShort=tpl.edgeShort;p.notes=tpl.notes;
+  };
+  function unitThickness(v){
+    if(v===''||v==null)return '';
+    const shown=typeof aoMmToUnit==='function'?aoMmToUnit(v):v;
+    return shown+' '+(typeof aoCurrentUnit==='function'?aoCurrentUnit():'mm');
+  }
+  function ensureControls(){
+    const form=document.querySelector('#screen-mark .panel-form');
+    if(!form)return;
+    let bar=$id('fiqKeepBar');
+    if(!bar){
+      bar=document.createElement('div');bar.id='fiqKeepBar';bar.className='fiq-keep-bar';bar.setAttribute('role','status');
+      bar.innerHTML='<span aria-hidden="true">🔁</span><div class="keep-main" id="fiqKeepText"></div><button type="button" class="btn" id="fiqKeepOff">Turn off</button>';
+      bar.querySelector('#fiqKeepOff').onclick=()=>setKeep(false);
+    }
+    if(form.firstElementChild!==bar)form.insertBefore(bar,form.firstElementChild);
+    let btn=$id('keepSettingsBtn');
+    if(!btn){
+      btn=document.createElement('button');btn.type='button';btn.id='keepSettingsBtn';btn.className='btn keep-settings-toggle';
+      btn.onclick=()=>setKeep(!keep.on);
+    }
+    const save=$id('saveNextBtn');
+    if(save&&save.parentElement&&btn.nextElementSibling!==save)save.parentElement.insertBefore(btn,save);
+  }
+  window.fiqRenderKeepSettings=function(){
+    if(keep.on&&keep.cabinetId!==currentCabinetId()){keep.on=false;keep.cabinetId=null;keep.template=null}
+    ensureControls();
+    document.body.classList.toggle('fiq-keep-on',keep.on);
+    const btn=$id('keepSettingsBtn');
+    if(btn){btn.setAttribute('aria-pressed',keep.on?'true':'false');btn.textContent=keep.on?'🔁 Keep settings: ON':'🔁 Keep settings for next panel'}
+    const text=$id('fiqKeepText');
+    if(text){
+      const tpl=keep.template;
+      text.innerHTML=!keep.on?'':tpl
+        ?'<b>Keep settings is ON.</b> New panels copy '+esc(tpl.code)+': '+esc(unitThickness(tpl.thickness))+' · '+esc(tpl.material||'no material')+' · Edges: length '+edgeText(tpl.edgeLong)+', width '+edgeText(tpl.edgeShort)+(tpl.notes?' · Note: '+esc(tpl.notes):'')+'. Size, quantity and name are not copied.'
+        :'<b>Keep settings is ON.</b> The next panel you save is copied to the panels after it. Size, quantity and name are not copied.';
+    }
+  };
+
+  // ---- Help bubble -------------------------------------------------------------------------
+  // Same button and chat as before, moved into the bottom of the left navigation so it never
+  // covers the drawing, panel entry, Cutting List, scrollbars or buttons.
+  function dockHelp(){
+    const fab=document.querySelector('.fiq-help-fab'),side=document.querySelector('.app>.sidebar');
+    if(!fab||!side||getComputedStyle(side).display==='none')return false;
+    if(fab.parentElement!==side)side.appendChild(fab);
+    fab.classList.add('fiq-help-docked');fab.title=fab.title||'Help';
+    return true;
+  }
+  let tries=0;const iv=setInterval(()=>{if(dockHelp()||++tries>60)clearInterval(iv)},250);
+  if(document.readyState!=='loading')dockHelp();else document.addEventListener('DOMContentLoaded',dockHelp);
+
+  function boot(){ensureControls();window.fiqRenderKeepSettings()}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,80));else setTimeout(boot,80);
+  setTimeout(boot,400);
+})();
+</script>
+
 </body>
 </html>

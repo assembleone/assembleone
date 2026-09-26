@@ -98,7 +98,7 @@ function panel(id,n,name,length,qty,x,y,copies=[]){const p={id,code:'P-00'+n,nam
  await matchCheck('after delete');
  assert.match(dialogs.at(-1),/Delete panel P-001/);
  let notice=await page.locator('#screen-cutting .fiq-renumber-notice').innerText();
- assert.match(notice,/Deleted: P-001/);assert.match(notice,/P-002 is now P-001/);assert.match(notice,/P-004 is now P-003/);assert.match(notice,/send this job to Mobile again/);
+ assert.match(notice,/P-001 deleted/);assert.match(notice,/P-002 → P-001/);assert.match(notice,/P-004 → P-003/);assert.match(notice,/Send the job to Mobile again/);
  assert.equal(await page.locator('#screen-mark .fiq-renumber-notice').count(),1,'notice also on the drawing screen');
 
  // 5. Reopening the job keeps the numbers, the match and the notice.
@@ -123,8 +123,8 @@ function panel(id,n,name,length,qty,x,y,copies=[]){const p={id,code:'P-00'+n,nam
  assert.deepEqual((await cutting()).map(p=>p.id+':'+p.code),['b:P-001','d:P-002']);
  await matchCheck('after deleting a middle panel');
  notice=await page.locator('#screen-cutting .fiq-renumber-notice').innerText();
- assert.match(notice,/Deleted: P-001, P-003/,'notice lists every deleted panel by the number it was printed with');
- assert.match(notice,/P-004 is now P-002/,'old printed number to new number');
+ assert.match(notice,/P-001 deleted · P-003 deleted/,'notice lists every deleted panel by the number it was printed with');
+ assert.match(notice,/P-004 → P-002/,'old printed number to new number');
 
  // 9. A normal click on the empty drawing still adds the next panel number.
  await page.evaluate(()=>{state.currentPart='d'});
