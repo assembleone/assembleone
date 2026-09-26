@@ -799,7 +799,15 @@ input:focus,textarea:focus,select:focus{outline:3px solid rgba(107,191,58,.20)!i
 <script src="sync-protocol.js?build=90"></script>
 <style id="fiq-site-receipt-style">
 .send-bar-sync-detail,.job-sync-detail{display:block;font-size:12px;font-weight:700;color:#16794a;margin-top:2px}
-.measure-send-bar{flex-wrap:wrap}.measure-send-bar .send-bar-delete-photos{flex:1 0 100%;margin-top:2px}
+.measure-send-bar{flex-wrap:wrap}
+.send-bar-state{flex:1 0 100%;box-sizing:border-box;border-radius:14px;padding:12px 14px;margin-top:2px}
+.send-bar-state b{display:block;font-size:19px;font-weight:950;letter-spacing:.02em;text-transform:uppercase;line-height:1.15}
+.send-bar-state small{display:block;font-size:15px;font-weight:800;margin-top:3px}
+.send-bar-state.state-synced{background:#15803d;color:#fff;box-shadow:0 0 0 3px #bbf7d0}
+.send-bar-state.state-synced b{font-size:22px}
+.send-bar-state.state-pending{background:#fff7e0;color:#7a4b00;border:2px solid #f0b429}
+.send-bar-state.state-blocked{background:#fde8e8;color:#9b1c1c;border:2px solid #e05252}
+.send-bar-state.state-unsent{background:#eef3ff;color:#174E98;border:2px solid #8fa8df}.measure-send-bar .send-bar-delete-photos{flex:1 0 100%;margin-top:2px}
 .send-bar-delete-photos,.job-delete-photos{display:block;margin-top:8px;min-height:40px;padding:8px 12px;font-size:14px;font-weight:800;border:2px solid #d8dde6;background:#fff;color:#1f2d3d;border-radius:12px}
 </style>
 </head>
@@ -2633,14 +2641,25 @@ function siteManifestFingerprint(m){const t=[m.roomCount,m.pictureCount,m.measur
 // (see Studio siteReceiptFor). Only a complete receipt for this phone's LATEST send counts.
 // An incomplete one is sent again automatically (at most 3 times), never shown as received.
 const SITE_RECEIPT_RETRIES=3;
+// The send whose message is in the cloud now. Its fingerprint says exactly what it held.
+function markSiteTransferWritten(p){const st=p.siteTransfer;st.writtenTransferId=st.transferId;st.writtenFingerprint=st.fingerprint;const rc=st.receipt;if(!(rc&&rc.complete&&rc.transferId===st.transferId))st.status='awaiting-studio'}
 function applySiteReceipt(p,rc){
- const st=p&&p.siteTransfer;if(!st||!rc||String(rc.transferId)!==String(st.transferId))return false;
- if(st.receipt&&st.receipt.checkedAt===rc.checkedAt)return false;
- st.receipt={complete:rc.complete===true,photosExpected:Number(rc.photosExpected)||0,photosReceived:Number(rc.photosReceived)||0,missing:(rc.missing||[]).length,problem:rc.problem||'',checkedAt:rc.checkedAt||'',photoUrls:rc.complete===true?(rc.photoUrls||{}):{}};
- if(st.receipt.complete){st.status='received';st.receivedAt=new Date().toISOString();p.siteReceiptRetries=0}
- else{st.status='incomplete';p.siteReceiptRetries=(Number(p.siteReceiptRetries)||0)+1;if(p.siteReceiptRetries<=SITE_RECEIPT_RETRIES)setTimeout(()=>{if(typeof exportJob==='function')exportJob(p.id,true)},1500)}
+ const st=p&&p.siteTransfer;if(!st||!rc)return false;
+ const id=String(rc.transferId||'');
+ const fp=id===String(st.transferId)?st.fingerprint:id===String(st.writtenTransferId||'')?st.writtenFingerprint:null;
+ if(!fp)return false;
+ if(st.receipt&&st.receipt.transferId===id&&st.receipt.checkedAt===rc.checkedAt)return false;
+ st.receipt={transferId:id,fingerprint:fp,complete:rc.complete===true,photosExpected:Number(rc.photosExpected)||0,photosReceived:Number(rc.photosReceived)||0,missing:(rc.missing||[]).length,problem:rc.problem||'',checkedAt:rc.checkedAt||'',photoUrls:rc.complete===true?(rc.photoUrls||{}):{}};
+ if(st.receipt.complete){
+  st.status='received';st.receivedAt=new Date().toISOString();p.siteReceiptRetries=0;
+  // Studio holds exactly what is on this phone: a queued resend is no longer needed.
+  if(fp===siteManifestFingerprint(buildSiteTransferManifest(p,'check'))&&typeof clearPendingStudioSync==='function')clearPendingStudioSync(p.id);
+ }else{st.status='incomplete';p.siteReceiptRetries=(Number(p.siteReceiptRetries)||0)+1;if(p.siteReceiptRetries<=SITE_RECEIPT_RETRIES)setTimeout(()=>{if(typeof exportJob==='function')exportJob(p.id,true)},1500)}
  return true;
 }
+// Complete receipt for exactly what is on this phone now.
+function siteReceiptValid(p){const st=p&&p.siteTransfer,rc=st&&st.receipt;return !!(rc&&rc.complete&&rc.fingerprint&&rc.fingerprint===siteManifestFingerprint(buildSiteTransferManifest(p,'check')))}
+function refreshSiteStatusViews(){try{if(typeof renderSendBar==='function')renderSendBar();if(state.screen==='projects'&&typeof renderAll==='function')renderAll()}catch(e){console.error(e)}}
 // Photos of this Site Measure that are still stored on this phone (data or idb copies),
 // keyed exactly like the transfer manifest.
 function localSitePhotoItems(p){
@@ -2653,7 +2672,7 @@ function siteTransferChanged(p){const st=p&&p.siteTransfer;return !!(st&&st.fing
 // Only photos Studio confirmed it holds (with their stored cloud copy) can be removed here.
 function deletableSitePhotos(p){
  const st=p&&p.siteTransfer,rc=st&&st.receipt;
- if(!st||st.status!=='received'||!rc||!rc.complete||siteTransferChanged(p))return [];
+ if(!siteReceiptValid(p))return [];
  const urls=rc.photoUrls||{};return localSitePhotoItems(p).filter(x=>/^https:\/\//.test(urls[x.key]||''));
 }
 // Always a manual action. Removes only this phone's copies of photos Studio already holds:
@@ -2673,17 +2692,17 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-delete-dev
 function siteTransferStatus(p){
  if(!p||isStudioJob(p)||!p.siteTransfer||p.studioSyncBlocked)return null;
  const st=p.siteTransfer,rc=st.receipt||{};
- if(typeof studioSendsInFlight!=='undefined'&&studioSendsInFlight.has(p.id))return{cls:'pending',label:'⏳ Sending…'};
- if(siteTransferChanged(p))return{cls:'unsent',label:'Changed since last send — tap Send to Studio'};
- if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return{cls:'pending',label:'⏳ No signal — will send automatically'};
- if(st.status==='received'&&rc.complete){
+ if(typeof studioSendsInFlight!=='undefined'&&studioSendsInFlight.has(p.id))return{cls:'pending',label:'⏳ Sending…',detail:'Keep FittersIQ open until it says Received'};
+ if(siteReceiptValid(p)){
   const removed=Number(st.photosRemoved)||0,left=deletableSitePhotos(p).length;
   const detail=rc.photosExpected?rc.photosReceived+' of '+rc.photosExpected+' photos received'+(removed&&!left?' · removed from this device':''):'';
   return{cls:'synced',label:'✓ Received in Studio',detail,deletable:left};
  }
+ if(siteTransferChanged(p))return{cls:'unsent',label:'Changed since last send — tap Send to Studio'};
+ if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return{cls:'pending',label:'⏳ No signal — will send automatically'};
  if(st.status==='incomplete')return (Number(p.siteReceiptRetries)||0)>SITE_RECEIPT_RETRIES?{cls:'blocked',label:'⚠ Studio did not receive everything — tap Send to Studio'}:{cls:'pending',label:'⚠ Studio did not receive everything — sending again'};
  if(st.status==='studio-received')return{cls:'synced',label:'✓ Accepted in Studio'};
- if(st.status==='awaiting-studio')return{cls:'pending',label:'⏳ Waiting for confirmation…'};
+ if(st.status==='awaiting-studio'||st.status==='received')return{cls:'pending',label:'⏳ Waiting for Studio to confirm…',detail:'Sent. Studio confirms once it has checked every photo'};
  if(st.status==='sending'||st.status==='waiting-for-connection')return{cls:'pending',label:'⏳ No signal — will send automatically'};
  return null;
 }
@@ -2696,8 +2715,9 @@ function renderSendBar(){
  const summary=buildSiteTransferManifest(p,'preview');
  const totalPhotos=summary.pictureCount;
  const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
- const syncLine=sync&&sync.label!=='Not sent yet'?`<div class="send-bar-sync ${sync.cls}">${sync.label}</div>${sync.detail?`<small class="send-bar-sync-detail">${safe(sync.detail)}</small>`:''}`:'';
- box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>${sync&&sync.deletable?`<button type="button" class="btn send-bar-delete-photos" data-delete-device-photos="${safe(p.id)}">Delete photos from this device</button>`:''}`;
+ const syncLine='';
+ const stateBlock=sync&&sync.label!=='Not sent yet'?`<div class="send-bar-state state-${sync.cls}" role="status"><b>${safe(sync.label)}</b>${sync.detail?`<small>${safe(sync.detail)}</small>`:''}</div>`:'';
+ box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>${stateBlock}${sync&&sync.deletable?`<button type="button" class="btn send-bar-delete-photos" data-delete-device-photos="${safe(p.id)}">Delete photos from this device</button>`:''}`;
  document.getElementById('sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
 }
 // Tapping a finished room's own tile edits ONLY that room -- its photos live
@@ -3725,6 +3745,7 @@ window.retryPendingStudioSync=async function(){
   try{
     for(const entry of arr){
       if(!state.projects.some(x=>x.id===entry.projectId)){clearPendingStudioSync(entry.projectId);continue}
+      if(studioSendsInFlight.has(entry.projectId))continue;
       const result=await exportJob(entry.projectId,true);
       if(result!=='queued')continue;
       if(!entry.gaveUp&&Date.now()-entry.queuedAt>SYNC_GIVE_UP_MS){
@@ -3776,7 +3797,7 @@ function exportJob(id,silent){
  const current=studioSendsInFlight.get(id);
  if(current){if(!current.next)current.next=current.promise.catch(()=>{}).then(()=>exportJob(id,silent));return current.next}
  const flight={};
- flight.promise=exportJobOnce(id,silent).finally(()=>{if(studioSendsInFlight.get(id)===flight)studioSendsInFlight.delete(id)});
+ flight.promise=exportJobOnce(id,silent).finally(()=>{if(studioSendsInFlight.get(id)===flight)studioSendsInFlight.delete(id);if(typeof refreshSiteStatusViews==='function')refreshSiteStatusViews()});
  studioSendsInFlight.set(id,flight);
  return flight.promise;
 }
@@ -3795,7 +3816,9 @@ async function exportJobOnce(id,silent){
  // hydrate the real image bytes before constructing the outgoing packet. Older
  // sends built the packet first and could therefore deliver room names and text
  // measurements while leaving Studio with a permanently broken photo reference.
- await hydrateAllPhotos({projects:[p]});
+ // Reading the photos back from this phone's storage must never hang a send forever (seen on
+ // iPhone): after 45s any photo not yet loaded is reported below as still loading.
+ await Promise.race([hydrateAllPhotos({projects:[p]}),new Promise(r=>setTimeout(r,45000))]);
  const unresolvedLocalPhotos=JSON.stringify(p).includes('"idb:');
  if(unresolvedLocalPhotos){
    p.studioSyncBlocked=true;
@@ -3810,9 +3833,9 @@ async function exportJobOnce(id,silent){
  queuePendingStudioSync(p.id);
  const exportedAt=new Date().toISOString();
  const transferManifest=!isStudioJob(p)?buildSiteTransferManifest(p,'site-'+p.id+'-'+Date.now()):null;
- if(transferManifest){p.siteTransfer={transferId:transferManifest.transferId,status:'sending',counts:{rooms:transferManifest.roomCount,pictures:transferManifest.pictureCount,measurements:transferManifest.measurementCount,notes:transferManifest.noteCount},sentAt:exportedAt,fingerprint:siteManifestFingerprint(transferManifest)};save();if(typeof renderSendBar==='function')renderSendBar()}
+ if(transferManifest){const prevSt=p.siteTransfer||{};p.siteTransfer={writtenTransferId:prevSt.writtenTransferId||null,writtenFingerprint:prevSt.writtenFingerprint||null,receipt:prevSt.receipt||null,receivedAt:prevSt.receivedAt||null,photosRemoved:prevSt.photosRemoved||0,photosRemovedAt:prevSt.photosRemovedAt||null,transferId:transferManifest.transferId,status:'sending',counts:{rooms:transferManifest.roomCount,pictures:transferManifest.pictureCount,measurements:transferManifest.measurementCount,notes:transferManifest.noteCount},sentAt:exportedAt,fingerprint:siteManifestFingerprint(transferManifest)};save();if(typeof renderSendBar==='function')renderSendBar()}
  const pack={app:"AssembleOne",schema:"assembleone-project-v9",source:"mobile",exportedAt,transferManifest,project:JSON.parse(JSON.stringify(p))};
- try{const sendResult=await sendToStudioWithTimeout(pack);clearPendingStudioSync(p.id);lastFailedStudioPack.delete(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+ try{const sendResult=await sendToStudioWithTimeout(pack);clearPendingStudioSync(p.id);lastFailedStudioPack.delete(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;if(p.siteTransfer)markSiteTransferWritten(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
@@ -3836,7 +3859,7 @@ async function exportJobOnce(id,silent){
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
     const slimResult=await sendToStudioWithTimeout(slimPack);
-    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.pendingStudioReceiptDocId=slimResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();
+    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.pendingStudioReceiptDocId=slimResult.docId;if(p.siteTransfer)markSiteTransferWritten(p);save();renderAll();
     if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
     return'sent';
   }catch(e2){
