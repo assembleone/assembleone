@@ -35,7 +35,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   name:document.getElementById('partNamePicker').value,lenEdge:document.getElementById('lengthMeasureWrap').className,widEdge:document.getElementById('widthMeasureWrap').className,
   lenTag:document.getElementById('lengthMeasureWrap').closest('.measure-field').querySelector('.edge-count')?.innerText||'',widTag:document.getElementById('widthMeasureWrap').closest('.measure-field').querySelector('.edge-count')?.innerText||''}));
  let dot=0;
- const placeDot=async()=>{dot++;const col=(dot-1)%6,row=Math.floor((dot-1)/6);await page.locator('#drawingCanvas').click({position:{x:60+col*70,y:60+row*80},force:true});await page.waitForTimeout(120)};
+ const placeDot=async()=>{dot++;const col=(dot-1)%6,row=Math.floor((dot-1)/6);await page.evaluate(()=>document.getElementById('drawingCanvas').scrollIntoView({block:'center'}));await page.waitForTimeout(50);await page.locator('#drawingCanvas').click({position:{x:60+col*70,y:60+row*80},force:true});await page.waitForTimeout(120)};
 
  // Names: quick Side, Top / Bottom and Back; every specific name once in More part names.
  const quick=await S(()=>[...document.querySelectorAll('#screen-mark .quick-main > [data-quick-name]')].map(b=>[b.textContent.trim(),b.dataset.quickName]));
@@ -93,9 +93,14 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.equal(all.length,12);
  // And with nothing typed, a dot after Save & next gets no old size.
  await click('#saveNextBtn');await page.waitForTimeout(150);
+ const before=(await parts()).length;
+ await placeDot();
+ assert.equal((await parts()).length,before,'no part name chosen: the dot is refused');
+ await page.waitForTimeout(500); // let the warning finish scrolling to itself
+ await click('#screen-mark .quick-main [data-quick-name="Back"]');
  await placeDot();
  const last=(await parts()).at(-1);
- assert.deepEqual([last.name,last.length,last.width,last.edgeLong,last.edgeShort],['','','',0,0],'no hidden copying after Save & next');
+ assert.deepEqual([last.name,last.length,last.width,last.edgeLong,last.edgeShort],['Back','','',0,0],'no hidden copying after Save & next');
 
  // 5. Edging on the Length and Width boxes: fixed geometry, nothing ever moves or covers a
  // number, at laptop and narrower split-screen widths.
