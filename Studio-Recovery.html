@@ -10404,6 +10404,27 @@ document.addEventListener('mousedown',function(e){
     const first=msg.isConnected?msg:targets[0];
     if(first&&first.scrollIntoView)first.scrollIntoView({block:'center',behavior:'smooth'});
   };
+  // Save & next: the very first thing is checking the panel being worked on - the selected
+  // panel, or the entry on screen when no dot has been placed yet. This listener is on window in
+  // the capture phase, so it runs before every other Save & next handler (autosave, material
+  // commit, the Save & next code itself). If the material or part name is missing it stops them
+  // all: nothing is saved, deselected or cleared, and the missing part is shown.
+  window.addEventListener('click',function(e){
+    const btn=e.target&&e.target.closest&&e.target.closest('#saveNextBtn');
+    if(!btn)return;
+    const p=typeof part==='function'?part():null,pr=typeof project==='function'?project():null,c=typeof cabinet==='function'?cabinet():null;
+    const typed=document.getElementById('materialCustomInput');
+    if(typed&&typed.value.trim()&&typeof window.commitAssembleOneMaterial==='function')window.commitAssembleOneMaterial(typed.value.trim());
+    const name=String(p?(p.name||''):(state.lastChosenPartName||'')).trim();
+    const material=String((p&&p.material)||pr?.defaultMaterial||c?.lastMaterial||'').trim();
+    const missing=[];
+    if(!material)missing.push('material');
+    if(!name)missing.push('name');
+    if(!missing.length)return;
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+    window.fiqShowMissingBasics(missing);
+  },true);
+
   // A warning goes away as soon as what it asks for exists (checked on every form redraw).
   window.fiqRefreshMissingBasics=function(){
     if(!document.querySelector('#screen-mark .fiq-missing'))return;

@@ -110,6 +110,38 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.equal(w.msg,'⚠ Choose a material first','Save & next refused without a material');
  assert.equal(await S(()=>!!state.currentPart),true,'the panel stays selected');
 
+ // 7. The real path: the entry on screen with no dot yet, and the visible Save & next button
+ //    clicked with the mouse. Part name missing, material missing, both missing: Save & next
+ //    must stop and leave everything exactly as it is.
+ const realSave=async()=>{await page.locator('#saveNextBtn').scrollIntoViewIfNeeded();await page.locator('#saveNextBtn').click();await page.waitForTimeout(700)};
+ const setJob=(material,name)=>page.evaluate(([m,n])=>{const pr=project(),c=cabinet();pr.defaultMaterial=m;c.lastMaterial=m;state.currentPart=null;state.lastChosenPartName=n;state.newPanelDraft=null;window.__fiqBlankCabinet=null;renderAll();show('mark');window.fiqClearMissingBasics&&window.fiqClearMissingBasics()},[material,name]);
+ for(const [label,material,name,expect] of [
+  ['part name missing','White melamine','',['⚠ Choose a part name first']],
+  ['material missing','','Shelf',['⚠ Choose a material first']],
+  ['both missing','','',['⚠ Choose a material first','⚠ Choose a part name first']]]){
+  await setJob(material,name);
+  await type('fLength','2400');await type('fWidth','600');await dbl('lengthMeasureWrap',2);await dbl('widthMeasureWrap',1);
+  const before=await entry(),panelsBefore=await count();
+  await realSave();
+  w=await warn();
+  assert.deepEqual(w.msg.split('\n'),expect,label+': Save & next stopped with the right message');
+  assert.deepEqual(await entry(),before,label+': Length, Width, edging, Thickness and Quantity untouched');
+  assert.equal(await count(),panelsBefore,label+': no panel saved or created');
+  assert.equal(await S(()=>state.lastChosenPartName),name,label+': part name choice untouched');
+ }
+ // The same on a selected older panel that has no part name: stopped, still selected.
+ await setJob('White melamine','');
+ await S(()=>{const q=cabinet().parts[0];q.name='';state.currentPart=q.id;renderAll();show('mark')});
+ const sel=await S(()=>state.currentPart),vals=await entry();
+ await realSave();
+ assert.equal((await warn()).msg,'⚠ Choose a part name first','selected panel without a name: stopped');
+ assert.deepEqual([await S(()=>state.currentPart),await entry()],[sel,vals],'selected panel: still selected, nothing changed');
+ // With both present, Save & next works normally.
+ await S(()=>{cabinet().parts[0].name='Shelf';renderAll();show('mark')});
+ await realSave();
+ assert.equal(await S(()=>state.currentPart),null,'with both present Save & next finishes the panel');
+ assert.equal((await warn()).msg,'','no warning');
+
  assert.deepEqual(errors,[],'no page errors');
  assert.deepEqual(dialogs,[],'no pop-up dialogs');
  console.log(JSON.stringify({panels:await S(()=>cabinet().parts.map(x=>x.code+' '+x.name+' '+(x.material||'-'))),ok:true}));

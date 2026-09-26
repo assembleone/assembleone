@@ -82,15 +82,21 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.deepEqual([p.name,p.length,p.width,p.edgeLong,p.edgeShort],['Back',800,400,0,1],'edging set after the dot goes on that panel');
  assert.deepEqual((await parts()).slice(5,7).map(x=>[x.edgeLong,x.edgeShort]),[[1,0],[1,0]],'earlier panels untouched');
 
- // 6. Save & next clears the prepared edging even if no dot was placed.
+ // 6. Prepared edging with no dot: without a part name Save & next is refused and keeps it;
+ //    with a part name Save & next clears it.
  await click('#saveNextBtn');await page.waitForTimeout(700);
  await dbl('lengthMeasureWrap',2);
  await click('#saveNextBtn');await page.waitForTimeout(700);
  s=await screen();
- assert.deepEqual([s.lenEdges,s.widEdges],[0,0],'Save & next clears prepared edging');
+ assert.deepEqual([s.lenEdges,s.widEdges],[2,0],'no part name: Save & next refused, prepared edging kept');
+ assert.equal(await S(()=>document.getElementById('fiqMissingMsg')?.innerText.trim()),'⚠ Choose a part name first');
+ await click('#screen-mark .quick-main [data-quick-name="Side"]');await page.waitForTimeout(50);
+ await click('#saveNextBtn');await page.waitForTimeout(700);
+ s=await screen();
+ assert.deepEqual([s.lenEdges,s.widEdges],[0,0],'with a part name, Save & next clears prepared edging');
 
  assert.deepEqual(errors,[],'no page errors');
- assert.deepEqual(dialogs,[],'no messages at all');
+ assert.deepEqual(dialogs,[],'no pop-up dialogs');
  console.log(JSON.stringify({panels:(await parts()).map(x=>x.code+' '+x.name+' '+x.length+'x'+x.width+' E'+x.edgeLong+'/'+x.edgeShort),ok:true}));
  }finally{if(browser)await browser.close();server.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
