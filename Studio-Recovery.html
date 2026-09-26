@@ -2056,7 +2056,8 @@ function createPartAt(x,y){
   // typed values are read here directly (form units to millimetres).
   const typed=id=>{const e=document.getElementById(id);return e?String(e.value).trim():''};
   const mm=v=>typeof aoUnitToMm==='function'?aoUnitToMm(Number(v)):Number(v);
-  [['fLength','length'],['fWidth','width'],['fThickness','thickness']].forEach(([id,k])=>{const v=typed(id);if(v!==''&&!isNaN(Number(v)))p[k]=mm(v)});
+  // A value still showing the job default (thickness) keeps its exact millimetres.
+  [['fLength','length'],['fWidth','width'],['fThickness','thickness']].forEach(([id,k])=>{const v=typed(id);if(v===''||isNaN(Number(v)))return;const shown=typeof aoMmToUnit==='function'?aoMmToUnit(p[k]):p[k];if(p[k]!==''&&String(v)===String(shown))return;p[k]=mm(v)});
   const note=typed('fNotes');if(note)p.notes=note;
  }
  c.parts.push(p);state.currentPart=p.id;
@@ -2557,6 +2558,13 @@ function renderForm(){
  if(p&&(p.qty===""||p.qty==null))p.qty=1;
  const map={fLength:"length",fWidth:"width",fThickness:"thickness",fQty:"qty",fMaterial:"material",fNotes:"notes"};
  Object.entries(map).forEach(([id,key])=>{const v=p?.[key]??"";$("#"+id).value=["length","width","thickness"].includes(key)?(typeof aoMmToUnit==='function'?aoMmToUnit(v):v):v});
+ // No panel selected (for example right after Save & next): a clean new-panel entry still
+ // shows the job's working thickness and quantity 1. Length, width, edging and name stay empty.
+ if(!p){
+  const c=cabinet(),th=c?(Number(c.lastThickness??19)||19):"";
+  $("#fThickness").value=th===""?"":(typeof aoMmToUnit==='function'?aoMmToUnit(th):th);
+  $("#fQty").value="1";
+ }
  window.__fiqFormPartId=p?p.id:null;
  if(typeof aoRenderUnitLabels==='function')aoRenderUnitLabels();
  // Quantity is locked by default for every panel. Unlocking is deliberately temporary
@@ -2565,7 +2573,8 @@ function renderForm(){
  if(qtyInput&&qtyUnlockBtn){
   const qtyUnlocked=!!p&&window.fiqQtyUnlockedPartId===p.id;
   qtyInput.disabled=!qtyUnlocked;
-  qtyUnlockBtn.hidden=!p;
+  // The padlock stays visible and locked on a clean new-panel entry too.
+  qtyUnlockBtn.hidden=false;
   qtyUnlockBtn.textContent=qtyUnlocked?'🔓':'🔒';
   qtyUnlockBtn.classList.toggle('unlocked',qtyUnlocked);
   qtyUnlockBtn.title=qtyUnlocked?'Lock quantity':'Unlock quantity';
@@ -5815,7 +5824,8 @@ body.guide-only .a131-back-studio{display:block}
       if(typeof storeMaterialName==='function')storeMaterialName(activeMaterial);
     }
     if(c){
-      c.lastThickness=toMm(Number(thickness))||19;
+      // The panel's own exact thickness (not the rounded cm/inch display) is the working default.
+      c.lastThickness=Number(p.thickness)||19;
       const stage=field('drawingStage');
       c.viewState=c.viewState||{};
       c.viewState.zoom=Number(state.drawingZoom||1);
