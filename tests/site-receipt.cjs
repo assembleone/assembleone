@@ -5,7 +5,7 @@
 //  1. signal drops mid-upload: some photos reach storage, no message is written, the
 //     phone says it will send automatically, never Received;
 //  2. Mobile reloads with signal back: the queued send goes by itself; with Studio closed
-//     the phone shows Waiting for confirmation;
+//     the phone shows Waiting for Studio to confirm -- by itself, without a manual redraw;
 //  3. an incomplete receipt is never shown as Received and triggers a resend;
 //  4. Studio opens: it saves the Site Measure and confirms every photo, measurement and
 //     note -> "Received in Studio · 6 of 6 photos received" + Delete photos button;
@@ -62,7 +62,7 @@ async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(D
  // 1. Signal drops after 2 of 6 photos are uploaded.
  await M(()=>{const fns=window.fiqStorageFns,orig=fns.uploadString;window.__uploads=0;fns.uploadString=async(r,v,f)=>{if(++window.__uploads>2)throw new Error('network-request-failed');return orig(r,v,f)}});
  await send();
- await until(()=>bar().then(b=>/No signal — will send automatically/.test(b.text)&&b),'queued after dropped signal');
+ await until(()=>bar().then(b=>/No signal — will send automatically/i.test(b.text)&&b),'queued after dropped signal');
  assert.equal(cloud.docs.get(DOC),undefined,'no Site Measure message is written from a partial upload');
  assert.ok([...cloud.files.keys()].some(k=>k.includes('/jobs/sm1/')),'some photos did reach storage before the signal dropped');
  let b=await bar();assert.ok(!/Received/.test(b.text)&&!b.del,'never Received, no delete: '+b.text);
@@ -72,22 +72,23 @@ async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(D
  await mobile.close();mobile=await open(mobileCtx,'mobile','/Mobile.html');
  await M(()=>{state.currentProject='sm1';show('siteVisitSummary');renderSendBar()});
  await until(()=>cloud.docs.get(DOC),'queued send goes by itself after reload');
- await until(()=>M(()=>{renderSendBar();return true}).then(()=>bar()).then(b=>/Waiting for confirmation…/.test(b.text)),'waiting for Studio');
+ // No manual redraw: the finished background send must update the status by itself.
+ await until(()=>bar().then(b=>/Waiting for Studio to confirm…/i.test(b.text)),'waiting for Studio');
  b=await bar();assert.ok(!b.del,'no delete while waiting');
  assert.equal(cloud.docs.get(DOC).status,'waiting');assert.equal(cloud.docs.get(DOC).receipt,undefined);
 
  // 3. An incomplete receipt (Studio missing a photo) is never Received and is sent again.
  const t1=cloud.docs.get(DOC).transferManifest.transferId;
  await cloud.writeAs('studio',DOC,{...cloud.docs.get(DOC),receipt:{transferId:t1,complete:false,photosExpected:6,photosReceived:5,missing:['room-photo|r1|bp1'],checkedAt:new Date().toISOString(),photoUrls:{}}});
- await until(()=>bar().then(b=>/did not receive everything/.test(b.text)||/Waiting for confirmation|Sending/.test(b.text)&&cloud.docs.get(DOC).transferManifest.transferId!==t1),'incomplete handled');
- b=await bar();assert.ok(!/Received in Studio/.test(b.text)&&!b.del,'incomplete is not Received: '+b.text);
+ await until(()=>bar().then(b=>/did not receive everything/i.test(b.text)||/Waiting for Studio to confirm|Sending/i.test(b.text)&&cloud.docs.get(DOC).transferManifest.transferId!==t1),'incomplete handled');
+ b=await bar();assert.ok(!/Received in Studio/i.test(b.text)&&!b.del,'incomplete is not Received: '+b.text);
  await until(()=>cloud.docs.get(DOC).transferManifest.transferId!==t1,'sent again automatically after an incomplete receipt');
 
  // 4. Studio opens and saves it: complete receipt, Received in Studio, 6 of 6 photos.
  let studio=await open(studioCtx,'studio','/Studio.html');
- await until(()=>bar().then(b=>/✓ Received in Studio/.test(b.text)&&b),'Received in Studio');
+ await until(()=>bar().then(b=>/✓ Received in Studio/i.test(b.text)&&b),'Received in Studio');
  b=await bar();
- assert.match(b.text,/✓ Received in Studio 6 of 6 photos received/);assert.ok(b.del,'Delete photos offered');
+ assert.match(b.text,/✓ RECEIVED IN STUDIO 6 of 6 photos received Delete photos from this device$/);assert.ok(b.del,'Delete photos offered');
  const rc=cloud.docs.get(DOC).receipt;
  assert.deepEqual([rc.complete,rc.photosExpected,rc.photosReceived,rc.rooms,rc.measurements,rc.notes,cloud.docs.get(DOC).status],[true,6,6,2,3,4,'waiting'],'Studio receipt: everything, acceptance still pending');
  assert.equal(Object.keys(rc.photoUrls).length,6);
@@ -96,9 +97,9 @@ async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(D
 
  // 5. Change after sending: no longer Received, no Delete. Send again: one message, confirmed.
  await M(p=>{const x=(0,eval)('state').projects.find(y=>y.id==='sm1');x.sitePhotos.push({id:'sp2',data:p});save();renderSendBar()},pic('sp2'));
- b=await bar();assert.match(b.text,/Changed since last send/);assert.ok(!b.del,'no delete for a changed job');
+ b=await bar();assert.match(b.text,/Changed since last send/i);assert.ok(!b.del,'no delete for a changed job');
  await send();
- await until(()=>bar().then(b=>/✓ Received in Studio 7 of 7 photos received/.test(b.text)),'second send confirmed');
+ await until(()=>bar().then(b=>/✓ Received in Studio 7 of 7 photos received/i.test(b.text)),'second send confirmed');
  assert.equal([...cloud.docs.keys()].filter(k=>k.startsWith(JOBS+'mobile-sm1')).length,1,'repeated sends keep one message');
 
  // 6. Delete photos: Cancel first, then OK.
@@ -119,11 +120,11 @@ async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(D
  await mobile.close();mobile=await open(mobileCtx,'mobile','/Mobile.html');
  await M(()=>{state.currentProject='sm1';show('siteVisitSummary');renderSendBar()});
  assert.deepEqual(await local(),{cloud:true,n:7,marks:3,notes:['Parking behind the house','Sloped ceiling on the left'],rooms:2},'after reload');
- b=await bar();assert.match(b.text,/✓ Received in Studio 7 of 7 photos received · removed from this device/);
+ b=await bar();assert.match(b.text,/✓ Received in Studio 7 of 7 photos received · removed from this device/i);
 
  // 7. Resend after removal is still complete; Studio accepting never downgrades it.
  await send();
- await until(()=>bar().then(b=>/✓ Received in Studio 7 of 7 photos received/.test(b.text)&&cloud.docs.get(DOC).receipt.transferId===cloud.docs.get(DOC).transferManifest.transferId),'resend after removal confirmed');
+ await until(()=>bar().then(b=>/✓ Received in Studio 7 of 7 photos received/i.test(b.text)&&cloud.docs.get(DOC).receipt.transferId===cloud.docs.get(DOC).transferManifest.transferId),'resend after removal confirmed');
  await studio.evaluate(async()=>{const packs=await studioInboxPackets();const pk=packs.find(x=>(x.project||{}).id==='sm1');if(pk)await applyOneSitePacket(pk,true)});
  await until(()=>cloud.docs.get(DOC).status==='received','accepted in Studio');
  await until(()=>M(()=>(0,eval)('state').projects.find(x=>x.id==='sm1').mobileArchived),'phone sees the acceptance');
