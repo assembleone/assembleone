@@ -56,7 +56,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await page.dblclick('#lengthMeasureWrap');
  await page.dblclick('#widthMeasureWrap');await page.dblclick('#widthMeasureWrap');
  let f=await form();
- assert.deepEqual([f.length,f.width,f.thickness,f.name,f.lenTag,f.widTag],['800','400','18','Shelf','Edge: 1','Edge: 2'],'first shelf on screen');
+ assert.deepEqual([f.length,f.width,f.thickness,f.name,f.lenTag,f.widTag],['800','400','18','Shelf','1 edge','2 edges'],'first shelf on screen');
  assert(/edge-one/.test(f.lenEdge)&&/edge-two/.test(f.widEdge));
  assert.equal(await S(()=>document.getElementById('chosenPartSummary').textContent),'Name: Shelf','the chosen name reads as a name, not another button');
 
@@ -64,7 +64,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  for(let i=2;i<=10;i++){
   await placeDot();
   f=await form();
-  assert.deepEqual([f.length,f.width,f.thickness,f.name,f.lenTag,f.widTag],['800','400','18','Shelf','Edge: 1','Edge: 2'],'form unchanged after dot '+i);
+  assert.deepEqual([f.length,f.width,f.thickness,f.name,f.lenTag,f.widTag],['800','400','18','Shelf','1 edge','2 edges'],'form unchanged after dot '+i);
  }
  let all=await parts();
  assert.equal(all.length,10,'10 panels');
@@ -76,7 +76,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await click('#saveNextBtn');
  await page.waitForTimeout(150);
  f=await form();
- assert.deepEqual([f.length,f.width,f.name,f.lenTag,f.widTag],['','','','Edge: 0','Edge: 0'],'size, edging and name cleared');
+ assert.deepEqual([f.length,f.width,f.name,f.lenTag,f.widTag],['','','','',''],'size, edging and name cleared');
  assert(!/edge-(one|two)/.test(f.lenEdge+f.widEdge),'no edging classes left');
  assert.equal(f.thickness,'18','thickness stays');
  assert.equal(await S(()=>state.lastChosenPartName),'','name is a fresh choice');
@@ -117,12 +117,13 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   }await page.dblclick('#lengthMeasureWrap')}
   const st=await S(()=>{const L=getComputedStyle(document.getElementById('lengthMeasureWrap')),W=getComputedStyle(document.getElementById('widthMeasureWrap'));const green='rgb(47, 143, 27)';
    const tag=id=>document.getElementById(id).closest('.measure-field').querySelector('.edge-count').innerText;
-   return {widths:[L.borderTopWidth,L.borderBottomWidth,W.borderLeftWidth,W.borderRightWidth],len:[L.borderTopColor===green,L.borderBottomColor===green],wid:[W.borderLeftColor===green,W.borderRightColor===green],tags:[tag('lengthMeasureWrap'),tag('widthMeasureWrap')],
+   const pe=(id,p)=>{const c=getComputedStyle(document.getElementById(id),p);return c.display!=='none'&&c.backgroundColor===green&&c.position==='absolute'};
+   return {widths:[L.borderTopWidth,L.borderBottomWidth,W.borderLeftWidth,W.borderRightWidth],len:[pe('lengthMeasureWrap','::before'),pe('lengthMeasureWrap','::after')],wid:[pe('widthMeasureWrap','::before'),pe('widthMeasureWrap','::after')],tags:[tag('lengthMeasureWrap'),tag('widthMeasureWrap')],
     fonts:['fLength','fWidth','fThickness'].map(id=>parseFloat(getComputedStyle(document.getElementById(id)).fontSize)),lenH:document.getElementById('lengthMeasureWrap').getBoundingClientRect().height,
     help:!!document.querySelector('#screen-mark .edge-help')}});
-  assert.deepEqual(st.widths,['5px','5px','5px','5px'],'every edge side the same fixed width');
+  assert.deepEqual(st.widths,['1px','1px','1px','1px'],'every box keeps the same thin outline; green lines are overlays');
   assert.deepEqual([st.len,st.wid],[[false,true],[true,true]],'length: one green side; width: both green sides');
-  assert.deepEqual(st.tags,w>1100?['Edge: 1','Edge: 2']:['E1','E2'],`edge text at ${w}px`);
+  assert.deepEqual(st.tags,['1 edge','2 edges'],`edge text at ${w}px`);
   assert(st.fonts.every(x=>x>=34),`measurement numbers stay large at ${w}px: ${st.fonts}`);
   assert(st.lenH>=70,`Length box stays large at ${w}px`);
   assert.equal(st.help,false,'no permanent edging instruction');

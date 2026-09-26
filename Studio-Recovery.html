@@ -10128,51 +10128,49 @@ document.addEventListener('mousedown',function(e){
 #screen-mark .measurement-entry-card{padding-top:8px!important}
 #screen-mark .material-picker>summary,#screen-mark .notes-picker>summary{padding:10px 18px!important;min-height:50px!important;font-size:18px!important;font-weight:700!important}
 
-/* Measurement row: ONE fixed grid. Four columns - Thickness, Length, Width, Quantity - with
-   Length and Width getting most of the width. Every column has the same two zones:
-   a 30 px header zone (label, With Grain, ?, edge text) and a 78 px value zone.
-   Every value box has the same 5 px border, the same height and the same 34 px number, so
-   all four values share one centre line. Nothing in the header, the edging (colour only) or
-   a smaller glyph for a very long value can change the value zone. */
-#screen-mark .measure-entry-row{display:grid!important;grid-template-columns:minmax(130px,.6fr) minmax(0,1.4fr) minmax(0,1.4fr) minmax(160px,.75fr)!important;gap:0!important;align-items:start!important;border:1px solid #dfe3ea;border-radius:12px;background:#fff}
+/* Measurement row: one simple grid with deliberately different widths -
+   Thickness 15% | Length 32% | Width 32% | Quantity 21%.
+   Every column: a fixed 30 px header (label, With Grain, ?, "1 edge"/"2 edges") and a fixed
+   78 px value box. Every value box: same 1 px grey outline, same padding, same 34 px number,
+   number on the left and unit on the right in its own column, no spinner arrows. Green edge
+   lines are drawn on top as overlays and never change any size or position. */
+#screen-mark .measure-entry-row{display:grid!important;grid-template-columns:minmax(124px,15fr) minmax(0,32fr) minmax(0,32fr) minmax(148px,21fr)!important;gap:0!important;align-items:start!important;border:1px solid #dfe3ea;border-radius:12px;background:#fff}
 #screen-mark .measure-entry-row>.measure-box,#screen-mark .measure-entry-row>.quantity-card{display:contents!important}
-#screen-mark .measure-entry-row .measure-field{display:grid!important;grid-template-rows:30px 78px!important;grid-template-columns:minmax(0,1fr)!important;align-content:start!important;row-gap:0!important;min-width:0!important;width:auto!important;height:auto!important;margin:0!important;padding:8px 8px 10px!important;border:0!important;border-right:1px solid #eef0f4!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;position:relative}
+#screen-mark .measure-entry-row .measure-field{display:grid!important;grid-template-rows:30px 78px!important;grid-template-columns:minmax(0,1fr)!important;min-width:0!important;width:auto!important;height:auto!important;margin:0!important;padding:6px 6px 8px!important;border:0!important;border-right:1px solid #eef0f4!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;position:relative}
 #screen-mark .measure-entry-row>.quantity-card .measure-field{border-right:0!important}
-#screen-mark .measure-entry-row .measure-field>span:first-child{grid-row:1!important;display:flex!important;align-items:center!important;gap:6px;height:30px!important;margin:0!important;padding:0!important;overflow:hidden;white-space:nowrap;font-size:13px!important;line-height:1!important;font-weight:800;color:#5b6472}
-#screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{padding-right:64px!important}
-#screen-mark .measure-entry-row .measure-wrap{grid-row:2!important;height:78px!important;min-height:0!important;max-height:78px!important;margin:0!important;padding:0 8px!important;border:5px solid #e8ebf0!important;border-radius:8px!important;box-sizing:border-box!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:minmax(0,1fr)!important;align-content:stretch!important;align-items:center!important;gap:4px!important;background:#fff;position:relative;overflow:hidden}
+#screen-mark .measure-entry-row .measure-field>span:first-child{grid-row:1!important;display:flex!important;align-items:center!important;gap:5px;height:30px!important;margin:0!important;padding:0 2px!important;overflow:hidden;white-space:nowrap;font-size:13px!important;line-height:1!important;font-weight:800;color:#5b6472}
+#screen-mark .measure-entry-row .measure-wrap{grid-row:2!important;position:relative;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:100%!important;align-items:center!important;gap:6px!important;height:78px!important;min-height:0!important;max-height:78px!important;margin:0!important;padding:0 10px!important;border:1px solid #d5dae3!important;border-radius:8px!important;box-sizing:border-box!important;background:#fff;overflow:hidden}
 #screen-mark .measure-entry-row .measure-wrap.unit-qty{grid-template-columns:minmax(0,1fr) auto auto!important}
-/* An older rule gave only the Length and Width boxes 11 px extra bottom padding, lifting their
-   numbers above Thickness and Quantity. All four boxes use exactly the same padding. */
-#screen-mark #lengthMeasureWrap,#screen-mark #widthMeasureWrap{padding:0 8px!important}
-#screen-mark .measure-entry-row .measure-wrap input{align-self:stretch!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0 2px!important;border:0!important;border-radius:0!important;box-shadow:none!important;font-size:34px!important;line-height:normal!important;font-weight:900!important;text-align:left!important;box-sizing:border-box!important;min-width:0!important}
-#screen-mark .measure-entry-row .measure-wrap>span{align-self:center!important;font-size:13px!important;line-height:1!important;font-weight:800;margin:0!important;padding:0!important}
-#screen-mark .measure-entry-row .measure-wrap>button{align-self:center!important;margin:0!important}
+#screen-mark #lengthMeasureWrap,#screen-mark #widthMeasureWrap{padding:0 10px!important}
+#screen-mark .measure-entry-row .measure-wrap input,#screen-mark #lengthMeasureWrap input,#screen-mark #widthMeasureWrap input,#screen-mark #lengthMeasureWrap.edge-one input,#screen-mark #widthMeasureWrap.edge-one input,#screen-mark #lengthMeasureWrap.edge-two input,#screen-mark #widthMeasureWrap.edge-two input{height:100%!important;min-height:0!important;max-height:none!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;outline-offset:-2px;font-size:34px!important;line-height:normal!important;font-weight:900!important;text-align:left!important;box-sizing:border-box!important;-moz-appearance:textfield;appearance:textfield}
+#screen-mark .measure-entry-row .measure-wrap input::-webkit-inner-spin-button,#screen-mark .measure-entry-row .measure-wrap input::-webkit-outer-spin-button{-webkit-appearance:none!important;margin:0!important;display:none!important}
+#screen-mark .measure-entry-row .measure-wrap>span{font-size:14px!important;line-height:1!important;font-weight:800;margin:0!important;padding:0!important;white-space:nowrap}
+#screen-mark .measure-entry-row .measure-wrap>button{margin:0!important}
 #screen-mark .measure-wrap .edge-lines{display:none!important}
-/* Older rules drew a dark underline under the number when edging was on; never draw it. */
-#screen-mark #lengthMeasureWrap input,#screen-mark #widthMeasureWrap input,#screen-mark #lengthMeasureWrap.edge-one input,#screen-mark #widthMeasureWrap.edge-one input,#screen-mark #lengthMeasureWrap.edge-two input,#screen-mark #widthMeasureWrap.edge-two input{border:0!important;box-shadow:none!important}
-#screen-mark .measure-wrap::before,#screen-mark .measure-wrap::after{display:none!important}
 
-/* Edging: only the border colour changes (light grey, or green on a banded side).
-   Length edges = top and bottom sides, Width edges = left and right sides. */
-#screen-mark #lengthMeasureWrap.edge-one{border-bottom-color:#2f8f1b!important}
-#screen-mark #lengthMeasureWrap.edge-two{border-top-color:#2f8f1b!important;border-bottom-color:#2f8f1b!important}
-#screen-mark #widthMeasureWrap.edge-one{border-left-color:#2f8f1b!important}
-#screen-mark #widthMeasureWrap.edge-two{border-left-color:#2f8f1b!important;border-right-color:#2f8f1b!important}
-/* The edge text lives in the header zone, in a fixed spot on the right. */
-#screen-mark .edge-count{position:absolute;top:15px;right:10px;width:58px;text-align:right;font:800 12px/16px Arial,sans-serif;color:#8a93a3;white-space:nowrap;cursor:help}
-#screen-mark .edge-count.on{color:#1d5f0f}
-#screen-mark .edge-count .ec-short{display:none}
+/* Green edge lines: overlays on the box's own outline. Length = top and bottom, Width = left
+   and right. Absolutely positioned, so they change nothing else. */
+#screen-mark .measure-entry-row .measure-wrap::before,#screen-mark .measure-entry-row .measure-wrap::after{content:none;display:none!important}
+#screen-mark #lengthMeasureWrap.edge-one::after,#screen-mark #lengthMeasureWrap.edge-two::after,#screen-mark #lengthMeasureWrap.edge-two::before,
+#screen-mark #widthMeasureWrap.edge-one::before,#screen-mark #widthMeasureWrap.edge-two::before,#screen-mark #widthMeasureWrap.edge-two::after{content:''!important;display:block!important;position:absolute!important;background:#2f8f1b!important;pointer-events:none;z-index:2;border:0!important;margin:0!important}
+#screen-mark #lengthMeasureWrap.edge-two::before{left:0!important;right:0!important;top:0!important;bottom:auto!important;height:5px!important;width:auto!important}
+#screen-mark #lengthMeasureWrap.edge-one::after,#screen-mark #lengthMeasureWrap.edge-two::after{left:0!important;right:0!important;bottom:0!important;top:auto!important;height:5px!important;width:auto!important}
+#screen-mark #widthMeasureWrap.edge-one::before,#screen-mark #widthMeasureWrap.edge-two::before{top:0!important;bottom:0!important;left:0!important;right:auto!important;width:5px!important;height:auto!important}
+#screen-mark #widthMeasureWrap.edge-two::after{top:0!important;bottom:0!important;right:0!important;left:auto!important;width:5px!important;height:auto!important}
+
+/* "1 edge" / "2 edges" in the header, right-aligned in a reserved spot. */
+#screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{padding-right:62px!important}
+/* When the header is too narrow for one line, "With Grain" wraps to a second line inside the
+   same fixed 30 px header zone; the value box underneath never moves. */
+#screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{flex-wrap:wrap!important;align-content:center!important;row-gap:2px!important}
+#screen-mark .edge-count{position:absolute;top:13px;right:8px;width:58px;text-align:right;font:800 12px/16px Arial,sans-serif;color:#1d5f0f;white-space:nowrap;cursor:help}
 #screen-mark .edge-help-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;margin:0;padding:0;border:1px solid #b9c1ce;border-radius:50%;background:#fff;color:#5b6472;font:900 11px/1 Arial,sans-serif;cursor:pointer}
-#screen-mark .edge-help-pop{position:absolute;left:8px;top:36px;z-index:60;width:min(320px,80vw);padding:9px 11px;border:1px solid #cfd6e2;border-radius:10px;background:#fff;color:#293a4e;font-size:13px;font-weight:600;line-height:1.4;box-shadow:0 10px 24px rgba(20,30,50,.18)}
+#screen-mark .edge-help-pop{position:absolute;left:6px;top:36px;z-index:60;width:min(320px,80vw);padding:9px 11px;border:1px solid #cfd6e2;border-radius:10px;background:#fff;color:#293a4e;font-size:13px;font-weight:600;line-height:1.4;box-shadow:0 10px 24px rgba(20,30,50,.18)}
 #screen-mark .edge-help-pop[hidden]{display:none}
-@media(max-width:1100px){
- #screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{padding-right:30px!important}
- #screen-mark .edge-count{width:26px}
- #screen-mark .edge-count .ec-long{display:none}
- #screen-mark .edge-count .ec-short{display:inline!important}
- #screen-mark .edge-help-btn{display:none}
-}
+/* Narrow windows: the "?" would touch "2 edges"; the edge text opens the same help. */
+@media(max-width:900px){#screen-mark .edge-help-btn{display:none}#screen-mark .measure-entry-row .measure-field>span:first-child .with-grain-tag{margin-left:0!important;padding:1px 5px!important;font-size:10px!important;letter-spacing:0!important}#screen-mark .measure-entry-row .measure-field.has-edge-count>span:first-child{padding-right:50px!important}#screen-mark .edge-count{width:48px}}
+/* Quantity: number, "pcs" and the lock with tighter gaps, so a two-digit number fits. */
+#screen-mark .measure-entry-row .measure-wrap.unit-qty{gap:4px!important;padding:0 6px 0 10px!important}
 
 /* Help bubble docked at the bottom of the left navigation: it never floats over the work. */
 .app>.sidebar .fiq-help-fab.fiq-help-docked{position:static!important;right:auto!important;bottom:auto!important;width:44px!important;height:44px!important;margin:0 auto!important;flex:none!important;font-size:19px!important;box-shadow:0 3px 10px rgba(11,37,69,.25)!important}
@@ -10208,7 +10206,7 @@ document.addEventListener('mousedown',function(e){
       field.classList.add('has-edge-count');
       let tag=field.querySelector(':scope>.edge-count');
       if(!tag){tag=document.createElement('span');tag.className='edge-count';field.appendChild(tag)}
-      tag.innerHTML='<span class="ec-long">Edge: '+n+'</span><span class="ec-short">E'+n+'</span>';tag.title=label+' edging: '+n;tag.classList.toggle('on',n>0);
+      tag.textContent=n===2?'2 edges':n===1?'1 edge':'';tag.title=label+' edging: '+(n||'none');
       wrap.title=label+' edging: '+(n===2?'2 edges':n===1?'1 edge':'none')+'. Double-click to change.';
     });
     renderUnits();
