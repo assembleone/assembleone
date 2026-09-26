@@ -59,6 +59,10 @@ const MAP={
  const pieceQr=(legacy,piece)=>{const o=JSON.parse(legacy);o.copyIndex=piece===1?-1:piece-2;return JSON.stringify(o)};
  const legacyQr=await page.evaluate(()=>Object.fromEntries(cabinet().parts.map(p=>[p.code,phoneQrText(p)])));
  const qrOf=(code,piece)=>pieceQr(legacyQr[code],piece);
+ // The production systems get the same identity in Mobile's existing short URL form
+ // ("#panel=project:unit:panel:copyIndex"), derived here independently of the app.
+ const labelOf=json=>{const o=JSON.parse(json);return '#panel='+[o.projectId,o.cabinetId,o.panelId].map(encodeURIComponent).join(':')+(o.copyIndex!=null?':'+o.copyIndex:'')};
+ const identity=t=>{if(String(t).startsWith('{')){const o=JSON.parse(t);return [o.projectId,o.cabinetId,o.panelId,o.copyIndex??''].join('|')}const m=String(t).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(-?\d+))?$/);return m?[m[1],m[2],m[3],m[4]??''].map(decodeURIComponent).join('|'):'?'};
  const parts=await page.evaluate(()=>Object.fromEntries(cabinet().parts.map(p=>[p.code,{name:p.name,L:p.length,W:p.width,T:p.thickness,qty:p.qty,mat:p.material,eL:p.edgeLong,eS:p.edgeShort,notes:p.notes}])));
  // The expected physical pieces, in Cutting List order.
  const pieces=[];Object.entries(parts).forEach(([code,p])=>{for(let i=1;i<=p.qty;i++)pieces.push({code,n:i,piece:i+'/'+p.qty,ref:code+'-'+i})});
@@ -84,10 +88,12 @@ const MAP={
   assert.equal(rows.length,9,sys+': one row per physical panel');
   rows.forEach((r,i)=>{const pc=pieces[i],p=parts[pc.code];
    const got={panel:r[m.panel],ref:r[m.ref],piece:r[m.piece],name:r[m.name],L:r[m.L],W:r[m.W],T:r[m.T],mat:r[m.mat],qty:r[m.qty],qr:r[m.qr],edges:[r[m.et],r[m.eb],r[m.el],r[m.er]].join(''),grain:r[m.grain],notes:r[m.notes],cust:r[m.cust],job:r[m.job],room:r[m.room]};
-   assert.deepEqual(got,{panel:pc.code,ref:pc.ref,piece:pc.piece,name:p.name,L:String(p.L),W:String(p.W),T:String(p.T),mat:p.mat,qty:'1',qr:qrOf(pc.code,pc.n),
+   assert.deepEqual(got,{panel:pc.code,ref:pc.ref,piece:pc.piece,name:p.name,L:String(p.L),W:String(p.W),T:String(p.T),mat:p.mat,qty:'1',qr:sys==='standard'?qrOf(pc.code,pc.n):labelOf(qrOf(pc.code,pc.n)),
     edges:[p.eL>=1?1:0,p.eL>=2?1:0,p.eS>=1?1:0,p.eS>=2?1:0].join(''),grain:'Length',notes:p.notes,cust:'Åse Møller',job:'Bedroom fit',room:'Bedroom · Wardrobe A'},sys+' row '+(i+1));
   });
-  exported[sys]=rows.map(r=>[r[m.panel],r[m.L],r[m.W],r[m.T],r[m.mat],r[m.qr]]);
+  if(sys!=='standard')rows.forEach(r=>assert.ok(/^#panel=[^"',;\s]+$/.test(r[m.qr])&&r[m.qr].length<=60,sys+' QR field is short and label-safe: '+r[m.qr]));
+  else rows.forEach((r,i)=>assert.equal(r['FittersIQ QR (label text)'],labelOf(r['FittersIQ QR']),'Standard CSV also has the label text'));
+  exported[sys]=rows.map(r=>[r[m.panel],r[m.L],r[m.W],r[m.T],r[m.mat],identity(r[m.qr])]);
  }
  assert.match(await page.locator('#supplierActionStatus').innerText(),/Downloaded Standard CSV production file .* 9 rows, one per physical panel\./);
 
@@ -102,15 +108,15 @@ const MAP={
  const pdfRows=pdfA.stickers.map((s,i)=>{
   assert.ok(Math.abs(s.wMm-90)<0.2&&Math.abs(s.hMm-50)<0.2,'PDF sticker size '+s.wMm+' x '+s.hMm);
   const m=s.left.match(/^(.*) (\S+) × (\S+) × (\S+) mm (.*) Åse Møller$/);assert.ok(m,'PDF sticker text '+s.left);
-  return [s.code,m[2],m[3],m[4],m[5],s.qr]});
+  return [s.code,m[2],m[3],m[4],m[5],identity(s.qr)]});
 
  // The same physical panel through all five exports.
- const expected=pieces.map(pc=>{const p=parts[pc.code];return [pc.code,String(p.L),String(p.W),String(p.T),p.mat,qrOf(pc.code,pc.n)]});
+ const expected=pieces.map(pc=>{const p=parts[pc.code];return [pc.code,String(p.L),String(p.W),String(p.T),p.mat,identity(qrOf(pc.code,pc.n))]});
  for(const [k,v] of Object.entries({...exported,pdf:pdfRows}))assert.deepEqual(v,expected,k+': same panel number, dimensions, material and QR identity for every physical panel');
 
  // Identical panels keep their own identity.
  assert.notEqual(qrOf('P-005',1),qrOf('P-006',1),'identical separate panels keep separate QR codes');
- assert.deepEqual(exported.standard.filter(r=>r[1]==='700').map(r=>[r[0],r[5]]),[['P-005',qrOf('P-005',1)],['P-006',qrOf('P-006',1)]]);
+ assert.deepEqual(exported.standard.filter(r=>r[1]==='700').map(r=>[r[0],r[5]]),[['P-005',identity(qrOf('P-005',1))],['P-006',identity(qrOf('P-006',1))]]);
  assert.equal(new Set(exported.standard.map(r=>r[5])).size,9,'nine physical panels, nine different QR codes');
  const std=parseCsv((await (async()=>{await page.locator('#supplierSystemSelect').selectOption('standard');return click('#fiqProductionFileBtn')})()).bytes.toString('utf8'),',');
  assert.equal(new Set(std.map(r=>r['Piece Ref'])).size,9,'every physical panel has its own piece reference');

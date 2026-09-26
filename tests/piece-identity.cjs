@@ -56,7 +56,7 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
  await until(()=>M(()=>!!(0,eval)('state').projects.find(x=>x.id==='pj')),'job reaches Mobile');
 
  // QR texts exactly as the stickers / PDF / production files carry them.
- const qr=await S(()=>{switchToProject('pj','pc');const ds=fiqSupplierDataset();const o={};ds.rows.forEach(r=>o[r.pieceRef]=r.qr);o.legacy4=phoneQrText(cabinet().parts.find(p=>p.code==='P-004'));o.legacy2=phoneQrText(cabinet().parts.find(p=>p.code==='P-002'));return o});
+ const qr=await S(()=>{switchToProject('pj','pc');const ds=fiqSupplierDataset();const o={};ds.rows.forEach(r=>{o[r.pieceRef]=r.qr;o['label '+r.pieceRef]=r.qrLabel});o.legacy4=phoneQrText(cabinet().parts.find(p=>p.code==='P-004'));o.legacy2=phoneQrText(cabinet().parts.find(p=>p.code==='P-002'));return o});
  const base2=JSON.parse(qr.legacy2);
  assert.deepEqual(['P-002-1','P-002-2','P-002-3'].map(k=>JSON.parse(qr[k])),[-1,0,1].map(ci=>({...base2,copyIndex:ci})),'P-002 pieces: existing identity + copyIndex -1, 0, 1');
  assert.equal(new Set(Object.values(qr)).size,Object.keys(qr).length,'every physical piece has a different QR');
@@ -81,8 +81,10 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
  await scan(qr['P-002-1']);v=await piecesOf('P-002');
  assert.deepEqual([checkedPieces(v),v.scanned],[[1],1],'re-scanning piece 1 does not count again');
 
- // 2. Scan piece 2: recorded separately.
- assert.equal(await scan(qr['P-002-2']),'P-002 · 2/3');
+ // 2. Scan piece 2 -- this time from the QR text the production file gives the supplier's
+ //    own label printer (ARDIS / Cut Rite / Maestro): recorded separately, as piece 2.
+ assert.match(qr['label P-002-2'],/^#panel=pj:pc:p2:0$/);
+ assert.equal(await scan(qr['label P-002-2']),'P-002 · 2/3');
  v=await piecesOf('P-002');
  assert.deepEqual([checkedPieces(v),v.scanned],[[1,2],2],'piece 2 recorded separately');
 
@@ -137,6 +139,10 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
  assert.equal(await scan(url[0]),'P-001','old URL QR still opens P-001 the old way');
  assert.equal(await scan(url[1]),'P-001 · 1/1','URL QR with piece 1 works');
  v=await piecesOf('P-001');assert.deepEqual([v.scanned,checkedPieces(v)],[1,[1]],'the legacy scan counted P-001; the piece scan marked piece 1 without counting twice');
+
+ // Every production-file QR text resolves to exactly the same piece as its sticker QR.
+ const same=await M(q=>Object.keys(q).filter(k=>/^P-/.test(k)).map(k=>{const a=[];for(const t of [q[k],q['label '+k]]){state.scanMode='find';lastScannedQrText=null;openScannedText(t);a.push(state.currentPart+'#'+state.scannedPiece)}return k+'='+a.join(' ')}),qr);
+ same.forEach(x=>{const [k,v]=x.split('=');const [a,b]=v.split(' ');assert.equal(a,b,'label text and sticker QR open the same piece for '+k)});
 
  // 8. Panel with three drawn markers: the piece QR still selects that marker (16 Aug design).
  const qr5=await S(()=>(switchToProject('pj','pc'),fiqSupplierDataset()).rows.filter(r=>r.panelNumber==='P-005').map(r=>r.qr));
