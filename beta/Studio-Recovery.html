@@ -10114,6 +10114,19 @@ document.addEventListener('mousedown',function(e){
 #screen-mark .edge-count{position:absolute;top:2px;right:4px;padding:0 6px;border-radius:999px;background:#2f8f1b;color:#fff;font:800 11px/17px Arial,sans-serif;white-space:nowrap;pointer-events:none}
 #screen-mark .edge-count:empty{display:none}
 
+/* Measurements first under the drawing: a slim header line with the label and a compact
+   mm / cm / in switch, so the space goes to the large Thickness / Length / Width / Quantity
+   boxes, which keep their size. */
+#screen-mark .measurement-entry-card{padding-top:8px!important}
+#screen-mark #unitsToggle{display:flex!important;align-items:center;gap:0!important;margin:0 0 6px!important}
+#screen-mark #unitsToggle::before{content:attr(data-label);margin-right:auto;font-size:16px;font-weight:900;color:#171c46}
+#screen-mark #unitsToggle .unit-choice{margin:0!important;min-height:36px;padding:4px 20px!important;font-size:16px!important;font-weight:800;border:2px solid #c9ced6!important;border-left-width:0!important;border-radius:0!important}
+#screen-mark #unitsToggle .unit-choice:first-of-type{border-left-width:2px!important;border-radius:10px 0 0 10px!important}
+#screen-mark #unitsToggle .unit-choice:last-of-type{border-radius:0 10px 10px 0!important}
+#screen-mark #unitsToggle .unit-choice.active{background:#FFC600!important;border-color:#c99700!important;color:#171c46!important}
+/* Material and Notes are chosen once per job: same controls, less empty padding. */
+#screen-mark .material-picker>summary,#screen-mark .notes-picker>summary{padding:10px 18px!important;min-height:50px!important;font-size:18px!important;font-weight:700!important}
+
 /* Help bubble docked at the bottom of the left navigation: it never floats over the work. */
 .app>.sidebar .fiq-help-fab.fiq-help-docked{position:static!important;right:auto!important;bottom:auto!important;width:44px!important;height:44px!important;margin:0 auto!important;flex:none!important;font-size:19px!important;box-shadow:0 3px 10px rgba(11,37,69,.25)!important}
 </style>
@@ -10124,6 +10137,8 @@ document.addEventListener('mousedown',function(e){
   // edge-one / edge-two classes updateEdgePreview already sets; this adds the "1 edge" /
   // "2 edges" text so the state is clear without colour.
   window.fiqRenderEdgeBoxes=function(p){
+    const units=document.getElementById('unitsToggle');
+    if(units)units.dataset.label=typeof t==='function'?t('studio.panelCheck.measurementsLabel'):'Measurements';
     [['lengthMeasureWrap',Number(p?.edgeLong||0)],['widthMeasureWrap',Number(p?.edgeShort||0)]].forEach(([id,n])=>{
       const wrap=document.getElementById(id);if(!wrap)return;
       let tag=wrap.querySelector('.edge-count');
