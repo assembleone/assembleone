@@ -2062,9 +2062,6 @@ function createPartAt(x,y){
   const draft=state.newPanelDraft;
   if(draft){p.edgeLong=Number(draft.edgeLong||0);p.edgeShort=Number(draft.edgeShort||0)}
  }
- // Every panel needs a material and a part name. If one is missing, nothing is created and
- // nothing typed or prepared is cleared; the missing control is shown.
- if(typeof window.fiqMissingBasics==='function'){const missing=window.fiqMissingBasics(p);if(missing.length){window.fiqShowMissingBasics(missing);return}window.fiqClearMissingBasics&&window.fiqClearMissingBasics()}
  state.newPanelDraft=null;
  c.parts.push(p);state.currentPart=p.id;
  if(typeof renderForm==='function')renderForm();
