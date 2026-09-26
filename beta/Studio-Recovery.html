@@ -6933,17 +6933,8 @@ body.guide-only .a131-back-studio{display:block}
     // the boss sorts a problem from either place, it should stop showing as outstanding in
     // both, not just the one it was sorted from.
     const flagged=t.rows.filter(({pt})=>(pt.status==='missing'||pt.status==='damaged')&&!pt.attentionSorted);
-    box.innerHTML=`<div class="install-progress-head"><strong>Installation Progress</strong><span>${t.installed} of ${t.total} panels fitted · ${t.pct}%</span></div>
-      <div class="install-progress-fitter"><span>Lead Fitter:</span>${typeof window.a211FitterRowHtml==='function'?window.a211FitterRowHtml(p):''}${typeof window.a211OtherFittersHtml==='function'?window.a211OtherFittersHtml(p):''}</div>
-      <div class="install-progress-bar"><i style="width:${t.pct}%"></i></div>
-      <div class="install-progress-stats">
-        <div class="install-stat installed"><b>${t.installed}</b><span>Installed</span></div>
-        <div class="install-stat missing"><b>${t.missing}</b><span>Not yet fitted</span></div>
-        <div class="install-stat damaged"><b>${t.damaged}</b><span>Damaged</span></div>
-        <div class="install-stat"><b>${t.total}</b><span>Total panels</span></div>
-      </div>
-      ${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">⚠️ Reported missing or damaged on site (${flagged.length})</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row" data-outstanding-row="${safe(pt.id)}"><span class="install-outstanding-icon">${pt.status==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${pt.status}">${statusWord(pt.status)}</span><button type="button" class="btn install-outstanding-sorted-btn" data-outstanding-sorted="${safe(pt.id)}">✓ Sorted</button></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
-        :(t.installed>=t.total&&t.total>0?'<div class="install-all-done">✓ Every panel is installed</div>':'')}`;
+    box.innerHTML=`${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">⚠️ Reported missing or damaged on site (${flagged.length})</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row" data-outstanding-row="${safe(pt.id)}"><span class="install-outstanding-icon">${pt.status==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${pt.status}">${statusWord(pt.status)}</span><button type="button" class="btn install-outstanding-sorted-btn" data-outstanding-sorted="${safe(pt.id)}">✓ Sorted</button></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
+        :''}`;
     const orderBtn=document.getElementById('orderMissingPanelsBtn');
     if(orderBtn)orderBtn.onclick=()=>exportMissingPanelsCsv(flagged,p);
     box.querySelectorAll('[data-outstanding-sorted]').forEach(btn=>{
@@ -7184,17 +7175,35 @@ body.fiq-locked .app{display:none!important}
   var PALETTE=['#8ecae6','#ffb703','#fb8500','#a7c957','#f4a261','#e76f51','#adb5bd','#cdb4db','#90be6d','#f9c74f','#6bbf3a','#5b9bd5'];
 
   function loadSettings(){try{return JSON.parse(localStorage.getItem(SETTINGS_KEY))||{}}catch(e){return {}}}
-  function saveSetting(key,cfg){var all=loadSettings();all[key]=cfg;try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(all))}catch(e){}}
+  // A chosen sheet size is remembered on the open job (so it does not reset for that job) and
+  // in this browser (so the next job starts from it). Only written when someone changes it.
+  function saveSetting(key,cfg){
+    var all=loadSettings();all[key]=cfg;try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(all))}catch(e){}
+    var pr=(typeof project==='function')?project():null;
+    if(pr){pr.sheetSettings=pr.sheetSettings||{};pr.sheetSettings[key]={w:cfg.w,h:cfg.h,kerf:cfg.kerf,trim:cfg.trim,grain:cfg.grain,custom:!!cfg.custom};if(typeof save==='function')save()}
+  }
+  // Standard sheet sizes by material type; the first one is that type's default.
+  function presetsFor(material){
+    var m=String(material||'').toLowerCase();
+    if(/melamin|\bmfc\b/.test(m))return {type:'Melamine / MFC',list:[[2800,2070],[2440,1220]]};
+    if(/\bmdf\b/.test(m))return {type:'MDF',list:[[2440,1220],[2800,2070],[3050,1220]]};
+    if(/ply/.test(m))return {type:'Plywood',list:[[2440,1220],[2500,1250],[3050,1525]]};
+    return {type:'',list:[[2440,1220],[2800,2070],[3050,1220],[2500,1250],[3050,1525]]};
+  }
+  window.fiqSheetPresetsFor=presetsFor;
   // Keyed by material+thickness (not material alone): 19mm walnut and 30mm walnut are
   // physically different sheet products and must never share sheet size, kerf, trim or
   // grain settings just because the material name matches.
-  function cfgFor(all,material,thickness){
+  function cfgFor(all,material,thickness,pr){
     var matKey=String(material||'').trim().toLowerCase();
     var key=matKey+'__'+(Number(thickness)||0);
-    // Fall back to a pre-existing material-only setting (saved before thickness was part of
-    // the key) so upgrading doesn't silently reset sheet size/kerf/trim/grain to defaults.
-    var c=all[key]||all[matKey];
-    return {key:key,w:Number(c&&c.w)||DEFAULT_CFG.w,h:Number(c&&c.h)||DEFAULT_CFG.h,kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,trim:c&&c.trim!=null?Number(c.trim):DEFAULT_CFG.trim,grain:c&&c.grain!=null?!!c.grain:DEFAULT_CFG.grain}
+    // The open job's own choice first, then this browser's last choice, then the older
+    // material-only setting (saved before thickness was part of the key), then the material
+    // type's default sheet size.
+    if(pr===undefined)pr=(typeof project==='function')?project():null;
+    var c=(pr&&pr.sheetSettings&&pr.sheetSettings[key])||all[key]||all[matKey];
+    var d=presetsFor(material).list[0];
+    return {key:key,w:Number(c&&c.w)||d[0],h:Number(c&&c.h)||d[1],kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,trim:c&&c.trim!=null?Number(c.trim):DEFAULT_CFG.trim,grain:c&&c.grain!=null?!!c.grain:DEFAULT_CFG.grain,custom:!!(c&&c.custom)}
   }
 
   function colorFor(code){var s=String(code||''),h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PALETTE[h%PALETTE.length]}
@@ -7325,6 +7334,17 @@ body.fiq-locked .app{display:none!important}
     return {materialLabel:materialLabel,thickness:thickness,cfg:cfg,sheets:res.sheets,unplaced:res.unplaced,wastePct:wastePct,sheetArea:sheetArea,usedArea:usedArea};
   }
 
+  function sheetSizeHtml(g,idx){
+    var cfg=g.cfg,pre=presetsFor(g.materialLabel);
+    var match=pre.list.findIndex(function(d){return d[0]===cfg.w&&d[1]===cfg.h});
+    var custom=cfg.custom||match<0;
+    var opts=pre.list.map(function(d,i){return '<option value="'+d[0]+'x'+d[1]+'"'+(!custom&&i===match?' selected':'')+'>'+d[0]+' × '+d[1]+' mm'+(i===0?' (default)':'')+'</option>'}).join('')+
+      '<option value="custom"'+(custom?' selected':'')+'>Custom…</option>';
+    return '<label class="sheet-size-pick">Sheet size'+(pre.type?' <small>'+pre.type+'</small>':'')+'<select data-sheet-preset="'+idx+'">'+opts+'</select></label>'+
+      (custom?'<span class="sheet-size-custom"><label>'+t("studio.supplier.sheetLengthLabel")+'<small>'+t("studio.supplier.grainDirectionHint")+'</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
+      '<label>'+t("studio.supplier.sheetWidthLabel")+'<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label></span>':'');
+  }
+
   function renderGroupHtml(g,idx){
     var cfg=g.cfg;
     // Listing every unplaced piece separately (P-003, P-003, P-003 x1500...) turns one
@@ -7345,8 +7365,7 @@ body.fiq-locked .app{display:none!important}
     return '<div class="sheet-optim-group" data-sheet-group="'+idx+'" style="border-left-color:'+groupColor+'">'+
       '<div class="sheet-optim-head"><h4><span class="sheet-optim-swatch" style="background:'+groupColor+'"></span>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</h4></div>'+
       '<div class="sheet-optim-settings">'+
-        '<label>'+t("studio.supplier.sheetLengthLabel")+'<br><small>'+t("studio.supplier.grainDirectionHint")+'</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
-        '<label>'+t("studio.supplier.sheetWidthLabel")+'<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label>'+
+        sheetSizeHtml(g,idx)+
         '<label>'+t("studio.supplier.sawKerfLabel")+'<input type="number" min="0" max="15" step="0.5" data-sheet-kerf="'+idx+'" value="'+cfg.kerf+'"></label>'+
         '<label>'+t("studio.supplier.trimAllowanceLabel")+'<input type="number" min="0" max="50" step="1" data-sheet-trim="'+idx+'" value="'+cfg.trim+'"></label>'+
         '<label class="sheet-optim-grain"><input type="checkbox" data-sheet-grain="'+idx+'" '+(cfg.grain?'checked':'')+'> '+t("studio.supplier.hasGrainDirectionCheckbox")+'</label>'+
@@ -7396,18 +7415,23 @@ body.fiq-locked .app{display:none!important}
     if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">'+(emptyMsg||t("studio.supplier.sheetOptimEmptyGeneric"))+'</div>';return []}
     var groups=computeGroups(parts);
     box.innerHTML=groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
-    box.querySelectorAll('[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
+    box.querySelectorAll('[data-sheet-preset],[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
       el.addEventListener('change',function(){
-        var idx=Number(el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetTrim??el.dataset.sheetGrain);
+        var idx=Number(el.dataset.sheetPreset??el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetTrim??el.dataset.sheetGrain);
         var g=groups[idx];if(!g)return;
         var cur=cfgFor(loadSettings(),g.materialLabel,g.thickness);
-        if(el.dataset.sheetW!=null)cur.w=Math.max(300,Number(el.value)||DEFAULT_CFG.w);
-        if(el.dataset.sheetH!=null)cur.h=Math.max(300,Number(el.value)||DEFAULT_CFG.h);
+        if(el.dataset.sheetPreset!=null){
+          if(el.value==='custom')cur.custom=true;
+          else{var wh=el.value.split('x');cur.w=Number(wh[0]);cur.h=Number(wh[1]);cur.custom=false}
+        }
+        if(el.dataset.sheetW!=null){cur.w=Math.max(300,Number(el.value)||cur.w);cur.custom=true}
+        if(el.dataset.sheetH!=null){cur.h=Math.max(300,Number(el.value)||cur.h);cur.custom=true}
         if(el.dataset.sheetKerf!=null)cur.kerf=Math.max(0,Number(el.value)||0);
         if(el.dataset.sheetTrim!=null)cur.trim=Math.max(0,Number(el.value)||0);
         if(el.dataset.sheetGrain!=null)cur.grain=!!el.checked;
         saveSetting(cur.key,cur);
         renderInto(box,parts,emptyMsg);
+        if(typeof window.fiqRenderCustomerSheets==='function')window.fiqRenderCustomerSheets();
       });
     });
     return groups;
@@ -7501,6 +7525,12 @@ body.fiq-locked .app{display:none!important}
 .cust-sheet-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-weight:700}
 .cust-sheet-row:first-of-type{border-top:none}
 .cust-sheet-count{font-weight:900;color:#0051ff;white-space:nowrap}
+.cust-sheet-size{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+.cust-sheet-warn{margin:-2px 0 6px;padding:5px 8px;border-radius:8px;background:#fff4e5;color:#7a4a00;font-size:12px;font-weight:700}
+.sheet-size-pick{min-width:0}
+.sheet-size-pick select{display:block;width:100%;max-width:220px;margin-top:3px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-weight:800;font-size:13px}
+.sheet-size-pick small,.sheet-size-custom small{display:block;font-weight:600;color:var(--muted)}
+.sheet-size-custom{display:contents}
 </style>
 <script id="a213-customer-sheet-estimate-script">
 (function(){
@@ -7532,7 +7562,7 @@ body.fiq-locked .app{display:none!important}
           const gk=mat.toLowerCase()+'__'+(pt.thickness||0);
           (byKey[gk]=byKey[gk]||{material:mat,thickness:pt.thickness,pieces:[]});
           const n=Math.max(1,Number(pt.qty)||1);
-          for(let i=0;i<n;i++)byKey[gk].pieces.push({w:Number(pt.length)||0,h:Number(pt.width)||0});
+          for(let i=0;i<n;i++)byKey[gk].pieces.push({w:Number(pt.length)||0,h:Number(pt.width)||0,code:pt.code,name:pt.name||''});
         });
       });
     });
@@ -7541,10 +7571,12 @@ body.fiq-locked .app{display:none!important}
       const g=byKey[gk];
       const cfg=window.a181CfgFor(settings,g.material,g.thickness);
       const res=window.a181Pack(g.pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
-      return {material:g.material,thickness:g.thickness,sheets:res.sheets.length};
+      return {material:g.material,thickness:g.thickness,sheets:res.sheets.length,w:cfg.w,h:cfg.h,unplaced:res.unplaced};
     }).sort((a,b)=>b.sheets-a.sheets);
     if(!groups.length){box.innerHTML='';return}
-    const rows=groups.map(g=>'<div class="cust-sheet-row"><span class="cust-sheet-mat">'+safe(g.material)+' · '+safe(g.thickness)+'mm</span><span class="cust-sheet-count">'+g.sheets+' sheet'+(g.sheets===1?'':'s')+'</span></div>').join('');
+    // A panel larger than the sheet is never counted as fitting: it is named instead.
+    const tooBig=g=>{if(!g.unplaced.length)return '';const sizes=[...new Set(g.unplaced.map(u=>Math.round(u.w)+'×'+Math.round(u.h)))];return '<div class="cust-sheet-warn">⚠ '+g.unplaced.length+' panel'+(g.unplaced.length===1?'':'s')+' larger than a '+g.w+' × '+g.h+' sheet, not counted: '+safe(sizes.join(', '))+' mm</div>'};
+    const rows=groups.map(g=>'<div class="cust-sheet-row"><span class="cust-sheet-mat">'+safe(g.material)+' · '+safe(g.thickness)+'mm<small class="cust-sheet-size">'+g.w+' × '+g.h+' sheet</small></span><span class="cust-sheet-count">'+g.sheets+' sheet'+(g.sheets===1?'':'s')+'</span></div>'+tooBig(g)).join('');
     box.innerHTML='<div class="est-mat-card cust-sheet-card">'+
       '<div class="cust-sheet-customer">👤 '+safe(customer.name)+'</div>'+
       '<div class="est-mat-title">🧾 Estimated Sheets Required — all '+jobs.length+' jobs</div>'+
@@ -7552,6 +7584,7 @@ body.fiq-locked .app{display:none!important}
       '<div class="est-mat-note">Estimate only. Combines every job on file for this customer, kept separate by material and thickness.</div>'+
     '</div>';
   }
+  window.fiqRenderCustomerSheets=render;
   const prevRenderParts2=window.renderParts;
   window.renderParts=function(){const r=prevRenderParts2?prevRenderParts2.apply(this,arguments):undefined;render();return r};
   try{render()}catch(e){}
