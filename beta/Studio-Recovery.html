@@ -248,6 +248,18 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 .supplier-label .big{font-weight:900;font-size:16px}
 .supplier-label .small{font-size:11px;line-height:1.35;color:#4c545e}
 .cut-qr{width:68px;height:68px;display:grid;place-items:center}
+.fiq-sticker{--fs-qr:150px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;box-sizing:border-box;border:2px solid #111;border-radius:10px;padding:10px;background:#fff;color:#111;overflow:hidden;break-inside:avoid}
+.fiq-sticker .fs-left{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fiq-sticker .fs-name{font:900 22px 'Inter',sans-serif;line-height:1.05;overflow-wrap:anywhere}
+.fiq-sticker .fs-dims{font-weight:800;font-size:15px;overflow-wrap:anywhere}
+.fiq-sticker .fs-mat{font-weight:700;font-size:13px;overflow-wrap:anywhere}
+.fiq-sticker .fs-cust{margin-top:auto;font-size:10px;color:#444;overflow-wrap:anywhere}
+.fiq-sticker .fs-right{display:flex;flex-direction:column;align-items:center;gap:4px}
+.fiq-sticker .fs-code{font:900 18px 'Inter',sans-serif;line-height:1;white-space:nowrap}
+.fiq-sticker .fs-qr,.fiq-sticker .fs-qr>div{width:var(--fs-qr);height:var(--fs-qr);display:grid;place-items:center}
+.fiq-sticker .fs-qr img,.fiq-sticker .fs-qr canvas{width:var(--fs-qr)!important;height:var(--fs-qr)!important;image-rendering:pixelated}
+.supplier-labels .fiq-sticker{min-height:190px}
+@media (max-width:520px){.supplier-labels .fiq-sticker{--fs-qr:120px}}
 .cut-qr img,.cut-qr canvas{max-width:68px!important;max-height:68px!important}
 .qr-error{min-height:150px;display:grid;place-items:center;border:2px dashed #587bc7;border-radius:8px;padding:10px;color:#9a513d;font-weight:700}
 .phone-card{max-width:520px;margin:auto;background:white;border:1px solid var(--line);border-radius:16px;padding:14px}
@@ -3137,6 +3149,16 @@ function panelDetailsHtml(p){
  const l=safe(p.length||"—"),w=safe(p.width||"—"),t=safe(p.thickness||"—");
  return `<div class="cut-details">${t} mm · <span class="${edgeClass(Number(p.edgeLong||0))}">${l}</span> × <span class="${edgeClass(Number(p.edgeShort||0))}">${w}</span></div><div class="material-small"><strong>Material:</strong> ${safe(materialForPanel(p)||"Not set")}</div>`;
 }
+// The panel sticker, kept deliberately simple. Left: Part Name (large), L × W × T mm,
+// material, customer (small). Right: panel number above a large QR. The QR text is always
+// phoneQrText(p), the panel's existing identity, never changed here. No Qty: one sticker is
+// printed per physical panel (fiqStickerCopies), each carrying the same panel number and QR,
+// which is what Mobile's per-piece scan count already expects.
+function fiqStickerCopies(list){const out=[];(list||[]).forEach(p=>{const n=Math.max(1,Math.min(500,Math.floor(Number(p?.qty)||1)));for(let i=0;i<n;i++)out.push({p,i})});return out}
+function fiqStickerHtml(p,qrHtml,extra){
+ const pr=project(),mm=v=>safe(v==null||v===""?"—":v);
+ return `<article class="fiq-sticker"${extra||""}><div class="fs-left"><div class="fs-name">${safe(String(p.name||"Unnamed part").toUpperCase())}</div><div class="fs-dims">${mm(p.length)} × ${mm(p.width)} × ${mm(p.thickness)}&nbsp;mm</div><div class="fs-mat">${safe(materialForPanel(p)||"Material not set")}</div>${pr?.customer?`<div class="fs-cust">${safe(pr.customer)}</div>`:""}</div><div class="fs-right"><div class="fs-code">${safe(p.code)}</div><div class="fs-qr">${qrHtml||""}</div></div></article>`;
+}
 function edgeText(p){return `${Number(p.edgeLong||0)} long edge(s), ${Number(p.edgeShort||0)} short edge(s)`}
 function isCompleteSupplierPart(p){
  return Boolean(String(p?.code||"").trim() && String(p?.name||"").trim() && Number(p?.thickness)>0 && Number(p?.length)>0 && Number(p?.width)>0);
@@ -3155,21 +3177,13 @@ function renderCutting(){
    <td><div id="cutqr-${p.id}" class="cut-qr"></div></td>
  </tr>`).join(""):'<tr><td colspan="4">No complete parts ready for the supplier.</td></tr>';
 
- $("#supplierLabels").innerHTML=rows.length?rows.map(p=>`<article class="supplier-label">
-   <div>
-     <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
-       <h3 style="margin:0">${p.code}</h3>
-       <strong style="white-space:nowrap">${t("studio.supplier.qtyPrefixLabel")} ${p.qty||1}</strong>
-     </div>
-     ${panelDetailsHtml(p)}
-   </div>
-   <div id="supplierqr-${p.id}" class="qrbox"></div>
- </article>`).join(""):`<div class="empty">${t("studio.supplier.noStickersToPrintEmpty")}</div>`;
+ const stickerCopies=fiqStickerCopies(rows);
+ $("#supplierLabels").innerHTML=stickerCopies.length?stickerCopies.map(({p,i})=>fiqStickerHtml(p,`<div id="supplierqr-${p.id}-${i}" class="qrbox"></div>`)).join(""):`<div class="empty">${t("studio.supplier.noStickersToPrintEmpty")}</div>`;
 
  setTimeout(()=>rows.forEach(p=>{
    makeQr(document.getElementById("cutqr-"+p.id),phoneQrText(p),68);
-   makeQr(document.getElementById("supplierqr-"+p.id),phoneQrText(p),92);
  }),0);
+ setTimeout(()=>stickerCopies.forEach(({p,i})=>makeQr(document.getElementById("supplierqr-"+p.id+"-"+i),phoneQrText(p),150)),0);
 }
 function localGuideUrl(p){return location.href.split("#")[0]+`#guide=${encodeURIComponent(state.currentProject)}:${encodeURIComponent(state.currentCabinet)}:${encodeURIComponent(p.id)}`}
 function mobileAppBase(){return (localStorage.getItem("assembleone_mobile_app_url")||"").trim().replace(/#.*$/,'')}
@@ -4364,22 +4378,9 @@ function buildStickerPrint(){
  const el=$("#stickerPrintArea");
  if(!p||!c){el.innerHTML="<p>No wardrobe selected.</p>";return}
  if(!rows.length){el.innerHTML="<p>No complete parts are ready for the supplier. Add the name, thickness, length and width first.</p>";return}
- const textRight=dims.width<=55?38:dims.width>=90?31:34;
- const partSize=Math.max(14,Math.min(34,Math.round(dims.height*.46)));
- const descSize=Math.max(8,Math.min(20,Math.round(dims.height*.28)));
- const detailSize=Math.max(7,Math.min(17,Math.round(dims.height*.22)));
- el.innerHTML=`<div class="sticker-sheet">${rows.map(x=>`<article class="panel-sticker-v11" style="width:${dims.width}mm;height:${dims.height}mm">
-   <div class="st-text" style="right:${textRight}%">
-     <div class="st-top">
-       <div class="st-part" style="font-size:${partSize}px">${safe(x.code)}</div>
-       <div class="st-qty">Qty ${safe(x.qty||1)}</div>
-     </div>
-     <div class="st-desc" style="font-size:${descSize}px">${safe(x.name||"Unnamed part")}</div>
-     <div class="st-details" style="font-size:${detailSize}px">${panelDetailsHtml(x)}</div>
-   </div>
-   <div id="printstqr-${x.id}" class="st-qr"></div>
- </article>`).join("")}</div>`;
- setTimeout(()=>rows.forEach(x=>makeQr(document.getElementById("printstqr-"+x.id),phoneQrText(x),qrSizeForSticker(dims.width,dims.height))),0);
+ const copies=fiqStickerCopies(rows),qr=Math.round(Math.min(dims.height*.72,dims.width*.46)*3.78);
+ el.innerHTML=`<div class="sticker-sheet">${copies.map(({p,i})=>fiqStickerHtml(p,`<div id="printstqr-${p.id}-${i}"></div>`,` style="width:${dims.width}mm;height:${dims.height}mm;--fs-qr:${qr}px"`)).join("")}</div>`;
+ setTimeout(()=>copies.forEach(({p,i})=>makeQr(document.getElementById("printstqr-"+p.id+"-"+i),phoneQrText(p),qr)),0);
 }
 function buildInstallPrint(){
  const p=project();
@@ -5535,12 +5536,12 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
  function renderSupplierPage(){const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?(missing===1?t("studio.supplier.needsCheckingSingular",[missing]):t("studio.supplier.needsCheckingPlural",[missing])):t("studio.supplier.readyToManufacture");b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>${t("studio.supplier.completePanelsStatLabel")}</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>${t("studio.supplier.totalPiecesStatLabel")}</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>${t("bom.materials")}</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q===1?t("studio.supplier.pieceCountSingular",[q]):t("studio.supplier.pieceCountPlural",[q])}</span></div>`).join('')}</div>`:`<div class="muted">${t("studio.supplier.noCompleteMaterialsYet")}</div>`;const supplierRoom=(project()?.rooms||[]).find(r=>r.id===cabinet()?.roomId),supplierRoomTag=supplierRoom?`<div class="supplier-room-tag">${safe(supplierRoom.name)}</div>`:'';const cards=document.getElementById('supplierPanelCards');if(cards)cards.innerHTML=list.length?list.map(p=>`<article class="supplier-panel-card"><div class="supplier-panel-code">${safe(p.code)}</div><div>${supplierRoomTag}<div class="supplier-panel-name">${safe(p.name||t("studio.drawing.unnamedPart"))}</div><div class="supplier-measure">${safe(p.thickness)} mm · ${safe(p.length)} × ${safe(p.width)} mm</div><div class="supplier-material-badge">${safe(mat(p))}</div><div class="supplier-edge-lines"><span class="supplier-edge-chip">${edge(p.edgeLong,'long')}</span><span class="supplier-edge-chip">${edge(p.edgeShort,'short')}</span></div></div><div class="supplier-qty"><span>${t("studio.drawing.quantityLabel")}</span>${Number(p.qty||1)}</div></article>`).join(''):`<div class="empty">${t("studio.supplier.noCompletePanelsReadyForSupplier")}</div>`}
  const baseRender=window.renderCutting;window.renderCutting=function(){if(typeof baseRender==='function')baseRender();renderSupplierPage()};
  function exportCsv(){const list=rows();if(!list.length){setStatus(t("studio.supplier.csvNoCompletePanelsErr"),'err');return}const btn=document.getElementById('exportSupplierCsvBtn');btn.disabled=true;setStatus(t("studio.supplier.csvCreating"));try{const data=[['Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes'],...list.map(p=>[p.code,p.name||'',p.thickness,p.length,p.width,Number(p.edgeLong||0),Number(p.edgeShort||0),Number(p.qty||1),mat(p),p.notes||''])];const csv='\ufeff'+data.map(r=>r.map(escCsv).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=((project()?.name||'Job')+'_'+(cabinet()?.name||'Unit')+'_cutting_list.csv').replace(/[^a-z0-9_-]+/gi,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus(t("studio.supplier.csvExportedSuccess"))}catch(e){console.error(e);setStatus(t("studio.supplier.csvExportFailed"),'err')}finally{setTimeout(()=>btn.disabled=false,400)}}
- function openPrint(title,html){const w=window.open('','_blank');if(!w){setStatus('Print window was blocked. Allow popups for this file.','err');return false}w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safe(title)}</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#223449}h1{font-family:Inter,sans-serif}.card{border:2px solid #d8d6e1;border-left:8px solid #0051ff;border-radius:14px;padding:14px;margin-bottom:10px;page-break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #1f2329;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;page-break-inside:avoid}.sticker img{width:90px;height:90px}.qty{font-weight:900}</style>
+ function openPrint(title,html){const w=window.open('','_blank');if(!w){setStatus('Print window was blocked. Allow popups for this file.','err');return false}w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safe(title)}</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#223449}h1{font-family:Inter,sans-serif}.card{border:2px solid #d8d6e1;border-left:8px solid #0051ff;border-radius:14px;padding:14px;margin-bottom:10px;page-break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #1f2329;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;page-break-inside:avoid}.sticker img{width:90px;height:90px}.stickers .fiq-sticker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3mm;height:50mm;box-sizing:border-box;border:2px solid #111;border-radius:3mm;padding:3mm;color:#111;overflow:hidden;break-inside:avoid;page-break-inside:avoid}.fs-left{display:flex;flex-direction:column;gap:1.5mm;min-width:0}.fs-name{font:900 17pt Inter,Arial,sans-serif;line-height:1.05;overflow-wrap:anywhere}.fs-dims{font:800 10pt Arial,sans-serif}.fs-mat{font:700 10pt Arial,sans-serif;overflow-wrap:anywhere}.fs-cust{margin-top:auto;font:400 7.5pt Arial,sans-serif;color:#444;overflow-wrap:anywhere}.fs-right{display:flex;flex-direction:column;align-items:center;gap:1mm}.fs-code{font:900 13pt Inter,Arial,sans-serif;line-height:1;white-space:nowrap}.fs-qr img{display:block;width:37mm;height:37mm;image-rendering:pixelated}.qty{font-weight:900}</style>
 
 
 
 </head><body>${html}</body></html>`);w.document.close();setTimeout(()=>{w.focus();w.print()},350);return true}
- function qrData(text){const box=document.createElement('div');box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);makeQr(box,text,180);const c=box.querySelector('canvas'),i=box.querySelector('img');let d='';try{d=c?c.toDataURL('image/png'):(i?.src||'')}catch(e){}box.remove();return d}
+ function qrData(text){const box=document.createElement('div');box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);makeQr(box,text,360);const c=box.querySelector('canvas'),i=box.querySelector('img');let d='';try{d=c?c.toDataURL('image/png'):(i?.src||'')}catch(e){}box.remove();return d}
  // A later patch rebuilt Print Supplier Pack's click handling in its own
  // separate script block (the capture-phase listener on
  // #printSupplierPackBtn further down, which wins and runs instead of this
@@ -5721,7 +5722,7 @@ body.guide-only .a131-back-studio{display:block}
   const overlay=document.getElementById('a131PrintOverlay'),frame=document.getElementById('a131PrintFrame');
   window.a131OpenPrintPreview=function(title,bodyHtml){
     stableSave(false);document.querySelector('#a131PrintHead strong').textContent=title||t("studio.drawing.printPreviewFallback");
-    const doc='<!doctype html><html><head><meta charset="utf-8"><title>'+String(title||'Print')+'</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#223449;margin:18px}h1{font-family:Inter,sans-serif}.card{border:2px solid #d8d6e1;border-left:8px solid #0051ff;border-radius:14px;padding:14px;margin-bottom:10px;break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #1f2329;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;break-inside:avoid}.sticker img{width:90px;height:90px}.room-tag{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:900;font-size:11px;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:999px;margin-bottom:5px}</style></head><body>'+bodyHtml+'</body></html>';
+    const doc='<!doctype html><html><head><meta charset="utf-8"><title>'+String(title||'Print')+'</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#223449;margin:18px}h1{font-family:Inter,sans-serif}.card{border:2px solid #d8d6e1;border-left:8px solid #0051ff;border-radius:14px;padding:14px;margin-bottom:10px;break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #1f2329;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;break-inside:avoid}.sticker img{width:90px;height:90px}.stickers .fiq-sticker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3mm;height:50mm;box-sizing:border-box;border:2px solid #111;border-radius:3mm;padding:3mm;color:#111;overflow:hidden;break-inside:avoid;page-break-inside:avoid}.fs-left{display:flex;flex-direction:column;gap:1.5mm;min-width:0}.fs-name{font:900 17pt Inter,Arial,sans-serif;line-height:1.05;overflow-wrap:anywhere}.fs-dims{font:800 10pt Arial,sans-serif}.fs-mat{font:700 10pt Arial,sans-serif;overflow-wrap:anywhere}.fs-cust{margin-top:auto;font:400 7.5pt Arial,sans-serif;color:#444;overflow-wrap:anywhere}.fs-right{display:flex;flex-direction:column;align-items:center;gap:1mm}.fs-code{font:900 13pt Inter,Arial,sans-serif;line-height:1;white-space:nowrap}.fs-qr img{display:block;width:37mm;height:37mm;image-rendering:pixelated}.room-tag{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:900;font-size:11px;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:999px;margin-bottom:5px}</style></head><body>'+bodyHtml+'</body></html>';
     frame.srcdoc=doc;overlay.style.display='block';overlay.setAttribute('aria-hidden','false');
   };
   document.getElementById('a131ClosePrint').onclick=()=>{overlay.style.display='none';overlay.setAttribute('aria-hidden','true');frame.srcdoc=''};
@@ -5745,7 +5746,10 @@ body.guide-only .a131-back-studio{display:block}
     const room=(pr?.rooms||[]).find(r=>r.id===unit?.roomId);
     const roomTag=room?'<div class="room-tag">'+esc(room.name)+'</div>':'';
     const cutting='<section><h1>Supplier Cutting List</h1><p>'+esc(pr?.name||'Project')+' · '+esc(unit?.name||'Unit')+'</p>'+list.map(p=>'<div class="card">'+roomTag+'<div class="row"><div><div class="code">'+esc(p.code)+'</div><div class="name">'+esc(p.name||'')+'</div></div><strong>Qty '+Number(p.qty||1)+'</strong></div><div class="measure">'+esc(p.thickness)+' mm · '+esc(p.length)+' × '+esc(p.width)+' mm</div><div class="small">Material: '+esc(mat(p))+'</div><div class="small">Edging: '+edge(p.edgeLong,'long')+' · '+edge(p.edgeShort,'short')+'</div>'+(p.notes?'<div class="small">Notes: '+esc(p.notes)+'</div>':'')+'</div>').join('')+'</section>';
-    const stickers='<section style="page-break-before:always"><h1>Supplier QR Stickers</h1><div class="stickers">'+list.map(p=>{let q='';try{q=typeof qrData==='function'?qrData(phoneQrText(p)):''}catch(err){}return '<div class="sticker"><div>'+roomTag+'<div class="row"><div class="code">'+esc(p.code)+'</div><strong>Qty '+Number(p.qty||1)+'</strong></div><div class="name">'+esc(p.name||'')+'</div><div class="measure">'+esc(p.thickness)+' mm · '+esc(p.length)+' × '+esc(p.width)+' mm</div><div class="small">Material: '+esc(mat(p))+'</div></div>'+(q?'<img src="'+q+'">':'')+'</div>'}).join('')+'</div></section>';
+    // One simple sticker per physical panel (see fiqStickerHtml); the QR image is made once per
+    // panel and reused for its copies, so every copy carries the identical existing QR.
+    const qrCache={},qrFor=p=>{if(!(p.id in qrCache)){let q='';try{q=typeof qrData==='function'?qrData(phoneQrText(p)):''}catch(err){}qrCache[p.id]=q}return qrCache[p.id]};
+    const stickers='<section style="page-break-before:always"><h1>Supplier QR Stickers</h1><div class="stickers">'+fiqStickerCopies(list).map(({p})=>{const q=qrFor(p);return fiqStickerHtml(p,q?'<img src="'+q+'" alt="QR">':'')}).join('')+'</div></section>';
     const sheetSection=(typeof window.a181SheetOptimPrintHtml==='function')?window.a181SheetOptimPrintHtml():'';
     window.a131OpenPrintPreview(t("studio.drawing.supplierPackTitle"),cutting+sheetSection+stickers);
   },true);
