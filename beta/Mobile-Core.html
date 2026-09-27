@@ -1205,7 +1205,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-tool.scanning .scan55-current,.scan-tool.scanning .scan55-recent-head,.scan-tool.scanning #recentScans,.scan-tool.scanning .scan-tools-more,.scan-tool.scanning .quick-help-pill{display:none}
 .fp-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
 .fp-pieces{display:flex;flex-wrap:wrap;gap:6px}.fp-pieces .fp-piece{min-height:40px}.fp-pieces .fp-piece.active{background:#174E98;color:#fff;border-color:#174E98}
-.fp-piece-status{font-weight:800}.fp-shared-spot{font-size:13px;color:var(--muted);font-weight:700}
+.fp-piece-status{font-weight:800}
+.fp-drawing-frame{position:relative;width:100%;line-height:0}.fp-drawing-frame img{display:block;width:100%;height:auto}
+.fp-exact-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#e0102f;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(0,0,0,.6);z-index:4;pointer-events:none}
+.fp-drawing-frame .panel-highlight-num{position:absolute;top:-12px;right:-12px}.fp-shared-spot{font-size:13px;color:var(--muted);font-weight:700}
 .panel-check-row[data-open-panel]{cursor:pointer}.panel-check-row[data-open-panel]:active{background:#f3f6fb}
 #damagePanelOverlay{z-index:5300!important}
 .fp-actions .btn{min-height:54px}
@@ -4193,7 +4196,10 @@ function renderFindPanelResult(){
  else if(!dots.length)drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"></div><div class="muted" style="margin-top:6px">This panel has not been marked on the drawing yet. Check the panel manually or ask the office to place it.</div>`;
  else{
   const multi=dots.length>1,target=dots.some(d=>d.ci===activeDot)?activeDot:dots[0].ci;
-  drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing">${dots.map((d,i)=>`<div class="panel-highlight status-${safe(dotStatus(d))}${d.ci===target?' active':''}" style="left:${Number(d.x)}%;top:${Number(d.y)}%">${multi?`<span class="panel-highlight-num">${d.ci<0?1:d.ci+2}</span>`:''}</div>`).join('')}</div>`
+  // The exact saved Studio Drawing coordinate of this panel / piece -- never estimated.
+  const td=dots.find(d=>d.ci===target);
+  const exactDot=`<div class="fp-exact-dot" data-exact-x="${Number(td.x)}" data-exact-y="${Number(td.y)}" style="left:${Number(td.x)}%;top:${Number(td.y)}%"></div>`;
+  drawingHtml=`<div class="panel-drawing"><div class="fp-drawing-frame"><img src="${c.drawing}" alt="Drawing">${dots.map((d,i)=>`<div class="panel-highlight status-${safe(dotStatus(d))}${d.ci===target?' active':''}" style="left:${Number(d.x)}%;top:${Number(d.y)}%">${multi?`<span class="panel-highlight-num">${d.ci<0?1:d.ci+2}</span>`:''}</div>`).join('')}${exactDot}</div></div>`
    +(n>1&&dots.length===1?`<div class="fp-shared-spot">All ${n} pieces of ${safe(pt.code)} go at the marked spot.</div>`:'');
  }
  const pieces=n>1?`<div class="fp-pieces">${Array.from({length:n},(_,i)=>i+1).map(k=>`<button type="button" class="bomp-chip fp-piece${k===piece?' active':''}" data-fp-piece="${k}">Piece ${k}${PIECE_MARKS[pieceStatusOf(pt,k)]}</button>`).join('')}</div>`:'';
