@@ -7968,10 +7968,14 @@ body.fiq-locked .app{display:none!important}
 })();
 </script>
 <style id="fiq-edge-safety-style">
-.fiq-edge-warning{border:2px solid #e0a321;background:#fff8e6;border-radius:14px;padding:12px 14px;margin:10px 0;color:#4a3606}
-.fiq-edge-warning h4{margin:0 0 4px;font-size:16px;font-weight:900}
-.fiq-edge-warning p{margin:4px 0;font-size:14px;font-weight:700}
+/* Panel Check warning cards (edging, unfinished panels): light mint, subtle green, compact. */
+.fiq-edge-warning{border:1px solid #bfe3cc;background:#effaf3;border-radius:12px;padding:10px 12px;margin:8px 0;color:#16281d;box-shadow:none}
+.fiq-edge-warning h4{margin:0 0 4px;font-size:15px;font-weight:900;color:#16281d}
+.fiq-edge-warning p{margin:2px 0;font-size:14px;font-weight:700;color:#16281d;line-height:1.35}
+.fiq-edge-warning .fiq-edge-question{margin-top:6px}
 .fiq-edge-warning .fiq-edge-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.fiq-edge-warning .fiq-edge-actions .btn{background:#1f9d55!important;border:1px solid #1f9d55!important;color:#fff!important;border-radius:9px;padding:7px 12px;font-weight:800;min-height:0;box-shadow:none}
+.fiq-edge-warning .fiq-edge-actions .btn:hover{background:#17864a!important;border-color:#17864a!important}
 .fiq-edge-card .fiq-edge-total{font-size:22px;font-weight:900;color:#174E98;margin:4px 0}
 .fiq-edge-card .fiq-edge-sub{font-size:14px;font-weight:800;color:#33415c}
 </style>
@@ -8025,12 +8029,13 @@ body.fiq-locked .app{display:none!important}
   const p=pending&&pr&&pr.id===pending.projectId?jobPanels(pr).map(x=>x.p).find(x=>x.id===pending.panelId):null;
   const w=p&&edgeWarningFor(pr,p);
   if(!w){pending=null;box.innerHTML='';return}
-  const n=w.differ.length,sizes=num(p.length)+' × '+num(p.width)+' × '+num(p.thickness)+' mm';
   const variants=new Map();w.differ.forEach(x=>{const k=edgeText(x.p);if(!variants.has(k))variants.set(k,[]);variants.get(k).push(x)});
-  box.innerHTML='<div class="fiq-edge-warning" role="alert"><h4>⚠️ '+n+' similar panel'+(n===1?' has':'s have')+' different edging</h4>'+
-   '<p>'+safe(codeList(w.differ,c))+' '+(n===1?'is':'are')+' the same size and material as '+safe(p.code)+' ('+safe(sizes)+', '+safe(materialForPanel(p))+') but '+(n===1?'does':'do')+' not have the same edging.</p>'+
-   '<p>'+safe(p.code)+': '+safe(edgeText(p))+'.</p>'+[...variants].map(([t,xs])=>'<p>'+safe(codeList(xs,c))+': '+safe(t)+'.</p>').join('')+
-   '<div class="fiq-edge-actions"><button type="button" class="btn primary" data-edge-apply>Apply this edging to all '+n+'</button><button type="button" class="btn" data-edge-keep>Keep different</button></div></div>';
+  const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
+  box.innerHTML='<div class="fiq-edge-warning" role="alert"><h4>⚠️ Edging is different</h4>'+
+   [...variants].map(([t,xs])=>'<p>'+safe(codeList(xs,c))+': '+safe(cap(t))+'</p>').join('')+
+   '<p>'+safe(p.code)+': '+safe(cap(edgeText(p)))+'</p>'+
+   '<p class="fiq-edge-question">Do you want them all edged like '+safe(p.code)+'?</p>'+
+   '<div class="fiq-edge-actions"><button type="button" class="btn primary" data-edge-apply>Yes, make them the same</button><button type="button" class="btn" data-edge-keep>No, keep as they are</button></div></div>';
   box.querySelector('[data-edge-apply]').onclick=()=>{
    const now=edgeWarningFor(pr,p);if(!now)return renderWarning();
    now.differ.forEach(x=>{x.p.edgeLong=num(p.edgeLong);x.p.edgeShort=num(p.edgeShort)});
