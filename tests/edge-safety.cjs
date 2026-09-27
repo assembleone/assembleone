@@ -64,10 +64,11 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await check('s1');
  let w=await warning();
  assert.equal(await reviewed('s1'),false,'not silently approved');
- assert.match(w,/^⚠️ 6 similar panels have different edging /);
- assert.match(w,/P-002 to P-006, Unit B P-001 are the same size and material as P-001 \(600 × 450 × 19 mm, White melamine\) but do not have the same edging\./);
- assert.match(w,/P-001: 1 × 600 mm edge\. P-002 to P-006, Unit B P-001: no edging\./);
- assert.match(w,/Apply this edging to all 6 Keep different$/);
+ assert.equal(w,'⚠️ Edging is different P-002 to P-006, Unit B P-001: No edging P-001: 1 × 600 mm edge Do you want them all edged like P-001? Yes, make them the same No, keep as they are');
+ // Presentation: light mint card, subtle green border, dark text, green buttons, compact.
+ const look=await S(()=>{const card=document.querySelector('#edgeCheckWarning .fiq-edge-warning'),cs=getComputedStyle(card),b=getComputedStyle(card.querySelector('[data-edge-apply]'));return {bg:cs.backgroundColor,border:cs.borderTopColor,color:cs.color,btn:b.backgroundColor,height:card.getBoundingClientRect().height}});
+ assert.deepEqual([look.bg,look.border,look.color,look.btn],['rgb(239, 250, 243)','rgb(191, 227, 204)','rgb(22, 40, 29)','rgb(31, 157, 85)'],JSON.stringify(look));
+ assert.ok(look.height<200,'compact card: '+look.height);
  // Apply: the real edging of all six changes, P-001 is checked, the others need checking.
  await page.locator('[data-edge-apply]').click();await page.waitForTimeout(400);
  assert.deepEqual(await edges(['s1','s2','s3','s4','s5','s6','s7']),Array(7).fill('1/0'),'edging applied to the manufacturing data');
@@ -82,15 +83,14 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
 
  // Different edge orientation (Length edge vs Width edge): warns. Keep different is remembered.
  await check('o1');
- w=await warning();assert.match(w,/^⚠️ 1 similar panel has different edging P-010 is the same size/);
- assert.match(w,/P-009: 1 × 800 mm edge\. P-010: 1 × 400 mm edge\./);
+ w=await warning();assert.equal(w,'⚠️ Edging is different P-010: 1 × 400 mm edge P-009: 1 × 800 mm edge Do you want them all edged like P-009? Yes, make them the same No, keep as they are');
  await page.locator('[data-edge-keep]').click();await page.waitForTimeout(300);
  assert.deepEqual([await reviewed('o1'),await warning(),await edges(['o1','o2'])],[true,'',['1/0','0/1']],'Keep different: approved, nothing changed');
  await check('o2');assert.deepEqual([await warning(),await reviewed('o2')],['',true],'no repeated warning for the same group');
  // The group's edging changes: asked again.
  await S(()=>{const p=(0,eval)('state').projects.find(x=>x.id==='ej').cabinets[0].parts.find(x=>x.id==='o2');p.edgeShort=2;save();renderAll()});
  await check('o2');
- assert.match(await warning(),/^⚠️ 1 similar panel has different edging/,'warned again after the edging changed');
+ assert.match(await warning(),/^⚠️ Edging is different/,'warned again after the edging changed');
  assert.equal(await reviewed('o2'),false);
 
  // Qty pieces: the Qty 3 panel alone is 7.50 m.
