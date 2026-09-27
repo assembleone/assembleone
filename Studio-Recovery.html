@@ -6051,6 +6051,81 @@ body.guide-only .a131-back-studio{display:block}
 })();
 </script>
 
+<style id="fiq-drawing-lock-style">
+.fiq-drawing-lock-banner{display:none}
+body.fiq-drawing-locked #screen-mark .fiq-drawing-lock-banner{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;padding:6px 12px;border-radius:999px;background:#eef3ff;border:1px solid #c9d7f2;color:#174E98;font-size:13px;font-weight:800;width:max-content;max-width:100%;box-sizing:border-box}
+.fiq-drawing-lock-banner small{font-weight:700;color:#5b6b85}
+.fiq-drawing-lock-banner.nudge{animation:fiqLockNudge .5s ease-in-out 2}
+@keyframes fiqLockNudge{0%,100%{box-shadow:0 0 0 0 rgba(23,78,152,0)}50%{box-shadow:0 0 0 5px rgba(23,78,152,.25)}}
+body.fiq-drawing-locked #fiqPinMenu{display:none!important}
+body.fiq-drawing-locked #drawingStage,body.fiq-drawing-locked #drawingCanvas{cursor:default!important}
+body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQtyUnlockBtn,#lengthMeasureWrap,#widthMeasureWrap,#lengthEdgeBtn,#widthEdgeBtn,#partNamePicker,#saveNextBtn,#materialPickerDetails,#notesPickerDetails,#fMaterial,#fNotes,#addSameMarkerBtn,#makeUniqueBtn,#deletePartBtn,#checkAllPanelsBtn,#pasteScreenshotBtn,#chooseDrawingBtn,#deleteDrawingBtn,#cabinetSelect,.quick-main,.quick-names,[data-quick-name]){opacity:.5;cursor:not-allowed!important}
+</style>
+<script id="fiq-drawing-lock">
+// Job Overview installation view. Once a job is in the active Job Overview and has been
+// sent to Mobile (lastMobileSync), opening its Drawing from Job Overview shows it for
+// reference only: view, zoom, switch unit, select a panel to see where it is -- but no
+// new dots, no moving or deleting dots and no changes to any panel data. Every other way
+// into the Drawing (Customer Library, a new job) stays fully editable: leaving the Drawing
+// screen ends the locked view. This is only a guard against accidental manufacturing
+// changes, not a revision system.
+(function(){
+ let lock=null;// {projectId}
+ function isLocked(){const p=typeof project==='function'?project():null;return !!(lock&&p&&p.id===lock.projectId&&state.screen==='mark')}
+ window.fiqDrawingLocked=isLocked;
+ function applyUi(){
+  const on=isLocked();document.body.classList.toggle('fiq-drawing-locked',on);
+  const screen=document.getElementById('screen-mark');if(!screen)return;
+  let b=screen.querySelector('.fiq-drawing-lock-banner');
+  if(!b){b=document.createElement('div');b.className='fiq-drawing-lock-banner';b.setAttribute('role','status');b.innerHTML='🔒 Installation view · Drawing locked <small>To add or change panels, open this job from Customer Library.</small>';screen.insertBefore(b,screen.firstChild)}
+  if(on&&typeof closePinMenu==='function')closePinMenu();
+ }
+ window.fiqOpenInstallationDrawing=function(projectId,cabinetId,partId){
+  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+  const c=(p.cabinets||[]).find(x=>x.id===cabinetId);
+  switchToProject(projectId,cabinetId,partId||null);
+  state.currentRoom=c&&c.roomId||null;
+  renderAll();save();
+  // Set only now: switching the job can pass through other screens, which end a lock.
+  lock=p.lastMobileSync?{projectId}:null;
+  show('mark');applyUi();
+ };
+ const prevShow=window.show;
+ window.show=function(name){if(name!=='mark')lock=null;const r=prevShow.apply(this,arguments);applyUi();return r};
+ const prevRenderAll=window.renderAll;
+ window.renderAll=function(){const r=prevRenderAll.apply(this,arguments);applyUi();return r};
+ // Viewing controls that stay usable. (#cabinetSelect is the room picker -- it changes the
+ // job's rooms, so it is locked too.)
+ const ALLOW='#zoomOutBtn,#zoomInBtn,#zoomFitBtn,#drawingCustomerSelect,#drawingViewSiteMeasurementBtn,.fiq-drawing-lock-banner';
+ let nudgeTimer=null;
+ function nudge(){const b=document.querySelector('#screen-mark .fiq-drawing-lock-banner');if(!b)return;b.classList.remove('nudge');void b.offsetWidth;b.classList.add('nudge');clearTimeout(nudgeTimer);nudgeTimer=setTimeout(()=>b.classList.remove('nudge'),1100)}
+ function shouldBlock(e){
+  if(!isLocked())return false;
+  const t=e.target instanceof Element?e.target:null;
+  if(e.type==='paste'||e.type==='drop')return true;
+  const inMark=!!(t&&t.closest('#screen-mark'));
+  if(!inMark)return false;
+  if(t.closest(ALLOW))return false;
+  const editable=t.closest('input,textarea,select,[contenteditable="true"]');
+  if(e.type==='keydown')return !!editable&&e.key!=='Tab'&&e.key!=='Escape';
+  // Selecting a panel (its dot or its row) only shows where it is.
+  if(e.type==='click'&&t.closest('#drawingCanvas .pin'))return false;
+  // "Double-click to expand" the drawing is viewing too (single clicks, which add a dot, stay blocked).
+  if(e.type==='dblclick'&&t.closest('#drawingStage')&&!t.closest('.pin'))return false;
+  if(e.type==='click'&&t.closest('#partList [data-part]')&&!t.closest('button,input,select,textarea'))return false;
+  // Scrolling / panning the drawing is fine; a dot is only created or moved by these.
+  if(['pointerdown','mousedown','touchstart'].includes(e.type))return !!t.closest('#drawingCanvas .pin')||!!editable||!!t.closest('button,summary,label,[data-quick-name]')||!t.closest('#drawingStage');
+  return true;
+ }
+ ['pointerdown','mousedown','touchstart','click','dblclick','contextmenu','keydown','input','change','paste','drop'].forEach(type=>{
+  document.addEventListener(type,e=>{if(!shouldBlock(e))return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();if(type==='click'||type==='dblclick'||type==='keydown')nudge();
+   // A field that still changed (e.g. a picked list option) is put back from the saved data.
+   if(type==='input'||type==='change'){nudge();setTimeout(()=>{if(typeof renderAll==='function')renderAll()},0)}},true);
+ });
+ applyUi();
+})();
+</script>
+
 <style id="a136-review-reset-style">
 /* Version 10.42 — clear red review state and green approved state. */
 .panel-check-card.incomplete{
@@ -8980,7 +9055,7 @@ body.fiq-locked .app{display:none!important}
         const proj=state.projects.find(x=>x.id===projectId);
         const cabIds=String(row.dataset.cardCabs||'').split(',').filter(Boolean);
         const cab=proj&&(proj.cabinets||[]).find(c=>cabIds.includes(c.id));
-        if(cab){switchToProject(projectId,cab.id);state.currentRoom=cab.roomId||null;state.currentPart=null;renderAll();save();show('mark');return}
+        if(cab){window.fiqOpenInstallationDrawing(projectId,cab.id,null);return}
       }
       if(roomId&&roomId!=='__general__'){
         const proj=state.projects.find(x=>x.id===projectId);
@@ -9189,8 +9264,7 @@ body.fiq-locked .app{display:none!important}
       btn.onclick=()=>{
         const it=items[+btn.dataset.drawing];
         window.closeAttentionModal();
-        switchToProject(it.projectId,it.cabinetId,it.partId);
-        renderAll();save();show('mark');
+        window.fiqOpenInstallationDrawing(it.projectId,it.cabinetId,it.partId);
       };
     });
     box.querySelectorAll('[data-sorted]').forEach(btn=>{
