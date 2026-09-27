@@ -4209,6 +4209,10 @@ async function importRoomsFile(file){
    return;
  }
  const c=ensureRoomsWorkspace();
+ // Panel dots belong to the drawing they were placed on. A new drawing must never show the
+ // old drawing's dots, so any panels on this unit are removed -- only after asking.
+ const attached=(c.parts||[]).length;
+ if(attached&&!(await confirmDrawingPanelsRemoval(c.drawing?'replace':'new',attached)))return;
  const stage=$("#drawingStage");
  stage.classList.add("importing");
  showRoomsMessage(t("studio.drawing.openingFileTemplate",[file.name||t("studio.drawing.photoOrScreenshotFallback")]));
@@ -4216,6 +4220,7 @@ async function importRoomsFile(file){
    const isPdf=(file.type||"").toLowerCase()==="application/pdf"||/\.pdf$/i.test(file.name||"");
    const data=isPdf?await readFileAsDataUrl(file):await readDrawingFileAsDataUrl(file);
    if(!data)throw new Error(t("studio.drawing.fileWasEmptyError"));
+   if(attached)removeDrawingPanels(c);
    c.drawing=data;
    c.drawingType=isPdf?"pdf":"image";
    c.drawingName=file.name||"Photo or screenshot";
@@ -4249,17 +4254,49 @@ function firstDroppedFile(dt){
 const chooseDrawingBtn=$("#chooseDrawingBtn");
 if(chooseDrawingBtn)chooseDrawingBtn.onclick=()=>{const input=$("#drawingInputTop");if(input)input.click()};
 const deleteDrawingBtn=$("#deleteDrawingBtn");
-function deleteCurrentDrawing(){
+// The panels of one unit are the panels placed on its drawing. Removing them is scoped to
+// this unit only; their ids are kept in deletedPartIds so a later Mobile update cannot bring
+// them back, and numbering starts again at P-001 on the next drawing.
+function removeDrawingPanels(c){
+ const ids=(c.parts||[]).map(p=>p.id);
+ c.deletedPartIds=[...new Set([...(c.deletedPartIds||[]),...ids])];
+ c.parts=[];
+ delete c.panelNumbersNotice;
+ if(ids.includes(state.currentPart))state.currentPart=null;
+ state.selectedCopy=-1;
+}
+function confirmDrawingPanelsRemoval(kind,n){
+ return new Promise(resolve=>{
+  const panels=n+' panel'+(n===1?'':'s');
+  const title=kind==='delete'?'Delete drawing?':kind==='replace'?'Replace drawing?':'Choose a new drawing?';
+  const body=kind==='new'
+   ?'This unit still has '+panels+' from its previous drawing. Choosing a new drawing will remove those panel dots and their associated panel data from this unit.'
+   :'This drawing has '+panels+' attached to it. '+(kind==='delete'?'Deleting':'Replacing')+' it will remove those panel dots and their associated panel data from this drawing.';
+  const go=kind==='delete'?'Delete and remove panels':'Replace and remove panels';
+  const o=document.createElement('div');o.className='a100-edit-dialog fiq-drawing-replace-dialog';
+  o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="fiqDrawReplaceTitle"><h2 id="fiqDrawReplaceTitle">'+title+'</h2><p>'+body+'</p><div class="a100-edit-actions"><button type="button" class="btn" data-drawing-cancel>Cancel</button><button type="button" class="btn danger" data-drawing-go>'+go+'</button></div></div>';
+  document.body.appendChild(o);
+  const done=v=>{o.remove();resolve(v)};
+  o.querySelector('[data-drawing-cancel]').onclick=()=>done(false);
+  o.querySelector('[data-drawing-go]').onclick=()=>done(true);
+  o.onclick=e=>{if(e.target===o)done(false)};
+ });
+}
+async function deleteCurrentDrawing(){
  const c=cabinet();
  if(!c?.drawing)return;
- if(!confirm("Delete this drawing? The customer, room, panels, notes and measurements will stay."))return;
+ const attached=(c.parts||[]).length;
+ if(attached){if(!(await confirmDrawingPanelsRemoval('delete',attached)))return;removeDrawingPanels(c)}
+ else if(!confirm("Delete this drawing?"))return;
  c.drawing=null;
  c.drawingType=null;
  c.drawingName="";
  c.viewState={};
+ // Otherwise the stored copy of the deleted drawing is loaded back after the next reload.
+ delete c.hasStoredDrawing;
  save();
  renderAll();
- toast("Drawing deleted. You can paste or choose another drawing.");
+ toast(attached?"Drawing and its panels removed. You can paste or choose another drawing.":"Drawing deleted. You can paste or choose another drawing.");
 }
 if(deleteDrawingBtn)deleteDrawingBtn.onclick=deleteCurrentDrawing;
 ["drawingInputTop"].forEach(id=>{
