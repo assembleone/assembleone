@@ -1768,6 +1768,266 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
      pre-existing 6-key stub (relabels only the Start Project screen) and is
      untouched. -->
 <script src="i18n.js?v=1"></script>
+<style id="fiq-stage1-safety-style">
+.fiq-save-chip{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;border:1px solid #cfdae6;border-radius:999px;padding:5px 10px;margin-right:6px;background:#fff;color:#33415c;font-family:inherit;font-weight:800;font-size:12.5px;line-height:1.2;white-space:nowrap;cursor:pointer}
+.fiq-save-chip[data-save-status="saved"]{color:#17864a;border-color:#bfe3cc;background:#f3fbf6}
+.fiq-save-chip[data-save-status="failed"],.fiq-save-chip[data-save-status="external"]{color:#9b1c1c;border-color:#f0b4b4;background:#fdeeee}
+.fiq-save-chip[data-save-status="readonly"]{color:#1b3f73;border-color:#b9cbe6;background:#eef3fb}
+.fiq-save-chip .fiq-chip-long{display:inline}
+@media(max-width:900px){.fiq-save-chip .fiq-chip-long{display:none}}
+#fiqReadonlyBanner{position:fixed;left:0;right:0;top:0;z-index:100000;background:#1b3f73;color:#fff;font-weight:800;font-size:14px;line-height:1.35;padding:9px 16px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+html.fiq-readonly body{padding-top:44px}
+.fiq-safety-sheet{width:min(860px,100%);max-height:92vh;overflow:auto}
+.fiq-safety-sheet h3{margin:6px 0 2px;font-size:15px}
+.fiq-safety-sheet .fiq-safety-status{font-weight:800}
+.fiq-safety-sheet .fiq-safety-actions{display:flex;flex-wrap:wrap;gap:8px}
+.fiq-doctor{font-size:13px}
+.fiq-doctor table{border-collapse:collapse;width:100%}
+.fiq-doctor td,.fiq-doctor th{border-bottom:1px solid #e3e9f0;padding:4px 6px;text-align:left;vertical-align:top}
+.fiq-doctor .fiq-doc-warn{color:#9b1c1c;font-weight:800}
+.fiq-doctor .fiq-doc-ok{color:#17864a;font-weight:800}
+</style>
+<script id="fiq-stage1-safety">
+// Stage 1 data safety (read-only additions around the existing save; no workflow changes).
+//  1. One editing Studio per browser: the first tab holds a Web Lock and is the editor.
+//     Any other Studio tab is read-only: it never writes saved data, never imports site
+//     packets and ignores clicks and typing. When the editor tab closes, a waiting tab
+//     reloads itself (to show the latest saved data) and becomes the editor.
+//  2. Truthful save status: Saving... / ✓ Saved on this computer / ⚠ Not saved. "Saved" is
+//     only shown after the browser really stored the data (see a131 writeStableState).
+//  3. Data safety dialog (click the status): complete backup download and Data Doctor
+//     storage/consistency report. Both only read; neither changes any saved data.
+(function(){
+ const LOCK='fiq-studio-editor:'+location.pathname.replace(/[^\/]*$/,'');
+ let role='pending',resolveReady,status='pending',detail='';
+ const ready=new Promise(r=>{resolveReady=r});
+ const gate=window.fiqEditor={
+  get role(){return role},ready,
+  canWrite:()=>role==='editor',
+  wantSave:false,lockSupported:!!(navigator.locks&&navigator.locks.request),
+  statusLog:[],
+  setStatus(s,d){status=s;detail=d||'';gate.statusLog.push(s);paintChip()},
+  get status(){return status},get detail(){return detail}
+ };
+ function become(r){
+  if(role!=='pending')return;
+  role=r;resolveReady(r);
+  document.documentElement.classList.toggle('fiq-readonly',r==='readonly');
+  if(r==='readonly'){gate.setStatus('readonly');showBanner()}
+  else{
+   if(status==='pending')gate.setStatus('saved');
+   if(gate.wantSave&&typeof window.a131StableSave==='function')window.a131StableSave(false);
+  }
+ }
+ if(!gate.lockSupported){become('editor');console.warn('Web Locks not available: single-editor protection is off in this browser.')}
+ else{
+  // A reload of the editor briefly overlaps with its own previous page: wait a moment
+  // before deciding another tab is the editor.
+  const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),2500);
+  navigator.locks.request(LOCK,{signal:ac.signal},()=>{clearTimeout(timer);become('editor');return new Promise(()=>{})})
+   .catch(()=>{
+    become('readonly');
+    // Waits until the editor tab is gone, then reloads so this tab edits the latest data.
+    navigator.locks.request(LOCK,()=>{location.reload();return new Promise(()=>{})}).catch(()=>{});
+   });
+ }
+ // ---- Read-only tab: nothing it does can change anything. ----
+ function showBanner(){
+  const put=()=>{if(document.getElementById('fiqReadonlyBanner')||!document.body)return;
+   const b=document.createElement('div');b.id='fiqReadonlyBanner';b.setAttribute('role','status');
+   b.textContent='🔒 Read-only — FittersIQ Studio is already open for editing in another tab or window. Nothing done here is saved. This tab becomes editable by itself when the other one is closed.';
+   document.body.prepend(b);
+   try{document.activeElement&&document.activeElement.blur&&document.activeElement.blur()}catch(e){}};
+  if(document.body)put();else document.addEventListener('DOMContentLoaded',put,{once:true});
+ }
+ const allowed=t=>!!(t&&t.closest&&t.closest('#fiqReadonlyBanner,#fiqSaveChip,.fiq-safety-dialog,a[data-fiq-safety-download]'));
+ const NAV_KEYS=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End']);
+ function shield(e){
+  if(role!=='readonly'||allowed(e.target))return;
+  if(document.body&&document.body.classList.contains('guide-only'))return;
+  if(e.type==='keydown'&&NAV_KEYS.has(e.key)&&!(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]')))return;
+  e.preventDefault();e.stopImmediatePropagation();
+ }
+ ['pointerdown','mousedown','mouseup','click','dblclick','contextmenu','keydown','keypress','beforeinput','input','change','submit','drop','dragstart','paste','cut','touchstart'].forEach(t=>window.addEventListener(t,shield,{capture:true,passive:false}));
+
+ // ---- Save status chip. ----
+ const TEXT={pending:['…',''],saving:['Saving…',''],saved:['✓ Saved',' on this computer'],failed:['⚠ Not saved',''],readonly:['🔒 Read-only',' tab'],external:['⚠ Another tab saved','']};
+ function paintChip(){
+  let chip=document.getElementById('fiqSaveChip');
+  if(!chip){
+   const host=document.querySelector('.header-right');if(!host)return;
+   chip=document.createElement('button');chip.type='button';chip.id='fiqSaveChip';chip.className='fiq-save-chip';
+   chip.onclick=openSafetyDialog;host.prepend(chip);
+   // Built once: a click must not lose its target when the text changes under the mouse
+   // (a field losing focus on that same click saves, which updates this chip).
+   chip.innerHTML='<span class="fiq-chip-short"></span><span class="fiq-chip-long"></span>';
+  }
+  const [a,b]=TEXT[status]||TEXT.pending;
+  chip.dataset.saveStatus=status;
+  chip.firstChild.textContent=a;chip.lastChild.textContent=b;
+  chip.title=(status==='failed'?'Not saved: '+detail+' Your last change is only in this open tab. Download a backup from here.':status==='saved'?'Everything is saved in this browser on this computer (not yet in the cloud).':status==='readonly'?'This tab is read-only. Studio is open for editing in another tab.':status==='external'?detail:'')+' Click for Data safety.';
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',paintChip,{once:true});else paintChip();
+
+ // ---- Read-only helpers (never open a database that does not exist, never write). ----
+ async function dbExists(name){
+  try{if(indexedDB.databases){const list=await indexedDB.databases();return list.some(d=>d&&d.name&&(d.name===name||d.name.endsWith(':'+name)))}}catch(e){}
+  return true;
+ }
+ async function readAll(dbName,store){
+  if(!await dbExists(dbName))return {missing:true,entries:[]};
+  return new Promise(resolve=>{
+   let req;try{req=indexedDB.open(dbName)}catch(e){return resolve({error:String(e),entries:[]})}
+   req.onupgradeneeded=()=>{try{req.transaction.abort()}catch(e){}};
+   req.onerror=()=>resolve({error:String(req.error),entries:[]});
+   req.onsuccess=()=>{const db=req.result;
+    if(!db.objectStoreNames.contains(store)){db.close();return resolve({missing:true,entries:[]})}
+    const out=[],tx=db.transaction(store,'readonly'),cur=tx.objectStore(store).openCursor();
+    cur.onsuccess=()=>{const c=cur.result;if(c){out.push({key:c.key,value:c.value});c.continue()}};
+    tx.oncomplete=()=>{db.close();resolve({entries:out})};
+    tx.onerror=()=>{db.close();resolve({error:String(tx.error),entries:out})};
+   };
+  });
+ }
+ const clone=v=>JSON.parse(JSON.stringify(v));
+ const bytes=s=>new Blob([s]).size;
+ async function sha256(text){try{const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}catch(e){return ''}}
+ function download(name,text,type){const url=URL.createObjectURL(new Blob([text],{type:type||'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.dataset.fiqSafetyDownload='1';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+ const stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())};
+ const isBeta=/\/beta\//.test(location.pathname);
+ const storeKey=()=>{try{return STORE}catch(e){return 'buildSOS_v12'}};
+
+ // Complete backup: the saved state exactly as stored, every stored drawing, the
+ // IndexedDB fallback copy (drawings left out, they are in "drawings") and any site
+ // packets still waiting in this browser's inbox.
+ async function buildBackup(){
+  const raw=localStorage.getItem(storeKey());
+  const drawings=await readAll('assembleone_stable_v1','drawings');
+  const fallback=await readAll('assembleone_stable_v1','project_state');
+  const inbox=await readAll('assembleone_direct_sync_v1','studioInbox');
+  const fb=(fallback.entries.find(e=>e.key==='active')||{}).value||null;
+  let fbState=null;
+  if(fb&&fb.state){fbState=clone(fb.state);(fbState.projects||[]).forEach(p=>(p.cabinets||[]).forEach(c=>{if(c.drawing){c.drawing=null;c.hasStoredDrawing=true}}))}
+  const saved=raw?JSON.parse(raw):null;
+  return {kind:'fittersiq-studio-backup',backupVersion:1,app:'FittersIQ Studio',beta:isBeta,createdAt:new Date().toISOString(),
+   origin:location.origin,page:location.pathname,editorRole:role,saveStatus:status,storageKey:storeKey(),
+   savedStateSha256:raw?await sha256(raw):'',savedStateBytes:raw?bytes(raw):0,
+   summary:saved?{customers:(saved.customers||[]).length,jobs:(saved.projects||[]).length,deletedJobs:(saved.deletedProjectIds||[]).length}:null,
+   savedState:saved,
+   drawings:drawings.entries.map(e=>({key:e.key,drawingType:e.value&&e.value.drawingType||'',drawingName:e.value&&e.value.drawingName||'',drawing:e.value&&e.value.drawing||null})),
+   fallbackCopy:fb?{savedAt:fb.savedAt||null,state:fbState}:null,
+   pendingSiteInbox:inbox.entries.map(e=>({key:e.key,value:e.value})),
+   readErrors:[drawings.error,fallback.error,inbox.error].filter(Boolean)};
+ }
+ async function downloadBackup(){
+  const b=await buildBackup();
+  const text=JSON.stringify(b);
+  download('FittersIQ-'+(isBeta?'Beta-':'')+'backup-'+stamp()+'.json',text);
+  return {bytes:bytes(text),jobs:b.summary?b.summary.jobs:0,drawings:b.drawings.length};
+ }
+
+ // Data Doctor: storage use and consistency checks. Reads only.
+ async function buildDoctor(){
+  const raw=localStorage.getItem(storeKey())||'';
+  const saved=raw?JSON.parse(raw):{projects:[],customers:[]};
+  const r={createdAt:new Date().toISOString(),beta:isBeta,editorRole:role,saveStatus:status,storage:{},counts:{},media:{},drawings:{},checks:[],largestJobs:[]};
+  // Storage
+  try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();r.storage.browserUsageBytes=e.usage;r.storage.browserQuotaBytes=e.quota}}catch(e){}
+  try{if(navigator.storage&&navigator.storage.persisted)r.storage.persistent=await navigator.storage.persisted()}catch(e){}
+  let lsTotal=0,lsBeta=0,lsOther=0;const keys=[];
+  const rawKey=Storage.prototype.key;
+  for(let i=0;i<localStorage.length;i++){const k=rawKey.call(localStorage,i);let v='';try{v=window.localStorage[k]||''}catch(e){}const sz=(k.length+v.length)*2;lsTotal+=sz;if(k.indexOf('fiqbeta:')===0)lsBeta+=sz;else lsOther+=sz;keys.push([k,sz])}
+  keys.sort((a,b)=>b[1]-a[1]);
+  r.storage.localStorageBytes=lsTotal;r.storage.localStorageBetaBytes=lsBeta;r.storage.localStorageOtherBytes=lsOther;
+  r.storage.savedStateBytes=raw.length*2;r.storage.largestKeys=keys.slice(0,6);
+  r.storage.note='Browser local storage for this website is shared by normal Studio and Beta and is usually limited to about 5 MB (10 MB in some browsers).';
+  // Counts
+  const P=saved.projects||[],C=saved.customers||[];
+  let rooms=0,units=0,panels=0,pieces=0,versions=0,deletedPanels=0,unfinished=0;
+  P.forEach(p=>{rooms+=(p.rooms||[]).length;(p.cabinets||[]).forEach(c=>{units++;deletedPanels+=(c.deletedPartIds||[]).length;(c.parts||[]).forEach(pt=>{panels++;pieces+=Math.max(1,Math.floor(Number(pt.qty))||1);if(typeof window.fiqPanelMissingFields==='function'&&window.fiqPanelMissingFields(pt).filter(k=>k!=='qty').length)unfinished++})});
+   Object.values(p.sentCuttingLists||{}).forEach(l=>versions+=(l||[]).length)});
+  const deletedCopies=saved.deletedProjects||[];
+  r.counts={customers:C.length,jobs:P.length,rooms,units,panels,physicalPieces:pieces,unfinishedPanels:unfinished,savedCuttingListVersions:versions,deletedJobIds:(saved.deletedProjectIds||[]).length,deletedJobFullCopies:deletedCopies.length,deletedJobCopiesBytes:bytes(JSON.stringify(deletedCopies)),deletedPanelIds:deletedPanels};
+  // Media stored inside the saved state (data: URLs)
+  let mCount=0,mBytes=0;const perJob={};
+  const walk=(n,job)=>{if(!n||typeof n!=='object')return;if(Array.isArray(n)){n.forEach(v=>typeof v==='string'?addStr(v,job):walk(v,job));return}Object.keys(n).forEach(k=>{const v=n[k];typeof v==='string'?addStr(v,job):walk(v,job)})};
+  const addStr=(v,job)=>{if(v.startsWith('data:')){mCount++;mBytes+=v.length;perJob[job]=(perJob[job]||0)+v.length}};
+  P.forEach(p=>walk(p,p.id));walk(deletedCopies,'(deleted job copies)');
+  r.media={dataUrlCount:mCount,dataUrlBytes:mBytes};
+  r.largestJobs=P.map(p=>({id:p.id,name:p.name||'',customer:p.customer||'',bytes:bytes(JSON.stringify(p)),mediaBytes:perJob[p.id]||0})).sort((a,b)=>b.bytes-a.bytes).slice(0,5);
+  // Drawings
+  const dr=await readAll('assembleone_stable_v1','drawings');
+  const unitKeys=new Set();let expected=0;
+  P.forEach(p=>(p.cabinets||[]).forEach(c=>{if(c.hasStoredDrawing||c.drawing){expected++;unitKeys.add(String(p.id)+':'+String(c.id))}}));
+  const storedKeys=new Set(dr.entries.map(e=>String(e.key)));
+  const missingDrawings=[...unitKeys].filter(k=>!storedKeys.has(k));
+  const orphanDrawings=[...storedKeys].filter(k=>!unitKeys.has(k));
+  r.drawings={unitsWithDrawing:expected,storedDrawings:storedKeys.size,storedBytes:dr.entries.reduce((n,e)=>n+String(e.value&&e.value.drawing||'').length,0),missing:missingDrawings,notLinkedToAnyUnit:orphanDrawings.length};
+  // Fallback copy
+  const fb=((await readAll('assembleone_stable_v1','project_state')).entries.find(e=>e.key==='active')||{}).value;
+  if(fb&&fb.state){const a=P.map(p=>p.id+'@'+(p.updatedAt||'')).sort().join(','),b=(fb.state.projects||[]).map(p=>p.id+'@'+(p.updatedAt||'')).sort().join(',');r.fallbackCopy={savedAt:fb.savedAt?new Date(fb.savedAt).toISOString():null,matchesSavedJobs:a===b}}
+  // Consistency checks
+  const warn=(level,text,items)=>r.checks.push({level,text,items:items||[]});
+  const dup=list=>{const seen=new Set(),d=new Set();list.forEach(x=>{if(seen.has(x))d.add(x);seen.add(x)});return [...d]};
+  const dJobs=dup(P.map(p=>p.id));if(dJobs.length)warn('problem','Duplicate job ids',dJobs);
+  const dCust=dup(C.map(c=>c.id));if(dCust.length)warn('problem','Duplicate customer ids',dCust);
+  const custIds=new Set(C.map(c=>c.id));
+  const noCust=P.filter(p=>!p.customerId||!custIds.has(p.customerId)).map(p=>p.name||p.id);if(noCust.length)warn('check','Jobs without a matching customer record',noCust);
+  const nameKey=n=>String(n||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const byName={};C.forEach(c=>{const k=nameKey(c.name);if(k)(byName[k]=byName[k]||[]).push(c.id)});
+  const sameName=Object.entries(byName).filter(([k,v])=>v.length>1).map(([k])=>k);if(sameName.length)warn('check','Several customer records with the same name',sameName);
+  P.forEach(p=>{
+   const label=(p.name||p.id);
+   const dRooms=dup((p.rooms||[]).map(r=>r.id));if(dRooms.length)warn('problem','Duplicate room ids in '+label,dRooms);
+   const dUnits=dup((p.cabinets||[]).map(c=>c.id));if(dUnits.length)warn('problem','Duplicate unit ids in '+label,dUnits);
+   const roomIds=new Set((p.rooms||[]).map(r=>r.id));
+   const lost=(p.cabinets||[]).filter(c=>c.roomId&&!roomIds.has(c.roomId)).map(c=>c.name||c.id);if(lost.length)warn('check','Units linked to a room that no longer exists in '+label,lost);
+   const dPanels=dup((p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>pt.id)));if(dPanels.length)warn('problem','Duplicate panel ids (QR identity) in '+label,dPanels);
+   (p.cabinets||[]).forEach(c=>{const dc=dup((c.parts||[]).map(pt=>String(pt.code||'')).filter(Boolean));if(dc.length)warn('check','Duplicate panel numbers in '+label+' · '+(c.name||c.id),dc)});
+  });
+  if(missingDrawings.length)warn('problem','Units whose drawing is missing from browser storage',missingDrawings);
+  if(r.fallbackCopy&&!r.fallbackCopy.matchesSavedJobs)warn('check','The browser fallback copy differs from the main saved data (normal right after a failed save)',[]);
+  if(deletedCopies.length)warn('info','Deleted jobs are kept as full copies in browser storage',[deletedCopies.length+' copies, '+Math.round(r.counts.deletedJobCopiesBytes/1024)+' KB']);
+  const quota=5*1024*1024;if(lsTotal>quota*0.7)warn('problem','Browser local storage is nearly full',[Math.round(lsTotal/1024)+' KB used of about '+Math.round(quota/1024)+' KB']);
+  if(status==='failed')warn('problem','The last save failed',[detail]);
+  return r;
+ }
+ const kb=n=>n==null?'—':(n>=1048576?(n/1048576).toFixed(2)+' MB':Math.round(n/1024)+' KB');
+ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ function doctorHtml(r){
+  const row=(a,b)=>'<tr><th>'+esc(a)+'</th><td>'+b+'</td></tr>';
+  const c=r.counts,s=r.storage;
+  return '<div class="fiq-doctor" data-doctor>'+
+   '<h3>Storage</h3><table>'+row('Saved Studio data',kb(s.savedStateBytes))+row('Browser local storage (this website, Studio + Beta)',kb(s.localStorageBytes)+' · Beta '+kb(s.localStorageBetaBytes)+' · other '+kb(s.localStorageOtherBytes))+
+   row('Photos stored inside saved data',r.media.dataUrlCount+' · '+kb(r.media.dataUrlBytes))+row('Drawings',r.drawings.storedDrawings+' stored ('+kb(r.drawings.storedBytes)+') for '+r.drawings.unitsWithDrawing+' units with a drawing')+
+   row('Whole browser storage',kb(s.browserUsageBytes)+' used of '+kb(s.browserQuotaBytes)+(s.persistent?' · protected':' · may be cleared by the browser when space is short'))+'</table>'+
+   '<h3>Records</h3><table>'+row('Customers',c.customers)+row('Jobs',c.jobs)+row('Rooms',c.rooms)+row('Units',c.units)+row('Panels',c.panels+' ('+c.physicalPieces+' physical pieces, '+c.unfinishedPanels+' unfinished)')+row('Saved Cutting List versions',c.savedCuttingListVersions)+row('Deleted jobs',c.deletedJobIds+' ids · '+c.deletedJobFullCopies+' full copies ('+kb(c.deletedJobCopiesBytes)+')')+row('Deleted panel ids',c.deletedPanelIds)+'</table>'+
+   '<h3>Largest jobs</h3><table>'+r.largestJobs.map(j=>row(j.name||j.id,kb(j.bytes)+(j.mediaBytes?' · photos '+kb(j.mediaBytes):'')+(j.customer?' · '+esc(j.customer):''))).join('')+'</table>'+
+   '<h3>Checks</h3>'+(r.checks.length?'<table>'+r.checks.map(x=>row((x.level==='problem'?'⚠ ':x.level==='check'?'• ':'ℹ ')+x.text,'<span class="'+(x.level==='problem'?'fiq-doc-warn':'')+'">'+x.items.slice(0,12).map(esc).join(', ')+(x.items.length>12?' …':'')+'</span>')).join('')+'</table>':'<div class="fiq-doc-ok">✓ No problems found.</div>')+
+   '</div>';
+ }
+ function openSafetyDialog(){
+  if(document.querySelector('.fiq-safety-dialog'))return;
+  const o=document.createElement('div');o.className='a100-edit-dialog fiq-safety-dialog';
+  const st=TEXT[status]||TEXT.pending;
+  o.innerHTML='<div class="a100-edit-sheet fiq-safety-sheet"><h2>Data safety</h2>'+
+   '<div class="fiq-safety-status" data-safety-status>'+esc(st[0]+st[1])+(detail?' — '+esc(detail):'')+'</div>'+
+   '<div class="muted">'+(role==='readonly'?'This tab is read-only because Studio is open for editing in another tab or window.':'Saved means stored in this browser on this computer. It is not a cloud copy: download a backup regularly.')+'</div>'+
+   '<div class="fiq-safety-actions"><button type="button" class="btn primary" data-safety-backup>Download full backup</button><button type="button" class="btn" data-safety-doctor>Data Doctor report</button></div>'+
+   '<div data-safety-out></div>'+
+   '<div class="a100-edit-actions"><button type="button" class="btn" data-safety-close>Close</button></div></div>';
+  document.body.appendChild(o);
+  const out=o.querySelector('[data-safety-out]'),close=()=>o.remove();
+  o.onclick=e=>{if(e.target===o)close()};
+  o.querySelector('[data-safety-close]').onclick=close;
+  o.querySelector('[data-safety-backup]').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{const r=await downloadBackup();out.innerHTML='<p class="fiq-doc-ok" data-backup-done>✓ Backup downloaded: '+r.jobs+' jobs, '+r.drawings+' drawings, '+kb(r.bytes)+'. Keep the file somewhere safe (not only in Downloads).</p>'}catch(err){console.error(err);out.innerHTML='<p class="fiq-doc-warn">⚠ Backup could not be made: '+esc(err&&err.message||err)+'</p>'}finally{b.disabled=false}};
+  o.querySelector('[data-safety-doctor]').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{const r=await buildDoctor();gate.lastDoctor=r;out.innerHTML=doctorHtml(r)+'<div class="fiq-safety-actions" style="margin-top:8px"><button type="button" class="btn" data-safety-doctor-download>Download report</button></div>';out.querySelector('[data-safety-doctor-download]').onclick=()=>download('FittersIQ-'+(isBeta?'Beta-':'')+'data-doctor-'+stamp()+'.json',JSON.stringify(r,null,1))}catch(err){console.error(err);out.innerHTML='<p class="fiq-doc-warn">⚠ Report could not be made: '+esc(err&&err.message||err)+'</p>'}finally{b.disabled=false}};
+ }
+ window.fiqBuildBackup=buildBackup;
+ window.fiqBuildDataDoctor=buildDoctor;
+ window.fiqOpenDataSafety=openSafetyDialog;
+})();
+</script>
 <script>
 
 const APP_I18N={
@@ -1960,6 +2220,10 @@ async function finishDesignToCard(projectId){
 }
 
 function save(){
+ // Only the editing tab writes. At startup (editor not decided yet) the just-loaded data
+ // needs no write; the stable save runs as soon as this tab is confirmed as the editor.
+ const gate=window.fiqEditor;
+ if(gate&&gate.role!=='editor'){if(gate.role==='pending'){gate.wantSave=true;return true}return false}
  try{
    localStorage.setItem(STORE,JSON.stringify(state));
    return true;
@@ -3973,6 +4237,7 @@ async function acceptSitePacket(syncId){
 // stopped the page with Out of Memory. Imports are now single-flight and coalesced.
 let autoImportRunning=null,autoImportAgain=false;
 function autoImportSitePackets(){
+ if(window.fiqEditor&&!window.fiqEditor.canWrite())return Promise.resolve(false);// only the editing tab imports
  if(autoImportRunning){autoImportAgain=true;return autoImportRunning}
  autoImportRunning=(async()=>{
    let imported=false;
@@ -5799,6 +6064,11 @@ body.guide-only .a131-back-studio{display:block}
   function showSaved(){const bar=document.getElementById('a131RecoveryBar');if(!bar)return;bar.style.display='block';clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>bar.style.display='none',850)}
   let saveInFlight=null,saveRequested=false,wantsNotice=false,lastSavedLight=null;
   function stableSave(showNotice){
+    const gate=window.fiqEditor;
+    if(gate&&gate.role!=='editor'){
+      if(gate.role==='readonly')return Promise.resolve(false);
+      return gate.ready.then(r=>r==='editor'?stableSave(showNotice):false);
+    }
     commitVisible();saveRequested=true;wantsNotice=wantsNotice||!!showNotice;
     if(!saveInFlight)saveInFlight=(async()=>{
       let saved=true;
@@ -5835,6 +6105,8 @@ body.guide-only .a131-back-studio{display:block}
         if(missing.length){state.projects=state.projects||[];missing.forEach(p=>state.projects.push(p))}
       }catch(e){}
       const lightJson=JSON.stringify(cloneLight());
+      const status=window.fiqEditor&&window.fiqEditor.setStatus;
+      if(status&&lightJson!==lastSavedLight)status('saving');
       let drawingChanged=false;
       for(const pr of state.projects||[])for(const c of pr.cabinets||[])if(c.drawing){if(await putDrawing(pr,c))drawingChanged=true}
       if(lightJson!==lastSavedLight||drawingChanged){
@@ -5843,8 +6115,14 @@ body.guide-only .a131-back-studio{display:block}
         sessionStorage.setItem(STORE+'_draft',lightJson);
         lastSavedLight=lightJson;
       }
+      if(status&&window.fiqEditor.status!=='external')status('saved');
       return true;
-    }catch(e){lastSavedLight=null;console.error('Stable save failed',e);return false}
+    }catch(e){
+      lastSavedLight=null;console.error('Stable save failed',e);
+      const quota=e&&(e.name==='QuotaExceededError'||e.code===22||/quota/i.test(String(e.message||'')));
+      if(window.fiqEditor)window.fiqEditor.setStatus('failed',quota?'Browser storage is full.':'The browser could not store the data ('+String(e&&e.name||e)+').');
+      return false;
+    }
   }
   window.a131StableSave=stableSave;
   try{save=stableSave}catch(e){}
@@ -5853,7 +6131,15 @@ body.guide-only .a131-back-studio{display:block}
   document.addEventListener('change',e=>{if(e.target&&e.target.matches('input,textarea,select'))stableSave(false)},true);
   document.addEventListener('click',e=>{if(e.target.closest('.nav-btn,[data-step-screen],#saveNextBtn,#checkAllPanelsBtn,#newCabinetBtn,[data-open-job],[data-open-cabinet]'))stableSave(false)},true);
   window.addEventListener('pagehide',()=>stableSave(false));
-  window.addEventListener('beforeunload',()=>{commitVisible();try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}});
+  window.addEventListener('beforeunload',()=>{if(window.fiqEditor&&!window.fiqEditor.canWrite())return;commitVisible();try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}});
+  // Another tab still running an older Studio (opened before this protection) can still
+  // write. Show it plainly instead of hiding it; nothing is changed automatically.
+  window.addEventListener('storage',e=>{
+    if(!window.fiqEditor||e.storageArea!==localStorage||!e.key||!String(e.key).endsWith(STORE))return;
+    let mine=null;try{mine=localStorage.getItem(STORE)}catch(err){}
+    if(mine!==e.newValue)return;// not this copy's own saved data
+    if(window.fiqEditor.canWrite())window.fiqEditor.setStatus('external','Another Studio tab (opened before this update) saved over this data. Close every other Studio tab, then reload this one.');
+  });
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stableSave(false)});
   setInterval(()=>stableSave(false),4000);
   async function restoreProjectState(){
@@ -5869,7 +6155,7 @@ body.guide-only .a131-back-studio{display:block}
     rec.state.deletedProjectIds=[...deletedIds];
     state=rec.state;
     if(typeof migrateCustomers==='function')migrateCustomers();
-    try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}
+    if(!window.fiqEditor||await window.fiqEditor.ready==='editor'){try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}}
     renderAll();show(state.screen||'jobs');showSaved();
     return true;
   }
@@ -10986,6 +11272,7 @@ document.addEventListener('mousedown',function(e){
     return deletes.length;
   }
   async function checkCompanyReset(){
+    if(window.fiqEditor&&!window.fiqEditor.canWrite())return;// only the editing tab applies a reset
     if(resetInProgress||Date.now()-lastCloudCheck<12000)return;lastCloudCheck=Date.now();
     const user=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;if(!user||!user.companyId||!fs||!db)return;
     try{
