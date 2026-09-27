@@ -1708,6 +1708,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div id="estimatedMaterialsCard"></div>
 <div id="edgeBandingCard"></div>
 <div class="notice" id="componentsValidation" style="display:none;margin-bottom:10px"></div>
+<div id="panelIncompleteWarning"></div>
 <div id="edgeCheckWarning"></div>
 <div id="partsSummary"></div>
 </section>
@@ -8040,6 +8041,52 @@ body.fiq-locked .app{display:none!important}
  try{renderParts=window.renderParts}catch(e){}
 })();
 </script>
+<script id="fiq-panel-complete-gate">
+// A manufacturing-ready panel has Part Name, Length, Width, Thickness, Material (and a
+// quantity). Edging is optional: no edging is a valid choice. Panel Check never approves a
+// panel that lacks any of these, including panels saved before this check existed.
+(function(){
+ const LABELS={name:'Part Name',length:'Length',width:'Width',thickness:'Thickness',material:'Material',qty:'Quantity'};
+ function missingOf(p){
+  const m=[];
+  if(!String(p&&p.name||'').trim())m.push('name');
+  if(!(Number(p&&p.length)>0))m.push('length');
+  if(!(Number(p&&p.width)>0))m.push('width');
+  if(!(Number(p&&p.thickness)>0))m.push('thickness');
+  if(!String((typeof materialForPanel==='function'?materialForPanel(p):p&&p.material)||'').trim())m.push('material');
+  if(!(Number(p&&p.qty)>0))m.push('qty');
+  return m;
+ }
+ window.fiqPanelMissingFields=missingOf;
+ let pending=null;// {projectId,cabinetId,panelId}
+ function render(){
+  const box=document.getElementById('panelIncompleteWarning');if(!box)return;
+  const pr=typeof project==='function'?project():null,c=typeof cabinet==='function'?cabinet():null;
+  const p=pending&&pr&&c&&pr.id===pending.projectId&&c.id===pending.cabinetId?(c.parts||[]).find(x=>x.id===pending.panelId):null;
+  const miss=p?missingOf(p):[];
+  if(!p||!miss.length){pending=null;box.innerHTML='';return}
+  box.innerHTML='<div class="fiq-edge-warning fiq-incomplete-warning" role="alert"><h4>⚠️ Panel information incomplete</h4><p>'+safe(p.code||'This panel')+(p.name?' · '+safe(p.name):'')+'</p><p>Missing: '+miss.map(k=>LABELS[k]).join(', ')+'</p><div class="fiq-edge-actions"><button type="button" class="btn primary" data-complete-panel>Complete panel</button></div></div>';
+  box.querySelector('[data-complete-panel]').onclick=()=>{
+   const keys=missingOf(p);pending=null;box.innerHTML='';
+   state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=true;
+   save();renderAll();show('mark');
+   setTimeout(()=>{if(typeof window.fiqShowMissingBasics==='function')window.fiqShowMissingBasics(keys)},120);
+  };
+ }
+ document.addEventListener('dblclick',e=>{
+  const el=e.target&&e.target.closest&&e.target.closest('#screen-parts [data-review-panel]');if(!el)return;
+  const pr=typeof project==='function'?project():null,c=typeof cabinet==='function'?cabinet():null;
+  const p=(c&&c.parts||[]).find(x=>String(x.id)===String(el.dataset.reviewPanel));if(!p)return;
+  if(!missingOf(p).length)return;// complete: normal Panel Check (including the edging check)
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+  pending={projectId:pr.id,cabinetId:c.id,panelId:p.id};render();
+  const box=document.getElementById('panelIncompleteWarning');if(box&&box.scrollIntoView)box.scrollIntoView({block:'center'});
+ },true);
+ const prevRenderParts=window.renderParts;
+ window.renderParts=function(){const r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
+ try{renderParts=window.renderParts}catch(e){}
+})();
+</script>
 <style id="a213-customer-sheet-estimate-style">
 .cust-sheet-card{border-color:#8fa8df}
 .cust-sheet-customer{font-weight:900;font-size:15px;color:var(--ink);margin-bottom:2px}
@@ -9897,7 +9944,7 @@ body.fiq-locked .app{display:none!important}
     // showing them next to a multi-job combined view would be misleading, so they're
     // cleared while combined mode is active. They come back exactly as before the moment
     // combined mode ends, the next time their own render functions run for the real open job.
-    ['componentsValidation','installProgressCard','estimatedMaterialsCard','customerSheetEstimateCard','panelCheckStatusBanner','edgeBandingCard','edgeCheckWarning'].forEach(id=>{
+    ['componentsValidation','installProgressCard','estimatedMaterialsCard','customerSheetEstimateCard','panelCheckStatusBanner','edgeBandingCard','edgeCheckWarning','panelIncompleteWarning'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.innerHTML='';
     });
     let totalParts=0,totalChecked=0;
@@ -10983,14 +11030,19 @@ document.addEventListener('mousedown',function(e){
   };
   function nameControls(){return [document.querySelector('#screen-mark .quick-main'),document.querySelector('#screen-mark .common-part-library')].filter(Boolean)}
   function materialControl(){return document.getElementById('materialPickerDetails')}
+  // Length, Width, Thickness and Quantity are required too; only an outline is added (the
+  // measurement row itself is unchanged).
+  const sizeControls={length:()=>document.getElementById('lengthMeasureWrap'),width:()=>document.getElementById('widthMeasureWrap'),thickness:()=>document.getElementById('fThickness'),qty:()=>document.getElementById('fQty')};
+  const missingText={material:'Choose a material first',name:'Choose a part name first',length:'Enter the length',width:'Enter the width',thickness:'Enter the thickness',qty:'Enter the quantity'};
   window.fiqClearMissingBasics=function(which){
     if(!which||which==='name')nameControls().forEach(x=>x.classList.remove('fiq-missing'));
     if(!which||which==='material'){const m=materialControl();if(m)m.classList.remove('fiq-missing')}
+    Object.keys(sizeControls).forEach(k=>{if(!which||which===k){const el=sizeControls[k]();if(el)el.classList.remove('fiq-missing')}});
     const msg=document.getElementById('fiqMissingMsg');
     if(msg){const left=[...document.querySelectorAll('#screen-mark .fiq-missing')].length;if(!left)msg.remove()}
   };
   window.fiqShowMissingBasics=function(missing){
-    const text=missing.map(k=>k==='material'?'Choose a material first':'Choose a part name first');
+    const text=missing.map(k=>missingText[k]||k);
     const quick=document.querySelector('#screen-mark .quick-main');
     let msg=document.getElementById('fiqMissingMsg');
     if(!msg){msg=document.createElement('div');msg.id='fiqMissingMsg';msg.className='fiq-missing-msg';msg.setAttribute('role','alert')}
@@ -11000,6 +11052,7 @@ document.addEventListener('mousedown',function(e){
     const targets=[];
     if(missing.includes('name'))nameControls().forEach(x=>{x.classList.add('fiq-missing');targets.push(x)});
     if(missing.includes('material')){const m=materialControl();if(m){m.classList.add('fiq-missing');targets.push(m)}}
+    Object.keys(sizeControls).forEach(k=>{if(missing.includes(k)){const el=sizeControls[k]();if(el){el.classList.add('fiq-missing');targets.push(el)}}});
     if(!msg.isConnected&&quick)quick.parentElement.insertBefore(msg,quick);
     const first=msg.isConnected?msg:targets[0];
     if(first&&first.scrollIntoView)first.scrollIntoView({block:'center',behavior:'smooth'});
@@ -11020,10 +11073,18 @@ document.addEventListener('mousedown',function(e){
     const missing=[];
     if(!material)missing.push('material');
     if(!name)missing.push('name');
+    // Sizes belong to a placed panel; with no dot yet Save & next only resets the entry.
+    if(p)missing.push(...window.fiqMissingSizes(p));
     if(!missing.length)return;
     e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
     window.fiqShowMissingBasics(missing);
   },true);
+  // The size box on screen is what Save & next saves, so it decides (the panel's value is
+  // used only when the box is not there).
+  window.fiqMissingSizes=function(p){
+    const has=(k,id)=>{const el=document.getElementById(id);return el?Number(el.value)>0:Number(p&&p[k])>0};
+    return [['length','fLength'],['width','fWidth'],['thickness','fThickness'],['qty','fQty']].filter(([k,id])=>!has(k,id)).map(([k])=>k);
+  };
 
   // A warning goes away as soon as what it asks for exists (checked on every form redraw).
   window.fiqRefreshMissingBasics=function(){
@@ -11033,7 +11094,20 @@ document.addEventListener('mousedown',function(e){
     const material=String((p&&p.material)||pr?.defaultMaterial||'').trim();
     if(name)window.fiqClearMissingBasics('name');
     if(material)window.fiqClearMissingBasics('material');
+    const sizesLeft=window.fiqMissingSizes(p);
+    ['length','width','thickness','qty'].forEach(k=>{if(!sizesLeft.includes(k))window.fiqClearMissingBasics(k)});
+    // The message then lists only what is still missing.
+    const msgEl=document.getElementById('fiqMissingMsg');
+    if(msgEl){
+      const still=[];
+      const m=materialControl();if(m&&m.classList.contains('fiq-missing'))still.push('material');
+      if(nameControls().some(x=>x.classList.contains('fiq-missing')))still.push('name');
+      Object.keys(sizeControls).forEach(k=>{const el=sizeControls[k]();if(el&&el.classList.contains('fiq-missing'))still.push(k)});
+      if(still.length)msgEl.innerHTML=still.map(k=>'<div>⚠ '+(missingText[k]||k)+'</div>').join('');
+    }
   };
+  // Typing a size clears its warning.
+  document.addEventListener('input',e=>{if(e.target&&e.target.closest&&e.target.closest('#fLength,#fWidth,#fThickness,#fQty'))setTimeout(window.fiqRefreshMissingBasics,0)},true);
   // Choosing a part name or a material clears its warning.
   document.addEventListener('click',e=>{
     if(e.target.closest&&e.target.closest('#screen-mark [data-quick-name],#materialLibraryGrid [data-material-name],#saveMaterialBtn'))setTimeout(window.fiqRefreshMissingBasics,0);
