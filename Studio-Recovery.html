@@ -1134,6 +1134,8 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .attention-item-fitter{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#5c5342;margin-left:8px}
 .attention-item-note{font-size:13px;color:#5c5342;margin:6px 0}
 .attention-item-photo{max-width:180px;border-radius:10px;display:block;margin-bottom:8px}
+.attention-item-photos{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}.attention-item-photos .attention-item-photo{max-width:140px;margin:0}
+.attention-item-now,.attention-item-pieces{font-size:13px;font-weight:800;color:#3a2c05;margin:2px 0}
 .attention-item-actions{display:flex;gap:8px;margin-top:8px}
 .attention-item-actions .btn{min-height:38px;padding:0 14px;font-size:13px}
 @media(max-width:760px){.site-room-modal{padding:5px}.site-room-dialog{width:100%;height:calc(100vh - 10px);max-height:none;border-radius:18px}.site-room-head{padding:8px 12px}.site-room-head .room-badge{font-size:28px}.site-room-head p{margin-top:1px;font-size:12px}.site-room-kind-badge{margin-top:3px}.site-room-close{width:40px;height:40px}.site-room-body{display:flex;flex-direction:column}.site-reference-pane{border-right:0;border-bottom:2px solid #eaf2f1;padding:7px 10px;flex:0 0 auto}.site-reference-frame{height:220px;min-height:0;max-height:34vh}.site-thumb{width:42px;height:34px}.site-design-pane{padding:7px 10px;margin-top:auto;flex:0 0 auto}.site-facts{grid-template-columns:1fr 1fr}.site-fact{padding:4px 7px}.site-fact b{font-size:14px}.site-fact span{font-size:10px}.site-notes-box{min-height:56px;max-height:140px;padding:7px 8px}.site-notes-box h3{font-size:13px}.site-detail-actions{padding:9px 10px}.site-detail-actions .btn{min-height:60px;font-size:20px}.site-room-head h2{font-size:20px}}
@@ -1886,11 +1888,20 @@ function addJobLogEntry(p,text,photos,roomId){
 // or -- for the "General" bucket (roomId null) -- every entry with no roomId at all, PLUS
 // any entry whose roomId no longer matches a room that still exists (e.g. the room was
 // since renamed/deleted), so a synced note can never become permanently invisible.
+// Mobile shows a Studio unit that has no room as its own room "auto-room-<unit id>" (see
+// Mobile mergeStudioProject), and that room is merged into the job's rooms here. Site
+// Updates sent from it carry that id, so they belong to wherever that unit is in Studio --
+// otherwise the unit's card (the General card) never counted or showed them.
+function jobLogEntryRoomId(p,en){
+ const r=en&&en.roomId;
+ if(r&&String(r).startsWith('auto-room-')){const c=(p.cabinets||[]).find(x=>'auto-room-'+x.id===r);if(c)return c.roomId||null}
+ return r||null;
+}
 function jobLogEntriesForRoom(p,roomId){
  const log=p.jobLog||[];
- if(roomId)return log.filter(en=>en.roomId===roomId);
+ if(roomId)return log.filter(en=>jobLogEntryRoomId(p,en)===roomId);
  const namedRoomIds=new Set((p.rooms||[]).filter(r=>r&&r.name).map(r=>r.id));
- return log.filter(en=>!en.roomId||!namedRoomIds.has(en.roomId));
+ return log.filter(en=>{const r=jobLogEntryRoomId(p,en);return !r||!namedRoomIds.has(r)});
 }
 function updateCustomerDetails(customerId,fields){
  const c=state.customers.find(x=>x.id===customerId);if(!c)return;
@@ -8911,8 +8922,9 @@ body.fiq-locked .app{display:none!important}
       const showFitted=fit.installed>0;
       const fitPct=fit.total>0?Math.round(fit.installed/fit.total*100):0;
       const damaged=damagedTotalForCabinets(cabinets),missing=missingTotalForCabinets(cabinets);
-      const issueHtml=siteVisit?'':'<div class="jor-stat jor-issue-stat"><div class="jor-stat-label">Damaged</div><div class="jor-stat-value'+(damaged?' jor-issue-bad':'')+'">'+damaged+(damaged?' ⚠️':'')+'</div></div>'+
-        '<div class="jor-stat jor-issue-stat"><div class="jor-stat-label">Missing</div><div class="jor-stat-value'+(missing?' jor-issue-bad':'')+'">'+missing+(missing?' ⚠️':'')+'</div></div>';
+      const issueAttrs=reason=>' data-open-issues="'+reason+'" data-issues-project="'+safe(p.id)+'" data-issues-cabs="'+safe(cabinets.map(c=>c.id).join(','))+'" role="button" tabindex="0" title="Show '+reason+' panels"';
+      const issueHtml=siteVisit?'':'<div class="jor-stat jor-issue-stat"'+issueAttrs('damaged')+'><div class="jor-stat-label">Damaged</div><div class="jor-stat-value'+(damaged?' jor-issue-bad':'')+'">'+damaged+(damaged?' ⚠️':'')+'</div></div>'+
+        '<div class="jor-stat jor-issue-stat"'+issueAttrs('missing')+'><div class="jor-stat-label">Missing</div><div class="jor-stat-value'+(missing?' jor-issue-bad':'')+'">'+missing+(missing?' ⚠️':'')+'</div></div>';
       const warn=!siteVisit&&(needsAttentionForCabinets(cabinets)||(pcFinished&&pcMissing.length))?'<span class="jor-warn" data-open-panel-check="'+safe(p.id)+'" title="'+t("studio.jobOverview.needsAttentionTooltip")+'">⚠️</span>':'<span class="jor-warn"></span>';
       // Incoming measurement-only visits are filtered into New Projects above. This flag
       // can remain true only as a recovery fallback if a project contains panel work from
@@ -8931,7 +8943,7 @@ body.fiq-locked .app{display:none!important}
       const completionHtml=siteVisit?'':'<div class="jor-completion"><div class="jor-stat-label">Fitted</div><div class="jor-stat-value">'+fit.installed+' / '+fit.total+'</div><div class="jor-bar"><i style="width:'+fitPct+'%"></i></div></div>';
       const jobCompletedBadge=siteVisit?'':'<div class="jor-completed-badge '+(jobCompleted?'done':'')+'">JOB COMPLETED<b>'+(jobCompleted?'Yes ✓':'Waiting')+'</b></div>';
       const roomIdAttr=card.room===null?'':(card.room==='__general__'?'__general__':card.room==='__site_visit__'?'__site_visit__':safe(card.room.id));
-      return '<div class="job-overview-row'+(isNew?' jor-new':'')+(card.needsRecheck?' jor-needs-recheck':'')+'" data-open-job-card="'+safe(p.id)+'" data-card-room-id="'+roomIdAttr+'">'+
+      return '<div class="job-overview-row'+(isNew?' jor-new':'')+(card.needsRecheck?' jor-needs-recheck':'')+'" data-open-job-card="'+safe(p.id)+'" data-card-room-id="'+roomIdAttr+'" data-card-cabs="'+safe(cabinets.map(c=>c.id).join(','))+'">'+
         '<div class="jor-card-top">'+
         (multiSelectAvailable?'<label class="jor-select" title="'+t("studio.jobOverview.selectCardTitle")+'"><input type="checkbox" class="jor-select-checkbox" data-select-card="'+safe(key)+'" '+(jorSelectedCardKeys.has(key)?'checked':'')+'></label>':'')+
         '<div class="jor-thumb">'+thumb+'</div>'+
@@ -8954,11 +8966,21 @@ body.fiq-locked .app{display:none!important}
     // its own job workspace when there's nothing sent from site yet. No separate room-chip
     // click target is needed any more now that the card itself is room-scoped.
     grid.querySelectorAll('[data-open-job-card]').forEach(row=>row.onclick=(e)=>{
-      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]')||e.target.closest('.jor-select')||e.target.closest('[data-finish-overview-job]')||e.target.closest('[data-delete-overview-job]'))return;
+      if(e.target.closest('.fitter-row')||e.target.closest('[data-open-panel-check]')||e.target.closest('[data-open-issues]')||e.target.closest('.fiq-site-update-stat')||e.target.closest('.jor-select')||e.target.closest('[data-finish-overview-job]')||e.target.closest('[data-delete-overview-job]'))return;
       const projectId=row.dataset.openJobCard,roomId=row.dataset.cardRoomId;
       if(roomId==='__site_visit__'){
         const proj=state.projects.find(x=>x.id===projectId);
         if(proj?.customerId){customerCardActiveTab='site';openCustomerCard(proj.customerId);return}
+      }
+      // An active job card is one room's units (or the General card's units without a room):
+      // open that unit's own Drawing directly. Going through enterProjectWorkspace picked a
+      // room from the job's room list instead -- for a job whose rooms came back from Mobile
+      // that showed the room picker, or silently created an empty unit and opened it.
+      if(roomId!=='__site_visit__'){
+        const proj=state.projects.find(x=>x.id===projectId);
+        const cabIds=String(row.dataset.cardCabs||'').split(',').filter(Boolean);
+        const cab=proj&&(proj.cabinets||[]).find(c=>cabIds.includes(c.id));
+        if(cab){switchToProject(projectId,cab.id);state.currentRoom=cab.roomId||null;state.currentPart=null;renderAll();save();show('mark');return}
       }
       if(roomId&&roomId!=='__general__'){
         const proj=state.projects.find(x=>x.id===projectId);
@@ -9011,11 +9033,17 @@ body.fiq-locked .app{display:none!important}
     // (which is what the rest of the row opens, and has no way to sort a panel from). This
     // is always the normal single-job Panel Check (never combined mode), so it explicitly
     // drops any combined-check selection still active from the bulk toolbar.
+    grid.querySelectorAll('[data-open-issues]').forEach(el=>{
+      const open=e=>{e.preventDefault();e.stopPropagation();if(typeof window.openAttentionModal==='function')window.openAttentionModal({reason:el.dataset.openIssues,projectId:el.dataset.issuesProject,cabinetIds:String(el.dataset.issuesCabs||'').split(',').filter(Boolean)})};
+      el.onclick=open;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' ')open(e)};
+    });
     grid.querySelectorAll('[data-open-panel-check]').forEach(el=>{
       el.onclick=(e)=>{
         e.stopPropagation();
         window.__jorCombinedCheck=null;
-        switchToProject(el.dataset.openPanelCheck);
+        // This card's own unit, not whichever unit the job happens to list first.
+        const cardRow=el.closest('[data-open-job-card]'),cardCab=cardRow?String(cardRow.dataset.cardCabs||'').split(',').filter(Boolean)[0]:null;
+        if(cardCab)switchToProject(el.dataset.openPanelCheck,cardCab);else switchToProject(el.dataset.openPanelCheck);
         save();
         renderAll();
         show('parts');
@@ -9086,12 +9114,25 @@ body.fiq-locked .app{display:none!important}
     if(log&&log.author)return log.author;
     return typeof window.a211FitterDisplayName==='function'?window.a211FitterDisplayName(p.assignedFitter):(p.assignedFitter||'');
   }
-  function attentionItemsDetailed(){
+  // A Job Overview card's Damaged / Missing count includes what was reported from site even
+  // if the panel was later fitted or marked sorted, so the card's list does too.
+  function reportedIssue(part,reason){
+    const pieces=fiqPieceIssues(part);
+    if(reason==='damaged')return part.status==='damaged'||Number(part.damagedQty)>0||pieces.some(x=>x.status==='damaged');
+    return part.status==='missing'||pieces.some(x=>x.status==='missing');
+  }
+  function statusWordOf(part){
+    const st=part.status||'ready',pc=part.pieceStates&&Object.keys(part.pieceStates).length?' · '+Object.keys(part.pieceStates).sort((a,b)=>a-b).map(k=>'piece '+k+' '+({installed:'fitted',damaged:'damaged',missing:'missing'}[part.pieceStates[k].status]||(part.pieceStates[k].checkedAt?'checked':'not checked'))).join(', '):'';
+    return ({installed:'Fitted',damaged:'Damaged',missing:'Missing',ready:'Ready'}[st]||st)+pc;
+  }
+  function attentionItemsDetailed(filter){
     const items=[];
     (state.projects||[]).forEach(p=>{
+      if(filter&&p.id!==filter.projectId)return;
       (p.cabinets||[]).forEach(c=>{
+        if(filter&&filter.cabinetIds&&!filter.cabinetIds.includes(c.id))return;
         (c.parts||[]).forEach(part=>{
-          if(fiqPanelIssue(part)&&!part.attentionSorted){
+          if(filter?reportedIssue(part,filter.reason):(fiqPanelIssue(part)&&!part.attentionSorted)){
             const room=(p.rooms||[]).find(r=>r.id===c.roomId);
             items.push({
               projectId:p.id,cabinetId:c.id,partId:part.id,
@@ -9099,9 +9140,11 @@ body.fiq-locked .app{display:none!important}
               jobName:(room&&room.name)||c.name||p.name||'Job',
               code:part.code||'',name:part.name||'',
               length:part.length||'',width:part.width||'',thickness:part.thickness||'',
-              reason:fiqPanelIssue(part),pieces:fiqPieceIssueText(part),
-              note:fiqPanelIssue(part)==='damaged'?(part.damageNote||''):'',
+              reason:filter?filter.reason:fiqPanelIssue(part),pieces:fiqPieceIssueText(part),
+              note:(filter?filter.reason:fiqPanelIssue(part))==='damaged'?[part.damageNote,...fiqPieceIssues(part).filter(x=>x.status==='damaged'&&x.note&&x.note!==part.damageNote).map(x=>'Piece '+x.piece+': '+x.note)].filter(Boolean).join(' · '):'',
               photo:(part.panelPhotos||[])[0]?.data||null,
+              photos:filter?(part.panelPhotos||[]).map(x=>x&&x.data).filter(Boolean):[],
+              now:filter?statusWordOf(part):'',sorted:!!part.attentionSorted,
               reportedBy:reporterFor(p,part.code),
               at:part.updatedAt||p.updatedAt||0
             });
@@ -9113,21 +9156,25 @@ body.fiq-locked .app{display:none!important}
   }
   window.a210AttentionItems=attentionItemsDetailed;
 
+  let attentionFilter=null;
   function renderAttentionList(){
     const box=document.getElementById('attentionList');if(!box)return;
-    const items=attentionItemsDetailed();
-    if(!items.length){box.innerHTML='<div class="attention-empty">Nothing needs attention right now.</div>';return}
+    const filter=attentionFilter,items=attentionItemsDetailed(filter);
+    if(!items.length){box.innerHTML='<div class="attention-empty">'+(filter?'No '+filter.reason+' panels reported for this card.':'Nothing needs attention right now.')+'</div>';return}
     box.innerHTML=items.map((it,i)=>'<div class="attention-item">'+
       '<div class="attention-item-path">'+safe(it.customer)+' › '+safe(it.jobName)+'</div>'+
       '<div class="attention-item-panel">'+safe(it.code)+' '+safe(it.name)+'</div>'+
       '<div class="attention-item-dims">'+safe(it.length||'—')+' × '+safe(it.width||'—')+' × '+safe(it.thickness||'—')+' mm</div>'+
       '<span class="attention-item-reason reason-'+it.reason+'">'+(it.reason==='damaged'?'⚠ Damaged':'❔ Missing')+'</span>'+
       (it.reportedBy?'<span class="attention-item-fitter">👤 '+safe(it.reportedBy)+'</span>':'')+
+      (it.pieces?'<div class="attention-item-pieces">'+safe(it.pieces)+'</div>':'')+
+      (it.now?'<div class="attention-item-now">Now: '+safe(it.now)+(it.sorted?' · marked Sorted':'')+'</div>':'')+
       (it.note?'<div class="attention-item-note">"'+safe(it.note)+'"</div>':'')+
-      (it.photo?'<img class="attention-item-photo" src="'+it.photo+'">':'')+
+      (filter?(it.photos.length?'<div class="attention-item-photos">'+it.photos.map(src=>'<a href="'+safe(src)+'" target="_blank" rel="noopener"><img class="attention-item-photo" src="'+safe(src)+'" alt="Photo from site"></a>').join('')+'</div>':''):(it.photo?'<img class="attention-item-photo" src="'+it.photo+'">':''))+
       '<div class="attention-item-actions">'+
         '<button type="button" class="btn primary" data-go="'+i+'">Go to panel</button>'+
-        '<button type="button" class="btn" data-sorted="'+i+'">✓ Sorted</button>'+
+        (filter?'<button type="button" class="btn" data-drawing="'+i+'">Show on drawing</button>':'')+
+        (it.sorted?'':'<button type="button" class="btn" data-sorted="'+i+'">✓ Sorted</button>')+
       '</div>'+
     '</div>').join('');
     box.querySelectorAll('[data-go]').forEach(btn=>{
@@ -9136,6 +9183,14 @@ body.fiq-locked .app{display:none!important}
         window.closeAttentionModal();
         switchToProject(it.projectId,it.cabinetId,it.partId);
         renderAll();save();show('parts');
+      };
+    });
+    box.querySelectorAll('[data-drawing]').forEach(btn=>{
+      btn.onclick=()=>{
+        const it=items[+btn.dataset.drawing];
+        window.closeAttentionModal();
+        switchToProject(it.projectId,it.cabinetId,it.partId);
+        renderAll();save();show('mark');
       };
     });
     box.querySelectorAll('[data-sorted]').forEach(btn=>{
@@ -9150,7 +9205,12 @@ body.fiq-locked .app{display:none!important}
       };
     });
   }
-  window.openAttentionModal=function(){
+  // No filter: the whole company's Needs Attention list, as before. With a filter (from a
+  // Job Overview card's Damaged or Missing): that card's panels with that problem.
+  window.openAttentionModal=function(filter){
+    attentionFilter=filter&&filter.projectId&&(filter.reason==='damaged'||filter.reason==='missing')?filter:null;
+    const title=document.getElementById('attentionModalTitle');
+    if(title)title.textContent=attentionFilter?(attentionFilter.reason==='damaged'?'⚠️ Damaged panels':'❔ Missing panels'):'⚠️ Needs Attention';
     renderAttentionList();
     const m=document.getElementById('attentionModal');
     if(m){m.classList.add('open');m.setAttribute('aria-hidden','false')}
