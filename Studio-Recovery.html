@@ -8006,7 +8006,21 @@ body.fiq-locked .app{display:none!important}
   if(!differ.length)return null;
   const state=groupState(group);
   if((pr.edgeGroupAcks||{})[key]===state)return null;
-  return {key,state,panel:p,group,differ};
+  // The reference is always a panel WITH edging: the checked panel if it has edging,
+  // otherwise the most common edging in the group (lowest panel number on a tie).
+  // "Make them the same" only ever ADDS edging: a panel is changed only when the reference
+  // has at least as many Length and Width edges as it already has. A panel with other
+  // edging (e.g. a Width edge where the reference has a Length edge) is left as it is.
+  const edged=x=>num(x.p.edgeLong)||num(x.p.edgeShort);
+  let ref=edged({p})?{p,c:group.find(x=>x.p===p).c}:null;
+  if(!ref){
+   const counts=new Map();group.filter(edged).forEach(x=>counts.set(edgeKey(x.p),(counts.get(edgeKey(x.p))||0)+1));
+   const codeNo=x=>num(String(x.p.code).replace(/[^0-9]/g,''));
+   ref=group.filter(edged).sort((a,b)=>(counts.get(edgeKey(b.p))-counts.get(edgeKey(a.p)))||(codeNo(a)-codeNo(b)))[0];
+  }
+  const rL=num(ref.p.edgeLong),rS=num(ref.p.edgeShort);
+  const targets=group.filter(x=>edgeKey(x.p)!==edgeKey(ref.p)&&num(x.p.edgeLong)<=rL&&num(x.p.edgeShort)<=rS);
+  return {key,state,panel:p,group,differ,ref:ref.p,targets};
  }
  window.fiqEdgeWarningFor=edgeWarningFor;
  // "P-002 to P-006", "P-002, P-004", with the unit name when the panel is on another unit.
@@ -8029,16 +8043,25 @@ body.fiq-locked .app{display:none!important}
   const p=pending&&pr&&pr.id===pending.projectId?jobPanels(pr).map(x=>x.p).find(x=>x.id===pending.panelId):null;
   const w=p&&edgeWarningFor(pr,p);
   if(!w){pending=null;box.innerHTML='';return}
-  const variants=new Map();w.differ.forEach(x=>{const k=edgeText(x.p);if(!variants.has(k))variants.set(k,[]);variants.get(k).push(x)});
+  const ref=w.ref,refKey=edgeKey(ref);
+  const variants=new Map();w.group.filter(x=>edgeKey(x.p)!==refKey).forEach(x=>{const k=edgeText(x.p);if(!variants.has(k))variants.set(k,[]);variants.get(k).push(x)});
   const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
+  const canAdd=w.targets.length>0;
+  const other=w.group.filter(x=>edgeKey(x.p)!==refKey&&!w.targets.includes(x));
   box.innerHTML='<div class="fiq-edge-warning" role="alert"><h4>⚠️ Edging is different</h4>'+
    [...variants].map(([t,xs])=>'<p>'+safe(codeList(xs,c))+': '+safe(cap(t))+'</p>').join('')+
-   '<p>'+safe(p.code)+': '+safe(cap(edgeText(p)))+'</p>'+
-   '<p class="fiq-edge-question">Do you want them all edged like '+safe(p.code)+'?</p>'+
-   '<div class="fiq-edge-actions"><button type="button" class="btn primary" data-edge-apply>Yes, make them the same</button><button type="button" class="btn" data-edge-keep>No, keep as they are</button></div></div>';
-  box.querySelector('[data-edge-apply]').onclick=()=>{
+   '<p>'+safe(ref.code)+': '+safe(cap(edgeText(ref)))+'</p>'+
+   (other.length?'<p>'+safe(codeList(other,c))+' '+(other.length===1?'has':'have')+' other edging and '+(other.length===1?'is':'are')+' not changed automatically.</p>':'')+
+   (canAdd?'<p class="fiq-edge-question">Do you want '+(w.targets.length===1?safe(codeList(w.targets,c)):'them all')+' edged like '+safe(ref.code)+'?</p>':'')+
+   '<div class="fiq-edge-actions">'+(canAdd?'<button type="button" class="btn primary" data-edge-apply>Yes, make them the same</button>':'')+'<button type="button" class="btn" data-edge-keep>No, keep as they are</button></div></div>';
+  const apply=box.querySelector('[data-edge-apply]');
+  if(apply)apply.onclick=()=>{
    const now=edgeWarningFor(pr,p);if(!now)return renderWarning();
-   now.differ.forEach(x=>{x.p.edgeLong=num(p.edgeLong);x.p.edgeShort=num(p.edgeShort)});
+   const rL=num(now.ref.edgeLong),rS=num(now.ref.edgeShort);
+   // Adds the reference edging to the real manufacturing data; never lowers an edge count.
+   // Changed panels (other than the one being checked) lose their Panel Check approval
+   // through the review signature and must be checked again.
+   now.targets.forEach(x=>{x.p.edgeLong=Math.max(num(x.p.edgeLong),rL);x.p.edgeShort=Math.max(num(x.p.edgeShort),rS)});
    approve(p);pending=null;save();renderAll();
   };
   box.querySelector('[data-edge-keep]').onclick=()=>{

@@ -8,7 +8,8 @@
 //    Apply to all changes the real edging of all six, the total, the Cutting List and the
 //    supplier data; the changed panels need checking again;
 //  - different material / thickness are not grouped; plywood without edging never warns;
-//  - different edge orientation warns; Keep different is remembered for that group and
+//  - different edge orientation warns without a Yes (it would remove an edge); Keep
+//    different is remembered for that group and
 //    only asked again when its edging changes.
 // Runs the real public Studio loader with every network request blocked.
 const {chromium}=require('playwright');
@@ -83,7 +84,9 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
 
  // Different edge orientation (Length edge vs Width edge): warns. Keep different is remembered.
  await check('o1');
- w=await warning();assert.equal(w,'⚠️ Edging is different P-010: 1 × 400 mm edge P-009: 1 × 800 mm edge Do you want them all edged like P-009? Yes, make them the same No, keep as they are');
+ // Making P-010 match would remove its Width edge: no "Yes", only keep.
+ w=await warning();assert.equal(w,'⚠️ Edging is different P-010: 1 × 400 mm edge P-009: 1 × 800 mm edge P-010 has other edging and is not changed automatically. No, keep as they are');
+ assert.equal(await page.locator('[data-edge-apply]').count(),0,'nothing to add, so no Yes');
  await page.locator('[data-edge-keep]').click();await page.waitForTimeout(300);
  assert.deepEqual([await reviewed('o1'),await warning(),await edges(['o1','o2'])],[true,'',['1/0','0/1']],'Keep different: approved, nothing changed');
  await check('o2');assert.deepEqual([await warning(),await reviewed('o2')],['',true],'no repeated warning for the same group');
