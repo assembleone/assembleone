@@ -3144,8 +3144,10 @@ function renderCustomerCard(){
  // A Job/Design row goes straight to that room's own drawing -- never through the Site
  // Measurement modal -- so an existing Design is never mistaken for its permanent
  // original record, or the other way round.
- body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=()=>openJobDesignForRoom(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet));
- body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>openCuttingListForRoom(el.dataset.openCuttingListProject,el.dataset.openCuttingList,el.dataset.openCuttingListCabinet));
+ // A job row opens that job's own page (Overview / Drawing / Cutting List / Panel Check /
+ // Site Measure / Notes); its 📋 button opens the job's latest SENT Cutting List, read-only.
+ body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=()=>window.fiqOpenJobPage(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet));
+ body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>window.fiqOpenSentCuttingList(el.dataset.openCuttingListProject,el.dataset.openCuttingList,el.dataset.openCuttingListCabinet));
  // Each Site Measurement row (and every photo/photo-group) opens ONLY that room's own
  // photos/measurements -- passing its real roomId means openSiteRoomDetails uses that
  // exact room instead of falling back to "whichever room has a picture".
@@ -3632,7 +3634,7 @@ async function sendPackToPhoneDirectly(pack){
 // out -- Studio keeps them, and they reach Mobile once they are finished.
 function fiqPanelFinished(pt){return typeof window.fiqPanelMissingFields==='function'?!window.fiqPanelMissingFields(pt).length:true}
 function fiqProjectForMobile(p){
- const copy=JSON.parse(JSON.stringify(p));
+ const copy=JSON.parse(JSON.stringify(p));delete copy.sentCuttingLists;
  (copy.cabinets||[]).forEach(c=>{c.parts=(c.parts||[]).filter(fiqPanelFinished)});
  return copy;
 }
@@ -10080,6 +10082,157 @@ body.fiq-locked .app{display:none!important}
 .panel-check-return-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .panel-check-return-strip button{white-space:nowrap}
 </style>
+<style id="fiq-sent-cutting-list-style">
+.fiq-job-sheet{width:min(980px,100%);max-height:92vh;overflow:auto;border-radius:20px 20px 0 0}
+.fiq-job-sheet .fiq-job-sub{color:var(--muted,#5b6b7f);font-weight:700;margin-top:-6px}
+.fiq-job-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.fiq-job-links .btn{justify-content:center;text-align:center}
+.fiq-sent-meta{font-weight:700;color:var(--muted,#5b6b7f)}
+.fiq-sent-changed{border:1px solid #bfe3cc;background:#effaf3;color:#16281d;border-radius:10px;padding:7px 10px;font-weight:800}
+.fiq-sent-empty{color:var(--muted,#5b6b7f);font-weight:700}
+.fiq-sent-scroll{overflow:auto}
+.fiq-sent-table{width:100%;border-collapse:collapse;font-size:13px}
+.fiq-sent-table th,.fiq-sent-table td{border-bottom:1px solid var(--line,#dde5ee);padding:5px 6px;text-align:left;vertical-align:top}
+.fiq-sent-table th{font-size:12px;color:var(--muted,#5b6b7f)}
+.fiq-sent-table td.num{white-space:nowrap}
+.fiq-sent-versions summary{cursor:pointer;font-weight:800;color:var(--muted,#5b6b7f);font-size:13px}
+.fiq-sent-versions details{margin:8px 0 0 8px}
+.fiq-sent-versions details summary{color:var(--ink,#16281d)}
+.job-overview-row.fiq-job-focus{outline:3px solid #1f9d55;outline-offset:2px}
+</style>
+<script id="fiq-sent-cutting-list">
+// A Cutting List belongs to one job (one Job Overview card: a room's units, or a unit with
+// no room). Pressing "Send to Job Overview" at the end of the Cutting List saves an exact,
+// frozen copy of that job's manufacturing data in the job record:
+//   project.sentCuttingLists[jobKey] = [version 1, version 2, ...]   (oldest first)
+// jobKey is 'room:<roomId>' or 'unit:<cabinetId>'. A copy holds plain values only, so later
+// Drawing, Panel Check or Mobile changes can never alter it (Mobile merges copy a fixed
+// list of fields and never this one). A new version is only written by Send to Job
+// Overview, and only when the manufacturing data differs from the latest sent version.
+(function(){
+ const num=v=>Number(v)||0;
+ const codeNo=p=>num(String(p.code||'').replace(/[^0-9]/g,''));
+ function jobKeyFor(roomId,cabinetId){return roomId?'room:'+roomId:'unit:'+cabinetId}
+ function scopeCabinets(p,key){
+  const cabs=p&&p.cabinets||[];
+  if(key.startsWith('room:'))return cabs.filter(c=>String(c.roomId||'')===key.slice(5));
+  return cabs.filter(c=>String(c.id)===key.slice(5));
+ }
+ function edgingText(r){return r.edgeLong||r.edgeShort?r.edgeLong+' long · '+r.edgeShort+' short':'None'}
+ // The manufacturing information, in Cutting List order (unit, then panel number).
+ function currentRows(p,key){
+  const rooms=p.rooms||[];
+  return scopeCabinets(p,key).flatMap(c=>{
+   const room=rooms.find(r=>r.id===c.roomId);
+   return (c.parts||[]).slice().sort((a,b)=>codeNo(a)-codeNo(b)).map(pt=>({
+    panelId:String(pt.id),panelNumber:String(pt.code||''),partName:String(pt.name||''),
+    length:num(pt.length),width:num(pt.width),thickness:num(pt.thickness),quantity:Math.max(1,Math.floor(num(pt.qty))||1),
+    material:String((typeof materialForPanel==='function'?materialForPanel(pt):pt.material)||''),
+    edgeLong:num(pt.edgeLong),edgeShort:num(pt.edgeShort),notes:String(pt.notes||''),
+    unit:String(c.name||''),room:String(room&&room.name||'')}));
+  });
+ }
+ const sameRows=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+ function versionsOf(p,key){return (p&&p.sentCuttingLists&&Array.isArray(p.sentCuttingLists[key]))?p.sentCuttingLists[key]:[]}
+ // Called only by Send to Job Overview.
+ function recordSent(p,roomId,cabinetId){
+  if(!p)return null;
+  const key=jobKeyFor(roomId,cabinetId),rows=currentRows(p,key);
+  if(!rows.length)return null;
+  const list=versionsOf(p,key),latest=list[list.length-1];
+  if(latest&&sameRows(latest.panels,rows))return latest;// nothing changed: no new version
+  const room=(p.rooms||[]).find(r=>r.id===roomId);
+  const snap=JSON.parse(JSON.stringify({version:list.length+1,sentAt:new Date().toISOString(),jobKey:key,
+   job:String(p.name||''),room:String(room&&room.name||''),customer:String(p.customer||''),
+   units:scopeCabinets(p,key).map(c=>String(c.name||'')),
+   totals:{panels:rows.length,pieces:rows.reduce((n,r)=>n+r.quantity,0)},panels:rows}));
+  p.sentCuttingLists=p.sentCuttingLists||{};
+  p.sentCuttingLists[key]=list.concat([snap]);
+  return snap;
+ }
+ window.fiqJobKeyFor=jobKeyFor;
+ window.fiqRecordSentCuttingList=recordSent;
+ window.fiqSentCuttingLists=(p,key)=>versionsOf(p,key);
+ window.fiqCuttingListChangedSinceSent=(p,key)=>{const l=versionsOf(p,key);return !!l.length&&!sameRows(l[l.length-1].panels,currentRows(p,key))};
+
+ const when=iso=>{try{return new Date(iso).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return String(iso||'')}};
+ function tableHtml(snap){
+  const units=new Set(snap.panels.map(r=>r.unit));
+  const showUnit=units.size>1;
+  return '<div class="fiq-sent-scroll"><table class="fiq-sent-table" data-sent-version="'+snap.version+'"><thead><tr><th>Panel</th><th>Part name</th><th>Length × Width × Thk (mm)</th><th>Qty</th><th>Material</th><th>Edging</th><th>Notes</th>'+(showUnit?'<th>Unit</th>':'')+'</tr></thead><tbody>'+
+   snap.panels.map(r=>'<tr data-sent-panel="'+safe(r.panelNumber)+'"><td>'+safe(r.panelNumber)+'</td><td>'+safe(r.partName)+'</td><td class="num">'+r.length+' × '+r.width+' × '+r.thickness+'</td><td class="num">'+r.quantity+'</td><td>'+safe(r.material)+'</td><td class="num">'+safe(edgingText(r))+'</td><td>'+safe(r.notes)+'</td>'+(showUnit?'<td>'+safe(r.unit)+'</td>':'')+'</tr>').join('')+
+   '</tbody></table></div>';
+ }
+ function metaHtml(snap){return '<div class="fiq-sent-meta">Sent '+safe(when(snap.sentAt))+' · Version '+snap.version+' · '+snap.totals.panels+' panel'+(snap.totals.panels===1?'':'s')+', '+snap.totals.pieces+' piece'+(snap.totals.pieces===1?'':'s')+'</div>'}
+ function cuttingHtml(p,key){
+  const list=versionsOf(p,key);
+  if(!list.length)return '<div class="fiq-sent-empty" data-sent-empty>No Cutting List has been sent for this job yet. It is saved here when you press Send to Job Overview at the end of the Cutting List.</div>';
+  const latest=list[list.length-1],older=list.slice(0,-1).reverse();
+  const changed=window.fiqCuttingListChangedSinceSent(p,key);
+  return '<div class="fiq-sent-latest" data-sent-latest="'+latest.version+'">'+metaHtml(latest)+
+   (changed?'<div class="fiq-sent-changed" data-sent-changed>Changes since last sent Cutting List. This saved list is unchanged; press Send to Job Overview again to save a new version.</div>':'')+
+   tableHtml(latest)+'</div>'+
+   (older.length?'<details class="fiq-sent-versions"><summary data-previous-versions>Previous versions ('+older.length+')</summary>'+
+    older.map(v=>'<details data-old-version="'+v.version+'"><summary>Version '+v.version+' · sent '+safe(when(v.sentAt))+'</summary>'+metaHtml(v)+tableHtml(v)+'</details>').join('')+'</details>':'');
+ }
+ function jobTitle(p,key){
+  const room=key.startsWith('room:')?(p.rooms||[]).find(r=>r.id===key.slice(5)):null;
+  const cab=key.startsWith('unit:')?(p.cabinets||[]).find(c=>c.id===key.slice(5)):null;
+  return room?room.name:((cab&&cab.name)||p.name||'Job');
+ }
+ // One job's page: Overview / Drawing / Cutting List / Panel Check / Site Measure / Notes.
+ function openJobPage(projectId,roomId,cabinetId,start){
+  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+  const cab=(cabinetId&&(p.cabinets||[]).find(c=>c.id===cabinetId))||(roomId?(p.cabinets||[]).find(c=>c.roomId===roomId):(p.cabinets||[])[0]);
+  const key=jobKeyFor(roomId||'',cab?cab.id:'');
+  const hasSite=!!roomId&&(p.rooms||[]).some(r=>r.id===roomId);
+  const o=document.createElement('div');o.className='a100-edit-dialog fiq-job-dialog';
+  const close=()=>o.remove();
+  const title=jobTitle(p,key),sub=[p.name,p.customer].filter(Boolean).filter(x=>x!==title).join(' · ');
+  function home(){
+   o.innerHTML='<div class="a100-edit-sheet fiq-job-sheet" data-job-page="'+safe(key)+'"><h2>'+safe(title)+'</h2>'+(sub?'<div class="fiq-job-sub">'+safe(sub)+'</div>':'')+
+    '<div class="fiq-job-links">'+
+    '<button type="button" class="btn" data-job-go="overview">Overview</button>'+
+    '<button type="button" class="btn" data-job-go="drawing">Drawing</button>'+
+    '<button type="button" class="btn primary" data-job-go="cutting">Cutting List</button>'+
+    '<button type="button" class="btn" data-job-go="panelcheck">Panel Check</button>'+
+    '<button type="button" class="btn" data-job-go="site"'+(hasSite?'':' disabled')+'>Site Measure</button>'+
+    '<button type="button" class="btn" data-job-go="notes">Notes</button></div>'+
+    '<div class="a100-edit-actions"><button type="button" class="btn" data-job-close>Close</button></div></div>';
+   wire();
+  }
+  function cutting(fromHome){
+   o.innerHTML='<div class="a100-edit-sheet fiq-job-sheet fiq-sent-view" data-sent-view="'+safe(key)+'"><h2>Cutting List — '+safe(title)+'</h2>'+(sub?'<div class="fiq-job-sub">'+safe(sub)+'</div>':'')+
+    cuttingHtml(p,key)+
+    '<div class="a100-edit-actions">'+(fromHome?'<button type="button" class="btn" data-job-back>← Job</button>':'')+'<button type="button" class="btn" data-job-close>Close</button></div></div>';
+   wire();
+  }
+  function wire(){
+   o.querySelectorAll('[data-job-close]').forEach(b=>b.onclick=close);
+   const back=o.querySelector('[data-job-back]');if(back)back.onclick=home;
+   o.querySelectorAll('[data-job-go]').forEach(b=>b.onclick=()=>{
+    const go=b.dataset.jobGo;
+    if(go==='cutting')return cutting(true);
+    close();
+    if(go==='drawing')return openJobDesignForRoom(p.id,roomId||'',cab&&cab.id);
+    if(go==='panelcheck'){if(!cab)return;switchToProject(p.id,cab.id);renderAll();save();return show('parts')}
+    if(go==='site')return openSiteRoomDetails(p.id,roomId);
+    if(go==='notes')return openJobNotesDialog(p.id,roomId||null);
+    if(go==='overview'){
+     show('jobs');renderAll();
+     setTimeout(()=>{const row=[...document.querySelectorAll('.job-overview-row[data-open-job-card]')].find(r=>r.dataset.openJobCard===p.id&&(roomId?r.dataset.cardRoomId===roomId:String(r.dataset.cardCabs||'').split(',').includes(cab&&cab.id)));
+      if(row){row.scrollIntoView({block:'center'});row.classList.add('fiq-job-focus');setTimeout(()=>row.classList.remove('fiq-job-focus'),1600)}},60);
+    }
+   });
+  }
+  o.onclick=e=>{if(e.target===o)close()};
+  document.body.appendChild(o);
+  if(start==='cutting')cutting(false);else home();
+ }
+ window.fiqOpenJobPage=openJobPage;
+ window.fiqOpenSentCuttingList=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'cutting');
+})();
+</script>
 <script id="a222-cutting-list-return-script">
 (function(){
   // The return to Job Overview belongs at the end of the workflow, after Cutting List.
@@ -10096,11 +10249,13 @@ body.fiq-locked .app{display:none!important}
     const panels=cabinets.flatMap(x=>x.parts||[]);
     const ready=panels.length&&panels.every(p=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(p));
     if(!ready){box.innerHTML='';return}
-    box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Return to Job Overview to choose a fitter and send the job.</span><button type="button" class="btn primary" id="panelCheckReturnBtn">'+t("studio.panelCheck.returnPromptBtn")+'</button></div>';
+    box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Return to Job Overview to choose a fitter and send the job.</span><button type="button" class="btn primary" id="panelCheckReturnBtn">Send to Job Overview</button></div>';
     const btn=document.getElementById('panelCheckReturnBtn');
     if(btn)btn.onclick=async()=>{
       btn.disabled=true;
       try{
+        // Save this job's exact Cutting List as sent (a new version only if it changed).
+        if(typeof window.fiqRecordSentCuttingList==='function')window.fiqRecordSentCuttingList(p,roomId,c&&c.id);
         await finishDesignToCard(p.id);
       }catch(error){
         console.error(error);

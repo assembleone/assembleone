@@ -1,7 +1,9 @@
 // A finished Cutting List is kept in Customer Library, under the right customer and room,
-// without being sent to Mobile, while the job stays active in Job Overview. It is the same
-// record (no copy), survives closing and reopening Studio, can be opened, edited and
-// exported from the Library, and stays there after Move to Customer Library.
+// without being sent to Mobile, while the job stays active in Job Overview. The job record
+// is not duplicated; Send to Job Overview also stores the list exactly as sent, which the
+// Library's 📋 button shows read-only (tests/sent-cutting-list.cjs covers that in detail).
+// The live Cutting List still opens, edits and exports; everything survives reopening and
+// stays after Move to Customer Library.
 // Runs the real public Studio loader (Studio.html + patches) with every network request
 // blocked, so no account, Firebase or customer data is touched.
 const {chromium}=require('playwright');
@@ -75,8 +77,13 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
  libraryButton=page.locator('[data-open-cutting-list-project="p1"][data-open-cutting-list="r1"]');
 
- // 5. Open it from the Library: the same Cutting List, which can be edited and exported.
+ // 5. The Library's 📋 shows the Cutting List as sent (read-only); the live Cutting List
+ // still opens, edits and exports.
  await libraryButton.click();
+ const sentRows=await page.evaluate(()=>[...document.querySelectorAll('.fiq-job-dialog .fiq-sent-latest tr[data-sent-panel]')].map(r=>r.dataset.sentPanel));
+ assert.deepEqual(sentRows,['P-001','P-002','P-003'],'sent Cutting List shown from the Library');
+ await page.locator('.fiq-job-dialog [data-job-close]').first().click();
+ await page.evaluate(()=>openCuttingListForRoom('p1','r1'));
  assert.equal(await page.evaluate(()=>[state.screen,state.currentProject,state.currentCabinet].join('|')),'cutting|p1|c1');
  const listText=await page.locator('#screen-cutting').innerText();
  ['P-001','P-002','P-003'].forEach(code=>assert(listText.includes(code),'Cutting List shows '+code));
@@ -119,6 +126,9 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
  assert.equal(await page.locator('[data-open-cutting-list-project="p1"][data-open-cutting-list="r1"]').count(),1,'still in Customer Library while it needs recheck');
  await page.locator('[data-open-cutting-list-project="p1"][data-open-cutting-list="r1"]').click();
+ assert.match(await page.locator('.fiq-job-dialog').innerText(),/Changes since last sent Cutting List/,'the sent list flags the later edit');
+ await page.locator('.fiq-job-dialog [data-job-close]').first().click();
+ await page.evaluate(()=>{switchToProject('p1','c1');renderAll()});
  // Panel Check approval lives on the Panel Check screen (screen-parts).
  await page.evaluate(()=>{show('parts');renderAll()});
  await page.locator('#screen-parts [data-review-panel="pt-top"]').first().dblclick();
@@ -142,7 +152,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
 
  // 7. A second job for the same customer, typed differently, with two wardrobes in one room
  // and one unit outside any room: same customer record, and every unit's own Cutting List
- // can be opened from the Library.
+ // Cutting List button opens that job's own sent list (nothing sent yet here).
  await page.evaluate(async()=>{
   const part=(id,code,name,length)=>{const p={id,code,name,length,width:400,thickness:18,qty:1,material:'Birch',edgeLong:0,edgeShort:0,notes:'',status:'ready',x:30,y:30,copies:[]};p.reviewSignature=window.panelReviewSignature(p);return p};
   state.projects.push({id:'p2',name:'Jensen bedroom',customer:'  anna JENSEN ',rooms:[{id:'r2',name:'Bedroom',icon:'🛏️'}],cabinets:[
@@ -155,13 +165,14 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.equal(await page.evaluate(()=>state.customers.filter(c=>customerKeyFor(c.name)==='anna jensen').length),1,'no duplicate customer');
  await open();
  await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
- for(const [cab,codes] of [['c2a',['P-001']],['c2b',['P-001','P-002']],['c2c',['P-001']]]){
+ for(const cab of ['c2a','c2b','c2c']){
   const btn=page.locator(`[data-open-cutting-list-project="p2"][data-open-cutting-list-cabinet="${cab}"]`);
   assert.equal(await btn.count(),1,'Library has a Cutting List button for unit '+cab);
   await btn.click();
-  assert.equal(await page.evaluate(()=>state.currentCabinet),cab,'opens that unit');
-  assert.deepEqual(await page.evaluate(()=>cabinet().parts.map(p=>p.code)),codes);
-  await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
+  const d=await page.locator('.fiq-job-dialog').innerText();
+  assert.match(d,cab==='c2c'?/Cutting List — Hall shelf/:/Cutting List — Bedroom/,'opens that job');
+  assert.match(d,/No Cutting List has been sent for this job yet/);
+  await page.locator('.fiq-job-dialog [data-job-close]').first().click();
  }
  const libText=await page.locator('#customerCardBody').innerText();
  assert.match(libText,/Bedroom · Wardrobe 2/,'second wardrobe named in the Library');

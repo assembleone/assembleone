@@ -89,7 +89,8 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await S(()=>show('customers'));await page.waitForTimeout(300);
  await S(()=>{const p=(0,eval)('state').projects.find(x=>x.id==='lj');openCustomerCard(p.customerId)});await page.waitForTimeout(400);
  // The Customer Library card's own Drawing button for this job.
- await page.locator('#customerCardBody [data-open-job-design-project="lj"]:visible').first().click();await page.waitForTimeout(400);
+ await page.locator('#customerCardBody [data-open-job-design-project="lj"]:visible').first().click();await page.waitForTimeout(300);
+ await page.locator('.fiq-job-dialog [data-job-go="drawing"]').click();await page.waitForTimeout(400);// the job page's Drawing entry
  v=await view();assert.deepEqual([v.screen,v.locked],['mark',false],'Customer Library route is editable');
  const partsBefore=await S(()=>cabinet().parts.length);
  const box2=await canvas.boundingBox();await page.mouse.click(box2.x+box2.width*0.85,box2.y+box2.height*0.85);await page.waitForTimeout(300);
