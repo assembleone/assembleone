@@ -2152,7 +2152,7 @@ function renderProjects(){
   const finished=realRoom?!!realRoom.finished:allRoomsFinished(p);
   const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);
   const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
-  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>${sync.detail?`<span class="job-sync-detail">${safe(sync.detail)}</span>`:''}${sync.deletable?`<button type="button" class="btn job-delete-photos" data-delete-device-photos="${safe(p.id)}">Delete photos from this device</button>`:''}`:'';
+  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>${sync.detail?`<span class="job-sync-detail">${safe(sync.detail)}</span>`:''}${sync.removable?`<button type="button" class="btn job-delete-photos" data-remove-site-measure="${safe(p.id)}">Delete from this device</button>`:''}`:'';
   const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);
   const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';
   // NEW badge reads the room's own mobileSeen where a real room exists (set the moment
@@ -2223,7 +2223,7 @@ function renderProjects(){
  // stay in local storage for recovery but disappear from the working screen, so Mobile
  // remains a tool rather than a long-term storage list.
  const SITE_RECEIVED_SAFETY_MS=24*60*60*1000;
- const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0||deletableSitePhotos(x.project).length>0);
+ const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0||siteMeasureRemovable(x.project));
  const installCardsActive=installCards.filter(c=>!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
   .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?!!a.room.finished:allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?!!b.room.finished:allRoomsFinished(b.project))?1:0;return fa-fb});
  const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt));
@@ -2669,34 +2669,37 @@ function localSitePhotoItems(p){
  return out;
 }
 function siteTransferChanged(p){const st=p&&p.siteTransfer;return !!(st&&st.fingerprint&&st.fingerprint!==siteManifestFingerprint(buildSiteTransferManifest(p,'check')))}
-// Only photos Studio confirmed it holds (with their stored cloud copy) can be removed here.
-function deletableSitePhotos(p){
- const st=p&&p.siteTransfer,rc=st&&st.receipt;
- if(!siteReceiptValid(p))return [];
- const urls=rc.photoUrls||{};return localSitePhotoItems(p).filter(x=>/^https:\/\//.test(urls[x.key]||''));
+// Only a Site Measure Studio has confirmed as completely received -- for exactly what is on
+// this phone now, with nothing still sending -- can be removed. Removal is local only, the
+// same as the existing "delete job from phone": the Site Measure and its photos leave this
+// phone; Studio and the cloud message keep everything. The local note in deletedProjectIds
+// stops a later message from bringing it back onto this phone.
+function siteMeasureRemovable(p){return !!(p&&!isStudioJob(p)&&siteReceiptValid(p)&&!(typeof studioSendsInFlight!=='undefined'&&studioSendsInFlight.has(p.id)))}
+function removeConfirmedSiteMeasureFromDevice(p){
+ if(!siteMeasureRemovable(p))return false;
+ const photos=localSitePhotoItems(p).length;
+ if(!confirm('This Site Measure will be removed from this device'+(photos?', including '+photos+' photo'+(photos===1?'':'s'):'')+'. It has been received in Studio, which keeps everything.'))return false;
+ if(!siteMeasureRemovable(p))return false;
+ if(typeof clearPendingStudioSync==='function')clearPendingStudioSync(p.id);
+ deleteAllPhotosForProject(p);
+ state.projects=state.projects.filter(x=>x.id!==p.id);
+ state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);
+ if(Array.isArray(state.activeCardKeys)&&typeof parseCardKey==='function')state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);
+ const wasOpen=state.currentProject===p.id;
+ if(wasOpen){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}
+ save();
+ if(wasOpen)show('projects');else renderAll();
+ return true;
 }
-// Always a manual action. Removes only this phone's copies of photos Studio already holds:
-// each local copy is replaced by Studio's stored cloud copy, so the job, measurements, notes
-// and history stay exactly as they are and the photos still show when there is signal.
-function deleteSitePhotosFromDevice(p){
- const list=deletableSitePhotos(p);if(!list.length)return 0;
- if(!confirm(list.length+' photo'+(list.length===1?'':'s')+' will be removed from this device. They have been received in Studio.'))return 0;
- const urls=p.siteTransfer.receipt.photoUrls;
- list.forEach(x=>{x.item[x.field]=urls[x.key];if(x.item.id){deletePhotoBlob(x.item.id);photoPersistedIds.delete(x.item.id)}});
- p.siteTransfer.photosRemovedAt=new Date().toISOString();p.siteTransfer.photosRemoved=(Number(p.siteTransfer.photosRemoved)||0)+list.length;
- save();renderAll();if(typeof renderSendBar==='function')renderSendBar();
- return list.length;
-}
-document.addEventListener('click',e=>{const b=e.target.closest('[data-delete-device-photos]');if(!b)return;e.preventDefault();e.stopPropagation();const p=state.projects.find(x=>x.id===b.dataset.deleteDevicePhotos);if(p)deleteSitePhotosFromDevice(p)},true);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-remove-site-measure]');if(!b)return;e.preventDefault();e.stopPropagation();const p=state.projects.find(x=>x.id===b.dataset.removeSiteMeasure);if(p)removeConfirmedSiteMeasureFromDevice(p)},true);
 // The Site Measure's real transfer state, for the send bar and the job list.
 function siteTransferStatus(p){
  if(!p||isStudioJob(p)||!p.siteTransfer||p.studioSyncBlocked)return null;
  const st=p.siteTransfer,rc=st.receipt||{};
  if(typeof studioSendsInFlight!=='undefined'&&studioSendsInFlight.has(p.id))return{cls:'pending',label:'⏳ Sending…',detail:'Keep FittersIQ open until it says Received'};
  if(siteReceiptValid(p)){
-  const removed=Number(st.photosRemoved)||0,left=deletableSitePhotos(p).length;
-  const detail=rc.photosExpected?rc.photosReceived+' of '+rc.photosExpected+' photos received'+(removed&&!left?' · removed from this device':''):'';
-  return{cls:'synced',label:'✓ Received in Studio',detail,deletable:left};
+  const detail=rc.photosExpected?rc.photosReceived+' of '+rc.photosExpected+' photos received':'';
+  return{cls:'synced',label:'✓ Received in Studio',detail,removable:siteMeasureRemovable(p)};
  }
  if(siteTransferChanged(p))return{cls:'unsent',label:'Changed since last send — tap Send to Studio'};
  if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return{cls:'pending',label:'⏳ No signal — will send automatically'};
@@ -2717,7 +2720,7 @@ function renderSendBar(){
  const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
  const syncLine='';
  const stateBlock=sync&&sync.label!=='Not sent yet'?`<div class="send-bar-state state-${sync.cls}" role="status"><b>${safe(sync.label)}</b>${sync.detail?`<small>${safe(sync.detail)}</small>`:''}</div>`:'';
- box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>${stateBlock}${sync&&sync.deletable?`<button type="button" class="btn send-bar-delete-photos" data-delete-device-photos="${safe(p.id)}">Delete photos from this device</button>`:''}`;
+ box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>${stateBlock}${sync&&sync.removable?`<button type="button" class="btn send-bar-delete-photos" data-remove-site-measure="${safe(p.id)}">Delete from this device</button>`:''}`;
  document.getElementById('sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
 }
 // Tapping a finished room's own tile edits ONLY that room -- its photos live
