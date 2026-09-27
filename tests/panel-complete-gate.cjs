@@ -4,10 +4,10 @@
 //     name and material follow; Save & next saves the complete panel;
 //  2. Save & next on a placed panel without Length / Width / Thickness stops, says what is
 //     missing, keeps everything entered, and clears the warning as the size is typed;
-//  3. legacy incomplete panels in Panel Check: double-click never turns them green; the
-//     warning says exactly what is missing (Part Name, Length, Width / Thickness / Material)
-//     with Complete panel, which opens that panel in Drawing with the missing fields marked;
-//     after completing it the real panel data is updated and Panel Check approves it;
+//  3. unfinished panels (also legacy ones) are not Panel Check cards: one summary
+//     "N unfinished panels in Drawing" names each and what it is missing, with Finish in
+//     Drawing, which opens the first one with its missing fields marked; their data is not
+//     touched; once finished it is a normal card and Panel Check approves it;
 //  4. incomplete panels never reach the Cutting List or supplier data;
 //  5. a complete panel with no edging is approved at once.
 // Runs the real public Studio loader with every network request blocked.
@@ -79,19 +79,27 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  const gate=()=>S(()=>{const w=document.querySelector('#panelIncompleteWarning .fiq-incomplete-warning');return w?w.innerText.replace(/\s+/g,' ').trim():''});
  const reviewed=id=>S(id=>window.panelIsReviewed((0,eval)('state').projects.find(p=>p.id==='cj').cabinets.find(c=>c.id==='cl').parts.find(p=>p.id===id)),id);
  const check=async id=>{await S(()=>{show('parts');renderAll()});await page.waitForTimeout(250);await page.locator(`#partsSummary [data-review-panel="${id}"]`).dblclick();await page.waitForTimeout(300)};
- await check('la');
- assert.deepEqual([await gate(),await reviewed('la'),await S(()=>state.screen)],['⚠️ Panel information incomplete P-001 Missing: Part Name, Length, Width Complete panel',false,'parts'],'not green, says what is missing, stays in Panel Check');
- await check('lb');assert.equal(await gate(),'⚠️ Panel information incomplete P-002 · Shelf Missing: Thickness Complete panel');
- await check('lc');assert.equal(await gate(),'⚠️ Panel information incomplete P-003 · Side Missing: Material Complete panel');
- // Complete panel -> that panel in Drawing, missing fields marked.
- await check('la');await page.locator('[data-complete-panel]').click();await page.waitForTimeout(500);
+ const cards=()=>S(()=>[...document.querySelectorAll('#partsSummary .panel-check-card .panel-check-code')].map(e=>e.innerText.trim()));
+ // Unfinished panels are not Panel Check cards; one summary names them.
+ await S(()=>{show('parts');renderAll()});await page.waitForTimeout(300);
+ assert.deepEqual(await cards(),['P-004'],'only the finished panel is a card');
+ assert.equal(await gate(),'⚠️ 3 unfinished panels in Drawing P-001 — missing: Part Name, Length, Width P-002 · Shelf — missing: Thickness P-003 · Side — missing: Material Finish in Drawing');
+ assert.deepEqual(await unit('cl'),[['P-001','',0,0,19,'White melamine'],['P-002','Shelf',600,450,0,'White melamine'],['P-003','Side',720,560,18,''],['P-004','Back',800,600,8,'MDF']],'their data is untouched');
+ // Finish in Drawing -> the first one, missing fields marked.
+ await page.locator('[data-finish-in-drawing]').click();await page.waitForTimeout(500);
  assert.deepEqual([await S(()=>state.screen),await S(()=>state.currentPart)],['mark','la']);
  assert.equal(await msg(),'⚠ Choose a part name first\n⚠ Enter the length\n⚠ Enter the width');
  await name('Top / Bottom');await type('fLength','900');await type('fWidth','560');
  await saveNext();
  assert.deepEqual((await unit('cl'))[0],['P-001','Top / Bottom',900,560,19,'White melamine'],'the real panel data is updated');
+ // Now it is a normal Panel Check card and can be checked.
+ await S(()=>{show('parts');renderAll()});await page.waitForTimeout(300);
+ // P-003 has no material of its own: finishing P-001 set the job's material, which it now
+ // takes (existing behaviour), so it is finished too. P-002 still lacks its thickness.
+ assert.deepEqual(await cards(),['P-001','P-003','P-004']);
+ assert.equal(await gate(),'⚠️ 1 unfinished panel in Drawing P-002 · Shelf — missing: Thickness Finish in Drawing');
  await check('la');
- assert.deepEqual([await gate(),await reviewed('la')],['',true],'now approved normally');
+ assert.equal(await reviewed('la'),true,'approved normally');
 
  // 4. Incomplete panels never reach the Cutting List or supplier data.
  const out=await S(()=>{switchToProject('cj','cl');show('cutting');renderAll();return {supplier:supplierParts().map(p=>p.code),rows:fiqSupplierDataset().rows.map(r=>r.panelNumber),warn:document.getElementById('cuttingValidation').innerText}});
@@ -99,7 +107,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.match(out.warn,/3 incomplete parts hidden/,'Cutting List holds back the two incomplete panels and the not-yet-checked one: '+out.warn);
 
  // 5. No edging is fine: a complete panel without edging is approved at once.
- await check('ld');assert.deepEqual([await gate(),await reviewed('ld')],['',true],'edging is not required');
+ await check('ld');assert.equal(await reviewed('ld'),true,'edging is not required');
 
  assert.deepEqual(dialogs,[],'no pop-ups');
  assert.deepEqual(errors,[],'no page errors');

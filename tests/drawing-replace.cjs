@@ -44,7 +44,13 @@ const files=['old','new','third','fourth'].map((n,i)=>{const f=path.join(os.tmpd
  });
  const open=async()=>{await S(()=>{switchToProject('dj','ua');renderAll();show('mark')});await page.waitForTimeout(400)};
  const choose=async file=>{await page.locator('#drawingInputTop').setInputFiles(file);await page.waitForTimeout(700)};
- const dots=async points=>{for(const [x,y] of points){const b=await page.locator('#drawingCanvas').boundingBox();await page.mouse.click(b.x+b.width*x,b.y+b.height*y);await page.waitForTimeout(250)}};
+ // One dot is one defined panel: the first dot, then its details, then repeated dots.
+ const fillPanel=async()=>{
+  for(const [id,v] of [['fLength','700'],['fWidth','500']]){await page.locator('#'+id).scrollIntoViewIfNeeded();await page.click('#'+id);await page.keyboard.press('Control+A');await page.keyboard.type(v)}
+  const n=page.locator('#screen-mark .quick-main [data-quick-name="Side"]');await n.scrollIntoViewIfNeeded();await n.click();
+  await page.locator('#materialSummary').scrollIntoViewIfNeeded();await page.locator('#materialSummary').click();await page.locator('#materialLibraryGrid [data-material-name="White melamine"]').click();await page.waitForTimeout(150);
+ };
+ const dots=async points=>{for(const [i,[x,y]] of points.entries()){await S(()=>document.getElementById('drawingCanvas').scrollIntoView({block:'center'}));const b=await page.locator('#drawingCanvas').boundingBox();await page.mouse.click(b.x+b.width*x,b.y+b.height*y);await page.waitForTimeout(250);if(i===0)await fillPanel()}};
  const unitA=()=>S(()=>{const c=(0,eval)('state').projects.find(p=>p.id==='dj').cabinets.find(c=>c.id==='ua');return {name:c.drawingName||'',hasDrawing:!!c.drawing,parts:c.parts.length,codes:c.parts.map(p=>p.code),pins:document.querySelectorAll('#drawingCanvas .pin').length}});
  const unitB=()=>S(()=>{const c=(0,eval)('state').projects.find(p=>p.id==='dj').cabinets.find(c=>c.id==='ub');return c.parts.map(p=>p.id+':'+p.x+','+p.y).join()});
  const dialog=()=>S(()=>{const d=document.querySelector('.fiq-drawing-replace-dialog');return d?d.innerText.replace(/\s+/g,' ').trim():''});

@@ -2060,6 +2060,27 @@ function nextCode(c){return `P-${String(c.parts.length+1).padStart(3,"0")}`}
 // A panel's dot position is optional: Remove dot clears it (x/y null) while the panel and
 // its measurements stay in the Cutting List. Every drawing view skips unplaced dots.
 function hasMarkPosition(m){return !!m&&m.x!=null&&m.y!=null&&m.x!==''&&m.y!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y))}
+// THE DRAWING RULE: one new panel = one dot -> complete its information -> then continue.
+// The panel created by the latest single dot (the current panel cycle, state.dotCycle) must
+// have Part Name, Length, Width, Thickness and Material (edging optional) before any other
+// dot is created. After that, more dots are identical copies of it. Save & next ends the
+// cycle; the next click starts the next panel with one dot. Older panels elsewhere on the
+// unit are not part of this rule.
+function fiqDotBlockedByUnfinished(c,selected){
+ if(typeof window.fiqPanelMissingFields!=='function')return false;
+ if(selected)save();// what was just typed for the selected panel counts
+ const missingOf=p=>window.fiqPanelMissingFields(p).filter(k=>k!=='qty');
+ const cycle=state.dotCycle&&state.dotCycle.cabinetId===c.id?(c.parts||[]).find(p=>p.id===state.dotCycle.panelId):null;
+ const blocker=cycle&&missingOf(cycle).length?cycle:(selected&&missingOf(selected).length?selected:null);
+ if(!blocker)return false;
+ const order=['length','width','thickness','name','material'];
+ const names={name:'Part Name',length:'Length',width:'Width',thickness:'Thickness',material:'Material'};
+ const miss=missingOf(blocker),list=order.filter(k=>miss.includes(k)).map(k=>names[k]);
+ if(blocker!==selected){state.currentPart=blocker.id;state.selectedCopy=-1;state.focusMarker=true;save();renderAll()}
+ if(typeof toast==='function')toast('Finish '+(blocker.code||'this panel')+' first — missing: '+list.join(', '));
+ if(typeof window.fiqShowMissingBasics==='function')window.fiqShowMissingBasics(miss,{noScroll:true});
+ return true;
+}
 function createPartAt(x,y){
  const c=cabinet();if(!c)return;
  // The selected panel has a removed dot waiting to be placed again: this click puts that
@@ -2067,6 +2088,10 @@ function createPartAt(x,y){
  const pending=c.parts.find(p=>p.id===state.currentPart);
  if(pending&&!hasMarkPosition(pending)){pending.x=x;pending.y=y;state.selectedCopy=-1;save();renderAll();return}
  if(pending&&Number(pending.unplacedCopies)>0){pending.copies=pending.copies||[];pending.copies.push({x,y});pending.unplacedCopies=Number(pending.unplacedCopies)-1;state.selectedCopy=pending.copies.length-1;save();renderAll();return}
+ // One dot is one defined panel. The first dot of a new panel may come before its details,
+ // but no further dot is placed while a panel on this unit is unfinished (Part Name, Length,
+ // Width, Thickness, Material; edging is optional) -- no blank dots to be decided later.
+ if(fiqDotBlockedByUnfinished(c,pending))return;
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('panel_created');
  const rememberedThickness=Number(c.lastThickness ?? 19) || 19;
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
@@ -2076,9 +2101,11 @@ function createPartAt(x,y){
  // one piece). save() first stores anything just typed on the selected panel. With no panel
  // selected (after Save & next) the new panel takes what is typed in the form, as before.
  const source=pending||null;
+ if(!source)state.dotCycle={cabinetId:c.id,panelId:p.id};
  if(source){
   save();
   ['name','length','width','thickness','material','edgeLong','edgeShort','notes'].forEach(k=>{if(source[k]!==undefined)p[k]=source[k]});
+  p.qty=1;
  }else{
   // The automatic form save only writes into the panel the form was filled for, so the
   // typed values are read here directly (form units to millimetres).
@@ -3600,6 +3627,15 @@ async function sendPackToPhoneDirectly(pack){
  if(!cloudSent)throw new Error(cloudError||"Direct phone storage unavailable");
  return {...packet,cloudSent,cloudError,cloudDocId};
 }
+// Unfinished panels (no Part Name, Length, Width, Thickness, Material or Quantity) stay in
+// Drawing: they are never sent to Mobile. Only the copy that goes to the phone leaves them
+// out -- Studio keeps them, and they reach Mobile once they are finished.
+function fiqPanelFinished(pt){return typeof window.fiqPanelMissingFields==='function'?!window.fiqPanelMissingFields(pt).length:true}
+function fiqProjectForMobile(p){
+ const copy=JSON.parse(JSON.stringify(p));
+ (copy.cabinets||[]).forEach(c=>{c.parts=(c.parts||[]).filter(fiqPanelFinished)});
+ return copy;
+}
 async function exportProjectToMobile(target){const p=ensureSharedProject(target||project());if(!p)return alert("Open a job first.");
   // The project-name/customer inputs only ever reflect whichever job is open in the editor
   // right now -- reading them for a DIFFERENT job (e.g. one being auto-sent the moment a
@@ -3623,7 +3659,7 @@ async function exportProjectToMobile(target){const p=ensureSharedProject(target|
     r.assignedEmails=(typeof window.a211AssignedEmailsFor==='function')?window.a211AssignedEmailsFor(r):[];
     r.assignedFitterIds=(typeof window.a211FitterIdsFor==='function')?window.a211FitterIdsFor(r):[];
   });
-  save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:JSON.parse(JSON.stringify(p))};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;(p.rooms||[]).forEach(function(r){r.lastMobileSync=pack.exportedAt});save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
+  save();p.bom=buildJobBom(p);p.cuttingList=(p.cabinets||[]).flatMap(c=>(c.parts||[]).filter(fiqPanelFinished).map(pt=>({cabinetId:c.id,cabinetName:c.name,panelId:pt.id,code:pt.code,name:pt.name,thickness:pt.thickness,length:pt.length,width:pt.width,qty:Math.max(1,Number(pt.qty)||1),material:materialForPanel(pt)||pt.material||"",edgeLong:pt.edgeLong||0,edgeShort:pt.edgeShort||0,scannedQty:Number(pt.scannedQty)||0})));const pack={app:"AssembleOne",schema:"assembleone-project-v10",source:"studio",exportedAt:new Date().toISOString(),includesCuttingList:true,openScreen:"scan",project:fiqProjectForMobile(p)};try{const result=await sendPackToPhoneDirectly(pack);p.lastMobileSync=pack.exportedAt;(p.rooms||[]).forEach(function(r){r.lastMobileSync=pack.exportedAt});save();if(result.cloudSent){alert("Sent to Mobile. Open the phone app (signed into the same company) and the cutting list will appear automatically.")}else{alert((result.cloudError?result.cloudError+" ":"")+"Saved for Mobile on this device only — open Mobile in the same browser to pick it up, or fix the issue above and send again to reach a phone on another device.")}}catch(e){console.error(e);alert(e?.message||"Sending to Mobile failed. Please try again.")}}
 // Two fitters on two phones each hold an independent local copy of the same job -- when
 // BOTH eventually sync, whichever packet lands second used to simply overwrite every field
 // with its own (possibly stale, since it never learned about the other fitter's update)
@@ -6989,7 +7025,7 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     const box=document.getElementById('partsSummary');
     const warning=document.getElementById('componentsValidation');
     if(!box)return;
-    const rows=(c&&c.parts)||[];
+    const rows=((c&&c.parts)||[]).filter(p=>typeof window.fiqPanelMissingFields!=='function'||!window.fiqPanelMissingFields(p).length);
     const complete=rows.filter(readyForSupplier).length;
     const missing=rows.length-complete;
     if(warning){
@@ -8058,30 +8094,25 @@ body.fiq-locked .app{display:none!important}
   return m;
  }
  window.fiqPanelMissingFields=missingOf;
- let pending=null;// {projectId,cabinetId,panelId}
+ // Unfinished panels do not appear as Panel Check cards: one summary names them and
+ // Finish in Drawing opens the first one with its missing fields marked. Their data is not
+ // touched; they stay in Drawing until finished and then appear in Panel Check normally.
  function render(){
   const box=document.getElementById('panelIncompleteWarning');if(!box)return;
-  const pr=typeof project==='function'?project():null,c=typeof cabinet==='function'?cabinet():null;
-  const p=pending&&pr&&c&&pr.id===pending.projectId&&c.id===pending.cabinetId?(c.parts||[]).find(x=>x.id===pending.panelId):null;
-  const miss=p?missingOf(p):[];
-  if(!p||!miss.length){pending=null;box.innerHTML='';return}
-  box.innerHTML='<div class="fiq-edge-warning fiq-incomplete-warning" role="alert"><h4>⚠️ Panel information incomplete</h4><p>'+safe(p.code||'This panel')+(p.name?' · '+safe(p.name):'')+'</p><p>Missing: '+miss.map(k=>LABELS[k]).join(', ')+'</p><div class="fiq-edge-actions"><button type="button" class="btn primary" data-complete-panel>Complete panel</button></div></div>';
-  box.querySelector('[data-complete-panel]').onclick=()=>{
-   const keys=missingOf(p);pending=null;box.innerHTML='';
-   state.currentPart=p.id;state.selectedCopy=-1;state.focusMarker=true;
+  const c=typeof cabinet==='function'?cabinet():null;
+  const list=(c&&c.parts||[]).map(p=>({p,miss:missingOf(p)})).filter(x=>x.miss.length);
+  if(!list.length){box.innerHTML='';return}
+  const n=list.length;
+  box.innerHTML='<div class="fiq-edge-warning fiq-incomplete-warning" role="alert"><h4>⚠️ '+n+' unfinished panel'+(n===1?'':'s')+' in Drawing</h4>'+
+   list.map(x=>'<p>'+safe(x.p.code||'Panel')+(x.p.name?' · '+safe(x.p.name):'')+' — missing: '+x.miss.map(k=>LABELS[k]).join(', ')+'</p>').join('')+
+   '<div class="fiq-edge-actions"><button type="button" class="btn primary" data-finish-in-drawing>Finish in Drawing</button></div></div>';
+  box.querySelector('[data-finish-in-drawing]').onclick=()=>{
+   const first=list[0].p,keys=missingOf(first);
+   state.currentPart=first.id;state.selectedCopy=-1;state.focusMarker=true;
    save();renderAll();show('mark');
    setTimeout(()=>{if(typeof window.fiqShowMissingBasics==='function')window.fiqShowMissingBasics(keys)},120);
   };
  }
- document.addEventListener('dblclick',e=>{
-  const el=e.target&&e.target.closest&&e.target.closest('#screen-parts [data-review-panel]');if(!el)return;
-  const pr=typeof project==='function'?project():null,c=typeof cabinet==='function'?cabinet():null;
-  const p=(c&&c.parts||[]).find(x=>String(x.id)===String(el.dataset.reviewPanel));if(!p)return;
-  if(!missingOf(p).length)return;// complete: normal Panel Check (including the edging check)
-  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-  pending={projectId:pr.id,cabinetId:c.id,panelId:p.id};render();
-  const box=document.getElementById('panelIncompleteWarning');if(box&&box.scrollIntoView)box.scrollIntoView({block:'center'});
- },true);
  const prevRenderParts=window.renderParts;
  window.renderParts=function(){const r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
  try{renderParts=window.renderParts}catch(e){}
@@ -9950,7 +9981,7 @@ body.fiq-locked .app{display:none!important}
     let totalParts=0,totalChecked=0;
     const sections=groups.map(g=>{
       const rows=[];
-      g.cabinets.forEach(c=>(c.parts||[]).forEach(pt=>rows.push({c,pt})));
+      g.cabinets.forEach(c=>(c.parts||[]).forEach(pt=>{if(typeof window.fiqPanelMissingFields!=='function'||!window.fiqPanelMissingFields(pt).length)rows.push({c,pt})}));
       rows.forEach(({c,pt})=>{
         const q=Math.max(1,Number(pt.qty)||1);
         totalParts+=q;
@@ -11041,7 +11072,7 @@ document.addEventListener('mousedown',function(e){
     const msg=document.getElementById('fiqMissingMsg');
     if(msg){const left=[...document.querySelectorAll('#screen-mark .fiq-missing')].length;if(!left)msg.remove()}
   };
-  window.fiqShowMissingBasics=function(missing){
+  window.fiqShowMissingBasics=function(missing,opts){
     const text=missing.map(k=>missingText[k]||k);
     const quick=document.querySelector('#screen-mark .quick-main');
     let msg=document.getElementById('fiqMissingMsg');
@@ -11055,7 +11086,7 @@ document.addEventListener('mousedown',function(e){
     Object.keys(sizeControls).forEach(k=>{if(missing.includes(k)){const el=sizeControls[k]();if(el){el.classList.add('fiq-missing');targets.push(el)}}});
     if(!msg.isConnected&&quick)quick.parentElement.insertBefore(msg,quick);
     const first=msg.isConnected?msg:targets[0];
-    if(first&&first.scrollIntoView)first.scrollIntoView({block:'center',behavior:'smooth'});
+    if(!(opts&&opts.noScroll)&&first&&first.scrollIntoView)first.scrollIntoView({block:'center',behavior:'smooth'});
   };
   // Save & next: the very first thing is checking the panel being worked on - the selected
   // panel, or the entry on screen when no dot has been placed yet. This listener is on window in
