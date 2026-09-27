@@ -8,12 +8,15 @@
 //     the phone shows Waiting for Studio to confirm -- by itself, without a manual redraw;
 //  3. an incomplete receipt is never shown as Received and triggers a resend;
 //  4. Studio opens: it saves the Site Measure and confirms every photo, measurement and
-//     note -> "Received in Studio · 6 of 6 photos received" + Delete photos button;
+//     note -> "Received in Studio · 6 of 6 photos received" + Delete from this device;
 //  5. changing the job after sending withdraws Received and the Delete button; sending
 //     again (same single message) is confirmed again;
-//  6. Delete photos: Cancel keeps everything; OK removes only the phone's copies (Studio
-//     and cloud copies, measurements, notes and the job stay), also after a reload;
-//  7. a resend after removal is still complete; Studio's Accept never downgrades it.
+//  6. Studio's Accept never downgrades Received;
+//  7. a Site Measure that is unsent, incomplete or changed since its receipt can never be
+//     removed this way;
+//  8. Delete from this device: Cancel keeps everything; OK removes the confirmed Site
+//     Measure and its photos from the phone only -- Studio and the cloud keep everything --
+//     and it stays gone after a reload and later syncs.
 const {chromium}=require('playwright');
 const path=require('node:path'),assert=require('node:assert/strict');
 const {createCloud,serve}=require('./helpers/fake-cloud.cjs');
@@ -56,7 +59,7 @@ async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(D
   st.currentProject='sm1';save();show('siteVisitSummary');renderSendBar();
  },{a:pic('snp1'),b:pic('sp1'),c:pic('rnp1'),d:pic('bp1'),e:pic('cap1'),f:pic('cap2')});
  await mobile.waitForTimeout(700);// let the photos reach the phone's own storage
- const bar=()=>M(()=>{const b=document.getElementById('measureSendBar');return {text:b.innerText.replace(/\s+/g,' '),del:!!b.querySelector('[data-delete-device-photos]')}});
+ const bar=()=>M(()=>{const b=document.getElementById('measureSendBar');return {text:b.innerText.replace(/\s+/g,' '),del:!!b.querySelector('[data-remove-site-measure]')}});
  const send=async()=>{await M(()=>{show('siteVisitSummary');renderSendBar()});await mobile.locator('#sendAllRoomsBtn').click()};
 
  // 1. Signal drops after 2 of 6 photos are uploaded.
@@ -88,7 +91,7 @@ async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(D
  let studio=await open(studioCtx,'studio','/Studio.html');
  await until(()=>bar().then(b=>/✓ Received in Studio/i.test(b.text)&&b),'Received in Studio');
  b=await bar();
- assert.match(b.text,/✓ RECEIVED IN STUDIO 6 of 6 photos received Delete photos from this device$/);assert.ok(b.del,'Delete photos offered');
+ assert.match(b.text,/✓ RECEIVED IN STUDIO 6 of 6 photos received Delete from this device$/);assert.ok(b.del,'Delete from this device offered');
  const rc=cloud.docs.get(DOC).receipt;
  assert.deepEqual([rc.complete,rc.photosExpected,rc.photosReceived,rc.rooms,rc.measurements,rc.notes,cloud.docs.get(DOC).status],[true,6,6,2,3,4,'waiting'],'Studio receipt: everything, acceptance still pending');
  assert.equal(Object.keys(rc.photoUrls).length,6);
@@ -102,34 +105,43 @@ async function until(fn,label,ms=20000){const end=Date.now()+ms;let last;while(D
  await until(()=>bar().then(b=>/✓ Received in Studio 7 of 7 photos received/i.test(b.text)),'second send confirmed');
  assert.equal([...cloud.docs.keys()].filter(k=>k.startsWith(JOBS+'mobile-sm1')).length,1,'repeated sends keep one message');
 
- // 6. Delete photos: Cancel first, then OK.
- const blobs=()=>M(async()=>{const ids=['snp1','sp1','sp2','rnp1','bp1','cap1','cap2'];return Promise.all(ids.map(id=>getPhotoBlob(id).then(x=>!!x)))});
- assert.deepEqual(await blobs(),Array(7).fill(true),'all 7 photos stored on the phone');
- confirmAnswer=false;await mobile.locator('#measureSendBar [data-delete-device-photos]').click();await mobile.waitForTimeout(300);
- assert.ok(dialogs.includes('mobile: 7 photos will be removed from this device. They have been received in Studio.'),'confirmation text');
- assert.deepEqual(await blobs(),Array(7).fill(true),'Cancel keeps every photo');
- confirmAnswer=true;await mobile.locator('#measureSendBar [data-delete-device-photos]').click();await mobile.waitForTimeout(500);
- assert.deepEqual(await blobs(),Array(7).fill(false),'OK removes the phone copies');
- const local=()=>M(()=>{const p=(0,eval)('state').projects.find(x=>x.id==='sm1');const all=[...p.sitePhotos.map(x=>x.data),p.siteNotePhotos[0].data,p.rooms[0].notePhotos[0].data,p.rooms[0].beforePhotos[0].data,p.rooms[0].measureCaptures[0].image,p.rooms[1].measureCaptures[0].image];
-  return {cloud:all.every(v=>/^https:\/\/storage\.test\//.test(v)),n:all.length,marks:p.rooms[0].measureCaptures[0].marks.length+p.rooms[1].measureCaptures[0].marks.length,notes:[p.siteNotes,p.rooms[0].notes],rooms:p.rooms.length}});
- assert.deepEqual(await local(),{cloud:true,n:7,marks:3,notes:['Parking behind the house','Sloped ceiling on the left'],rooms:2},'job, measurements and notes stay; photos point to the Studio copies');
- b=await bar();assert.match(b.text,/7 of 7 photos received · removed from this device/);assert.ok(!b.del);
- assert.equal([...cloud.files.keys()].filter(k=>k.includes('/jobs/sm1/')).length>=7,true,'cloud copies untouched');
- assert.equal(await studio.evaluate(()=>{const p=(0,eval)('state').projects.find(x=>x.id==='sm1');return [...p.sitePhotos,...p.rooms[0].beforePhotos].every(x=>x.data.startsWith('https://'))&&p.sitePhotos.length}),2,'Studio copies untouched');
- // Reload: still removed, still Received.
- await mobile.close();mobile=await open(mobileCtx,'mobile','/Mobile.html');
- await M(()=>{state.currentProject='sm1';show('siteVisitSummary');renderSendBar()});
- assert.deepEqual(await local(),{cloud:true,n:7,marks:3,notes:['Parking behind the house','Sloped ceiling on the left'],rooms:2},'after reload');
- b=await bar();assert.match(b.text,/✓ Received in Studio 7 of 7 photos received · removed from this device/i);
-
- // 7. Resend after removal is still complete; Studio accepting never downgrades it.
- await send();
- await until(()=>bar().then(b=>/✓ Received in Studio 7 of 7 photos received/i.test(b.text)&&cloud.docs.get(DOC).receipt.transferId===cloud.docs.get(DOC).transferManifest.transferId),'resend after removal confirmed');
+ // 6. Studio accepts it: still Received in Studio, still removable.
  await studio.evaluate(async()=>{const packs=await studioInboxPackets();const pk=packs.find(x=>(x.project||{}).id==='sm1');if(pk)await applyOneSitePacket(pk,true)});
  await until(()=>cloud.docs.get(DOC).status==='received','accepted in Studio');
  await until(()=>M(()=>(0,eval)('state').projects.find(x=>x.id==='sm1').mobileArchived),'phone sees the acceptance');
- const final=await M(()=>{const p=(0,eval)('state').projects.find(x=>x.id==='sm1');return studioSyncStatus(p).label});
- assert.equal(final,'✓ Received in Studio','acceptance keeps Received in Studio');
+ assert.deepEqual(await M(()=>{const p=(0,eval)('state').projects.find(x=>x.id==='sm1');return [studioSyncStatus(p).label,siteMeasureRemovable(p)]}),['✓ Received in Studio',true],'acceptance never downgrades');
+
+ // 7. Never removable: not sent, incomplete receipt, or changed since the receipt.
+ const guard=await M(p=>{const st=(0,eval)('state');
+  st.projects.push({id:'sm2',name:'Not sent',customer:'Nils',sitePhotos:[],siteNotePhotos:[],siteMeasurements:[],cabinets:[],rooms:[{id:'q1',name:'Hall',notes:'',notePhotos:[],beforePhotos:[],measureCaptures:[{id:'qc1',image:p,marks:[{id:'qm',value:1}]}]}]});save();
+  const sm2=st.projects.find(x=>x.id==='sm2'),out=[siteMeasureRemovable(sm2),removeConfirmedSiteMeasureFromDevice(sm2)];
+  const fp=siteManifestFingerprint(buildSiteTransferManifest(sm2,'check'));
+  sm2.siteTransfer={transferId:'t2',writtenTransferId:'t2',fingerprint:fp,writtenFingerprint:fp,status:'incomplete',receipt:{transferId:'t2',fingerprint:fp,complete:false,photosExpected:1,photosReceived:0}};
+  out.push(siteMeasureRemovable(sm2),removeConfirmedSiteMeasureFromDevice(sm2));
+  sm2.siteTransfer.receipt={transferId:'t2',fingerprint:'something-else',complete:true,photosExpected:1,photosReceived:1};sm2.siteTransfer.status='received';
+  out.push(siteMeasureRemovable(sm2),removeConfirmedSiteMeasureFromDevice(sm2),!!st.projects.find(x=>x.id==='sm2'));
+  st.projects=st.projects.filter(x=>x.id!=='sm2');save();return out},pic('qc1'));
+ assert.deepEqual(guard,[false,false,false,false,false,false,true],'unsent, incomplete and changed Site Measures stay on the phone');
+
+ // 8. Delete from this device: Cancel first, then OK.
+ await M(()=>{state.currentProject='sm1';show('siteVisitSummary');renderSendBar()});
+ const blobs=()=>M(async()=>{const ids=['snp1','sp1','sp2','rnp1','bp1','cap1','cap2'];return Promise.all(ids.map(id=>getPhotoBlob(id).then(x=>!!x)))});
+ assert.deepEqual(await blobs(),Array(7).fill(true),'all 7 photos stored on the phone');
+ confirmAnswer=false;await mobile.locator('#measureSendBar [data-remove-site-measure]').click();await mobile.waitForTimeout(300);
+ assert.ok(dialogs.includes('mobile: This Site Measure will be removed from this device, including 7 photos. It has been received in Studio, which keeps everything.'),'confirmation text');
+ assert.deepEqual([await M(()=>!!(0,eval)('state').projects.find(x=>x.id==='sm1')),await blobs()],[true,Array(7).fill(true)],'Cancel keeps everything');
+ const docBefore=JSON.stringify(cloud.docs.get(DOC)),filesBefore=[...cloud.files.keys()].filter(k=>k.includes('/jobs/sm1/')).length;
+ confirmAnswer=true;await mobile.locator('#measureSendBar [data-remove-site-measure]').click();await mobile.waitForTimeout(600);
+ const gone=()=>M(()=>{const st=(0,eval)('state');renderAll();return {inState:!!st.projects.find(x=>x.id==='sm1'),listed:/Loft conversion/.test(document.getElementById('jobList')?.innerText||'')}});
+ assert.deepEqual(await gone(),{inState:false,listed:false},'removed from the phone and its lists');
+ assert.equal(await M(()=>state.screen),'projects','back to the Site Measure list');
+ assert.deepEqual(await blobs(),Array(7).fill(false),'photos removed from the phone');
+ assert.equal(JSON.stringify(cloud.docs.get(DOC)),docBefore,'cloud message untouched');
+ assert.equal([...cloud.files.keys()].filter(k=>k.includes('/jobs/sm1/')).length,filesBefore,'cloud photos untouched');
+ assert.deepEqual(await studio.evaluate(()=>{const p=(0,eval)('state').projects.find(x=>x.id==='sm1');return p&&[p.sitePhotos.length,p.sitePhotos.every(x=>x.data.startsWith('https://')),p.siteNotes,p.rooms[0].notes,p.rooms[0].measureCaptures[0].marks.length]}),[2,true,'Parking behind the house','Sloped ceiling on the left',2],'Studio keeps the complete Site Measure');
+ // Reload and a few sync cycles: it stays gone.
+ await mobile.close();mobile=await open(mobileCtx,'mobile','/Mobile.html');await mobile.waitForTimeout(6000);
+ assert.deepEqual(await gone(),{inState:false,listed:false},'still gone after reload and syncs');
 
  assert.deepEqual(errors,[],'no page errors');
  console.log(JSON.stringify({ok:true,dialogs:dialogs.length}));
