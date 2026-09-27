@@ -128,7 +128,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await C.locator('#fiqSaveChip').click();
  await C.locator('.fiq-safety-dialog [data-safety-backup]').waitFor();
  const [dl]=await Promise.all([C.waitForEvent('download'),C.locator('.fiq-safety-dialog [data-safety-backup]').click()]);
- assert.match(dl.suggestedFilename(),/^FittersIQ-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json$/);
+ assert.match(dl.suggestedFilename(),/^FittersIQ-(Beta-)?backup-\d{4}-\d{2}-\d{2}-\d{4}\.json$/);
  const backup=JSON.parse(fs.readFileSync(await dl.path(),'utf8'));
  assert.equal(backup.kind,'fittersiq-studio-backup');
  const bj=backup.savedState.projects.find(p=>p.id==='sj');
