@@ -8406,7 +8406,6 @@ body.fiq-locked .app{display:none!important}
       warn+
       '<div id="estimatedMaterialsBody"></div>'+
       '<div class="est-mat-note">Estimate only. Adjust the sheet size below to match what you actually have in stock — the final layout may change once your supplier optimises the full cutting job.</div>'+
-      '<div id="fiqShoppingList"></div>'+
     '</div>';
     window.a181RenderInto(document.getElementById('estimatedMaterialsBody'),complete,'Add material, thickness and dimensions to your panels to see an estimated sheet layout here.');
     renderShopping();
@@ -8431,19 +8430,18 @@ body.fiq-locked .app{display:none!important}
       groups[k].mm+=(eL*num(p.length)+eS*num(p.width))*Math.max(1,Math.floor(num(p.qty))||1);
     });
     var m=function(mm){return (Math.round(mm/10)/100).toFixed(2)+' m'};
-    var edgeRows=order.map(function(k){var g=groups[k];return '<div class="fiq-shop-row" data-shop-edging><span>'+safe(g.mat)+(g.th?' · '+safe(g.th)+'mm':'')+'</span><b>'+m(g.mm)+' edging</b></div>'}).join('');
+    var edgeRows=order.map(function(k){var g=groups[k];return '<div class="fiq-shop-row" data-shop-edging><span>'+safe(g.mat)+(g.th?' · '+safe(g.th)+'mm':'')+'</span><b>'+m(g.mm)+'</b></div>'}).join('');
     var hw=(Array.isArray(c.hardwareChecklist)?c.hardwareChecklist:[]).filter(function(it){return it&&it.done});
-    var hwRows=hw.map(function(it){var q=it.qty!=null&&it.qty!==''&&Number(it.qty)>0;return '<div class="fiq-shop-row" data-shop-hw><span>'+safe(it.name)+'</span><b>'+(q?safe(it.qty):'<em>quantity not set</em>')+'</b></div>'}).join('');
+    var hwRows=hw.map(function(it){var q=it.qty!=null&&it.qty!==''&&Number(it.qty)>0;return '<div class="fiq-shop-row" data-shop-hw><span>'+safe(it.name)+'</span><b>'+(q?safe(it.qty):'<em>Quantity not set</em>')+'</b></div>'}).join('');
     var room=pr&&(pr.rooms||[]).find(function(r){return r.id===c.roomId});
     box.innerHTML='<div class="fiq-shop" data-shopping-list>'+
-      '<div class="est-mat-title">🛒 Shopping List</div>'+
-      '<div class="fiq-shop-scope">'+safe([pr&&pr.name,room&&room.name,c.name].filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i}).join(' · '))+'</div>'+
-      '<div class="fiq-shop-head">Edge banding (from the panels\' edging)</div>'+
+      '<div class="fiq-shop-scope">This unit: '+safe([pr&&pr.name,room&&room.name,c.name].filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i}).join(' · '))+'</div>'+
+      '<div class="fiq-shop-head">Edge Banding</div>'+
       (edgeRows||'<div class="fiq-shop-empty">No edging on these panels.</div>')+
       (unsized.length?'<div class="fiq-shop-empty">Not counted, size missing: '+unsized.map(safe).join(', ')+'</div>':'')+
-      '<div class="fiq-shop-head">Hardware &amp; extras</div>'+
+      '<div class="fiq-shop-head">Hardware &amp; Extras</div>'+
       (hwRows||'<div class="fiq-shop-empty">Nothing selected. Tick items in 🔧 Hardware &amp; extras below.</div>')+
-      '<div class="est-mat-note">Shopping estimate only: exact banded edge lengths × quantity, no waste added. Edge-band colour and type are not recorded on panels.</div>'+
+      '<div class="est-mat-note">Edging: exact banded edge lengths × quantity, no waste added; edge-band colour and type are not recorded on panels.</div>'+
     '</div>';
   }
   window.fiqRenderShoppingList=renderShopping;
@@ -8672,9 +8670,9 @@ body.fiq-locked .app{display:none!important}
     const box=document.getElementById('customerSheetEstimateCard');if(!box)return;
     const p=(typeof project==='function')?project():null;
     const customer=(p&&typeof customerFor==='function')?customerFor(p):null;
-    if(!p||!customer||typeof window.a181Pack!=='function'||typeof window.a181CfgFor!=='function'){box.innerHTML='';return}
+    if(!p||!customer||typeof window.a181Pack!=='function'||typeof window.a181CfgFor!=='function'){shopOnly();return}
     const jobs=(typeof customerProjects==='function')?customerProjects(customer.id):[];
-    if(jobs.length<2){box.innerHTML='';return} // nothing to combine -- the single-job card already covers this
+    if(jobs.length<2){shopOnly();return} // nothing to combine -- the single-job card already covers the sheets
     const byKey={};
     jobs.forEach(pr=>{
       (pr.cabinets||[]).forEach(c=>{
@@ -8694,7 +8692,7 @@ body.fiq-locked .app{display:none!important}
       const res=window.a181Pack(g.pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
       return {material:g.material,thickness:g.thickness,sheets:res.sheets.length,w:cfg.w,h:cfg.h,unplaced:res.unplaced};
     }).sort((a,b)=>b.sheets-a.sheets);
-    if(!groups.length){box.innerHTML='';return}
+    if(!groups.length){shopOnly();return}
     // A panel larger than the sheet is never counted as fitting: it is named instead.
     const tooBig=g=>{if(!g.unplaced.length)return '';const sizes=[...new Set(g.unplaced.map(u=>Math.round(u.w)+'×'+Math.round(u.h)))];return '<div class="cust-sheet-warn">⚠ '+g.unplaced.length+' panel'+(g.unplaced.length===1?'':'s')+' larger than a '+g.w+' × '+g.h+' sheet, not counted: '+safe(sizes.join(', '))+' mm</div>'};
     const rows=groups.map(g=>'<div class="cust-sheet-row"><span class="cust-sheet-mat">'+safe(g.material)+' · '+safe(g.thickness)+'mm<small class="cust-sheet-size">'+g.w+' × '+g.h+' sheet</small></span><span class="cust-sheet-count">'+g.sheets+' sheet'+(g.sheets===1?'':'s')+'</span></div>'+tooBig(g)).join('');
@@ -8703,7 +8701,17 @@ body.fiq-locked .app{display:none!important}
       '<div class="est-mat-title">🧾 Estimated Sheets Required — all '+jobs.length+' jobs</div>'+
       rows+
       '<div class="est-mat-note">Estimate only. Combines every job on file for this customer, kept separate by material and thickness.</div>'+
+      '<div id="fiqShoppingList"></div>'+
     '</div>';
+    if(typeof window.fiqRenderShoppingList==='function')window.fiqRenderShoppingList();
+  }
+  // No combined sheets to show (one job): the same top card still carries Edge Banding and
+  // Hardware & Extras for the open unit (its sheets are in Estimated Sheets below).
+  function shopOnly(){
+    const box=document.getElementById('customerSheetEstimateCard');if(!box)return;
+    if(!(typeof cabinet==='function'&&cabinet())){box.innerHTML='';return}
+    box.innerHTML='<div class="est-mat-card cust-sheet-card"><div class="est-mat-title">🧾 Materials to buy</div><div id="fiqShoppingList"></div></div>';
+    if(typeof window.fiqRenderShoppingList==='function')window.fiqRenderShoppingList();
   }
   window.fiqRenderCustomerSheets=render;
   const prevRenderParts2=window.renderParts;
