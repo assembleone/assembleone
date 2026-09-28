@@ -1891,17 +1891,30 @@ html.fiq-readonly body{padding-top:44px}
  }
  if(!gate.lockSupported){become('editor');console.warn('Web Locks not available: single-editor protection is off in this browser.')}
  else{
-  // A reload of the editor briefly overlaps with its own previous page: wait a moment
-  // before deciding another tab is the editor.
-  const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),2500);
-  navigator.locks.request(LOCK,{signal:ac.signal},()=>{clearTimeout(timer);become('editor');return new Promise(()=>{})})
-   .catch(()=>{
-    become('readonly');
-    // Waits until the editor tab is gone, then reloads so this tab edits the latest data.
-    navigator.locks.request(LOCK,()=>{try{sessionStorage.setItem('fiqDiagReloadReason','Stage 1 editor-lock waiter')}catch(e){}location.reload();return new Promise(()=>{})}).catch(()=>{});
-   });
+  // The role is decided from the lock's real state right now ("is it free?"), never by a
+  // clock: a slow start (a lot of saved data) used to exceed a 2.5 s wait, made the tab
+  // wrongly read-only, and its waiter then reloaded it in an endless loop.
+  navigator.locks.request(LOCK,{ifAvailable:true},lock=>{
+   if(lock){become('editor');return new Promise(()=>{})}
+   become('readonly');
+   // Waits until the editor tab is gone, then reloads so this tab edits the latest data.
+   // A tab reloads itself for this at most once every 30 s; otherwise it offers a button.
+   navigator.locks.request(LOCK,()=>{
+    let last=0;try{last=Number(sessionStorage.getItem('fiqEditorReloadAt'))||0}catch(e){}
+    if(Date.now()-last<30000){offerReload();return null}
+    try{sessionStorage.setItem('fiqEditorReloadAt',String(Date.now()));sessionStorage.setItem('fiqDiagReloadReason','Stage 1 editor-lock waiter')}catch(e){}
+    location.reload();return new Promise(()=>{});
+   }).catch(()=>{});
+   return null;
+  }).catch(()=>become('editor'));
  }
  // ---- Read-only tab: nothing it does can change anything. ----
+ function offerReload(){
+  const put=()=>{const bn=document.getElementById('fiqReadonlyBanner');if(!bn)return;
+   bn.innerHTML='Studio is no longer open for editing elsewhere. <button type="button" id="fiqReadonlyReloadBtn" style="margin-left:8px;border:0;border-radius:8px;padding:4px 10px;font-weight:800;cursor:pointer">Reload to edit</button>';
+   const btn=document.getElementById('fiqReadonlyReloadBtn');if(btn)btn.onclick=()=>location.reload()};
+  if(document.body)put();else document.addEventListener('DOMContentLoaded',put,{once:true});
+ }
  function showBanner(){
   const put=()=>{if(document.getElementById('fiqReadonlyBanner')||!document.body)return;
    const b=document.createElement('div');b.id='fiqReadonlyBanner';b.setAttribute('role','status');
