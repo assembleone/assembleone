@@ -12,7 +12,8 @@
 //  - Data safety dialog: complete backup (saved data, drawings, fallback copy, customers,
 //    saved Cutting List versions) and Data Doctor report; both change nothing stored and
 //    also work in a read-only tab;
-//  - a write by an older Studio tab (no protection) is reported to the editor.
+//  - a write by an older Studio tab (no protection) is reported to the editor;
+//  - the sign-in form works in a read-only tab.
 // Runs the real public Studio loader with every network request blocked.
 const {chromium}=require('playwright');
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
@@ -154,6 +155,12 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  // A read-only tab can make a backup too, and a write by an older unprotected tab is reported.
  const D=await open();
  assert.equal(await role(D),'readonly');
+ // Signing in still works in a read-only tab (the sign-in form is not blocked).
+ await D.evaluate(()=>{document.body.classList.add('fiq-locked');const g=document.getElementById('fiqAuthGate');if(g){g.style.display='flex'}const st=document.getElementById('fiqEmail').closest('.fiq-auth-state');document.querySelectorAll('.fiq-auth-state').forEach(x=>{x.hidden=true;x.style.display='none'});st.hidden=false;st.style.display='block'});
+ if(await D.locator('#fiqEmail').isVisible()){await D.locator('#fiqEmail').click();await D.keyboard.type('fitter@test.com');await D.locator('#fiqPassword').click();await D.keyboard.type('pw');
+  assert.deepEqual([await D.locator('#fiqEmail').inputValue(),await D.locator('#fiqPassword').inputValue()],['fitter@test.com','pw'],'sign-in form usable in a read-only tab')}
+ else throw new Error('sign-in form not visible in test');
+ await D.evaluate(()=>{document.body.classList.remove('fiq-locked');const g=document.getElementById('fiqAuthGate');if(g)g.style.display='none'});
  await D.locator('#fiqSaveChip').click();
  const [dl2]=await Promise.all([D.waitForEvent('download'),D.locator('.fiq-safety-dialog [data-safety-backup]').click()]);
  assert.equal(JSON.parse(fs.readFileSync(await dl2.path(),'utf8')).savedState.projects.find(p=>p.id==='sj').cabinets[0].parts[0].length,735);
