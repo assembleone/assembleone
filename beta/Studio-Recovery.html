@@ -7540,6 +7540,12 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
 .hardware-checklist-row:hover{background:#fff9f1}
 .hardware-checklist-row input[type="checkbox"]{width:20px;height:20px;accent-color:#c96a00;flex:0 0 auto}
 .hardware-checklist-row span{flex:1 1 auto}
+.fiq-hw-card{padding:0!important;overflow:hidden}
+.fiq-hw-toggle{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:14px 16px;cursor:pointer;text-align:left;font:inherit;color:#171c46}
+.fiq-hw-toggle strong{font-size:17px;flex:0 0 auto}
+.fiq-hw-summary{flex:1 1 auto;color:#c96a00;font-weight:800;font-size:14px}
+.fiq-hw-chevron{flex:0 0 auto;font-size:18px;color:#c96a00}
+.fiq-hw-body{padding:0 16px 16px}
 .hardware-checklist-qty{width:64px;flex:0 0 auto;padding:7px 8px;border:2px solid #ffdcaa;border-radius:8px;font-weight:800;color:#171c46;text-align:center}
 </style>
 <script id="a177-build-hardware-checklist-script">
@@ -7585,10 +7591,22 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     const rows=c.hardwareChecklist;
     const done=rows.filter(i=>i.done).length;
     const items=rows.map((item,i)=>`<label class="hardware-checklist-row"><input data-hw-toggle="${i}" type="checkbox" ${item.done?'checked':''}><span>${safe(item.name)}</span><input class="hardware-checklist-qty" data-hw-qty="${i}" type="number" min="0" inputmode="numeric" placeholder="Qty" value="${item.qty!=null&&item.qty!==''?safe(item.qty):''}"><button aria-label="Remove" class="build-checklist-remove" data-hw-remove="${i}" type="button">✕</button></label>`).join('');
-    return `<div class="hardware-checklist-card"><div class="build-checklist-head"><strong>Hardware checklist</strong><span>${done} of ${rows.length} ticked off</span></div><div class="build-checklist-list">${items}</div><div class="build-checklist-add"><input id="newHwItemInput" placeholder="Add your own, e.g. soft-close" type="text"><button class="btn" id="addHwItemBtn" type="button">+ Add</button></div></div>`;
+    // Collapsed by default (open/closed is remembered only while Studio is open).
+    const open=!!window.__fiqHwOpen;
+    return `<div class="hardware-checklist-card fiq-hw-card${open?' open':''}"><button type="button" class="fiq-hw-toggle" data-hw-collapse aria-expanded="${open}"><strong>🔧 Hardware &amp; extras</strong><span class="fiq-hw-summary">${done?done+' item'+(done===1?'':'s')+' selected':''}</span><span class="fiq-hw-chevron" aria-hidden="true">${open?'▾':'▸'}</span></button><div class="fiq-hw-body"${open?'':' hidden'}><div class="build-checklist-list">${items}</div><div class="build-checklist-add"><input id="newHwItemInput" placeholder="Add your own, e.g. soft-close" type="text"><button class="btn" id="addHwItemBtn" type="button">+ Add</button></div></div></div>`;
   }
 
   document.addEventListener('click',e=>{
+    const collapse=e.target.closest&&e.target.closest('[data-hw-collapse]');
+    if(collapse){
+      window.__fiqHwOpen=!window.__fiqHwOpen;
+      const card=collapse.closest('.fiq-hw-card'),body=card&&card.querySelector('.fiq-hw-body');
+      if(card)card.classList.toggle('open',window.__fiqHwOpen);
+      if(body)body.hidden=!window.__fiqHwOpen;
+      collapse.setAttribute('aria-expanded',String(window.__fiqHwOpen));
+      const ch=collapse.querySelector('.fiq-hw-chevron');if(ch)ch.textContent=window.__fiqHwOpen?'▾':'▸';
+      return;
+    }
     const remove=e.target.closest('[data-checklist-remove]');
     const add=e.target.closest('#addChecklistItemBtn');
     const hwRemove=e.target.closest('[data-hw-remove]');
@@ -7636,7 +7654,7 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     const c=(typeof cabinet==='function')?cabinet():null;
     if(!c||!c.hardwareChecklist)return;
     const i=Number(hwQty.dataset.hwQty);
-    if(c.hardwareChecklist[i]){c.hardwareChecklist[i].qty=hwQty.value===''?'':Number(hwQty.value);save()}
+    if(c.hardwareChecklist[i]){c.hardwareChecklist[i].qty=hwQty.value===''?'':Number(hwQty.value);save();if(typeof window.fiqRenderShoppingList==='function')window.fiqRenderShoppingList()}
   });
 
   const oldRenderParts=window.renderParts;
@@ -8307,14 +8325,61 @@ body.fiq-locked .app{display:none!important}
       warn+
       '<div id="estimatedMaterialsBody"></div>'+
       '<div class="est-mat-note">Estimate only. Adjust the sheet size below to match what you actually have in stock — the final layout may change once your supplier optimises the full cutting job.</div>'+
+      '<div id="fiqShoppingList"></div>'+
     '</div>';
     window.a181RenderInto(document.getElementById('estimatedMaterialsBody'),complete,'Add material, thickness and dimensions to your panels to see an estimated sheet layout here.');
+    renderShopping();
   }
+  // Shopping List for the unit open in Panel Check (the same scope as the sheet estimate
+  // above and the unit's Hardware & extras): edge banding worked out from the panels'
+  // own edging (grouped by panel material and thickness; no edge-band colour or type is
+  // recorded, so none is named) plus every ticked Hardware & extras item. Nothing is
+  // entered here and nothing is stored: it is read from the existing data each time.
+  function renderShopping(){
+    var box=document.getElementById('fiqShoppingList');if(!box)return;
+    var c=(typeof cabinet==='function')?cabinet():null,pr=(typeof project==='function')?project():null;
+    if(!c){box.innerHTML='';return}
+    var num=function(v){return Number(v)||0};
+    var groups={},order=[],unsized=[];
+    (c.parts||[]).forEach(function(p){
+      var eL=num(p.edgeLong),eS=num(p.edgeShort);if(!eL&&!eS)return;
+      if(!(num(p.length)>0&&num(p.width)>0)){unsized.push(p.code||'panel');return}
+      var mat=String((typeof materialForPanel==='function'?materialForPanel(p):p.material)||'Material not set').trim()||'Material not set';
+      var k=mat.toLowerCase()+'|'+num(p.thickness);
+      if(!groups[k]){groups[k]={mat:mat,th:num(p.thickness),mm:0};order.push(k)}
+      groups[k].mm+=(eL*num(p.length)+eS*num(p.width))*Math.max(1,Math.floor(num(p.qty))||1);
+    });
+    var m=function(mm){return (Math.round(mm/10)/100).toFixed(2)+' m'};
+    var edgeRows=order.map(function(k){var g=groups[k];return '<div class="fiq-shop-row" data-shop-edging><span>'+safe(g.mat)+(g.th?' · '+safe(g.th)+'mm':'')+'</span><b>'+m(g.mm)+' edging</b></div>'}).join('');
+    var hw=(Array.isArray(c.hardwareChecklist)?c.hardwareChecklist:[]).filter(function(it){return it&&it.done});
+    var hwRows=hw.map(function(it){var q=it.qty!=null&&it.qty!==''&&Number(it.qty)>0;return '<div class="fiq-shop-row" data-shop-hw><span>'+safe(it.name)+'</span><b>'+(q?safe(it.qty):'<em>quantity not set</em>')+'</b></div>'}).join('');
+    var room=pr&&(pr.rooms||[]).find(function(r){return r.id===c.roomId});
+    box.innerHTML='<div class="fiq-shop" data-shopping-list>'+
+      '<div class="est-mat-title">🛒 Shopping List</div>'+
+      '<div class="fiq-shop-scope">'+safe([pr&&pr.name,room&&room.name,c.name].filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i}).join(' · '))+'</div>'+
+      '<div class="fiq-shop-head">Edge banding (from the panels\' edging)</div>'+
+      (edgeRows||'<div class="fiq-shop-empty">No edging on these panels.</div>')+
+      (unsized.length?'<div class="fiq-shop-empty">Not counted, size missing: '+unsized.map(safe).join(', ')+'</div>':'')+
+      '<div class="fiq-shop-head">Hardware &amp; extras</div>'+
+      (hwRows||'<div class="fiq-shop-empty">Nothing selected. Tick items in 🔧 Hardware &amp; extras below.</div>')+
+      '<div class="est-mat-note">Shopping estimate only: exact banded edge lengths × quantity, no waste added. Edge-band colour and type are not recorded on panels.</div>'+
+    '</div>';
+  }
+  window.fiqRenderShoppingList=renderShopping;
   var prevRenderParts=window.renderParts;
   window.renderParts=function(){var r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
   try{render()}catch(e){}
 })();
 </script>
+<style id="fiq-shopping-style">
+.fiq-shop{margin-top:12px;padding-top:10px;border-top:1px solid #e3e9f0}
+.fiq-shop-scope{font-size:12px;font-weight:700;color:#5b6b7f;margin:-2px 0 6px}
+.fiq-shop-head{font-size:12px;font-weight:900;color:#5b6b7f;text-transform:uppercase;letter-spacing:.03em;margin:8px 0 2px}
+.fiq-shop-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #eef2f6;font-weight:700;color:#171c46}
+.fiq-shop-row b{white-space:nowrap}
+.fiq-shop-row em{font-weight:700;color:#9b1c1c;font-style:normal}
+.fiq-shop-empty{font-size:13px;color:#5b6b7f;padding:4px 0}
+</style>
 <style id="fiq-edge-safety-style">
 /* Panel Check warning cards (edging, unfinished panels): light mint, subtle green, compact. */
 .fiq-edge-warning{border:1px solid #bfe3cc;background:#effaf3;border-radius:12px;padding:10px 12px;margin:8px 0;color:#16281d;box-shadow:none}
