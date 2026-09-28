@@ -201,6 +201,17 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .pin.status-cut{background:var(--blue)}.pin.status-edge{background:var(--orange)}.pin.status-drill{background:var(--purple)}
 .pin.status-installed{background:#2e63d6}.pin.status-missing{background:#e33131}.pin.status-ready{background:#63a43e}
 .pin.marker-copy:not(.selected){box-shadow:0 0 0 3px rgba(183,121,60,.18),0 2px 6px rgba(0,0,0,.22)}
+/* Quieter dots on busy drawings (appearance only; positions, sizes of the selected dot and
+   every click are unchanged). Ordinary dots are about half size with a light shadow; the
+   dot under the mouse grows back to full size; while a panel is selected the other dots
+   fade so the selected numbered dot clearly stands out. */
+#drawingCanvas .pin:not(.selected){width:10px;height:10px;min-width:10px;border-width:1px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+#drawingCanvas .pin:not(.selected)::before{font-size:8px;transform:none}
+#drawingCanvas .pin.marker-copy:not(.selected){box-shadow:0 0 0 2px rgba(183,121,60,.3)}
+#drawingStage.expanded #drawingCanvas .pin:not(.selected){width:12px;height:12px;min-width:12px}
+#drawingCanvas:has(.pin.selected) .pin:not(.selected):not(:hover){opacity:.35}
+#drawingCanvas .pin:not(.selected):hover,#drawingStage.expanded #drawingCanvas .pin:not(.selected):hover{width:18px;height:18px;min-width:18px;border-width:2px;box-shadow:0 2px 6px rgba(0,0,0,.3);opacity:1;z-index:7}
+#drawingCanvas .pin:not(.selected):hover::before{font-size:16px;transform:translateY(-1px)}
 .part-list{display:grid;gap:7px;max-height:380px;overflow:auto}
 .part-row{display:grid;grid-template-columns:auto 1fr auto;gap:7px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px}
 .part-row.active{border-color:#3056a9;background:#eff4ff}.part-code{background:#1f2329;color:#fff;padding:5px 7px;border-radius:12px;font-size:11px}
