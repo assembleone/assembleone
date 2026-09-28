@@ -94,7 +94,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  const pc=await S(()=>{const sc=document.getElementById('screen-parts');const txt=sc.innerText;return {
   fitter:/Lead Fitter/.test(txt),send:/Send to Mobile/.test(txt),whatsapp:/WhatsApp/i.test(txt),another:/Add another fitter/.test(txt),
   progress:/Installation Progress|Not yet fitted|Total panels/.test(txt),outstanding:/Reported missing or damaged on site/.test(txt),
-  order:!!sc.querySelector('#orderMissingPanelsBtn'),hardware:/Hardware checklist/i.test(txt),check:/Panel checked/.test(txt),
+  order:!!sc.querySelector('#orderMissingPanelsBtn'),hardware:/Hardware & extras/i.test(txt),check:/Panel checked/.test(txt),
   summary:!!document.querySelector('#customerSheetEstimateCard .cust-sheet-card'),fitterHtml:typeof window.a211FitterRowHtml==='function'}});
  assert.deepEqual(pc,{fitter:false,send:false,whatsapp:false,another:false,progress:false,outstanding:true,order:true,hardware:true,check:true,summary:true,fitterHtml:true},'Panel Check contents');
 
