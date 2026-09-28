@@ -7,6 +7,8 @@
 //    material and thickness (exact edge lengths x Qty, no waste);
 //  - scope: only the unit open in Panel Check (other unit / other job of the same
 //    customer never mixed in); the all-jobs customer sheet card is unchanged;
+//  - it is shown inside the top Estimated Sheets Required card (sheets, Edge Banding,
+//    Hardware & Extras together), not as a separate card further down;
 //  - everything survives a reload; the sheet estimate itself is unchanged.
 // Runs the real public Studio loader with every network request blocked.
 const {chromium}=require('playwright');
@@ -62,9 +64,13 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200);
  assert.equal(await hwOpen(),false,'collapses again');
 
+ // One materials card at the top: sheets, then Edge Banding and Hardware & Extras.
+ assert.equal(await S(()=>!!document.querySelector('#customerSheetEstimateCard [data-shopping-list]')),true,'in the top Estimated Sheets Required card');
+ assert.equal(await S(()=>!!document.querySelector('#estimatedMaterialsCard [data-shopping-list]')),false,'no separate Shopping List further down');
+ assert.match(await page.locator('#customerSheetEstimateCard').innerText(),/Estimated Sheets Required[\s\S]*sheet[\s\S]*Edge Banding[\s\S]*Hardware & Extras/i,'sheets, then edging, then hardware');
  // Shopping List: automatic edging per material/thickness + saved hardware.
  let s=await shop();
- assert.deepEqual(s.edging,['White melamine · 19mm 7.06 m edging','Oak veneer · 18mm 9.94 m edging']);
+ assert.deepEqual(s.edging,['White melamine · 19mm 7.06 m','Oak veneer · 18mm 9.94 m']);
  assert.deepEqual(s.hw,['Drawer runners 6','Mirror clips 4']);
  assert.match(s.text,/Wardrobe 1 · Dressing Room · Wardrobe/,'scope shown');
  assert.doesNotMatch(s.text,/Hinges|Handles|99|77/,'nothing from the other unit or the old job');
@@ -80,7 +86,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await row('LED driver / transformer').locator('[data-hw-qty]').fill('2');await page.waitForTimeout(150);
  await row('LED lights').locator('[data-hw-toggle]').check();await page.waitForTimeout(250);
  s=await shop();
- assert.deepEqual(s.hw,['Hinges 18','Drawer runners 6','LED lights quantity not set','LED driver / transformer 2','Mirror clips 4']);
+ assert.deepEqual(s.hw,['Hinges 18','Drawer runners 6','LED lights Quantity not set','LED driver / transformer 2','Mirror clips 4']);
  await row('LED lights').locator('[data-hw-qty]').fill('6');await page.waitForTimeout(150);
  await row('Drawer runners').locator('[data-hw-toggle]').uncheck();await page.waitForTimeout(250);
  // A new custom item.
@@ -90,12 +96,12 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  s=await shop();
  assert.deepEqual(s.hw,['Hinges 18','LED lights 6','LED driver / transformer 2','Mirror clips 4','Wardrobe lift 1']);
  assert.match(await page.locator('.fiq-hw-toggle').innerText(),/5 items selected/);
- if(process.env.SHOT){await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200);await page.locator('.fiq-hw-card').screenshot({path:process.env.SHOT+'/hw-collapsed.png'});await page.locator('#estimatedMaterialsCard').screenshot({path:process.env.SHOT+'/shopping-list.png'});await page.locator('[data-shopping-list]').screenshot({path:process.env.SHOT+'/shopping-only.png'});await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200)}
+ if(process.env.SHOT){await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200);await page.locator('.fiq-hw-card').screenshot({path:process.env.SHOT+'/hw-collapsed.png'});await page.locator('#customerSheetEstimateCard').screenshot({path:process.env.SHOT+'/shopping-list.png'});await page.locator('[data-shopping-list]').screenshot({path:process.env.SHOT+'/shopping-only.png'});await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200)}
 
  // Another unit of the same job shows only its own list.
  await S(()=>{switchToProject('hj','hu2');renderAll();show('parts');renderAll()});await page.waitForTimeout(300);
  s=await shop();
- assert.deepEqual(s.hw,['Hinges 99']);assert.deepEqual(s.edging,['White melamine · 19mm 2.00 m edging']);
+ assert.deepEqual(s.hw,['Hinges 99']);assert.deepEqual(s.edging,['White melamine · 19mm 2.00 m']);
  // The customer's all-jobs sheet card still exists (unchanged scope, clearly labelled).
  assert.match(await page.locator('#customerSheetEstimateCard').innerText(),/Estimated Sheets Required — all 2 jobs/);
 
@@ -105,7 +111,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.equal(await hwOpen(),false,'collapsed again after reload');
  s=await shop();
  assert.deepEqual(s.hw,['Hinges 18','LED lights 6','LED driver / transformer 2','Mirror clips 4','Wardrobe lift 1']);
- assert.deepEqual(s.edging,['White melamine · 19mm 7.06 m edging','Oak veneer · 18mm 9.94 m edging']);
+ assert.deepEqual(s.edging,['White melamine · 19mm 7.06 m','Oak veneer · 18mm 9.94 m']);
 
  assert.deepEqual(errors,[],'no page errors');
  console.log(JSON.stringify({ok:true}));
