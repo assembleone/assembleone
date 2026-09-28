@@ -1798,6 +1798,52 @@ html.fiq-readonly body{padding-top:44px}
 .fiq-doctor .fiq-doc-warn{color:#9b1c1c;font-weight:800}
 .fiq-doctor .fiq-doc-ok{color:#17864a;font-weight:800}
 </style>
+<script id="fiq-auth-diagnostics">
+// TEMPORARY startup/sign-in diagnostics (Beta). Records each step from page load to the
+// "Checking your account..." overlay closing, with times, and any script errors. Shown in
+// small text under "Checking your account..." (and in the console as [FIQ auth]). It only
+// reads: nothing is changed, written or deleted. Remove once the sign-in issue is solved.
+(function(){
+ const T0=performance.now(),steps=[],errors=[];
+ const BUILD='beta c0253ff+diag1';
+ const t=()=>((performance.now()-T0)/1000).toFixed(1)+'s';
+ function step(name,detail){steps.push({name,detail:detail||'',at:t()});try{console.info('[FIQ auth]',t(),name,detail||'')}catch(e){}paint()}
+ window.fiqAuthDiag=step;
+ step('1 Studio page loaded',BUILD+' · '+location.pathname);
+ window.addEventListener('error',e=>{errors.push((e.message||'error')+' @'+String(e.filename||'').split('/').pop()+':'+(e.lineno||''));paint()});
+ window.addEventListener('unhandledrejection',e=>{const r=e.reason;errors.push('Promise: '+String(r&&(r.code||r.message)||r).slice(0,160));paint()});
+ window.addEventListener('fiqFirebaseReady',()=>step('2 Firebase loaded'));
+ // Is the browser's saved-login storage (Firebase) answering? Read-only check; a database
+ // that does not exist is never created.
+ (async()=>{
+  try{
+   const t1=performance.now();
+   const list=indexedDB.databases?await indexedDB.databases():null;
+   const names=list?list.map(d=>d.name).filter(n=>/firebase/i.test(n)):['(list not available)'];
+   step('0 Saved-login storage listed',names.join(', ')+' ('+Math.round(performance.now()-t1)+' ms)');
+   if(list&&list.some(d=>/firebaseLocalStorageDb$/.test(d.name))){
+    const t2=performance.now();let settled=false;
+    const r=indexedDB.open('firebaseLocalStorageDb');
+    r.onupgradeneeded=()=>{try{r.transaction.abort()}catch(e){}};
+    r.onblocked=()=>step('0 Saved-login storage BLOCKED','another open page holds it');
+    r.onerror=()=>{settled=true;step('0 Saved-login storage error',String(r.error&&r.error.name))};
+    r.onsuccess=()=>{settled=true;const db=r.result;const has=db.objectStoreNames.contains('firebaseLocalStorage');let count='?';
+     try{if(has){const q=db.transaction('firebaseLocalStorage','readonly').objectStore('firebaseLocalStorage').count();q.onsuccess=()=>{step('0 Saved-login storage opens','store ok, '+q.result+' saved item(s), '+Math.round(performance.now()-t2)+' ms');db.close()};q.onerror=()=>db.close()}else{step('0 Saved-login storage opens','STORE MISSING');db.close()}}catch(e){step('0 Saved-login storage read failed',String(e&&e.name));db.close()}};
+    setTimeout(()=>{if(!settled)step('0 Saved-login storage NOT ANSWERING','after 8 s')},8000);
+   }
+  }catch(e){step('0 Saved-login storage check failed',String(e&&e.message||e))}
+ })();
+ function paint(){
+  const host=document.getElementById('fiqStateChecking');if(!host)return;
+  let box=document.getElementById('fiqAuthDiagBox');
+  if(!box){box=document.createElement('pre');box.id='fiqAuthDiagBox';box.style.cssText='margin:10px 0 0;padding:8px;background:#f3f5f8;border:1px solid #d7dfea;border-radius:8px;font:11px/1.4 Consolas,monospace;color:#334;white-space:pre-wrap;text-align:left;max-height:220px;overflow:auto';host.appendChild(box)}
+  const last=steps[steps.length-1];
+  box.textContent='Startup check ('+BUILD+'), now '+t()+':\n'+steps.map(s=>s.at+'  '+s.name+(s.detail?' — '+s.detail:'')).join('\n')+(errors.length?'\nErrors:\n'+errors.slice(0,5).join('\n'):'')+'\n(waiting after: '+(last?last.name:'-')+')';
+ }
+ setInterval(()=>{const c=document.getElementById('fiqStateChecking');if(c&&!c.hidden&&document.getElementById('fiqAuthGate')&&getComputedStyle(document.getElementById('fiqAuthGate')).display!=='none')paint()},1000);
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',paint,{once:true});else paint();
+})();
+</script>
 <script id="fiq-stage1-safety">
 // Stage 1 data safety (read-only additions around the existing save; no workflow changes).
 //  1. One editing Studio per browser: the first tab holds a Web Lock and is the editor.
@@ -7818,8 +7864,10 @@ body.fiq-locked .app{display:none!important}
 </style>
 <script id="a180-fiq-auth-gate-script">
 (function(){
+  if(window.fiqAuthDiag)window.fiqAuthDiag('3 Sign-in code ready',window.fiqAuthFns?'Firebase already loaded':'waiting for Firebase');
   if(window.fiqAuthFns){ initFiqAuthGate(); } else { window.addEventListener('fiqFirebaseReady', initFiqAuthGate, {once:true}); }
   function initFiqAuthGate(){
+  if(window.fiqAuthDiag)window.fiqAuthDiag('4 Sign-in check started');
   function $(id){return document.getElementById(id)}
   function showState(id){
     ['fiqStateChecking','fiqStateSignIn','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended'].forEach(function(s){
@@ -7871,7 +7919,9 @@ body.fiq-locked .app{display:none!important}
       showState('fiqStateVerify');
       return;
     }
+    if(window.fiqAuthDiag)window.fiqAuthDiag('6 Reading account token');
     var tokenResult = await user.getIdTokenResult();
+    if(window.fiqAuthDiag)window.fiqAuthDiag('7 Account token read','company '+((tokenResult.claims||{}).companyId?'yes':'no'));
     var claims = tokenResult.claims || {};
     if(!claims.companyId && !claims.fittersiq_admin){
       showState('fiqStateNoCompany');
@@ -7879,7 +7929,9 @@ body.fiq-locked .app{display:none!important}
     }
     if(claims.companyId){
       try{
+        if(window.fiqAuthDiag)window.fiqAuthDiag('8 Checking membership');
         var memberSnap = await authFns.getDoc(authFns.doc(db,'companies',claims.companyId,'members',user.uid));
+        if(window.fiqAuthDiag)window.fiqAuthDiag('9 Membership read',memberSnap.exists()?String(memberSnap.data().status):'not found');
         if(!memberSnap.exists() || memberSnap.data().status !== 'active'){
           showState('fiqStateSuspended');
           return;
@@ -7890,9 +7942,11 @@ body.fiq-locked .app{display:none!important}
       }
     }
     unlockApp(user, claims);
+    if(window.fiqAuthDiag)window.fiqAuthDiag('10 Studio opened');
   }
 
-  authFns.onAuthStateChanged(auth, function(user){ evaluate(user).catch(function(){ lockToSignIn(); }); });
+  if(window.fiqAuthDiag)window.fiqAuthDiag('4b Waiting for saved session');
+  authFns.onAuthStateChanged(auth, function(user){ if(window.fiqAuthDiag)window.fiqAuthDiag('5 Saved session reported',user?('signed in, verified '+!!user.emailVerified):'not signed in'); evaluate(user).catch(function(err){ if(window.fiqAuthDiag)window.fiqAuthDiag('X Sign-in check failed',String(err&&(err.code||err.message)||err)); lockToSignIn(); }); });
 
   $('fiqSignInForm').addEventListener('submit', async function(e){
     e.preventDefault();
