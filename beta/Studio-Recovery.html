@@ -1851,7 +1851,8 @@ html.fiq-readonly body{padding-top:44px}
    try{document.activeElement&&document.activeElement.blur&&document.activeElement.blur()}catch(e){}};
   if(document.body)put();else document.addEventListener('DOMContentLoaded',put,{once:true});
  }
- const allowed=t=>!!(t&&t.closest&&t.closest('#fiqReadonlyBanner,#fiqSaveChip,.fiq-safety-dialog,a[data-fiq-safety-download]'));
+ // The sign-in form always works (signing in changes no job data); the tab stays read-only.
+ const allowed=t=>!!(t&&t.closest&&t.closest('#fiqReadonlyBanner,#fiqSaveChip,.fiq-safety-dialog,a[data-fiq-safety-download],#fiqAuthGate'));
  const NAV_KEYS=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End']);
  function shield(e){
   if(role!=='readonly'||allowed(e.target))return;
