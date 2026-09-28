@@ -1805,11 +1805,23 @@ html.fiq-readonly body{padding-top:44px}
 // reads: nothing is changed, written or deleted. Remove once the sign-in issue is solved.
 (function(){
  const T0=performance.now(),steps=[],errors=[];
- const BUILD='beta c0253ff+diag1';
+ const BUILD='beta diag2';
  const t=()=>((performance.now()-T0)/1000).toFixed(1)+'s';
  function step(name,detail){steps.push({name,detail:detail||'',at:t()});try{console.info('[FIQ auth]',t(),name,detail||'')}catch(e){}paint()}
  window.fiqAuthDiag=step;
  step('1 Studio page loaded',BUILD+' · '+location.pathname);
+ // Is the page reloading itself? Count loads of this tab in the last 60 s (tab-only memory).
+ try{
+  const nav=(performance.getEntriesByType('navigation')[0]||{}).type||'?';
+  const now=Date.now(),loads=JSON.parse(sessionStorage.getItem('fiqDiagLoads')||'[]').filter(x=>now-x<60000);loads.push(now);sessionStorage.setItem('fiqDiagLoads',JSON.stringify(loads));
+  const why=sessionStorage.getItem('fiqDiagReloadReason');sessionStorage.removeItem('fiqDiagReloadReason');
+  step('1b Loads of this tab in last 60 s: '+loads.length,'this load: '+nav+(why?' — started by: '+why:''));
+ }catch(e){}
+ // Who holds / waits for the Studio editor lock (Stage 1)?
+ const lockInfo=async label=>{try{if(!navigator.locks||!navigator.locks.query)return;const q=await navigator.locks.query();const mine=x=>String(x.name||'').indexOf('fiq-studio-editor')===0;
+   step(label,'held '+q.held.filter(mine).length+' / waiting '+q.pending.filter(mine).length+' · clients '+[...new Set([...q.held,...q.pending].filter(mine).map(x=>String(x.clientId).slice(0,6)))].join(','))}catch(e){}};
+ lockInfo('1c Editor lock at start');setTimeout(()=>lockInfo('1d Editor lock after 3 s'),3000);
+ window.fiqAuthDiagRole=r=>step('R Tab role: '+r);
  window.addEventListener('error',e=>{errors.push((e.message||'error')+' @'+String(e.filename||'').split('/').pop()+':'+(e.lineno||''));paint()});
  window.addEventListener('unhandledrejection',e=>{const r=e.reason;errors.push('Promise: '+String(r&&(r.code||r.message)||r).slice(0,160));paint()});
  window.addEventListener('fiqFirebaseReady',()=>step('2 Firebase loaded'));
@@ -1869,6 +1881,7 @@ html.fiq-readonly body{padding-top:44px}
  function become(r){
   if(role!=='pending')return;
   role=r;resolveReady(r);
+  if(window.fiqAuthDiagRole)window.fiqAuthDiagRole(r);
   document.documentElement.classList.toggle('fiq-readonly',r==='readonly');
   if(r==='readonly'){gate.setStatus('readonly');showBanner()}
   else{
@@ -1885,7 +1898,7 @@ html.fiq-readonly body{padding-top:44px}
    .catch(()=>{
     become('readonly');
     // Waits until the editor tab is gone, then reloads so this tab edits the latest data.
-    navigator.locks.request(LOCK,()=>{location.reload();return new Promise(()=>{})}).catch(()=>{});
+    navigator.locks.request(LOCK,()=>{try{sessionStorage.setItem('fiqDiagReloadReason','Stage 1 editor-lock waiter')}catch(e){}location.reload();return new Promise(()=>{})}).catch(()=>{});
    });
  }
  // ---- Read-only tab: nothing it does can change anything. ----
