@@ -67,18 +67,19 @@
     return raw;
   }
 
-  function updateCountFor(projectId,roomId){
+  function updateCountFor(projectId,roomId,cardRoom){
     var p=projectById(projectId);if(!p)return 0;
+    try{if(typeof window.fiqSiteUpdatesForCard==='function')return window.fiqSiteUpdatesForCard(p,cardRoom||null).length}catch(e){}
     try{if(typeof jobLogEntriesForRoom==='function')return jobLogEntriesForRoom(p,roomId).length}catch(e){}
     var log=Array.isArray(p.jobLog)?p.jobLog:[];
     if(roomId)return log.filter(function(en){return String(en.roomId||'')===String(roomId)}).length;
     return log.filter(function(en){return !en.roomId}).length;
   }
 
-  function openSiteUpdates(projectId,roomId){
+  function openSiteUpdates(projectId,roomId,cardRoom){
     try{
       if(typeof openJobNotesDialog==='function'){
-        openJobNotesDialog(projectId,roomId||null);
+        openJobNotesDialog(projectId,roomId||null,{card:cardRoom||null});
         var sheet=document.querySelector('.job-notes-dialog-sheet');
         if(sheet){var h=sheet.querySelector('h2');if(h)h.textContent='Site Updates'}
       }
@@ -88,7 +89,8 @@
   function polishOverviewCards(){
     document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function(row){
       var projectId=String(row.getAttribute('data-open-job-card')||'');if(!projectId)return;
-      var roomId=roomIdForOverviewRow(row),count=updateCountFor(projectId,roomId);
+      var cardRoom=String(row.getAttribute('data-card-room-id')||'');
+      var roomId=roomIdForOverviewRow(row),count=updateCountFor(projectId,roomId,cardRoom);
       row.querySelectorAll('.fiq-site-updates-btn').forEach(function(x){x.remove()});
       var main=row.querySelector('.jor-main'),room=row.querySelector('.jor-room'),name=row.querySelector('.jor-name'),summary=row.querySelector('.jor-summary-line');
       if(main&&room&&name&&room.previousElementSibling!==null){main.insertBefore(room,name)}
@@ -99,7 +101,7 @@
         completion.setAttribute('role','button');completion.setAttribute('tabindex','0');completion.setAttribute('title','Open Site Updates');
         completion.innerHTML='<div class="jor-stat-label">Site Updates</div><div class="jor-stat-value">'+count+'</div>';
         if(count)completion.classList.add('has-updates');
-        var open=function(e){e.preventDefault();e.stopPropagation();openSiteUpdates(projectId,roomId)};
+        var open=function(e){e.preventDefault();e.stopPropagation();openSiteUpdates(projectId,roomId,cardRoom)};
         completion.onclick=open;completion.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){open(e)}};
       }
     });
