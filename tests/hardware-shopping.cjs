@@ -90,7 +90,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  s=await shop();
  assert.deepEqual(s.hw,['Hinges 18','LED lights 6','LED driver / transformer 2','Mirror clips 4','Wardrobe lift 1']);
  assert.match(await page.locator('.fiq-hw-toggle').innerText(),/5 items selected/);
- if(process.env.SHOT){await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200);await page.locator('.fiq-hw-card').screenshot({path:process.env.SHOT+'/hw-collapsed.png'});await page.locator('#estimatedMaterialsCard').screenshot({path:process.env.SHOT+'/shopping-list.png'});await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200)}
+ if(process.env.SHOT){await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200);await page.locator('.fiq-hw-card').screenshot({path:process.env.SHOT+'/hw-collapsed.png'});await page.locator('#estimatedMaterialsCard').screenshot({path:process.env.SHOT+'/shopping-list.png'});await page.locator('[data-shopping-list]').screenshot({path:process.env.SHOT+'/shopping-only.png'});await page.locator('.fiq-hw-toggle').click();await page.waitForTimeout(200)}
 
  // Another unit of the same job shows only its own list.
  await S(()=>{switchToProject('hj','hu2');renderAll();show('parts');renderAll()});await page.waitForTimeout(300);
