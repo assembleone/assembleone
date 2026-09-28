@@ -104,6 +104,17 @@ label{font-weight:700;font-size:13px} textarea{min-height:65px;resize:vertical}
 .customer-cutting-list-btn{flex:none;background:#eef8e8;border:1px solid #9bcf7f;color:#2f7d16;border-radius:9px;padding:8px 11px;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer}
 .customer-cutting-list-btn:hover{background:#dff2d4;border-color:#64ac3e}
 @media(max-width:760px){.customer-cutting-list-btn{padding:8px;width:36px;overflow:hidden;color:transparent;position:relative}.customer-cutting-list-btn:after{content:"📋";color:#2f7d16;position:absolute;inset:0;display:grid;place-items:center;font-size:17px}}
+/* Narrow screens: the row's details wrap under its name and the Cutting List / evidence
+   buttons keep their visible label on their own line (no icon-only button, no overlap). */
+@media(max-width:760px){
+.customer-tab-row-wrap{flex-wrap:wrap}
+.customer-tab-row-wrap .customer-tab-row{flex:1 1 100%;flex-wrap:wrap}
+.customer-tab-row-main{flex:1 1 55%}
+.customer-tab-row-meta{flex:1 1 100%;order:3}
+.customer-cutting-list-btn{width:auto;overflow:visible;color:#2f7d16;padding:6px 10px;position:static}
+.customer-cutting-list-btn:after{content:none}
+.customer-tab-row-wrap .customer-cutting-list-btn:first-of-type{margin-left:auto}
+}
 .customer-job-select{flex:none;cursor:pointer}
 .customer-job-select input{width:20px;height:20px;cursor:pointer}
 .customer-row-overflow{position:relative;flex:none}
@@ -3051,7 +3062,8 @@ function jobStatusInfo(p){
  const allRoomsFinished=(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished);
  if(allInstalled||allRoomsFinished)return{label:t("studio.customerLibrary.statusInstalled"),cls:"status-done"};
  if(someInstalled)return{label:t("studio.customerLibrary.statusInstalling"),cls:"status-progress"};
- if(parts.length)return{label:t("studio.customerLibrary.statusCuttingListReady"),cls:"status-ready"};
+ if(parts.length&&Object.values(p.sentCuttingLists||{}).some(l=>Array.isArray(l)&&l.length))return{label:'📋 Cutting List sent',cls:"status-ready"};
+ if(parts.length)return{label:t("studio.customerLibrary.statusDrawingInProgress"),cls:"status-progress"};
  if(hasDrawing)return{label:t("studio.customerLibrary.statusDrawingInProgress"),cls:"status-progress"};
  if(hasSite)return{label:t("studio.customerLibrary.statusSiteMeasurementsReceived"),cls:"status-new"};
  return{label:t("studio.customerLibrary.statusNewJob"),cls:"status-new"};
@@ -3376,13 +3388,17 @@ function customerCardAvatarInitial(name){
 // each Job/Design row here is one specific cabinet (a room's own design, or a legacy
 // no-rooms job's single cabinet), so its status has to be read at that same granularity.
 // Same label vocabulary/icons as jobStatusInfo, just scoped down to one cabinet's own parts.
-function customerCabinetStatusInfo(cabinet){
+function customerCabinetStatusInfo(cabinet,p){
  const parts=(cabinet&&cabinet.parts)||[];
+ const roomId=p&&cabinet&&cabinet.roomId&&(p.rooms||[]).some(r=>r.id===cabinet.roomId)?cabinet.roomId:'';
+ const sentV=p&&typeof window.fiqSentVersionCount==='function'?window.fiqSentVersionCount(p.id,roomId,cabinet.id):0;
  const allInstalled=parts.length>0&&parts.every(x=>x.status==="installed");
  const someInstalled=parts.some(x=>x.status==="installed");
  if(allInstalled)return{label:t("studio.customerLibrary.statusInstalled"),cls:"status-done"};
  if(someInstalled)return{label:t("studio.customerLibrary.statusInstalling"),cls:"status-progress"};
- if(parts.length)return{label:t("studio.customerLibrary.statusCuttingListReady"),cls:"status-ready"};
+ // "Cutting List sent" only when a saved (sent) Cutting List version exists for this job.
+ if(sentV)return{label:'📋 Cutting List sent · V'+sentV,cls:"status-ready"};
+ if(parts.length)return{label:t("studio.customerLibrary.statusDrawingInProgress"),cls:"status-progress"};
  if(cabinet&&cabinet.drawing)return{label:t("studio.customerLibrary.statusDrawingInProgress"),cls:"status-progress"};
  return{label:t("studio.customerLibrary.statusNewJob"),cls:"status-new"};
 }
@@ -3475,7 +3491,7 @@ function renderCustomerCard(){
    const outsideRooms=!room&&(p.rooms||[]).some(r=>r.name);
    const name=(room?room.name:(p.name||t("studio.customerLibrary.untitledJob")))+((unitCount>1||outsideRooms)&&cabinet.name?" · "+cabinet.name:"");
    const subtitle=showSubtitle||!room?safe(p.name||t("studio.customerLibrary.untitledJob")):"";
-   const status=customerCabinetStatusInfo(cabinet);
+   const status=customerCabinetStatusInfo(cabinet,p);
    const panelTotal=(cabinet.parts||[]).reduce((n,pt)=>n+Math.max(1,Number(pt.qty)||1),0);
    const panelHtml=panelTotal?`<span>${t(panelTotal===1?"studio.jobOverview.panelTotalSingular":"studio.jobOverview.panelTotalPlural",[panelTotal])}</span>`:"";
    const updatedHtml=p.updatedAt?`<span class="customer-tab-row-updated">${t("studio.customerLibrary.updatedPrefix",[timeAgo(p.updatedAt)])}</span>`:"";
@@ -7619,6 +7635,13 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
 .fiq-hw-summary{flex:1 1 auto;color:#c96a00;font-weight:800;font-size:14px}
 .fiq-hw-chevron{flex:0 0 auto;font-size:18px;color:#c96a00}
 .fiq-hw-body{padding:0 16px 16px}
+.fiq-cl-card{padding:0!important;overflow:hidden}
+.fiq-cl-toggle{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:14px 16px;cursor:pointer;text-align:left;font:inherit;color:#171c46}
+.fiq-cl-toggle strong{font-size:17px;flex:0 0 auto}
+.fiq-cl-summary{flex:1 1 auto;color:#2f7d16;font-weight:800;font-size:14px}
+.fiq-cl-chevron{flex:0 0 auto;font-size:18px;color:#2f7d16}
+.fiq-cl-body{padding:0 16px 16px}
+.fiq-sheet-layout>summary{cursor:pointer;font-weight:800;color:#174E98;padding:6px 0}
 .hardware-checklist-qty{width:64px;flex:0 0 auto;padding:7px 8px;border:2px solid #ffdcaa;border-radius:8px;font-weight:800;color:#171c46;text-align:center}
 </style>
 <script id="a177-build-hardware-checklist-script">
@@ -7656,7 +7679,8 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
       }
       return `<label class="build-checklist-row"><input data-checklist-toggle="${i}" type="checkbox" ${item.done?'checked':''}><span>${safe(item.name)}</span><button aria-label="Remove" class="build-checklist-remove" data-checklist-remove="${i}" type="button">✕</button></label>`;
     }).join('');
-    return `<div class="build-checklist-card"><div class="build-checklist-head"><strong>Panel checklist</strong><span>${done} of ${total} ticked off</span></div><div class="muted" style="margin:-4px 0 10px;font-size:12px">Panels already added on the drawing are ticked automatically.</div><div class="build-checklist-list">${autoItems}${presetItems}</div><div class="build-checklist-add"><input id="newChecklistItemInput" placeholder="Add your own, e.g. shelf" type="text"><button class="btn" id="addChecklistItemBtn" type="button">+ Add</button></div></div>`;
+    const open=!!window.__fiqChecklistOpen;// collapsed by default; remembered only while Studio is open
+    return `<div class="build-checklist-card fiq-cl-card${open?' open':''}"><button type="button" class="fiq-cl-toggle" data-checklist-collapse aria-expanded="${open}"><strong>✅ Panel checklist</strong><span class="fiq-cl-summary">${done} of ${total} ticked off</span><span class="fiq-cl-chevron" aria-hidden="true">${open?'▾':'▸'}</span></button><div class="fiq-cl-body"${open?'':' hidden'}><div class="muted" style="margin:-4px 0 10px;font-size:12px">Panels already added on the drawing are ticked automatically.</div><div class="build-checklist-list">${autoItems}${presetItems}</div><div class="build-checklist-add"><input id="newChecklistItemInput" placeholder="Add your own, e.g. shelf" type="text"><button class="btn" id="addChecklistItemBtn" type="button">+ Add</button></div></div></div>`;
   }
   function hardwareChecklistHtml(c){
     if(!c)return'';
@@ -7670,6 +7694,16 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
   }
 
   document.addEventListener('click',e=>{
+    const clCollapse=e.target.closest&&e.target.closest('[data-checklist-collapse]');
+    if(clCollapse){
+      window.__fiqChecklistOpen=!window.__fiqChecklistOpen;
+      const card=clCollapse.closest('.fiq-cl-card'),body=card&&card.querySelector('.fiq-cl-body');
+      if(card)card.classList.toggle('open',window.__fiqChecklistOpen);
+      if(body)body.hidden=!window.__fiqChecklistOpen;
+      clCollapse.setAttribute('aria-expanded',String(window.__fiqChecklistOpen));
+      const ch=clCollapse.querySelector('.fiq-cl-chevron');if(ch)ch.textContent=window.__fiqChecklistOpen?'▾':'▸';
+      return;
+    }
     const collapse=e.target.closest&&e.target.closest('[data-hw-collapse]');
     if(collapse){
       window.__fiqHwOpen=!window.__fiqHwOpen;
@@ -8404,10 +8438,13 @@ body.fiq-locked .app{display:none!important}
     box.innerHTML='<div class="est-mat-card">'+
       '<div class="est-mat-title">📐 Estimated Sheets</div>'+
       warn+
+      '<details class="fiq-sheet-layout"'+(window.__fiqSheetLayoutOpen?' open':'')+'><summary>Show sheet layout</summary>'+
       '<div id="estimatedMaterialsBody"></div>'+
+      '</details>'+
       '<div class="est-mat-note">Estimate only. Adjust the sheet size below to match what you actually have in stock — the final layout may change once your supplier optimises the full cutting job.</div>'+
     '</div>';
     window.a181RenderInto(document.getElementById('estimatedMaterialsBody'),complete,'Add material, thickness and dimensions to your panels to see an estimated sheet layout here.');
+    var lay=box.querySelector('.fiq-sheet-layout');if(lay)lay.addEventListener('toggle',function(){window.__fiqSheetLayoutOpen=lay.open});
     renderShopping();
   }
   // Shopping List for the unit open in Panel Check (the same scope as the sheet estimate
@@ -11533,6 +11570,85 @@ document.addEventListener('mousedown',function(e){
     try{const count=await clearCompanyTestData();alert('All test data is cleared. '+count+' cloud transfer record'+(count===1?' was':'s were')+' removed. Open Mobile while online so it can clear its local jobs too.')}catch(e){console.error(e);alert(e&&e.message||'The test data could not be cleared. Nothing local was removed.')}finally{button.disabled=false;button.textContent='·'}
   };
   setInterval(()=>{const owner=window.fittersiqUser&&window.fittersiqUser.role==='company_owner';button.style.display=owner?'':'none';checkCompanyReset()},3000);
+})();
+</script>
+<style id="fiq-panel-check-compact-style">
+/* Checked panels as one compact line (display only); click to see the full card. */
+.panel-check-card.fiq-compact{display:flex!important;align-items:center;padding:9px 14px!important;border-radius:12px!important;border-left-width:6px!important;cursor:pointer;min-height:0!important;gap:0!important}
+.panel-check-card.fiq-compact>*:not(.fiq-compact-line){display:none!important}
+.fiq-compact-line{display:none}
+.panel-check-card.fiq-compact .fiq-compact-line{display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%;font-weight:800;color:#23364e;font-size:14px}
+.fiq-compact-line .fiq-compact-tick{color:#2f7d16;font-weight:900}
+.fiq-compact-line .fiq-compact-code{font-weight:900}
+.fiq-compact-line .fiq-compact-more{margin-left:auto;color:#5b6b7f;font-size:12px;font-weight:700}
+.fiq-card-compact-btn{margin-top:8px;border:1px solid #cfdae6;background:#fff;border-radius:9px;padding:6px 10px;font-weight:800;cursor:pointer;color:#33415c}
+</style>
+<script id="fiq-panel-check-compact">
+// Small display fixes for Panel Check and Job Overview (no rules or data changed):
+//  - Opening Panel Check always redraws it from the current data, so a change made in
+//    Drawing (e.g. a typed length) is shown at once instead of an old "all checked" view.
+//  - Checked panels show as one compact line; a click opens the full card, "Compact"
+//    folds it again. Unchecked panels stay full-size.
+//  - The Needs Attention / Damaged / Missing window closes with × or a click outside it.
+(function(){
+ // Panel Check redraw on opening.
+ const prevShow=show;
+ show=function(name){
+  const was=state.screen;
+  const r=prevShow.apply(this,arguments);
+  if(name==='parts'&&was!=='parts'&&typeof renderAll==='function'){try{renderAll()}catch(e){console.error('Panel Check redraw failed',e)}}
+  return r;
+ };
+ try{window.show=show}catch(e){}
+
+ // Compact checked cards.
+ const open=window.__fiqOpenCards=window.__fiqOpenCards||new Set();
+ function panelById(id){
+  const pr=typeof project==='function'?project():null;
+  for(const c of (pr&&pr.cabinets)||[])for(const p of c.parts||[])if(String(p.id)===String(id))return p;
+  return null;
+ }
+ function compact(){
+  const box=document.getElementById('partsSummary');if(!box)return;
+  box.querySelectorAll('.panel-check-card.complete').forEach(card=>{
+   const btn=card.querySelector('[data-edit-panel]');const id=btn&&btn.dataset.editPanel;if(!id)return;
+   card.dataset.fiqCard=id;
+   if(!card.querySelector('.fiq-compact-line')){
+    const p=panelById(id);
+    const code=(card.querySelector('.panel-check-code')||{}).textContent||'';
+    const name=(card.querySelector('.panel-check-name')||{}).textContent||'';
+    const size=p?[p.length,p.width,p.thickness].map(v=>v||'—').join(' × ')+' mm · Qty '+(p.qty||'—'):'';
+    const mat=p?String((typeof materialForPanel==='function'?materialForPanel(p):p.material)||''):'';
+    const line=document.createElement('div');line.className='fiq-compact-line';
+    line.innerHTML='<span class="fiq-compact-tick">✓</span><span class="fiq-compact-code">'+safe(code)+'</span><span>'+safe(name)+'</span><span>'+safe(size)+'</span>'+(mat?'<span>'+safe(mat)+'</span>':'')+'<span class="fiq-compact-more">Details ▸</span>';
+    card.prepend(line);
+    const actions=card.querySelector('.panel-check-actions');
+    if(actions&&!actions.querySelector('[data-fiq-compact-btn]')){const b=document.createElement('button');b.type='button';b.className='fiq-card-compact-btn';b.dataset.fiqCompactBtn=id;b.textContent='▴ Compact';actions.appendChild(b)}
+   }
+   const want=!open.has(id);
+   if(card.classList.contains('fiq-compact')!==want)card.classList.toggle('fiq-compact',want);
+  });
+ }
+ document.addEventListener('click',e=>{
+  const fold=e.target.closest&&e.target.closest('[data-fiq-compact-btn]');
+  if(fold){e.stopPropagation();open.delete(fold.dataset.fiqCompactBtn);compact();return}
+  const card=e.target.closest&&e.target.closest('#partsSummary .panel-check-card.fiq-compact');
+  if(card&&card.dataset.fiqCard){open.add(card.dataset.fiqCard);compact()}
+ });
+ const prevRenderParts=window.renderParts;
+ window.renderParts=function(){const r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;compact();return r};
+ try{renderParts=window.renderParts}catch(e){}
+ // Views that redraw the cards without renderParts (e.g. checking several jobs together).
+ const watch=()=>{const box=document.getElementById('partsSummary');if(!box)return;new MutationObserver(()=>compact()).observe(box,{childList:true,subtree:true})};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',watch,{once:true});else watch();
+
+ // Needs Attention window: × and click outside close it (its markup is created after the
+ // script that tried to attach these, so they were never attached).
+ document.addEventListener('click',e=>{
+  if(typeof window.closeAttentionModal!=='function')return;
+  if(e.target.closest&&e.target.closest('#attentionModalClose'))window.closeAttentionModal();
+  else if(e.target&&e.target.id==='attentionModal')window.closeAttentionModal();
+ });
 })();
 </script>
 <script src="fittersiq-help.js?v=20260911-clean1"></script>

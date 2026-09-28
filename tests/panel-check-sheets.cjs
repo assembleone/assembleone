@@ -36,6 +36,8 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  });
  await page.waitForTimeout(500);
  const S=fn=>page.evaluate(fn);
+ // The detailed sheet layout is behind "Show sheet layout" (collapsed by default).
+ await page.locator('.fiq-sheet-layout > summary').click();await page.waitForTimeout(200);
  const dataBefore=await S(()=>JSON.stringify(state.projects.map(p=>p.cabinets.map(c=>c.parts.map(x=>[x.id,x.code,x.status,x.length,x.width,x.thickness,x.qty,x.material,x.edgeLong,x.edgeShort])))));
  const groups=()=>S(()=>[...document.querySelectorAll('#estimatedMaterialsBody .sheet-optim-group')].map(g=>{const sel=g.querySelector('[data-sheet-preset]');return {
   title:g.querySelector('h4').textContent.trim(),options:[...sel.options].map(o=>o.textContent),selected:sel.options[sel.selectedIndex].textContent,
@@ -94,7 +96,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  const pc=await S(()=>{const sc=document.getElementById('screen-parts');const txt=sc.innerText;return {
   fitter:/Lead Fitter/.test(txt),send:/Send to Mobile/.test(txt),whatsapp:/WhatsApp/i.test(txt),another:/Add another fitter/.test(txt),
   progress:/Installation Progress|Not yet fitted|Total panels/.test(txt),outstanding:/Reported missing or damaged on site/.test(txt),
-  order:!!sc.querySelector('#orderMissingPanelsBtn'),hardware:/Hardware & extras/i.test(txt),check:/Panel checked/.test(txt),
+  order:!!sc.querySelector('#orderMissingPanelsBtn'),hardware:/Hardware & extras/i.test(txt),check:!!sc.querySelector('.panel-review-ok,[data-review-panel]'),
   summary:!!document.querySelector('#customerSheetEstimateCard .cust-sheet-card'),fitterHtml:typeof window.a211FitterRowHtml==='function'}});
  assert.deepEqual(pc,{fitter:false,send:false,whatsapp:false,another:false,progress:false,outstanding:true,order:true,hardware:true,check:true,summary:true,fitterHtml:true},'Panel Check contents');
 
