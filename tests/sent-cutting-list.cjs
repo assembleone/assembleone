@@ -97,7 +97,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  // 3. The job row opens the job page with its six entries; Cutting List there is the same.
  await card();
  await page.locator('.customer-tab-row[data-open-job-design-project="jk"]').click();await page.waitForTimeout(300);
- assert.deepEqual(await S(()=>[...document.querySelectorAll('.fiq-job-dialog [data-job-go]')].map(b=>b.innerText.trim())),['Overview','Drawing','Cutting List','Panel Check','Site Measure','Notes']);
+ assert.deepEqual(await S(()=>[...document.querySelectorAll('.fiq-job-dialog [data-job-go]')].map(b=>b.innerText.trim())),['Overview','Drawing','Cutting List','Panel Check','Site Measure','Notes','📷 Job Evidence (0)']);
  await page.locator('.fiq-job-dialog [data-job-go="cutting"]').click();await page.waitForTimeout(200);
  assert.equal((await dialogRows()).length,2);assert.match(await dialogText(),/Cutting List — Kitchen/);
  await page.locator('.fiq-job-dialog [data-job-back]').click();await page.waitForTimeout(200);

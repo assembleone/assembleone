@@ -2166,6 +2166,26 @@ function jobLogEntriesForRoom(p,roomId){
  const namedRoomIds=new Set((p.rooms||[]).filter(r=>r&&r.name).map(r=>r.id));
  return log.filter(en=>{const r=jobLogEntryRoomId(p,en);return !r||!namedRoomIds.has(r)});
 }
+// Automatic Missing/Damaged lines written by Mobile belong to the Missing/Damaged sections,
+// not to the ordinary Site Updates list. They stay in the job log (the Missing/Damaged
+// sections read them from there).
+function isAutoIssueLogEntry(en){return /^(🔍 Missing:|⚠ Damaged:)/.test(String(en&&en.text||''))}
+// One job's own log entries, strictly: a room card/job -> only entries of that room; the
+// card of units without a room ("__general__", or a Customer Library 'unit:' job) -> only
+// entries that carry no room at all; a job without named rooms -> its whole log. Entries of
+// another room, or of a room that no longer exists, never appear here.
+function jobScopeEntries(p,card){
+ const log=(p&&p.jobLog||[]).filter(Boolean);
+ if(card==='__site_visit__')return jobLogEntriesForRoom(p,null);
+ if(card&&card!=='__general__')return log.filter(en=>jobLogEntryRoomId(p,en)===card);
+ if(!card&&!(p.rooms||[]).some(r=>r&&r.name))return log;
+ return log.filter(en=>!jobLogEntryRoomId(p,en));
+}
+function siteUpdatesForCard(p,card){return jobScopeEntries(p,card).filter(en=>!isAutoIssueLogEntry(en))}
+// Entries Mads marked "Keep with job": the permanent evidence of that exact job.
+function jobEvidenceFor(p,card){return jobScopeEntries(p,card).filter(en=>en.keep)}
+window.fiqSiteUpdatesForCard=siteUpdatesForCard;
+window.fiqJobEvidenceFor=jobEvidenceFor;
 function updateCustomerDetails(customerId,fields){
  const c=state.customers.find(x=>x.id===customerId);if(!c)return;
  if(fields.name!==undefined)c.name=String(fields.name||"").trim()||c.name;
@@ -2988,18 +3008,21 @@ function openEditCustomerDialog(customerId){
    close();renderAll();save();
  };
 }
-function jobLogEntryHtml(en){
+function jobLogEntryHtml(en,withKeep){
  const when=new Date(en.at||Date.now()).toLocaleString();
+ const keepBtn=withKeep?`<button type="button" class="job-notes-keep${en.keep?' kept':''}" data-keep-entry="${safe(en.id)}" title="Kept items stay with this job in Customer Library">${en.keep?'★ Kept with job':'☆ Keep with job'}</button>`:'';
  const photos=(en.photos||[]).map(src=>`<img src="${safe(src)}" alt="Note photo">`).join('');
- return `<div class="job-notes-entry"><div class="job-notes-entry-head"><span>${safe(en.author||'Studio')}</span><span class="job-notes-entry-when">${safe(when)}</span></div>${en.text?`<div class="job-notes-entry-text">${safe(en.text)}</div>`:''}${photos?`<div class="job-notes-entry-photos">${photos}</div>`:''}</div>`;
+ return `<div class="job-notes-entry"><div class="job-notes-entry-head"><span>${safe(en.author||'Studio')}</span><span class="job-notes-entry-when">${safe(when)}</span>${keepBtn}</div>${en.text?`<div class="job-notes-entry-text">${safe(en.text)}</div>`:''}${photos?`<div class="job-notes-entry-photos">${photos}</div>`:''}</div>`;
 }
-function openJobNotesDialog(projectId,roomId){
+function openJobNotesDialog(projectId,roomId,opts){
  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
  const room=roomId?(p.rooms||[]).find(x=>x.id===roomId):null;
  const o=document.createElement('div');o.className='a100-edit-dialog';
+ // Opened from a Job Overview card: that card's own Site Updates only (opts.card).
+ const card=opts&&opts.card!==undefined?opts.card:undefined;
  function renderList(){
-   const entries=jobLogEntriesForRoom(p,roomId).slice().sort((a,b)=>(a.at||0)-(b.at||0));
-   return entries.length?entries.map(jobLogEntryHtml).join(''):'<div class="job-notes-empty">No notes yet for this job.</div>';
+   const entries=(card!==undefined?siteUpdatesForCard(p,card):jobLogEntriesForRoom(p,roomId)).slice().sort((a,b)=>(a.at||0)-(b.at||0));
+   return entries.length?entries.map(en=>jobLogEntryHtml(en,true)).join(''):'<div class="job-notes-empty">No notes yet for this job.</div>';
  }
  // Kitchen and Wardrobe are separate rooms/jobs on Mobile, so this dialog only ever shows
  // and appends to that one room's own notes (see jobLogEntriesForRoom) -- never the whole
@@ -3016,6 +3039,16 @@ function openJobNotesDialog(projectId,roomId){
  document.body.appendChild(o);
  const close=()=>{o.remove();renderCustomers()};
  o.querySelector('#studioJobNotesClose').onclick=close;
+ // Keep with job: marks that entry (with who/when) as permanent evidence of this job. The
+ // entry itself (text, photos, original date and author) is not copied or changed.
+ o.querySelector('#studioJobNotesList').addEventListener('click',e=>{
+   const b=e.target.closest&&e.target.closest('[data-keep-entry]');if(!b)return;
+   const en=(p.jobLog||[]).find(x=>x&&x.id===b.dataset.keepEntry);if(!en)return;
+   if(en.keep)delete en.keep;
+   else en.keep={at:Date.now(),by:(window.fittersiqUser&&window.fittersiqUser.email)||'Studio'};
+   p.updatedAt=Date.now();save();
+   o.querySelector('#studioJobNotesList').innerHTML=renderList();
+ });
  o.onclick=e=>{if(e.target===o)close()};
  let pendingPhotos=[];
  o.querySelector('#studioJobNotePhoto').onchange=async(e)=>{
@@ -3370,9 +3403,12 @@ function renderCustomerCard(){
      `<span class="customer-tab-row-meta"><span class="customer-job-status ${status.cls}">${status.label}</span>${panelHtml}${updatedHtml}</span>`+
      `<span class="customer-tab-row-chevron">›</span>`+
    `</button>`;
-   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" data-open-cutting-list-cabinet="${safe(cabinet.id)}" title="${t("detail.cuttingList")}">📋 ${t("detail.cuttingList")}</button>`;
+   const sentVersions=typeof window.fiqSentVersionCount==='function'?window.fiqSentVersionCount(p.id,room?room.id:"",cabinet.id):0;
+   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn${sentVersions?' has-sent':''}" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" data-open-cutting-list-cabinet="${safe(cabinet.id)}" title="${sentVersions?'Sent Cutting List, version '+sentVersions:'No Cutting List sent yet'}">📋 ${t("detail.cuttingList")}${sentVersions?' · V'+sentVersions:''}</button>`;
+   const evidenceCount=typeof window.fiqJobEvidenceCount==='function'?window.fiqJobEvidenceCount(p.id,room?room.id:"",cabinet.id):0;
+   const evidenceBtn=evidenceCount?`<button type="button" class="customer-cutting-list-btn customer-evidence-btn" data-open-job-evidence="${safe(room?room.id:"")}" data-open-job-evidence-project="${safe(p.id)}" data-open-job-evidence-cabinet="${safe(cabinet.id)}" title="Photos and notes kept with this job">📷 ${evidenceCount}</button>`:"";
    const overflowHtml=`<div class="customer-row-overflow"><button type="button" class="customer-row-overflow-btn" data-overflow-toggle title="${t("studio.customerLibrary.jobOptionsMenuTitle")}">⋮</button><div class="customer-row-overflow-menu" hidden><button type="button" class="customer-row-overflow-item" data-delete-customer-job="${safe(p.id)}">🗑 ${t("detail.delete")}</button></div></div>`;
-   return `<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${cuttingListBtn}${firstInGroup?overflowHtml:""}</div>`;
+   return `<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${cuttingListBtn}${evidenceBtn}${firstInGroup?overflowHtml:""}</div>`;
  }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsDesignsYetEmpty")}</div>`;
  const supplierSendHtml=(customerCardSelectMode&&supplierSelectedJobIds.size>0)?`<button type="button" class="btn primary customer-supplier-send-btn" data-send-selected-supplier>${t(supplierSelectedJobIds.size===1?"studio.customerLibrary.sendToSupplierSingular":"studio.customerLibrary.sendToSupplierPlural",[supplierSelectedJobIds.size])}</button>`:"";
  const jobsTabHtml=jobsToolbarHtml+jobsTabRowsHtml+supplierSendHtml;
@@ -3424,6 +3460,7 @@ function renderCustomerCard(){
  // Site Measure / Notes); its 📋 button opens the job's latest SENT Cutting List, read-only.
  body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=()=>window.fiqOpenJobPage(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet));
  body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>window.fiqOpenSentCuttingList(el.dataset.openCuttingListProject,el.dataset.openCuttingList,el.dataset.openCuttingListCabinet));
+ body.querySelectorAll("[data-open-job-evidence]").forEach(el=>el.onclick=()=>window.fiqOpenJobEvidence(el.dataset.openJobEvidenceProject,el.dataset.openJobEvidence,el.dataset.openJobEvidenceCabinet));
  // Each Site Measurement row (and every photo/photo-group) opens ONLY that room's own
  // photos/measurements -- passing its real roomId means openSiteRoomDetails uses that
  // exact room instead of falling back to "whichever room has a picture".
@@ -10397,6 +10434,8 @@ body.fiq-locked .app{display:none!important}
 .fiq-sent-versions details{margin:8px 0 0 8px}
 .fiq-sent-versions details summary{color:var(--ink,#16281d)}
 .job-overview-row.fiq-job-focus{outline:3px solid #1f9d55;outline-offset:2px}
+.job-notes-keep{margin-left:auto;border:1px solid #bfe3cc;background:#fff;color:#17864a;border-radius:999px;padding:2px 9px;font-weight:800;font-size:12px;cursor:pointer}
+.job-notes-keep.kept{background:#1f9d55;border-color:#1f9d55;color:#fff}
 </style>
 <script id="fiq-sent-cutting-list">
 // A Cutting List belongs to one job (one Job Overview card: a room's units, or a unit with
@@ -10495,7 +10534,8 @@ body.fiq-locked .app{display:none!important}
     '<button type="button" class="btn primary" data-job-go="cutting">Cutting List</button>'+
     '<button type="button" class="btn" data-job-go="panelcheck">Panel Check</button>'+
     '<button type="button" class="btn" data-job-go="site"'+(hasSite?'':' disabled')+'>Site Measure</button>'+
-    '<button type="button" class="btn" data-job-go="notes">Notes</button></div>'+
+    '<button type="button" class="btn" data-job-go="notes">Notes</button>'+
+    '<button type="button" class="btn" data-job-go="evidence">📷 Job Evidence ('+evidenceFor(p,key).length+')</button></div>'+
     '<div class="a100-edit-actions"><button type="button" class="btn" data-job-close>Close</button></div></div>';
    wire();
   }
@@ -10511,6 +10551,7 @@ body.fiq-locked .app{display:none!important}
    o.querySelectorAll('[data-job-go]').forEach(b=>b.onclick=()=>{
     const go=b.dataset.jobGo;
     if(go==='cutting')return cutting(true);
+    if(go==='evidence')return evidence(true);
     close();
     if(go==='drawing')return openJobDesignForRoom(p.id,roomId||'',cab&&cab.id);
     if(go==='panelcheck'){if(!cab)return;switchToProject(p.id,cab.id);renderAll();save();return show('parts')}
@@ -10523,11 +10564,23 @@ body.fiq-locked .app{display:none!important}
     }
    });
   }
+  function evidence(fromHome){
+   const list=evidenceFor(p,key).slice().sort((a,b)=>(a.at||0)-(b.at||0));
+   o.innerHTML='<div class="a100-edit-sheet fiq-job-sheet fiq-evidence-view" data-evidence-view="'+safe(key)+'"><h2>📷 Job Evidence — '+safe(title)+'</h2>'+(sub?'<div class="fiq-job-sub">'+safe(sub)+'</div>':'')+
+    (list.length?'<div class="job-notes-list">'+list.map(en=>jobLogEntryHtml(en,false)).join('')+'</div>':'<div class="fiq-sent-empty" data-evidence-empty>Nothing kept for this job yet. Open its Site Updates in Job Overview and press ☆ Keep with job on the photos and notes to keep.</div>')+
+    '<div class="a100-edit-actions">'+(fromHome?'<button type="button" class="btn" data-job-back>← Job</button>':'')+'<button type="button" class="btn" data-job-close>Close</button></div></div>';
+   wire();
+  }
   o.onclick=e=>{if(e.target===o)close()};
   document.body.appendChild(o);
-  if(start==='cutting')cutting(false);else home();
+  if(start==='cutting')cutting(false);else if(start==='evidence')evidence(false);else home();
  }
+ // Kept Site Updates of this job (room: its room; unit without a room: entries without a room).
+ function evidenceFor(p,key){return typeof window.fiqJobEvidenceFor==='function'?window.fiqJobEvidenceFor(p,key.startsWith('room:')?key.slice(5):'__general__'):[]}
+ window.fiqJobEvidenceCount=(projectId,roomId,cabinetId)=>{const p=state.projects.find(x=>x.id===projectId);return p?evidenceFor(p,jobKeyFor(roomId||'',cabinetId||'')).length:0};
+ window.fiqSentVersionCount=(projectId,roomId,cabinetId)=>{const p=state.projects.find(x=>x.id===projectId);return p?versionsOf(p,jobKeyFor(roomId||'',cabinetId||'')).length:0};
  window.fiqOpenJobPage=openJobPage;
+ window.fiqOpenJobEvidence=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'evidence');
  window.fiqOpenSentCuttingList=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'cutting');
 })();
 </script>
@@ -10546,7 +10599,25 @@ body.fiq-locked .app{display:none!important}
     const cabinets=p&&roomId?(p.cabinets||[]).filter(x=>x.roomId===roomId):(c?[c]:[]);
     const panels=cabinets.flatMap(x=>x.parts||[]);
     const ready=panels.length&&panels.every(p=>typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(p));
-    if(!ready){box.innerHTML='';return}
+    if(!ready){
+      // Explain what still blocks Send to Job Overview (nothing is changed here).
+      if(!panels.length||typeof window.fiqPanelMissingFields!=='function'){box.innerHTML='';return}
+      const LABELS={name:'Part Name',length:'Length',width:'Width',thickness:'Thickness',material:'Material',qty:'Quantity'};
+      const unitOf=pt=>cabinets.find(x=>(x.parts||[]).includes(pt));
+      const tag=pt=>(pt.code||'Panel')+(cabinets.length>1?' ('+((unitOf(pt)||{}).name||'unit')+')':'');
+      const unfinished=panels.filter(pt=>window.fiqPanelMissingFields(pt).length);
+      const unchecked=panels.filter(pt=>!unfinished.includes(pt)&&!(typeof isCompleteSupplierPart==='function'&&isCompleteSupplierPart(pt)));
+      box.innerHTML='<div class="fiq-edge-warning fiq-send-blocked" data-send-blocked><h4>Send to Job Overview is not available yet</h4><p>Every panel in this '+(roomId?'room':'unit')+' must be finished and checked first.</p>'+
+        unfinished.map(pt=>'<p>'+safe(tag(pt))+' — unfinished, missing: '+window.fiqPanelMissingFields(pt).map(k=>LABELS[k]||k).join(', ')+'</p>').join('')+
+        (unchecked.length?'<p>Not checked in Panel Check: '+unchecked.map(pt=>safe(tag(pt))).join(', ')+'</p>':'')+
+        '<div class="fiq-edge-actions">'+(unfinished.length?'<button type="button" class="btn primary" data-send-finish>Finish in Drawing</button>':'')+(unchecked.length?'<button type="button" class="btn" data-send-check>Open Panel Check</button>':'')+'</div></div>';
+      const fin=box.querySelector('[data-send-finish]');
+      if(fin)fin.onclick=()=>{const first=unfinished[0],cab=unitOf(first);if(cab)state.currentCabinet=cab.id;state.currentPart=first.id;state.selectedCopy=-1;state.focusMarker=true;save();renderAll();show('mark');
+        setTimeout(()=>{if(typeof window.fiqShowMissingBasics==='function')window.fiqShowMissingBasics(window.fiqPanelMissingFields(first))},120)};
+      const chk=box.querySelector('[data-send-check]');
+      if(chk)chk.onclick=()=>{const cab=unitOf(unchecked[0]);if(cab)state.currentCabinet=cab.id;save();renderAll();show('parts')};
+      return;
+    }
     box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Return to Job Overview to choose a fitter and send the job.</span><button type="button" class="btn primary" id="panelCheckReturnBtn">Send to Job Overview</button></div>';
     const btn=document.getElementById('panelCheckReturnBtn');
     if(btn)btn.onclick=async()=>{
