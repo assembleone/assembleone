@@ -67,7 +67,9 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  // One materials card at the top: sheets, then Edge Banding and Hardware & Extras.
  assert.equal(await S(()=>!!document.querySelector('#customerSheetEstimateCard [data-shopping-list]')),true,'in the top Estimated Sheets Required card');
  assert.equal(await S(()=>!!document.querySelector('#estimatedMaterialsCard [data-shopping-list]')),false,'no separate Shopping List further down');
- assert.match(await page.locator('#customerSheetEstimateCard').innerText(),/Estimated Sheets Required[\s\S]*sheet[\s\S]*Edge Banding[\s\S]*Hardware & Extras/i,'sheets, then edging, then hardware');
+ assert.equal(await S(()=>document.getElementById('edgeBandingCard').innerText.trim()),'','no separate Edge Banding Required card');
+ assert.equal(await S(()=>document.querySelector('[data-shop-edging-total] b').innerText),'17.00 m','edge banding total');
+ assert.match(await page.locator('#customerSheetEstimateCard').innerText(),/Shopping List[\s\S]*Sheets[\s\S]*sheet[\s\S]*Edge Banding[\s\S]*Total[\s\S]*Hardware & Extras/i,'one Shopping List: sheets, then edging with total, then hardware');
  // Shopping List: automatic edging per material/thickness + saved hardware.
  let s=await shop();
  assert.deepEqual(s.edging,['White melamine · 19mm 7.06 m','Oak veneer · 18mm 9.94 m']);
@@ -86,7 +88,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await row('LED driver / transformer').locator('[data-hw-qty]').fill('2');await page.waitForTimeout(150);
  await row('LED lights').locator('[data-hw-toggle]').check();await page.waitForTimeout(250);
  s=await shop();
- assert.deepEqual(s.hw,['Hinges 18','Drawer runners 6','LED lights Quantity not set','LED driver / transformer 2','Mirror clips 4']);
+ assert.deepEqual(s.hw,['Hinges 18','Drawer runners 6','LED lights quantity not set','LED driver / transformer 2','Mirror clips 4']);
  await row('LED lights').locator('[data-hw-qty]').fill('6');await page.waitForTimeout(150);
  await row('Drawer runners').locator('[data-hw-toggle]').uncheck();await page.waitForTimeout(250);
  // A new custom item.
@@ -103,7 +105,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  s=await shop();
  assert.deepEqual(s.hw,['Hinges 99']);assert.deepEqual(s.edging,['White melamine · 19mm 2.00 m']);
  // The customer's all-jobs sheet card still exists (unchanged scope, clearly labelled).
- assert.match(await page.locator('#customerSheetEstimateCard').innerText(),/Estimated Sheets Required — all 2 jobs/);
+ assert.match(await page.locator('#customerSheetEstimateCard').innerText(),/Shopping List[\s\S]*All 2 jobs for this customer/);
 
  // Reload: hardware ticks/quantities and the Shopping List are kept.
  await load();

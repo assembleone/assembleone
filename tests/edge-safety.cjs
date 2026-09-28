@@ -43,8 +43,10 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  });
  await page.waitForTimeout(500);
  const S=(fn,a)=>page.evaluate(fn,a);
- const total=()=>S(()=>document.querySelector('#edgeBandingCard [data-edge-total]').innerText);
- const unitLine=()=>S(()=>document.querySelector('#edgeBandingCard .fiq-edge-sub')?.innerText||'');
+ // Edge banding metres (same calculation as the Shopping List): whole job, and the
+ // Shopping List's own "Total" for the open unit.
+ const total=()=>S(()=>'Total: '+(Math.round(window.fiqEdgeBandingMetres((0,eval)('state').projects.find(x=>x.id==='ej').cabinets.flatMap(c=>c.parts))*100)/100).toFixed(2)+' m');
+ const unitLine=()=>S(()=>{renderAll();const t=document.querySelector('#customerSheetEstimateCard [data-shop-edging-total] b');return t?t.innerText:''});
  const warning=()=>S(()=>{const w=document.querySelector('#edgeCheckWarning .fiq-edge-warning');return w?w.innerText.replace(/\s+/g,' ').trim():''});
  const reviewed=id=>S(id=>{const p=(0,eval)('state').projects.find(x=>x.id==='ej').cabinets.flatMap(c=>c.parts).find(x=>x.id===id);return window.panelIsReviewed(p)},id);
  const edges=ids=>S(ids=>{const all=(0,eval)('state').projects.find(x=>x.id==='ej').cabinets.flatMap(c=>c.parts);return ids.map(id=>{const p=all.find(x=>x.id===id);return p.edgeLong+'/'+p.edgeShort})},ids);
@@ -52,7 +54,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
 
  // Metres before: 0.6 (P-001) + 0.8 + 0.4 (the doors) + (2 x 1.0 + 0.5) x 3 (Qty 3) = 9.30 m.
  assert.equal(await total(),'Total: 9.30 m','edge banding total, every piece, no waste');
- assert.equal(await unitLine(),'This unit (Unit A): 9.30 m · whole job, 2 units: 9.30 m');
+ assert.equal(await unitLine(),'9.30 m','Shopping List edge banding total for the open unit');
 
  // No edging anywhere in the group: straight to green, no warning.
  await check('n1');
@@ -75,6 +77,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.deepEqual(await edges(['s1','s2','s3','s4','s5','s6','s7']),Array(7).fill('1/0'),'edging applied to the manufacturing data');
  assert.deepEqual([await reviewed('s1'),await reviewed('s2'),await warning()],[true,false,''],'P-001 checked; changed panels need checking again');
  assert.equal(await total(),'Total: 12.90 m','total updates at once (+6 x 0.60 m)');
+ assert.equal(await unitLine(),'12.30 m','Shopping List updates at once (Unit A +5 x 0.60 m)');
  // Checking P-002 now: consistent, straight to green. Cutting List and supplier data see it.
  await check('s2');assert.deepEqual([await warning(),await reviewed('s2')],['',true]);
  const supplier=await S(()=>{switchToProject('ej','ua');const r=fiqSupplierDataset().rows.find(x=>x.panelNumber==='P-002');return [r.edgeTop,r.edgeBottom,r.edgeLeft,r.edgeRight]});

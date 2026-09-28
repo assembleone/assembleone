@@ -52,7 +52,7 @@ const cdn=u=>/^https:\/\/(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net)\//.test(Str
  const warning=()=>S(()=>{const w=document.querySelector('#edgeCheckWarning .fiq-edge-warning');return w?w.innerText.replace(/\s+/g,' ').trim():''});
  const unit=async id=>{await S(id=>{switchToProject('rj',id);show('parts');renderAll()},id);await page.waitForTimeout(250)};
  const check=async id=>{await S(()=>{show('parts');renderAll()});await page.waitForTimeout(250);await page.locator(`#partsSummary [data-review-panel="${id}"]`).dblclick();await page.waitForTimeout(300)};
- const total=()=>S(()=>{renderAll();return document.querySelector('#edgeBandingCard [data-edge-total]').innerText});
+ const total=()=>S(()=>'Total: '+(Math.round(window.fiqEdgeBandingMetres((0,eval)('state').projects.find(x=>x.id==='rj').cabinets.flatMap(c=>c.parts))*100)/100).toFixed(2)+' m');
  // Every Yes is checked against this: no edge count on any panel may ever go down.
  const yes=async()=>{const before=await all();await page.locator('[data-edge-apply]').click();await page.waitForTimeout(400);const after=await all();
   for(const id of Object.keys(before))assert.ok(after[id][0]>=before[id][0]&&after[id][1]>=before[id][1],'edging removed from '+id+': '+before[id]+' -> '+after[id]);return after};
