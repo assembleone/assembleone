@@ -2219,6 +2219,17 @@ async function finishDesignToCard(projectId){
  renderAll();
 }
 
+// Home and New Project close the open job. It stays saved exactly as it is; only the
+// selection is released, so an empty Drawing never keeps editing (or showing the customer
+// of) the previous job.
+window.fiqCloseOpenJob=function(){
+ if(!state.currentProject)return false;
+ save();// stores anything just typed for that job first
+ Object.assign(state,{currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,lastChosenPartName:'',selectedCopy:-1,focusMarker:false,numbering:false});
+ window.fiqQtyUnlockedPartId=null;
+ save();renderAll();
+ return true;
+};
 function save(){
  // Only the editing tab writes. At startup (editor not decided yet) the just-loaded data
  // needs no write; the stable save runs as soon as this tab is confirmed as the editor.
@@ -2276,6 +2287,7 @@ window.addEventListener('popstate',function(e){
 // create the next one.
 function blankUnstartedProject(){return state.projects.find(p=>!String(p.name||"").trim()&&!String(p.customer||"").trim()&&!(p.rooms||[]).length&&!(p.cabinets||[]).length)}
 function newJob(){
+ if(typeof window.fiqCloseOpenJob==='function')window.fiqCloseOpenJob();
  if(!window.__skipNewProjectLanding&&typeof window.openNewProjectLanding==='function'&&window.openNewProjectLanding())return;
  window.__skipNewProjectLanding=false;
  const existing=blankUnstartedProject();

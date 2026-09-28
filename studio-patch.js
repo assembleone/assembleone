@@ -3,6 +3,7 @@
 
   function goHome(){
     try{
+      if(typeof window.fiqCloseOpenJob==='function')window.fiqCloseOpenJob();
       if(typeof window.show==='function'){
         window.show('jobs');
         if(typeof window.renderAll==='function')window.renderAll();
