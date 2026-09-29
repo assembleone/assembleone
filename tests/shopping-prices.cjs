@@ -39,7 +39,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  });
  await page.waitForTimeout(400);
  const card=page.locator('#customerSheetEstimateCard');
- const rows=()=>S(()=>[...document.querySelectorAll('#fiqShoppingList .fiq-shop-priced')].map(r=>({kind:r.dataset.shopSheet!==undefined?'sheet':r.dataset.shopEdging!==undefined?'edge':'hw',text:r.innerText.replace(/\s+/g,' ').trim(),count:(r.querySelector('.cust-sheet-count')||{}).textContent||'',price:r.querySelector('.fiq-price-input').value,line:r.querySelector('[data-price-line]').textContent})));
+ const rows=()=>S(()=>[...document.querySelectorAll('#fiqShoppingList .fiq-shop-priced')].map(r=>({kind:r.dataset.shopSheet!==undefined?'sheet':r.dataset.shopEdging!==undefined?'edge':r.dataset.shopCuts!==undefined?'cut':'hw',text:r.innerText.replace(/\s+/g,' ').trim(),count:(r.querySelector('.cust-sheet-count')||{}).textContent||'',price:r.querySelector('.fiq-price-input').value,line:r.querySelector('[data-price-line]').textContent})));
  const cost=()=>S(()=>({total:document.querySelector('[data-supplier-cost] b').textContent,missing:document.querySelector('[data-supplier-cost-missing]').hidden?'':document.querySelector('[data-supplier-cost-missing]').textContent}));
  // One scope: this unit. Sheets equal the Estimated Sheets card; all-jobs count is a note.
  assert.match(await card.innerText(),/This unit: Wardrobe job · Bedroom · Wardrobe/);
@@ -68,11 +68,11 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.equal(r.find(x=>x.kind==='edge').price,'0.47','comma price understood');
  assert.equal(r.find(x=>x.text.startsWith('Handles')).line,'','no quantity: not priced');
  const expected=sheetQty*42.17+edgeM*0.47+38.52+144.78;
- assert.deepEqual(await cost(),{total:e2(expected),missing:'1 item has no quantity'},'only priced lines count');
+ assert.deepEqual(await cost(),{total:e2(expected),missing:'1 item has no price · 1 item has no quantity'},'only priced lines count (cutting left unpriced here)');
  if(process.env.SHOT)await card.screenshot({path:process.env.SHOT+'/shopping-prices.png'});
  // Remembered after a reload.
  await load();await S(()=>{switchToProject('ja','ua');renderAll();show('parts');renderAll()});await page.waitForTimeout(400);
- assert.deepEqual(await cost(),{total:e2(expected),missing:'1 item has no quantity'},'prices kept after reload');
+ assert.deepEqual(await cost(),{total:e2(expected),missing:'1 item has no price · 1 item has no quantity'},'prices kept after reload');
  // Another job: the same items are prefilled; other items are not.
  await S(()=>{switchToProject('jb','ub');renderAll();show('parts');renderAll()});await page.waitForTimeout(400);
  r=await rows();
