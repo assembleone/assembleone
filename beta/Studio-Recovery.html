@@ -3655,8 +3655,8 @@ function mobileAppBase(){return (localStorage.getItem("assembleone_mobile_app_ur
 // Mobile has read since the per-marker build of 16 Aug 2026: piece 1 = -1 (the primary
 // instance), piece k = k-2 (copies[k-2], shown on the drawing as marker k). Without a
 // piece the text is exactly the old whole-panel QR, which Mobile still counts the old way.
-function phoneQrText(p,piece){
- const pr=project(),c=cabinet();
+// The per-piece FittersIQ QR text for a panel of a given job/unit (same format everywhere).
+function fiqPieceQrText(pr,c,p,piece){
  const route=`${encodeURIComponent(pr?.id||"")}:${encodeURIComponent(c?.id||"")}:${encodeURIComponent(p.id)}`;
  const ci=Number.isInteger(piece)&&piece>=1?(piece===1?-1:piece-2):null;
  const base=mobileAppBase();
@@ -3664,6 +3664,8 @@ function phoneQrText(p,piece){
  const o={a:"A1",v:8,projectId:pr?.id||"",cabinetId:c?.id||"",panelId:p.id};if(ci!=null)o.copyIndex=ci;
  return JSON.stringify(o);
 }
+window.fiqPieceQrText=fiqPieceQrText;
+function phoneQrText(p,piece){return fiqPieceQrText(project(),cabinet(),p,piece)}
 function fiqPieceIssues(part){const s=part&&part.pieceStates;if(!s||typeof s!=="object")return [];return Object.keys(s).filter(k=>s[k]&&(s[k].status==="missing"||s[k].status==="damaged")).map(k=>({piece:Number(k),status:s[k].status,note:s[k].note||""})).sort((a,b)=>a.piece-b.piece)}
 function fiqPanelIssue(part){if(part&&(part.status==="missing"||part.status==="damaged"))return part.status;const i=fiqPieceIssues(part);return i.some(x=>x.status==="damaged")?"damaged":i.length?"missing":null}
 function fiqPieceIssueText(part){const n=Math.max(1,Number(part?.qty)||1);return fiqPieceIssues(part).map(x=>"piece "+x.piece+"/"+n+" "+x.status).join(", ")}
@@ -4023,7 +4025,7 @@ async function sendPackToPhoneDirectly(pack){
            const write=async tx=>{
              const current=tx?await tx.get(ref):null;
              const existing=current&&current.exists()?current.data():null;
-             if(existing&&existing.exportedAt&&envelope.exportedAt&&Date.parse(existing.exportedAt)>Date.parse(envelope.exportedAt))return;
+             if(existing&&existing.exportedAt&&envelope.exportedAt&&Date.parse(existing.exportedAt)>=Date.parse(envelope.exportedAt))return;// same or newer send already there: never reset it to waiting
              if(tx)tx.set(ref,envelope);else await fs.setDoc(ref,envelope);
            };
            if(fs.runTransaction)await fs.runTransaction(db2,write);else await write(null);
@@ -10625,6 +10627,12 @@ body.fiq-locked .app{display:none!important}
 .fiq-sent-table th,.fiq-sent-table td{border-bottom:1px solid var(--line,#dde5ee);padding:5px 6px;text-align:left;vertical-align:top}
 .fiq-sent-table th{font-size:12px;color:var(--muted,#5b6b7f)}
 .fiq-sent-table td.num{white-space:nowrap}
+.fiq-sent-qr-btn{border:1px solid #cfdae6;background:#fff;border-radius:8px;padding:3px 8px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap}
+.fiq-qr-view{z-index:760}
+.fiq-qr-sheet{width:min(620px,100%)}
+.fiq-qr-grid{display:flex;flex-wrap:wrap;gap:14px}
+.fiq-qr-piece{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border:1px solid #e3e9f0;border-radius:12px}
+.fiq-qr-piece small{font-size:10px;color:#5b6b7f;max-width:180px;word-break:break-all;text-align:center}
 .fiq-sent-versions summary{cursor:pointer;font-weight:800;color:var(--muted,#5b6b7f);font-size:13px}
 .fiq-sent-versions details{margin:8px 0 0 8px}
 .fiq-sent-versions details summary{color:var(--ink,#16281d)}
@@ -10664,7 +10672,8 @@ body.fiq-locked .app{display:none!important}
     unit:String(c.name||''),room:String(room&&room.name||'')}));
   });
  }
- const sameRows=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+ const noQr=rows=>(rows||[]).map(r=>{const x={...r};delete x.pieces;return x});
+ const sameRows=(a,b)=>JSON.stringify(noQr(a))===JSON.stringify(noQr(b));
  function versionsOf(p,key){return (p&&p.sentCuttingLists&&Array.isArray(p.sentCuttingLists[key]))?p.sentCuttingLists[key]:[]}
  // Called only by Send to Job Overview.
  function recordSent(p,roomId,cabinetId){
@@ -10674,6 +10683,11 @@ body.fiq-locked .app{display:none!important}
   const list=versionsOf(p,key),latest=list[list.length-1];
   if(latest&&sameRows(latest.panels,rows))return latest;// nothing changed: no new version
   const room=(p.rooms||[]).find(r=>r.id===roomId);
+  // The QR identity of every physical piece, exactly as the supplier stickers carry it, is
+  // stored with this version so the saved list never has to rebuild it later.
+  const cabs=scopeCabinets(p,key);
+  rows.forEach(r=>{const c=cabs.find(x=>(x.parts||[]).some(pt=>String(pt.id)===r.panelId)),pt=c&&c.parts.find(x=>String(x.id)===r.panelId);
+   r.pieces=pt?Array.from({length:r.quantity},(_,i)=>{const qr=fiqPieceQrText(p,c,pt,i+1);return {piece:i+1,qr,label:typeof window.fiqQrLabelText==='function'?window.fiqQrLabelText(qr):qr}}):[]});
   const snap=JSON.parse(JSON.stringify({version:list.length+1,sentAt:new Date().toISOString(),jobKey:key,
    job:String(p.name||''),room:String(room&&room.name||''),customer:String(p.customer||''),
    units:scopeCabinets(p,key).map(c=>String(c.name||'')),
@@ -10691,8 +10705,8 @@ body.fiq-locked .app{display:none!important}
  function tableHtml(snap){
   const units=new Set(snap.panels.map(r=>r.unit));
   const showUnit=units.size>1;
-  return '<div class="fiq-sent-scroll"><table class="fiq-sent-table" data-sent-version="'+snap.version+'"><thead><tr><th>Panel</th><th>Part name</th><th>Length × Width × Thk (mm)</th><th>Qty</th><th>Material</th><th>Edging</th><th>Notes</th>'+(showUnit?'<th>Unit</th>':'')+'</tr></thead><tbody>'+
-   snap.panels.map(r=>'<tr data-sent-panel="'+safe(r.panelNumber)+'"><td>'+safe(r.panelNumber)+'</td><td>'+safe(r.partName)+'</td><td class="num">'+r.length+' × '+r.width+' × '+r.thickness+'</td><td class="num">'+r.quantity+'</td><td>'+safe(r.material)+'</td><td class="num">'+safe(edgingText(r))+'</td><td>'+safe(r.notes)+'</td>'+(showUnit?'<td>'+safe(r.unit)+'</td>':'')+'</tr>').join('')+
+  return '<div class="fiq-sent-scroll"><table class="fiq-sent-table" data-sent-version="'+snap.version+'"><thead><tr><th>Panel</th><th>Part name</th><th>Length × Width × Thk (mm)</th><th>Qty</th><th>Material</th><th>Edging</th><th>Notes</th>'+(showUnit?'<th>Unit</th>':'')+'<th>QR</th></tr></thead><tbody>'+
+   snap.panels.map((r,i)=>'<tr data-sent-panel="'+safe(r.panelNumber)+'"><td>'+safe(r.panelNumber)+'</td><td>'+safe(r.partName)+'</td><td class="num">'+r.length+' × '+r.width+' × '+r.thickness+'</td><td class="num">'+r.quantity+'</td><td>'+safe(r.material)+'</td><td class="num">'+safe(edgingText(r))+'</td><td>'+safe(r.notes)+'</td>'+(showUnit?'<td>'+safe(r.unit)+'</td>':'')+'<td>'+(Array.isArray(r.pieces)&&r.pieces.length?'<button type="button" class="fiq-sent-qr-btn" data-sent-qr="'+snap.version+':'+i+'" title="Show this panel\'s QR code'+(r.pieces.length>1?'s':'')+'">▦ QR</button>':'<span title="QR codes are saved with Cutting Lists sent from now on">—</span>')+'</td></tr>').join('')+
    '</tbody></table></div>';
  }
  function metaHtml(snap){return '<div class="fiq-sent-meta">Sent '+safe(when(snap.sentAt))+' · Version '+snap.version+' · '+snap.totals.panels+' panel'+(snap.totals.panels===1?'':'s')+', '+snap.totals.pieces+' piece'+(snap.totals.pieces===1?'':'s')+'</div>'}
@@ -10741,6 +10755,17 @@ body.fiq-locked .app{display:none!important}
    wire();
   }
   function wire(){
+   o.querySelectorAll('[data-sent-qr]').forEach(b=>b.onclick=()=>{
+    const [v,i]=b.dataset.sentQr.split(':').map(Number);
+    const snap=versionsOf(p,key).find(x=>x.version===v),r=snap&&snap.panels[i];if(!r||!r.pieces)return;
+    const ov=document.createElement('div');ov.className='a100-edit-dialog fiq-qr-view';
+    ov.innerHTML='<div class="a100-edit-sheet fiq-qr-sheet"><h2>'+safe(r.panelNumber)+' — '+safe(r.partName)+'</h2><div class="fiq-job-sub">'+r.length+' × '+r.width+' × '+r.thickness+' mm · '+safe(r.material)+' · Version '+v+'</div><div class="fiq-qr-grid">'+
+     r.pieces.map((pc,k)=>'<div class="fiq-qr-piece"><div class="fiq-qr-box" data-qr-box="'+k+'"></div><b>'+safe(r.panelNumber)+(r.pieces.length>1?' · piece '+pc.piece+'/'+r.pieces.length:'')+'</b><small>'+safe(pc.label)+'</small></div>').join('')+
+     '</div><div class="a100-edit-actions"><button type="button" class="btn" data-qr-close>Close</button></div></div>';
+    document.body.appendChild(ov);
+    r.pieces.forEach((pc,k)=>{const el=ov.querySelector('[data-qr-box="'+k+'"]');if(el&&typeof makeQr==='function')makeQr(el,pc.qr,140)});
+    const shut=()=>ov.remove();ov.querySelector('[data-qr-close]').onclick=shut;ov.onclick=e=>{if(e.target===ov)shut()};
+   });
    o.querySelectorAll('[data-job-close]').forEach(b=>b.onclick=close);
    const back=o.querySelector('[data-job-back]');if(back)back.onclick=home;
    o.querySelectorAll('[data-job-go]').forEach(b=>b.onclick=()=>{
