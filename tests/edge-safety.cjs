@@ -82,8 +82,8 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await check('s2');assert.deepEqual([await warning(),await reviewed('s2')],['',true]);
  const supplier=await S(()=>{switchToProject('ej','ua');const r=fiqSupplierDataset().rows.find(x=>x.panelNumber==='P-002');return [r.edgeTop,r.edgeBottom,r.edgeLeft,r.edgeRight]});
  assert.deepEqual(supplier,[1,0,0,0],'supplier data has the corrected edging');
- const cutting=await S(()=>{show('cutting');renderAll();return [...document.querySelectorAll('#supplierPanelCards *')].map(e=>e.innerText).find(t=>/P-002/.test(t)&&/edge/i.test(t))||document.getElementById('cuttingBody').innerText});
- assert.match(cutting,/P-002[\s\S]*1 long edge/i,'Cutting List shows the corrected edging');
+ const cutting=await S(()=>{show('cutting');renderAll();const tr=document.querySelector('#supplierPanelCards [data-cutting-row="P-002"]');return tr?[...tr.cells].map(c=>c.innerText.trim()):null});
+ assert.deepEqual(cutting&&[cutting[0],cutting[5],cutting[6]],['P-002','1','0'],'Cutting List shows the corrected edging (Long edges 1, Short edges 0)');
 
  // Different edge orientation (Length edge vs Width edge): warns. Keep different is remembered.
  await check('o1');

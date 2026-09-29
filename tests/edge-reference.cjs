@@ -82,8 +82,8 @@ const cdn=u=>/^https:\/\/(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net)\//.test(Str
  await check('a3');
  assert.deepEqual([await warning(),await reviewed('a3')],['',true],'consistent now: straight to green');
  // Cutting List (checked panels): all three, each with the added edge.
- const cutting=await S(()=>{show('cutting');renderAll();return document.getElementById('screen-cutting').innerText});
- for(const code of ['P-001','P-002','P-003'])assert.match(cutting,new RegExp(code+'[\\s\\S]*?1 long edge'),'Cutting List: '+code+' has the edge');
+ const cutting=await S(()=>{show('cutting');renderAll();return Object.fromEntries([...document.querySelectorAll('#supplierPanelCards [data-cutting-row]')].map(tr=>[tr.dataset.cuttingRow,tr.cells[5].innerText.trim()]))});
+ for(const code of ['P-001','P-002','P-003'])assert.equal(cutting[code],'1','Cutting List: '+code+' has the edge (Long edges 1)');
  // Supplier PDF (cutting list page), built exactly as Download Supplier PDF builds it.
  const analyse=await pdfReader(ctx);
  const b64=await S(async()=>{switchToProject('rj','ua');const r=await window.fiqBuildSupplierPackPdf(supplierParts());return r.doc.output('datauristring').split(',')[1]});
