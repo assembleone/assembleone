@@ -1,5 +1,5 @@
 // Cutting List screen = supplier-style table. Real clicks:
-//  - columns exactly: Panel No. | Part name | Thickness | Length | Width | Long edges |
+//  - columns exactly: Panel No. | Part name | Thickness mm | Length mm | Width mm | Long edges |
 //    Short edges | Quantity | Material | Notes, sizes in mm (also when Studio shows cm);
 //  - rows are the open unit's checked panels only (an unchecked panel is not listed, as before),
 //    in panel-number order, from the same rows Send to Job Overview saves (nothing stored);
@@ -46,7 +46,7 @@ const parseCsv=t=>t.replace(/^﻿/,'').split(/\r\n/).filter(Boolean).map(l=>{con
  await page.locator('.nav-btn[data-screen="cutting"]').first().click();await page.waitForTimeout(500);
  const table=await S(()=>{const t=document.querySelector('#supplierPanelCards [data-cutting-table]');return t?{head:[...t.tHead.rows[0].cells].map(c=>c.innerText.trim()),rows:[...t.tBodies[0].rows].map(r=>[...r.cells].map(c=>c.innerText.trim()))}:null});
  assert.ok(table,'the supplier-style table is shown');
- assert.deepEqual(table.head,['Panel No.','Part name','Thickness','Length','Width','Long edges','Short edges','Quantity','Material','Notes'],'exact column order');
+ assert.deepEqual(table.head,['Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes'],'exact column order, mm in the headings');
  assert.deepEqual(table.rows,[
   ['P-001','Side','19','2000','580','1','1','2','White melamine','LED channel 70 mm from front, "grain up"'],
   ['P-002','Shelf','19','764','560','1','0','4','White melamine',''],

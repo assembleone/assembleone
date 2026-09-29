@@ -1727,7 +1727,9 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div id="panelCheckCuttingListStrip"></div>
 <div id="panelIncompleteWarning"></div>
 <div id="edgeCheckWarning"></div>
+<div id="panelCheckViewSwitch"></div>
 <div id="partsSummary"></div>
+<div id="panelCheckTable"></div>
 </section>
 <section class="screen supplier-redesign" id="screen-cutting">
 <div class="supplier-hero"><div><h2 data-i18n="studio.supplier.screenTitle">Supplier</h2><div class="muted" data-i18n="studio.supplier.screenSubtitle">Final cutting information and matching QR stickers.</div></div><div class="supplier-ready" id="supplierReadyBadge" data-i18n="studio.supplier.checkingPanelsPlaceholder">Checking panels…</div></div>
@@ -6112,7 +6114,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
  function mat(p){return String(materialForPanel(p)||'Not set').trim()||'Not set'}
  function rows(){return supplierParts()}
  function edge(n,kind){n=Number(n||0);const k=kind==='long'?{zero:'studio.supplier.noLongEdging',one:'studio.supplier.oneLongEdge',many:'studio.supplier.twoLongEdges'}:{zero:'studio.supplier.noShortEdging',one:'studio.supplier.oneShortEdge',many:'studio.supplier.twoShortEdges'};return n===0?t(k.zero):n===1?t(k.one):t(k.many)}
- function renderSupplierPage(){const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?(missing===1?t("studio.supplier.needsCheckingSingular",[missing]):t("studio.supplier.needsCheckingPlural",[missing])):t("studio.supplier.readyToManufacture");b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>${t("studio.supplier.completePanelsStatLabel")}</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>${t("studio.supplier.totalPiecesStatLabel")}</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>${t("bom.materials")}</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q===1?t("studio.supplier.pieceCountSingular",[q]):t("studio.supplier.pieceCountPlural",[q])}</span></div>`).join('')}</div>`:`<div class="muted">${t("studio.supplier.noCompleteMaterialsYet")}</div>`;const supplierRoom=(project()?.rooms||[]).find(r=>r.id===cabinet()?.roomId),supplierRoomTag=supplierRoom?`<div class="supplier-room-tag">${safe(supplierRoom.name)}</div>`:'';const cards=document.getElementById('supplierPanelCards');if(cards){const ids=new Set(list.map(p=>String(p.id))),pr=project(),cu=cabinet();const tbl=(list.length&&pr&&cu&&typeof window.fiqCuttingListRows==='function')?window.fiqCuttingListRows(pr,'unit:'+cu.id).filter(r=>ids.has(r.panelId)):[];cards.innerHTML=tbl.length?supplierRoomTag+'<div class="fiq-sent-scroll"><table class="fiq-sent-table fiq-cutting-table" data-cutting-table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness</th><th class="num">Length</th><th class="num">Width</th><th class="num">Long edges</th><th class="num">Short edges</th><th class="num">Quantity</th><th>Material</th><th>Notes</th></tr></thead><tbody>'+tbl.map(r=>'<tr data-cutting-row="'+safe(r.panelNumber)+'"><td>'+safe(r.panelNumber)+'</td><td>'+safe(r.partName)+'</td><td class="num">'+r.thickness+'</td><td class="num">'+r.length+'</td><td class="num">'+r.width+'</td><td class="num">'+r.edgeLong+'</td><td class="num">'+r.edgeShort+'</td><td class="num">'+r.quantity+'</td><td>'+safe(r.material)+'</td><td>'+safe(r.notes)+'</td></tr>').join('')+'</tbody></table></div><div class="est-mat-note">All sizes in mm, as in the supplier spreadsheet.</div>':`<div class="empty">${t("studio.supplier.noCompletePanelsReadyForSupplier")}</div>`}}
+ function renderSupplierPage(){const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?(missing===1?t("studio.supplier.needsCheckingSingular",[missing]):t("studio.supplier.needsCheckingPlural",[missing])):t("studio.supplier.readyToManufacture");b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>${t("studio.supplier.completePanelsStatLabel")}</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>${t("studio.supplier.totalPiecesStatLabel")}</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>${t("bom.materials")}</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q===1?t("studio.supplier.pieceCountSingular",[q]):t("studio.supplier.pieceCountPlural",[q])}</span></div>`).join('')}</div>`:`<div class="muted">${t("studio.supplier.noCompleteMaterialsYet")}</div>`;const supplierRoom=(project()?.rooms||[]).find(r=>r.id===cabinet()?.roomId),supplierRoomTag=supplierRoom?`<div class="supplier-room-tag">${safe(supplierRoom.name)}</div>`:'';const cards=document.getElementById('supplierPanelCards');if(cards){const ids=new Set(list.map(p=>String(p.id))),pr=project(),cu=cabinet();const tbl=(list.length&&pr&&cu&&typeof window.fiqCuttingListRows==='function')?window.fiqCuttingListRows(pr,'unit:'+cu.id).filter(r=>ids.has(r.panelId)):[];cards.innerHTML=tbl.length?supplierRoomTag+'<div class="fiq-sent-scroll"><table class="fiq-sent-table fiq-cutting-table" data-cutting-table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Long edges</th><th class="num">Short edges</th><th class="num">Quantity</th><th>Material</th><th>Notes</th></tr></thead><tbody>'+tbl.map(r=>'<tr data-cutting-row="'+safe(r.panelNumber)+'"><td>'+safe(r.panelNumber)+'</td><td>'+safe(r.partName)+'</td><td class="num">'+r.thickness+'</td><td class="num">'+r.length+'</td><td class="num">'+r.width+'</td><td class="num">'+r.edgeLong+'</td><td class="num">'+r.edgeShort+'</td><td class="num">'+r.quantity+'</td><td>'+safe(r.material)+'</td><td>'+safe(r.notes)+'</td></tr>').join('')+'</tbody></table></div><div class="est-mat-note">All sizes in mm, as in the supplier spreadsheet.</div>':`<div class="empty">${t("studio.supplier.noCompletePanelsReadyForSupplier")}</div>`}}
  const baseRender=window.renderCutting;window.renderCutting=function(){if(typeof baseRender==='function')baseRender();renderSupplierPage()};
  function exportCsv(){const list=rows();if(!list.length){setStatus(t("studio.supplier.csvNoCompletePanelsErr"),'err');return}const btn=document.getElementById('exportSupplierCsvBtn');btn.disabled=true;setStatus(t("studio.supplier.csvCreating"));try{const data=[['Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes'],...list.map(p=>[p.code,p.name||'',p.thickness,p.length,p.width,Number(p.edgeLong||0),Number(p.edgeShort||0),Number(p.qty||1),mat(p),p.notes||''])];const csv='\ufeff'+data.map(r=>r.map(escCsv).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=((project()?.name||'Job')+'_'+(cabinet()?.name||'Unit')+'_cutting_list.csv').replace(/[^a-z0-9_-]+/gi,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus(t("studio.supplier.csvExportedSuccess"))}catch(e){console.error(e);setStatus(t("studio.supplier.csvExportFailed"),'err')}finally{setTimeout(()=>btn.disabled=false,400)}}
  function openPrint(title,html){const w=window.open('','_blank');if(!w){setStatus('Print window was blocked. Allow popups for this file.','err');return false}w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safe(title)}</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#223449}h1{font-family:Inter,sans-serif}.card{border:2px solid #d8d6e1;border-left:8px solid #0051ff;border-radius:14px;padding:14px;margin-bottom:10px;page-break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #1f2329;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;page-break-inside:avoid}.sticker img{width:90px;height:90px}.stickers .fiq-sticker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3mm;height:50mm;box-sizing:border-box;border:2px solid #111;border-radius:3mm;padding:3mm;color:#111;overflow:hidden;break-inside:avoid;page-break-inside:avoid}.fs-left{display:flex;flex-direction:column;gap:1.5mm;min-width:0}.fs-name{font:900 17pt Inter,Arial,sans-serif;line-height:1.05;overflow-wrap:anywhere}.fs-dims{font:800 10pt Arial,sans-serif}.fs-mat{font:700 10pt Arial,sans-serif;overflow-wrap:anywhere}.fs-cust{margin-top:auto;font:400 7.5pt Arial,sans-serif;color:#444;overflow-wrap:anywhere}.fs-right{display:flex;flex-direction:column;align-items:center;gap:1mm}.fs-code{font:900 13pt Inter,Arial,sans-serif;line-height:1;white-space:nowrap}.fs-qr img{display:block;width:37mm;height:37mm;image-rendering:pixelated}.qty{font-weight:900}</style>
@@ -10559,6 +10561,128 @@ body.fiq-locked .app{display:none!important}
 .panel-check-status-banner.complete{background:#e6f7ec;color:#16a34a;border:2px solid #9be0af}
 .panel-check-status-banner.missing{background:#fff1f1;color:#bf1f29;border:2px solid #f4b3b3}
 </style>
+<style id="fiq-panel-check-table-style">
+.fiq-pc-switch{display:inline-flex;gap:0;margin:4px 0 10px;border:1px solid #cfd8e3;border-radius:10px;overflow:hidden;background:#fff}
+.fiq-pc-switch button{border:0;background:#fff;padding:8px 14px;font-weight:800;color:#33415c;cursor:pointer}
+.fiq-pc-switch button.active{background:#174E98;color:#fff}
+.fiq-pc-table-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px}
+.fiq-pc-table-head b{font-size:15px;color:#171c46}
+.fiq-sent-table.fiq-pc-table td{vertical-align:middle}
+.fiq-pc-table input,.fiq-pc-table select{width:100%;min-width:0;box-sizing:border-box;padding:4px 5px;border:1px solid transparent;border-radius:6px;background:transparent;font:inherit;color:#171c46}
+.fiq-pc-table input:hover,.fiq-pc-table select:hover{border-color:#d5dce6;background:#fff}
+.fiq-pc-table input:focus,.fiq-pc-table select:focus{border-color:#2b62d9;background:#fff;outline:2px solid rgba(43,98,217,.15)}
+.fiq-pc-table td.num input{text-align:right}
+.fiq-pc-table .fiq-pc-w-num{width:74px}.fiq-pc-table .fiq-pc-w-edge{width:58px}.fiq-pc-table .fiq-pc-w-qty{width:66px}
+.fiq-pc-table tr.fiq-pc-unchecked td{background:#fff8e8}
+.fiq-pc-check{display:inline-block;white-space:nowrap;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:900}
+.fiq-pc-check.ok{background:#e6f7ec;color:#16a34a}
+.fiq-pc-check.todo{background:#fff1d6;color:#9a5b00;border:1px solid #f3c77a;cursor:pointer;user-select:none}
+.fiq-pc-actions{white-space:nowrap}
+.fiq-pc-actions .btn{padding:4px 8px;font-size:12px;min-height:0}
+#partsSummary.fiq-pc-table-mode .panel-check-summary,#partsSummary.fiq-pc-table-mode .panel-review-instruction,#partsSummary.fiq-pc-table-mode .panel-check-grid{display:none}
+.fiq-pc-readonly-note{font-size:13px;font-weight:700;color:#5b6b7f;margin:0 0 6px}
+</style>
+<script id="fiq-panel-check-table">
+(function(){
+  // Panel Check correction table. It edits the existing panels in the open unit (the same
+  // objects Drawing, the Cutting List and every supplier output read); nothing is copied.
+  // Any change to a manufacturing field changes the panel's review signature, so its green
+  // check goes at once. The check cell uses the same double-click as the Quick Check cards
+  // (data-review-panel), so the same approval code (and the edging safety check) runs.
+  window.__fiqPcView=window.__fiqPcView||'cards';
+  const num=v=>Number(v)||0;
+  const codeNo=p=>{const m=String(p.code||'').match(/(\d+)/);return m?Number(m[1]):1e9};
+  const dots=p=>typeof panelDotCount==='function'?panelDotCount(p):1;
+  // Read only while the job is out with a fitter: sent to Mobile (lastMobileSync, the same
+  // mark Drawing's locked installation view uses) and not yet moved to Customer Library.
+  function sentToMobile(){const pr=typeof project==='function'?project():null,c=typeof cabinet==='function'?cabinet():null;if(!pr||!pr.lastMobileSync||pr.movedToLibraryAt)return false;const room=c&&(pr.rooms||[]).find(r=>r.id===c.roomId);return !(room&&room.movedToLibraryAt)}
+  window.fiqPanelTableLocked=sentToMobile;
+  const editable=()=>(!window.fiqEditor||window.fiqEditor.role==='editor')&&!sentToMobile();
+  const combinedOn=()=>!!(window.__jorCombinedCheck&&window.__jorCombinedCheck.active);
+  function unitRows(){const c=typeof cabinet==='function'?cabinet():null;return ((c&&c.parts)||[]).filter(p=>typeof window.fiqPanelMissingFields!=='function'||!window.fiqPanelMissingFields(p).length).slice().sort((a,b)=>codeNo(a)-codeNo(b))}
+  function materialOptions(){const seen=[],add=n=>{n=String(n||'').trim();if(n&&!seen.some(x=>x.toLowerCase()===n.toLowerCase()))seen.push(n)};
+    const c=typeof cabinet==='function'?cabinet():null,pr=typeof project==='function'?project():null;
+    ((pr&&pr.cabinets)||[]).forEach(x=>(x.parts||[]).forEach(p=>add(typeof materialForPanel==='function'?materialForPanel(p):p.material)));
+    (typeof savedMaterials==='function'?savedMaterials():[]).forEach(add);return seen}
+  // Validation, with the same limits Drawing uses. Returns {value} or {error}.
+  function check(p,field,raw){
+    const s=String(raw==null?'':raw).trim();
+    if(field==='name')return s?{value:s}:{error:'Part name cannot be empty.'};
+    if(field==='notes')return {value:s};
+    if(field==='material')return s?{value:s}:{error:'Material cannot be empty.'};
+    if(field==='thickness'||field==='length'||field==='width'){const n=Number(s.replace(',','.'));return s&&isFinite(n)&&n>0?{value:Math.round(n*100)/100}:{error:'Enter a size in mm greater than 0.'}}
+    if(field==='edgeLong'||field==='edgeShort'){const n=Number(s);return [0,1,2].includes(n)?{value:n}:{error:'Edges: 0, 1 or 2.'}}
+    if(field==='qty'){const n=Number(s);if(!s||!isFinite(n)||Math.floor(n)!==n)return {error:'Quantity must be a whole number.'};
+      const q=typeof clampPanelQty==='function'?clampPanelQty(n):Math.min(500,Math.max(1,n));if(q!==n)return {error:'Quantity must be between 1 and 500.'};
+      const d=dots(p);if(n<d)return {error:p.code+' has '+d+' dots on the Drawing, so its quantity cannot be lower than '+d+'. Remove pieces in Drawing (delete a dot) to lower it.'};
+      return {value:n}}
+    return {error:'Not editable here.'};
+  }
+  function current(p,field){if(field==='material')return String((typeof materialForPanel==='function'?materialForPanel(p):p.material)||'');return p[field]}
+  function commit(id,field,raw){
+    const c=typeof cabinet==='function'?cabinet():null,p=c&&(c.parts||[]).find(x=>String(x.id)===String(id));if(!p||!editable())return;
+    const r=check(p,field,raw);
+    if(r.error){alert(r.error);render();return}
+    const before=current(p,field);
+    if(String(before??'').trim()===String(r.value).trim())return render();// the same value: nothing changes, the check stays
+    p[field]=r.value;
+    if(field==='thickness'&&c)c.lastThickness=r.value;// as Drawing does
+    if(field==='material'&&typeof storeMaterialName==='function')storeMaterialName(r.value);// Drawing's material list
+    if(typeof save==='function')save();
+    if(typeof renderAll==='function')renderAll();else render();
+  }
+  window.fiqPanelTableCommit=commit;
+  function cell(p,field,cls,type){const v=field==='material'?current(p,field):p[field];
+    if(field==='edgeLong'||field==='edgeShort')return '<select class="fiq-pc-w-edge" data-pc-edit="'+field+'" data-pc-id="'+safe(p.id)+'"'+(editable()?'':' disabled')+'>'+[0,1,2].map(n=>'<option value="'+n+'"'+(num(v)===n?' selected':'')+'>'+n+'</option>').join('')+'</select>';
+    return '<input class="'+(cls||'')+'" data-pc-edit="'+field+'" data-pc-id="'+safe(p.id)+'" value="'+safe(v??'')+'"'+(type?' inputmode="'+type+'"':'')+(field==='material'?' list="fiqPcMaterials"':'')+(field==='qty'?' title="Quantity 1-500, not lower than the '+dots(p)+' dot'+(dots(p)===1?'':'s')+' on the Drawing"':'')+(editable()?'':' disabled')+'>'}
+  function render(){
+    const sw=document.getElementById('panelCheckViewSwitch'),box=document.getElementById('panelCheckTable'),cards=document.getElementById('partsSummary');
+    if(!sw||!box||!cards)return;
+    const c=typeof cabinet==='function'?cabinet():null;
+    if(combinedOn()||!c||!(c.parts||[]).length){sw.innerHTML='';box.innerHTML='';cards.classList.remove('fiq-pc-table-mode');return}
+    const view=window.__fiqPcView==='table'?'table':'cards';
+    sw.innerHTML='<div class="fiq-pc-switch" role="tablist"><button type="button" data-pc-view="cards" class="'+(view==='cards'?'active':'')+'">Quick Check</button><button type="button" data-pc-view="table" class="'+(view==='table'?'active':'')+'">Correction table</button></div>';
+    cards.classList.toggle('fiq-pc-table-mode',view==='table');// only the cards step aside; checklist and hardware stay
+    if(view!=='table'){box.innerHTML='';return}
+    const rows=unitRows(),ok=rows.filter(p=>window.isCompleteSupplierPart&&window.isCompleteSupplierPart(p)).length;
+    box.innerHTML='<div class="fiq-pc-table-head"><b>'+ok+' of '+rows.length+' panels checked</b><button type="button" class="btn" data-pc-add'+(editable()?'':' disabled')+'>＋ Add panel in Drawing</button></div>'+
+      (editable()?'':'<div class="fiq-pc-readonly-note" data-pc-readonly>'+(sentToMobile()?'🔒 Sent to Mobile · read only. Panels cannot be changed, added or deleted here while this job is with the fitter.':'Read only in this tab.')+'</div>')+
+      '<datalist id="fiqPcMaterials">'+materialOptions().map(m=>'<option value="'+safe(m)+'">').join('')+'</datalist>'+
+      '<div class="fiq-sent-scroll"><table class="fiq-sent-table fiq-cutting-table fiq-pc-table" data-pc-table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Long edges</th><th class="num">Short edges</th><th class="num">Quantity</th><th>Material</th><th>Notes</th><th>Check</th><th></th></tr></thead><tbody>'+
+      rows.map(p=>{const good=!!(window.isCompleteSupplierPart&&window.isCompleteSupplierPart(p));
+        return '<tr data-pc-row="'+safe(p.code)+'" class="'+(good?'fiq-pc-checked':'fiq-pc-unchecked')+'"><td>'+safe(p.code)+'</td><td>'+cell(p,'name')+'</td>'+
+        '<td class="num">'+cell(p,'thickness','fiq-pc-w-num','decimal')+'</td><td class="num">'+cell(p,'length','fiq-pc-w-num','decimal')+'</td><td class="num">'+cell(p,'width','fiq-pc-w-num','decimal')+'</td>'+
+        '<td class="num">'+cell(p,'edgeLong')+'</td><td class="num">'+cell(p,'edgeShort')+'</td><td class="num">'+cell(p,'qty','fiq-pc-w-qty','numeric')+'</td>'+
+        '<td>'+cell(p,'material')+'</td><td>'+cell(p,'notes')+'</td>'+
+        '<td>'+(good?'<span class="fiq-pc-check ok" data-pc-checked>✓ Checked</span>':'<span class="fiq-pc-check todo" data-review-panel="'+safe(p.id)+'" title="Double-click after checking this row">⚠ Double-click to check</span>')+'</td>'+
+        '<td class="fiq-pc-actions"><button type="button" class="btn" data-pc-drawing="'+safe(p.id)+'" title="Edit this panel\'s dot and details in Drawing">Drawing</button> <button type="button" class="btn" data-pc-delete="'+safe(p.id)+'" title="Delete '+safe(p.code)+'"'+(editable()?'':' disabled')+'>🗑</button></td></tr>'}).join('')+
+      '</tbody></table></div><div class="est-mat-note">All sizes in mm, as in the supplier spreadsheet. Any change removes that panel\'s check until it is checked again.</div>';
+    if(window.__fiqPcFocus){const f=window.__fiqPcFocus;window.__fiqPcFocus=null;const el=box.querySelector('[data-pc-edit="'+f.field+'"][data-pc-id="'+f.id+'"]');if(el){el.focus();if(el.select)el.select()}}
+  }
+  window.fiqRenderPanelTable=render;
+  // Commit on change (Enter or leaving the cell), then keep the focus where it went.
+  document.addEventListener('change',e=>{const el=e.target.closest&&e.target.closest('#panelCheckTable [data-pc-edit]');if(!el)return;
+    const id=el.dataset.pcId,field=el.dataset.pcEdit,val=el.value;
+    setTimeout(()=>{const a=document.activeElement;if(a&&a.dataset&&a.dataset.pcEdit)window.__fiqPcFocus={id:a.dataset.pcId,field:a.dataset.pcEdit};commit(id,field,val)},0)});
+  document.addEventListener('keydown',e=>{const el=e.target.closest&&e.target.closest('#panelCheckTable input[data-pc-edit]');if(el&&e.key==='Enter'){e.preventDefault();el.blur()}});
+  document.addEventListener('click',e=>{
+    const v=e.target.closest&&e.target.closest('#panelCheckViewSwitch [data-pc-view]');if(v){window.__fiqPcView=v.dataset.pcView;render();return}
+    const d=e.target.closest&&e.target.closest('#panelCheckTable [data-pc-drawing]');
+    if(d){if(sentToMobile()&&typeof window.fiqOpenInstallationDrawing==='function'){const c=cabinet();window.fiqOpenInstallationDrawing(project().id,c&&c.id,d.dataset.pcDrawing);return}// sent to Mobile: Drawing's locked installation view
+      state.currentPart=d.dataset.pcDrawing;state.selectedCopy=-1;state.focusMarker=true;save();renderAll();show('mark');return}// as the cards' Edit panel
+    const a=e.target.closest&&e.target.closest('#panelCheckTable [data-pc-add]');
+    if(a&&editable()){state.currentPart=null;state.selectedCopy=-1;state.focusMarker=false;save();renderAll();show('mark');const st=document.getElementById('drawingStage');if(st&&st.scrollIntoView)st.scrollIntoView({block:'start'});return}// a new panel = a new dot in Drawing
+    const del=e.target.closest&&e.target.closest('#panelCheckTable [data-pc-delete]');
+    if(del&&editable()){const c=cabinet(),p=c&&(c.parts||[]).find(x=>String(x.id)===String(del.dataset.pcDelete));
+      // The same confirmation and delete as Drawing's Delete button.
+      if(c&&p&&confirm(t("studio.drawing.deletePanelConfirm",[p.code]))){deletePanelAndRenumber(c,p);renderAll();save()}}
+  });
+  const prevRenderParts=window.renderParts;
+  window.renderParts=function(){const r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
+  try{renderParts=window.renderParts}catch(e){}
+  try{render()}catch(e){}
+})();
+</script>
 <script id="fiq-panel-check-view-cutting-list">
 (function(){
   // In the "needs checking" notice position: once every panel of the open unit is finished
@@ -10702,7 +10826,7 @@ body.fiq-locked .app{display:none!important}
     // showing them next to a multi-job combined view would be misleading, so they're
     // cleared while combined mode is active. They come back exactly as before the moment
     // combined mode ends, the next time their own render functions run for the real open job.
-    ['componentsValidation','installProgressCard','estimatedMaterialsCard','customerSheetEstimateCard','panelCheckStatusBanner','edgeBandingCard','edgeCheckWarning','panelIncompleteWarning','panelCheckCuttingListStrip'].forEach(id=>{
+    ['componentsValidation','installProgressCard','estimatedMaterialsCard','customerSheetEstimateCard','panelCheckStatusBanner','edgeBandingCard','edgeCheckWarning','panelIncompleteWarning','panelCheckCuttingListStrip','panelCheckViewSwitch','panelCheckTable'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.innerHTML='';
     });
     let totalParts=0,totalChecked=0;
