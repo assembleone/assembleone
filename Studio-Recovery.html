@@ -2723,7 +2723,7 @@ function renderProject(){
  if(!p){box.innerHTML=`<div class="empty">${t("studio.home.chooseJobFirstEmpty")}</div>`;return}
  box.innerHTML=p.cabinets.length?p.cabinets.map(c=>`<div class="cabinet-card"><div><strong>${safe(c.name)}</strong><div class="muted">${c.parts.length} ${t("studio.home.partsCountLabel")} ${c.drawing?t("studio.home.drawingAddedSuffix"):""}</div></div><div><button class="btn primary" data-open-cabinet="${c.id}">${t("proj.open")}</button> <button class="btn danger" data-delete-cabinet="${c.id}">${t("detail.delete")}</button></div></div>`).join(""):`<div class="empty">${t("studio.home.noWardrobesYetEmpty")}</div>`;
  $$("[data-open-cabinet]").forEach(b=>b.onclick=()=>{state.currentCabinet=b.dataset.openCabinet;state.currentPart=null;renderAll();show("mark")});
- $$("[data-delete-cabinet]").forEach(b=>b.onclick=()=>{if(confirm(t("studio.home.deleteWardrobeConfirm"))){p.cabinets=p.cabinets.filter(c=>c.id!==b.dataset.deleteCabinet);state.currentCabinet=p.cabinets[0]?.id||null;save();renderAll()}})
+ $$("[data-delete-cabinet]").forEach(b=>b.onclick=()=>{if(confirm(t("studio.home.deleteWardrobeConfirm"))){p.deletedCabinetIds=[...new Set([...(p.deletedCabinetIds||[]),b.dataset.deleteCabinet])];p.cabinets=p.cabinets.filter(c=>c.id!==b.dataset.deleteCabinet);state.currentCabinet=p.cabinets[0]?.id||null;save();renderAll()}})
 }
 function drawingRoomIcon(name){
  const n=String(name||"").toLowerCase();
@@ -3767,7 +3767,7 @@ function openStudioRoom(roomId){
  overlay.querySelectorAll('[data-detail-add-unit]').forEach(x=>x.onclick=()=>{assignCabinetRoom(x.dataset.detailAddUnit,r.id);overlay.remove();openStudioRoom(r.id)});
  overlay.querySelectorAll('[data-detail-remove-unit]').forEach(x=>x.onclick=()=>{assignCabinetRoom(x.dataset.detailRemoveUnit,"");overlay.remove();openStudioRoom(r.id)});
  overlay.querySelector('[data-detail-rename]').onclick=()=>{const name=prompt(t("studio.roomDetail.renamePromptLabel"),r.name||"");if(name?.trim()){r.name=name.trim();save();overlay.remove();openStudioRoom(r.id)}};
- overlay.querySelector('[data-detail-delete]').onclick=()=>{if(confirm(t("studio.roomDetail.deleteConfirm",[r.name]))){p.cabinets.forEach(c=>{if(c.roomId===r.id)c.roomId=""});p.rooms=p.rooms.filter(x=>x.id!==r.id);save();close()}};
+ overlay.querySelector('[data-detail-delete]').onclick=()=>{if(confirm(t("studio.roomDetail.deleteConfirm",[r.name]))){p.deletedRoomIds=[...new Set([...(p.deletedRoomIds||[]),r.id])];p.cabinets.forEach(c=>{if(c.roomId===r.id)c.roomId=""});p.rooms=p.rooms.filter(x=>x.id!==r.id);save();close()}};
 }
 function renderStudioRoomGuide(){
  const box=$("#studioRoomGuide");if(!box)return;const p=ensureSharedProject(project());if(!p){box.innerHTML=`<div class="empty">${t("msg.openProjectFirst")}</div>`;return}
@@ -4163,7 +4163,7 @@ base.rooms=base.rooms||[];
 const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","measureCaptures","notePhotos"];
 (incoming.rooms||[]).forEach(ir=>{
   let br=base.rooms.find(x=>x.id===ir.id);
-  if(!br){base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}
+  if(!br){if((base.deletedRoomIds||[]).includes(ir.id))return;base.rooms.unshift(JSON.parse(JSON.stringify(ir)));return}// a room deleted in Studio stays deleted
   if(isStalePacket)return;
   const clonedIr=JSON.parse(JSON.stringify(ir));
   SITE_RECORD_ARRAY_FIELDS.forEach(k=>{if((!clonedIr[k]||!clonedIr[k].length)&&br[k]&&br[k].length)clonedIr[k]=br[k]});
@@ -4178,7 +4178,7 @@ const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","meas
   Object.assign(br,clonedIr);
 });
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,ip,isStalePacket)})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){if((base.deletedCabinetIds||[]).includes(ic.id))return;base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,ip,isStalePacket)})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);if(!merged){alert("This job was deleted from Studio and can't be restored from a backup file.");return}switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
