@@ -1162,6 +1162,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .pc-summary-stat.missing b{color:#e0982a}
 .pc-summary-stat.damaged b{color:#d92f38}
 .pc-drawing-sheet{max-height:92vh}
+/* Find Panel: sized to the VISIBLE screen (iPhone Safari counts vh under its own toolbar) and
+   Fitted / Missing / Damaged pinned to the bottom of the sheet, so they are never cut off. */
+.pc-drawing-sheet{max-height:92dvh}
+.pc-drawing-sheet .fp-actions{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom));z-index:2;margin:0 -16px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:#fff;box-shadow:0 -6px 12px rgba(11,37,69,.06)}
 .pc-drawing-body{position:relative;min-height:260px;background:#eceef3;border-radius:14px;overflow:hidden}
 .pc-drawing-body img{width:100%;display:block}
 .pc-drawing-empty{padding:40px 20px;text-align:center;color:#6d6a7e;font-weight:700}
@@ -2130,7 +2134,9 @@ function renderProjects(){
  if(blanks.length>1){const keep=blanks.some(b=>b.id===state.currentProject)?state.currentProject:blanks[0].id;state.projects=state.projects.filter(p=>p.id===keep||!blanks.some(b=>b.id===p.id));save()}
  const FLOOR_KEYS={'Basement':'intake.floorBasement','Ground':'intake.floorGround','1st floor':'intake.floor1st','2nd floor':'intake.floor2nd','3rd floor':'intake.floor3rd'};
  const floorLabel=f=>{const k=FLOOR_KEYS[f];return k?t(k):f};
- const allRoomsFinished=p=>(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished);
+ // Complete Job (mobileJobCompleted) counts as finished here, as the older finished flag did.
+ const roomDone=r=>!!(r&&(r.finished||r.mobileJobCompleted));
+ const allRoomsFinished=p=>(p.rooms||[]).length>0&&p.rooms.every(roomDone);
  // Full per-room dispatch: card is {project,room} (see cardsForProject/cardKey above),
  // exactly Studio Build 1's own shape -- a real room, the '__general__' stray-cabinets
  // catch-all, or null for a no-rooms project's single implicit card. Only ever expanded
@@ -2152,7 +2158,7 @@ function renderProjects(){
   // room-card of one project, mirroring Studio's own Job Overview card grouping; only the
   // room subtitle and every stat/total below differ per card.
   const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);
-  const finished=realRoom?!!realRoom.finished:allRoomsFinished(p);
+  const finished=realRoom?roomDone(realRoom):allRoomsFinished(p);
   const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);
   const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
   const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>${sync.detail?`<span class="job-sync-detail">${safe(sync.detail)}</span>`:''}${sync.removable?`<button type="button" class="btn job-delete-photos" data-remove-site-measure="${safe(p.id)}">Delete from this device</button>`:''}`:'';
@@ -2228,7 +2234,7 @@ function renderProjects(){
  const SITE_RECEIVED_SAFETY_MS=24*60*60*1000;
  const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0||siteMeasureRemovable(x.project));
  const installCardsActive=installCards.filter(c=>!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
-  .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?!!a.room.finished:allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?!!b.room.finished:allRoomsFinished(b.project))?1:0;return fa-fb});
+  .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?roomDone(a.room):allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?roomDone(b.room):allRoomsFinished(b.project))?1:0;return fa-fb});
  const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt));
  const siteHtml=siteJobs.length?siteJobs.map(p=>jobCard({project:p,room:null})).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
  const openProjectCount=new Set(installCardsActive.map(card=>card.project.id)).size;
