@@ -1607,6 +1607,12 @@ let mobileSelectedCardKeys=new Set();
 // only work actually received from Studio. In-memory only (not persisted) -- a reload
 // lands back on 'jobs', the more permanent of the two lists. See renderProjects().
 let projectsListMode='jobs';
+// Site Measure is its own section: leaving any Site Measure screen for the shared list
+// screen always shows the Site Measure list. Only an explicit tap on Jobs in the bottom
+// navigation picks the Jobs list (listChoiceByNav). The choice is saved with the state.
+const SITE_MEASURE_SCREENS=['measure','newSiteJob','siteVisitSummary','sentToStudio'];
+let listChoiceByNav=false;
+function isOpenSiteJob(){const p=state.projects&&state.projects.find(x=>x.id===state.currentProject);return !!(p&&!isStudioJob(p))}
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const safe=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -1937,8 +1943,23 @@ function applyPanelRoute(route){
 // load. Without this, load() below only ever runs once at startup and the new
 // #panel=... in the URL would be silently ignored.
 window.addEventListener("hashchange",()=>{const route=parsePanelHash();if(route)applyPanelRoute(route)});
-async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};if(!Array.isArray(state.activeCardKeys))state.activeCardKeys=state.currentProject?[state.currentProject]:[];try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{renderAll();applyI18n();paintLangButtons()}if(typeof applyScanModeUI==='function')applyScanModeUI()}
+async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};if(!Array.isArray(state.activeCardKeys))state.activeCardKeys=state.currentProject?[state.currentProject]:[];try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{restoreScreenAfterLoad()}if(typeof applyScanModeUI==='function')applyScanModeUI()}
+function restoreScreenAfterLoad(){
+ if(state.projectsListMode==='site')projectsListMode='site';
+ const s=state.screen,p=project(),siteJob=!!(p&&!isStudioJob(p));
+ if(s==='newSiteJob'&&siteJob&&p.nsjStep){show('newSiteJob');return}
+ if((s==='siteVisitSummary'||s==='measure')&&siteJob){show('siteVisitSummary');return}
+ if(s==='sentToStudio'||(s==='projects'&&projectsListMode==='site')){projectsListMode='site';show('projects');return}
+ if(projectsListMode==='site')projectsListMode='jobs';
+ state.screen='projects';state.projectsListMode=projectsListMode;
+ $$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen==='projects'));
+ renderAll();applyI18n();paintLangButtons();
+}
 function show(name){
+ if(name==='projects'){
+  if(!listChoiceByNav&&(SITE_MEASURE_SCREENS.includes(state.screen)||(state.screen==='drawings'&&isOpenSiteJob())))projectsListMode='site';
+  listChoiceByNav=false;state.projectsListMode=projectsListMode;
+ }
  if((name==='measure'||name==='drawings')&&!jobConfirmedThisSession&&state.currentProject){
   const rp=state.projects.find(x=>x.id===state.currentProject);
   if(rp){
@@ -1947,8 +1968,8 @@ function show(name){
    jobConfirmedThisSession=true;
   }
  }
- if(name!=='scan'&&typeof scanRunning!=='undefined'&&scanRunning&&typeof stopCamera==='function')stopCamera();state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=(name==='measure'||name==='newSiteJob'||name==='siteVisitSummary'||name==='sentToStudio')?'siteMeasureFlow':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons();if(typeof applyScanModeUI==='function')applyScanModeUI()}
-$$(".nav").forEach(b=>b.onclick=()=>{if(b.dataset.screen==='siteMeasureFlow'){startSiteMeasureFlow();return}if(b.dataset.screen==='projects')projectsListMode='jobs';show(b.dataset.screen)});
+ if(name!=='scan'&&typeof scanRunning!=='undefined'&&scanRunning&&typeof stopCamera==='function')stopCamera();state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=(SITE_MEASURE_SCREENS.includes(name)||(name==='projects'&&projectsListMode==='site')||(name==='drawings'&&isOpenSiteJob()))?'siteMeasureFlow':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons();if(typeof applyScanModeUI==='function')applyScanModeUI()}
+$$(".nav").forEach(b=>b.onclick=()=>{if(b.dataset.screen==='siteMeasureFlow'){startSiteMeasureFlow();return}if(b.dataset.screen==='projects'){projectsListMode='jobs';listChoiceByNav=true}show(b.dataset.screen)});
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
 // A job counts as a Studio installation project once Studio has actually added
