@@ -13,7 +13,8 @@ const user={uid:'owner',companyId:'co',role:'company_owner',email:'owner@test',f
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(Date.now()<end){try{last=await fn();if(last)return last}catch(e){last=e}await wait(200)}throw new Error('Timed out: '+label)}
 (async()=>{
- const served=await serve(path.resolve(__dirname,'..')),server=served.server,base=served.base;
+ const served=await serve(path.resolve(__dirname,'..')),server=served.server,base=process.env.LIVE_BASE||served.base;
+ const site=process.env.LIVE_BASE?process.env.LIVE_BASE.replace(/\/beta$/,'')+'/':'http://127.0.0.1';
  const cloud=createCloud();let browser;
  try{
  browser=await chromium.launch({headless:true});
@@ -22,7 +23,7 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
   const page=await (ctx||await browser.newContext()).newPage();
   page.on('pageerror',e=>errors.push(client+': '+e.message));
   page.on('dialog',d=>{if(client==='mobile')alerts.push(d.message());d.accept()});
-  await page.route(u=>!String(u).startsWith('http://127.0.0.1'),r=>r.abort());
+  await page.route(u=>!String(u).startsWith(site),r=>r.abort());
   await cloud.attach(page,client,user);
   await page.goto(base+url);
   await page.waitForFunction(()=>document.readyState==='complete'&&typeof save==='function'&&typeof (0,eval)('typeof state!=="undefined"&&state')==='object');
