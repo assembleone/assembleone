@@ -1724,6 +1724,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div id="estimatedMaterialsCard"></div>
 <div id="edgeBandingCard"></div>
 <div class="notice" id="componentsValidation" style="display:none;margin-bottom:10px"></div>
+<div id="panelCheckCuttingListStrip"></div>
 <div id="panelIncompleteWarning"></div>
 <div id="edgeCheckWarning"></div>
 <div id="partsSummary"></div>
@@ -10558,6 +10559,27 @@ body.fiq-locked .app{display:none!important}
 .panel-check-status-banner.complete{background:#e6f7ec;color:#16a34a;border:2px solid #9be0af}
 .panel-check-status-banner.missing{background:#fff1f1;color:#bf1f29;border:2px solid #f4b3b3}
 </style>
+<script id="fiq-panel-check-view-cutting-list">
+(function(){
+  // In the "needs checking" notice position: once every panel of the open unit is finished
+  // and checked (the same rule as the green cards and the Cutting List itself), offer the
+  // existing Cutting List. Nothing is stored or rebuilt; the button only opens that screen.
+  function render(){
+    const box=document.getElementById('panelCheckCuttingListStrip');if(!box)return;
+    const c=typeof cabinet==='function'?cabinet():null,parts=(c&&c.parts)||[];
+    const combined=window.__jorCombinedCheck&&window.__jorCombinedCheck.active;
+    const unfinished=parts.some(p=>typeof window.fiqPanelMissingFields==='function'&&window.fiqPanelMissingFields(p).length);
+    const ready=!combined&&parts.length>0&&!unfinished&&typeof window.isCompleteSupplierPart==='function'&&parts.every(p=>window.isCompleteSupplierPart(p));
+    if(!ready){box.innerHTML='';return}
+    box.innerHTML='<div class="panel-check-return-strip" data-view-cutting-list-strip><span>✓ All panels checked</span><button type="button" class="btn primary" data-view-cutting-list>View Cutting List</button></div>';
+    box.querySelector('[data-view-cutting-list]').onclick=()=>show('cutting');
+  }
+  const prevRenderParts=window.renderParts;
+  window.renderParts=function(){const r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
+  try{renderParts=window.renderParts}catch(e){}
+  try{render()}catch(e){}
+})();
+</script>
 <script id="a212-panel-check-status-script">
 (function(){
   // Mirrors Mobile's per-room Finish Panel Check into a clear, unmissable line on the
@@ -10680,7 +10702,7 @@ body.fiq-locked .app{display:none!important}
     // showing them next to a multi-job combined view would be misleading, so they're
     // cleared while combined mode is active. They come back exactly as before the moment
     // combined mode ends, the next time their own render functions run for the real open job.
-    ['componentsValidation','installProgressCard','estimatedMaterialsCard','customerSheetEstimateCard','panelCheckStatusBanner','edgeBandingCard','edgeCheckWarning','panelIncompleteWarning'].forEach(id=>{
+    ['componentsValidation','installProgressCard','estimatedMaterialsCard','customerSheetEstimateCard','panelCheckStatusBanner','edgeBandingCard','edgeCheckWarning','panelIncompleteWarning','panelCheckCuttingListStrip'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.innerHTML='';
     });
     let totalParts=0,totalChecked=0;
