@@ -82,7 +82,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
 
  // 2. Customer Card: no customer-level Cutting List tab; each 📋 opens only its own job.
  await card();
- assert.deepEqual(await S(()=>[...document.querySelectorAll('.customer-card-tabs .customer-tab')].map(b=>b.innerText.trim())).then(t=>t.filter(x=>/cutting/i.test(x))),[],'customer-level Cutting List tab removed');
+ assert.deepEqual(await S(()=>[...document.querySelectorAll('.customer-card-tabs .customer-tab')].map(b=>(b.dataset.tab||'extra')+':'+b.innerText.trim())),['jobs:Jobs / Cutting Lists','site:Site Measurements','photos:Photos','documents:Documents'],'no customer-level Cutting List tab; the jobs tab is named Jobs / Cutting Lists');
  await openSent('Wardrobe 1');
  assert.deepEqual(await dialogRows(),['P-001 | Side | 2000 × 580 × 18 | 2 | White melamine | 1 long · 0 short | Grain up','P-002 | Shelf | 764 × 560 × 18 | 4 | White melamine | 1 long · 0 short |']);
  let txt=await dialogText();
