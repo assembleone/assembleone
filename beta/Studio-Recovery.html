@@ -3540,7 +3540,7 @@ function renderCustomerCard(){
  const documentsTabHtml=`<div class="empty">${t("studio.customerLibrary.noDocumentsYetEmpty")}</div>`;
 
  const tabs=[
-   {key:"jobs",label:t("studio.customerLibrary.tabJobsDesigns"),html:jobsTabHtml},
+   {key:"jobs",label:(l=>l==="Jobs / Designs"?"Jobs / Cutting Lists":l)(t("studio.customerLibrary.tabJobsDesigns")),html:jobsTabHtml},// English: the saved Cutting Lists are found here
    {key:"site",label:t("studio.customerLibrary.tabSiteMeasurements"),html:siteTabHtml},
    {key:"photos",label:t("studio.customerLibrary.tabPhotos"),html:photosTabHtml},
    {key:"documents",label:t("studio.customerLibrary.tabDocuments"),html:documentsTabHtml}
