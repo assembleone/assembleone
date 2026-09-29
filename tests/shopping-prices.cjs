@@ -92,7 +92,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   if(typeof window.fiqRecordSentCuttingList==='function'){const p=project();window.fiqRecordSentCuttingList(p,'ra','ua')}
   const saved=JSON.stringify(project().sentCuttingLists||{});
   const keys=Object.keys(localStorage).filter(k=>/supplier_prices/.test(k));
-  return {state,supplier,saved,keys,store:keys.map(k=>localStorage.getItem(k)).join('')};
+  return {state,supplier,saved,keys,store:keys.map(k=>localStorage.getItem(k.replace(/^fiqbeta:/,'')))/* Beta adds its prefix itself */.join('')};
  });
  for(const v of ['42.17','0.47','3.21','24.13','3.5'])for(const [where,txt] of [['job data',leak.state],['supplier rows',leak.supplier],['saved Cutting List',leak.saved]])assert.ok(!txt.includes(v),'price '+v+' not in '+where);
  assert.equal(leak.keys.length,1,'one browser price store');assert.ok(leak.store.includes('42.17'),'kept in the browser store');
