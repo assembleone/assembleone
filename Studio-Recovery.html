@@ -6375,7 +6375,7 @@ body.guide-only .a131-back-studio{display:block}
    doc.rect(x+c*m,y+r*m,(e-c)*m,m+(r<n-1?0.02:0),'F');c=e}}
  }
  // Standard PDF fonts cover Western European text; anything else prints as "?".
- const pdfText=v=>String(v??'').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[^\x20-\x7E\xA0-\xFF\u2013\u2014\u20AC]/g,'?');
+ const pdfText=v=>String(v??'').replace(/\u2192/g,'->').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[^\x20-\x7E\xA0-\xFF\u2013\u2014\u20AC]/g,'?');
  const PT=0.3528;
  function lines(doc,text,width,max){let ls=doc.splitTextToSize(pdfText(text),width);if(ls.length>max){ls=ls.slice(0,max);let l=ls[max-1];while(l&&doc.getTextWidth(l+'…')>width)l=l.slice(0,-1);ls[max-1]=l+'…'}return ls}
  function wrapTokens(doc,tokens,width){const out=[];let cur='';tokens.forEach(t=>{const next=cur?cur+' '+t:t;if(cur&&doc.getTextWidth(next)>width){out.push(cur);cur=t}else cur=next});if(cur)out.push(cur);return out}
@@ -6394,6 +6394,51 @@ body.guide-only .a131-back-studio{display:block}
   lines(doc,d.material,lw,2).forEach((l,i)=>doc.text(l,lx,ty+10*PT*0.8+i*10*PT*1.15));
   if(d.customer){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(68,68,68);doc.text(lines(doc,d.customer,lw,1)[0],lx,y+ST.h-ST.pad-0.4);doc.setTextColor(17,17,17)}
  }
+ // Replacement Panels PDF (from Order missing panels): one block per damaged or missing
+ // physical piece, with its reason, damage photo and the SAME QR identity as the piece it
+ // replaces. items: [{code,name,length,width,thickness,material,edging,job,piece,pieces,
+ // reason,note,photo(dataURL|null),photoNote,qr}]. Returns {doc,fileName,blocks}.
+ async function photoData(src){
+  if(!src)return null;
+  if(String(src).startsWith('data:image/'))return src;
+  try{const r=await fetch(src);if(!r.ok)return null;const b=await r.blob();return await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>res(null);fr.readAsDataURL(b)})}catch(e){return null}
+ }
+ window.fiqBuildReplacementPdf=async function(items,info){
+  const JsPDF=await loadJsPdf();
+  const doc=new JsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+  doc.setProperties({title:'Replacement panels - '+pdfText(info.job||''),creator:'FittersIQ'});
+  const x0=PAGE.margin,W=PAGE.w-2*PAGE.margin,H=84,gap=6,top=30;let y=top,first=true;
+  const header=()=>{doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Replacement panels',x0,16);
+   doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(pdfText([info.customer,info.job,info.date,items.length+' piece'+(items.length===1?'':'s')].filter(Boolean).join(' · ')),x0,22,{maxWidth:W})};
+  header();
+  for(const it of items){
+   if(!first&&y+H>PAGE.h-PAGE.margin){doc.addPage('a4','portrait');header();y=top}
+   first=false;
+   doc.setDrawColor(17,17,17);doc.setLineWidth(0.5);doc.roundedRect(x0,y,W,H,3,3,'S');
+   const qs=40,qx=x0+W-4-qs,qy=y+H-4-qs;
+   drawQr(doc,qrModules(it.qr),qx,qy,qs);
+   doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(90,90,90);doc.text(lines(doc,it.qrLabel||'',qs,1)[0]||'',qx,qy+qs+2.6);
+   // Photo between the text and the QR.
+   const px=x0+W-4-qs-4-52,py=y+4,pw=52,ph=H-8;
+   let placed=false;
+   if(it.photo){try{const fmt=/^data:image\/png/i.test(it.photo)?'PNG':'JPEG';const pr=doc.getImageProperties(it.photo);const sc=Math.min(pw/pr.width,ph/pr.height);doc.addImage(it.photo,fmt,px+(pw-pr.width*sc)/2,py+(ph-pr.height*sc)/2,pr.width*sc,pr.height*sc);placed=true}catch(e){}}
+   if(!placed){doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.rect(px,py,pw,ph,'S');doc.setFontSize(8);doc.setTextColor(120,120,120);doc.text(lines(doc,it.photoNote||'No photo',pw-6,3),px+pw/2,py+ph/2,{align:'center'})}
+   // Text column.
+   const tx=x0+5,tw=px-tx-4;let ty=y+9;
+   doc.setTextColor(200,30,30);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('REPLACEMENT PANEL',tx,ty);ty+=8;
+   doc.setTextColor(17,17,17);doc.setFontSize(16);lines(doc,it.code+' — '+it.name,tw,2).forEach(l=>{doc.text(l,tx,ty);ty+=6.5});
+   doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text(pdfText(it.length+' × '+it.width+' × '+it.thickness+' mm'),tx,ty);ty+=5.6;
+   doc.setFont('helvetica','normal');
+   [it.material,'Edging: '+it.edging,it.job,'Piece '+it.piece+'/'+it.pieces].forEach(v=>{lines(doc,v,tw,2).forEach(l=>{doc.text(l,tx,ty);ty+=5.2})});
+   ty+=1.5;doc.setFont('helvetica','bold');doc.text(pdfText('Reason: '+it.reason),tx,ty);ty+=5.2;
+   if(it.note){doc.setFont('helvetica','normal');doc.setFontSize(9.5);lines(doc,it.note,tw,2).forEach(l=>{doc.text(l,tx,ty);ty+=4.6})}
+   y+=H+gap;
+  }
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);doc.text('FittersIQ replacement panels · Page '+i+' of '+n,PAGE.w-PAGE.margin,PAGE.h-7,{align:'right'})}
+  return {doc,fileName:String((info.customer||'Customer')+'_'+(info.job||'Job')+'_replacement_panels.pdf').replace(/[^a-z0-9_.-]+/gi,'_'),blocks:items.length};
+ };
+ window.fiqReplacementPhotoData=photoData;
  function stickerHeader(doc,info,page,pages){
   const x0=PAGE.margin,x1=PAGE.w-PAGE.margin;
   doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(12);
@@ -7817,6 +7862,7 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
 .install-outstanding-row-sorted{background:#e8f7e2!important;border-color:#a9e0a0!important;transition:background .3s,border-color .3s}
 .install-outstanding-row-sorted .install-outstanding-sorted-btn{background:#307508;color:#fff;border-color:#307508}
 .install-progress-card #orderMissingPanelsBtn{width:100%;margin-top:12px;min-height:48px;background:#0051ff;border-color:#0049e8;color:#fff}
+.install-progress-card #orderMissingCsvBtn{margin-top:6px;font-size:12px;padding:5px 10px}
 @media(max-width:600px){.install-progress-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <script id="a178-install-progress-script">
@@ -7847,6 +7893,42 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     const a=document.createElement('a');a.href=url;a.download=((pr&&pr.name||'Job')+'_missing_panels.csv').replace(/[^a-z0-9_-]+/gi,'_');
     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
+  // One Replacement Panel block per damaged/missing physical piece; the QR is the SAME
+  // identity as the piece being replaced (fiqPieceQrText), so a scan finds that piece.
+  async function replacementItems(flagged,pr){
+    const out=[];
+    for(const {pt,c} of flagged){
+      const n=Math.max(1,Math.floor(Number(pt.qty))||1),whole=pt.status==='missing'||pt.status==='damaged';
+      const pieceList=whole?Array.from({length:n},(_,i)=>({piece:i+1,status:pt.status,note:''})):fiqPieceIssues(pt);
+      const room=(pr.rooms||[]).find(r=>r.id===c.roomId);
+      const L=Number(pt.edgeLong||0),S=Number(pt.edgeShort||0);
+      const edging=L||S?[L?L+' long edge'+(L===1?'':'s'):'',S?S+' short edge'+(S===1?'':'s'):''].filter(Boolean).join(' · '):'None';
+      const src=((pt.panelPhotos||[]).map(x=>x&&x.data).filter(Boolean))[0]||null;
+      const photo=src&&typeof window.fiqReplacementPhotoData==='function'?await window.fiqReplacementPhotoData(src):null;
+      for(const pc of pieceList){
+        const qr=window.fiqPieceQrText(pr,c,pt,pc.piece);
+        out.push({code:pt.code||'',name:pt.name||'',length:pt.length||'',width:pt.width||'',thickness:pt.thickness||'',
+          material:String(pt.material||pr.defaultMaterial||c.lastMaterial||'').trim()||'Material not set',edging,
+          job:(pr.name||'Job')+' → '+[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · '),
+          piece:pc.piece,pieces:n,reason:pc.status==='damaged'?'Damaged':'Missing',
+          note:pc.status==='damaged'?(pc.note||pt.damageNote||''):'',
+          photo,photoNote:src&&!photo?'Photo could not be added (open it in FittersIQ)':'No photo',
+          qr,qrLabel:typeof window.fiqQrLabelText==='function'?window.fiqQrLabelText(qr):qr});
+      }
+    }
+    return out;
+  }
+  async function downloadReplacementPdf(flagged,pr,btn){
+    if(!flagged.length||typeof window.fiqBuildReplacementPdf!=='function')return;
+    const label=btn.textContent;btn.disabled=true;btn.textContent='Making PDF…';
+    try{
+      const items=await replacementItems(flagged,pr);
+      const r=await window.fiqBuildReplacementPdf(items,{customer:pr.customer||'',job:pr.name||'',date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})});
+      r.doc.save(r.fileName);
+    }catch(e){console.error(e);alert((e&&e.message)||'The replacement panels PDF could not be made.')}
+    finally{if(btn.isConnected){btn.disabled=false;btn.textContent=label}}
+  }
+  window.fiqReplacementItems=replacementItems;
   window.renderInstallProgress=function(){
     const box=document.getElementById('installProgressCard');if(!box)return;
     const p=(typeof project==='function')?project():null;
@@ -7856,10 +7938,12 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     // the boss sorts a problem from either place, it should stop showing as outstanding in
     // both, not just the one it was sorted from.
     const flagged=t.rows.filter(({pt})=>fiqPanelIssue(pt)&&!pt.attentionSorted);
-    box.innerHTML=`${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">⚠️ Reported missing or damaged on site (${flagged.length})</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row" data-outstanding-row="${safe(pt.id)}"><span class="install-outstanding-icon">${fiqPanelIssue(pt)==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}${fiqPieceIssueText(pt)?' · '+safe(fiqPieceIssueText(pt)):''}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${fiqPanelIssue(pt)}">${statusWord(fiqPanelIssue(pt))}</span><button type="button" class="btn install-outstanding-sorted-btn" data-outstanding-sorted="${safe(pt.id)}">✓ Sorted</button></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button></div>`
+    box.innerHTML=`${flagged.length?`<div class="install-outstanding"><div class="install-outstanding-head">⚠️ Reported missing or damaged on site (${flagged.length})</div>${flagged.map(({pt,c})=>`<div class="install-outstanding-row" data-outstanding-row="${safe(pt.id)}"><span class="install-outstanding-icon">${fiqPanelIssue(pt)==='damaged'?'⚠':'❔'}</span><div class="install-outstanding-main"><div class="install-outstanding-name">${safe(pt.code||'')} — ${safe(pt.name||'Unnamed panel')}${fiqPieceIssueText(pt)?' · '+safe(fiqPieceIssueText(pt)):''}</div><div class="install-outstanding-dims">${safe(pt.length||'—')} × ${safe(pt.width||'—')} × ${safe(pt.thickness||'—')} mm</div><small>${safe(c.name||'')}</small></div><span class="install-outstanding-status status-${fiqPanelIssue(pt)}">${statusWord(fiqPanelIssue(pt))}</span><button type="button" class="btn install-outstanding-sorted-btn" data-outstanding-sorted="${safe(pt.id)}">✓ Sorted</button></div>`).join('')}<button class="btn primary" id="orderMissingPanelsBtn" type="button">📦 Order missing panels (${flagged.length})</button><button class="btn install-order-csv-btn" id="orderMissingCsvBtn" type="button" title="The same list as a spreadsheet file">CSV list</button></div>`
         :''}`;
     const orderBtn=document.getElementById('orderMissingPanelsBtn');
-    if(orderBtn)orderBtn.onclick=()=>exportMissingPanelsCsv(flagged,p);
+    if(orderBtn)orderBtn.onclick=()=>downloadReplacementPdf(flagged,p,orderBtn);
+    const csvBtn=document.getElementById('orderMissingCsvBtn');
+    if(csvBtn)csvBtn.onclick=()=>exportMissingPanelsCsv(flagged,p);
     box.querySelectorAll('[data-outstanding-sorted]').forEach(btn=>{
       btn.onclick=()=>{
         const pt=flagged.map(x=>x.pt).find(x=>x.id===btn.dataset.outstandingSorted);
