@@ -103,10 +103,11 @@ async function until(fn,label,ms=15000){const end=Date.now()+ms;let last;while(D
  noOverlap(await view('r1'),'phone');
  await studio.setViewportSize({width:1366,height:657});
 
- // Customer page: no separate Notes tab; Jobs / Designs, Site Measurements, Photos and Documents stay.
+ // Customer page: no separate Notes tab; Jobs / Designs, Site Measurements and Documents stay (Photos only repeated Site Measurements).
  const tabs=await studio.evaluate(()=>{closeSiteRoomDetails();const p=(0,eval)('state').projects.find(x=>x.id==='sn1');openCustomerCard(p.customerId);return new Promise(r=>setTimeout(()=>r([...document.querySelectorAll('.customer-card-tabs .customer-tab')].map(b=>b.dataset.tab||b.textContent.trim())),600))});
  assert(!tabs.includes('notes'),'no separate Notes tab');
- for(const k of ['jobs','site','photos','documents'])assert(tabs.includes(k),k+' tab kept');
+ for(const k of ['jobs','site','documents'])assert(tabs.includes(k),k+' tab kept');
+ assert(!tabs.includes('photos'),'no separate Photos tab');
 
  assert.deepEqual(errors,[],'no page errors');
  console.log(JSON.stringify({strip:kitchen.strip.map(x=>x.kind+(x.badge?'+badge':'')),roomNote:kitchen.roomNote,siteNote:kitchen.siteNote,tabs,ok:true}));

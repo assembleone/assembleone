@@ -1067,6 +1067,8 @@ thead{background:#293a4e;color:white}tbody tr:nth-child(even){background:#fafbfc
 .a100-add-unit:hover,.a100-add-unit:focus{outline:4px solid rgba(255,196,0,.15)}
 .a100-units{display:grid;gap:8px}.a100-unit-row{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px}.a100-unit-row strong{flex:1}.a100-unit-row .btn{min-height:42px;padding:8px 12px}
 .a100-empty-note{padding:12px;text-align:center;color:var(--muted);font-size:14px}
+.a100-edit-dialog.fiq-need-customer #a100Customer{border-color:#d92d20!important;outline:2px solid rgba(217,45,32,.18)}
+.fiq-need-customer-msg{display:block;margin-top:4px;color:#b42318;font-size:13px;font-weight:800}
 .a100-edit-dialog{position:fixed;inset:0;z-index:700;background:#0008;display:flex;align-items:flex-end;justify-content:center}.a100-edit-sheet{width:min(620px,100%);background:#fff;border-radius:24px 24px 0 0;padding:20px;display:grid;gap:12px}.a100-edit-sheet h2{margin:0}.a100-edit-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:460px){.a100-bottom-actions{grid-template-columns:1fr}}
 @media(max-width:700px){#screen-jobs>.toolbar{grid-template-columns:1fr 1fr}.a100-action-title{font-size:18px}.a100-add-unit{font-size:20px}.a100-action-icon{font-size:32px}}
@@ -1672,14 +1674,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </div>
 </details>
 <input id="fMaterial" type="hidden" value=""/>
-<details class="notes-picker" id="notesPickerDetails">
-<summary id="notesSummary">Notes — optional</summary>
-<div class="notes-library-grid" id="notesLibraryGrid"></div>
-<label class="notes-custom-row">
-<span data-i18n="studio.drawing.addAnotherNoteLabel">Add or use another note</span>
-<input aria-label="Add another note" data-i18n-aria="studio.drawing.addAnotherNoteAria" id="notesCustomInput" placeholder="e.g. LED channel 70 mm from front"/>
-</label>
-</details>
 <input id="fNotes" type="hidden" value=""/>
 </div>
 <details class="panel-options">
@@ -2313,9 +2307,19 @@ function switchToProject(id,cabinetId,partId){
  if(typeof renderProject==='function')renderProject();
 }
 
+// A job's real customer name ('' when blank or only the "No customer name" placeholder).
+// Send to Job Overview needs one: every job must reach Customer Library as a real customer.
+window.fiqJobCustomerName=function(p){
+ const real=v=>{const n=String(v||'').trim();return n.toLowerCase()==='no customer name'?'':n};
+ if(!p)return '';
+ const own=real(p.customer);if(own)return own;
+ const c=p.customerId&&(state.customers||[]).find(x=>x.id===p.customerId);
+ return c?real(c.name):'';
+};
 async function finishDesignToCard(projectId){
  const p=state.projects.find(x=>x.id===projectId);
  if(!p)throw new Error('The design no longer exists.');
+ if(!window.fiqJobCustomerName(p))throw new Error('Customer name required.');
  const selection={currentProject:state.currentProject,currentCabinet:state.currentCabinet,currentPart:state.currentPart,currentRoom:state.currentRoom,screen:state.screen};
  if(typeof ensureCustomerForProject==='function')ensureCustomerForProject(p);
  if(typeof window.fiqMarkJobOverviewCards==='function')window.fiqMarkJobOverviewCards(p);
@@ -3526,23 +3530,14 @@ function renderCustomerCard(){
  // Measure notes stay with their room in Site Measurements, and fitters' Job Notes open
  // from Site Updates on each Job Overview card.
 
- // Read-only browsing of the same permanent site photos Site Measurements already owns --
- // grouped by room, reusing siteRoomPictures(room) exactly as the modal does, and opening
- // that same modal (not a second photo viewer) when a group or photo is tapped.
- const photoGroups=siteRows.map(({project:p,room})=>{
-   const pics=siteRoomPictures(room);
-   if(!pics.length)return "";
-   const openAttrs=`data-open-site-room="${safe(room.id)}" data-open-site-room-project="${safe(p.id)}"`;
-   return `<div class="customer-photo-group"><div class="customer-photo-group-head" ${openAttrs}>${safe(room.icon||"⌂")} ${safe(room.name)}</div><div class="customer-photo-grid">${pics.slice(0,8).map(src=>`<img src="${safe(src)}" alt="" ${openAttrs}>`).join("")}</div></div>`;
- }).filter(Boolean).join("");
- const photosTabHtml=photoGroups||`<div class="empty">${t("studio.customerLibrary.noPhotosYetEmpty")}</div>`;
+ // No separate Photos tab: it only repeated the Site Measurement photos (same rooms, same
+ // pictures, opening the same room view), which Site Measurements already shows in full.
 
  const documentsTabHtml=`<div class="empty">${t("studio.customerLibrary.noDocumentsYetEmpty")}</div>`;
 
  const tabs=[
    {key:"jobs",label:(l=>l==="Jobs / Designs"?"Jobs / Cutting Lists":l)(t("studio.customerLibrary.tabJobsDesigns")),html:jobsTabHtml},// English: the saved Cutting Lists are found here
    {key:"site",label:t("studio.customerLibrary.tabSiteMeasurements"),html:siteTabHtml},
-   {key:"photos",label:t("studio.customerLibrary.tabPhotos"),html:photosTabHtml},
    {key:"documents",label:t("studio.customerLibrary.tabDocuments"),html:documentsTabHtml}
  ];
  if(!tabs.some(tb=>tb.key===customerCardActiveTab))customerCardActiveTab="jobs";
@@ -5754,15 +5749,23 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     return window.t("studio.home.roomLabelWardrobe");
   }
   function selectedRoom(){try{return selectedStudioRoom()}catch(e){return null}}
-  function openEdit(){
+  function openEdit(opts){
     const p=getProject(); if(!p) return;
+    const need=!!(opts&&opts.requireCustomer);
     const o=document.createElement('div'); o.className='a100-edit-dialog';
     o.innerHTML='<div class="a100-edit-sheet"><h2>'+t("studio.home.editJobHeading")+'</h2><label>'+t("studio.home.jobName")+'<input id="a100JobName"></label><label>'+t("studio.home.customerLabel")+'<input id="a100Customer"></label><div class="a100-edit-actions"><button class="btn" id="a100Cancel">'+t("studio.customerLibrary.cancelBtn")+'</button><button class="btn primary" id="a100Save">'+t("studio.customerLibrary.saveBtn")+'</button></div></div>';
     document.body.appendChild(o); o.querySelector('#a100JobName').value=p.name||''; o.querySelector('#a100Customer').value=p.customer||'';
     const close=()=>o.remove(); o.querySelector('#a100Cancel').onclick=close; o.onclick=e=>{if(e.target===o)close()};
+    const custInput=o.querySelector('#a100Customer');
+    if(need){
+      o.classList.add('fiq-need-customer');custInput.placeholder='Customer name required';
+      custInput.insertAdjacentHTML('afterend','<span class="fiq-need-customer-msg" data-customer-required>Customer name required.</span>');
+      setTimeout(()=>custInput.focus(),30);
+    }
     o.querySelector('#a100Save').onclick=()=>{
       const enteredJobName=o.querySelector('#a100JobName').value.trim();
       const newCustomerName=o.querySelector('#a100Customer').value.trim();
+      if(need&&(!newCustomerName||newCustomerName.toLowerCase()==='no customer name')&&!window.fiqJobCustomerName(p)){custInput.focus();return}
       p.name=enteredJobName||p.name||newCustomerName||'New Project';
       const current=customerFor(p);
       // Typing a *different* customer name here means "this job belongs to someone else"
@@ -5776,9 +5779,11 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
       }
       p.updatedAt=Date.now();
       const pn=document.getElementById('projectName'),cn=document.getElementById('customerName');if(pn)pn.value=p.name;if(cn)cn.value=p.customer;save();close();renderAll();renderA100Start();
-      if(typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
+      // Asked for from the Cutting List: stay there, ready to send.
+      if(!need&&typeof window.enterProjectWorkspace==='function')window.enterProjectWorkspace();
     };
   }
+  window.fiqAskJobCustomer=()=>openEdit({requireCustomer:true});
   window.a100RoomLabel=roomLabel;
   window.a100EnsureCabinetForRoom=function(p,room){
     let c=(p.cabinets||[]).find(x=>x.roomId===room.id);
@@ -6619,7 +6624,7 @@ body.fiq-drawing-locked #screen-mark .fiq-drawing-lock-banner{display:flex;align
 @keyframes fiqLockNudge{0%,100%{box-shadow:0 0 0 0 rgba(23,78,152,0)}50%{box-shadow:0 0 0 5px rgba(23,78,152,.25)}}
 body.fiq-drawing-locked #fiqPinMenu{display:none!important}
 body.fiq-drawing-locked #drawingStage,body.fiq-drawing-locked #drawingCanvas{cursor:default!important}
-body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQtyUnlockBtn,#lengthMeasureWrap,#widthMeasureWrap,#lengthEdgeBtn,#widthEdgeBtn,#partNamePicker,#saveNextBtn,#materialPickerDetails,#notesPickerDetails,#fMaterial,#fNotes,#addSameMarkerBtn,#makeUniqueBtn,#deletePartBtn,#checkAllPanelsBtn,#pasteScreenshotBtn,#chooseDrawingBtn,#deleteDrawingBtn,#cabinetSelect,.quick-main,.quick-names,[data-quick-name]){opacity:.5;cursor:not-allowed!important}
+body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQtyUnlockBtn,#lengthMeasureWrap,#widthMeasureWrap,#lengthEdgeBtn,#widthEdgeBtn,#partNamePicker,#saveNextBtn,#materialPickerDetails,#notesPickerDetails,#fiqPanelNote,#fMaterial,#fNotes,#addSameMarkerBtn,#makeUniqueBtn,#deletePartBtn,#checkAllPanelsBtn,#pasteScreenshotBtn,#chooseDrawingBtn,#deleteDrawingBtn,#cabinetSelect,.quick-main,.quick-names,[data-quick-name]){opacity:.5;cursor:not-allowed!important}
 </style>
 <script id="fiq-drawing-lock">
 // Job Overview installation view. Once a job is in the active Job Overview and has been
@@ -10922,9 +10927,15 @@ body.fiq-locked .app{display:none!important}
       if(chk)chk.onclick=()=>{const cab=unitOf(unchecked[0]);if(cab)state.currentCabinet=cab.id;save();renderAll();show('parts')};
       return;
     }
+    if(!window.fiqJobCustomerName(p)){
+      box.innerHTML='<div class="fiq-edge-warning fiq-send-blocked" data-send-blocked data-customer-required><h4>Customer name required.</h4><p>Add the customer name before sending this job to Job Overview.</p><div class="fiq-edge-actions"><button type="button" class="btn primary" data-add-customer>Add customer name</button></div></div>';
+      box.querySelector('[data-add-customer]').onclick=()=>{if(typeof window.fiqAskJobCustomer==='function')window.fiqAskJobCustomer()};
+      return;
+    }
     box.innerHTML='<div class="panel-check-return-strip"><span>✓ Cutting List is ready. Return to Job Overview to choose a fitter and send the job.</span><button type="button" class="btn primary" id="panelCheckReturnBtn">Send to Job Overview</button></div>';
     const btn=document.getElementById('panelCheckReturnBtn');
     if(btn)btn.onclick=async()=>{
+      if(!window.fiqJobCustomerName(p)){render();return}
       btn.disabled=true;
       try{
         // Save this job's exact Cutting List as sent (a new version only if it changed).
@@ -11810,6 +11821,15 @@ document.addEventListener('mousedown',function(e){
 #screen-mark .fiq-measure-head b{font-size:15px;font-weight:900;color:#171c46}
 #screen-mark .fiq-measure-head .fiq-units{margin:0!important}
 #screen-mark #fiqUnitsBtn{width:64px;height:30px;padding:0 6px;font-size:14px}
+#screen-mark .fiq-measure-head b:empty{display:none}
+#screen-mark .fiq-panel-note{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px}
+#screen-mark .fiq-panel-note-btn{max-width:100%;height:30px;min-height:0;display:inline-flex;align-items:center;gap:5px;margin:0;padding:0 10px;border:1px solid #d5dae3;border-radius:8px;background:#fff;color:#5b6472;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#screen-mark .fiq-panel-note-btn>span{overflow:hidden;text-overflow:ellipsis}
+#screen-mark .fiq-panel-note-btn.has-note{border-color:#9fb7d6;background:#f3f7fc;color:#0b2545}
+#screen-mark .fiq-panel-note-btn[hidden],#screen-mark .fiq-panel-note-edit[hidden]{display:none}
+#screen-mark .fiq-panel-note-edit{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px}
+#screen-mark #fiqPanelNoteInput{flex:1 1 auto;min-width:0;height:30px;margin:0;padding:0 9px;border:1px solid #2b62d9;border-radius:8px;font-size:14px;font-weight:600}
+#screen-mark #fiqPanelNoteDone{height:30px;min-height:0;margin:0;padding:0 12px;font-size:13px}
 
 #screen-mark .measure-entry-row{display:grid!important;grid-template-columns:clamp(68px,14%,104px) minmax(0,1fr) minmax(0,1fr) clamp(64px,12%,100px)!important;gap:0!important;align-items:start!important;border:1px solid #dfe3ea;border-radius:12px;background:#fff}
 #screen-mark .measure-entry-row>.measure-box,#screen-mark .measure-entry-row>.quantity-card{display:contents!important}
@@ -11953,14 +11973,14 @@ document.addEventListener('mousedown',function(e){
     if(!card||!row)return null;
     let head=card.querySelector('.fiq-measure-head');
     if(!head){head=document.createElement('div');head.className='fiq-measure-head';head.innerHTML='<b></b>';}
-    head.querySelector('b').textContent=tr('studio.panelCheck.measurementsLabel','Measurements');
+    head.querySelector('b').textContent='';// the fields below already say these are measurements
     const rowParent=row.parentElement;
     if(head.parentElement!==rowParent||head.nextElementSibling!==row)rowParent.insertBefore(head,row);
     let box=document.getElementById('fiqUnits');
     if(!box){
       box=document.createElement('div');box.className='fiq-units';box.id='fiqUnits';
       box.innerHTML='<button type="button" id="fiqUnitsBtn" aria-haspopup="true" aria-expanded="false" aria-label="Units"></button><div class="fiq-units-menu" id="fiqUnitsMenu" role="menu" hidden>'+
-        Object.keys(unitNames).map(u=>'<button type="button" class="unit-choice" role="menuitemradio" data-unit="'+u+'">'+u+' — '+unitNames[u]+'</button>').join('')+'</div>';
+        Object.keys(unitNames).map(u=>'<button type="button" class="unit-choice" role="menuitemradio" data-unit="'+u+'" title="'+unitNames[u]+'">'+u+'</button>').join('')+'</div>';
       const btn=box.querySelector('#fiqUnitsBtn'),menu=box.querySelector('#fiqUnitsMenu');
       btn.addEventListener('click',e=>{e.stopPropagation();menu.hidden=!menu.hidden;btn.setAttribute('aria-expanded',String(!menu.hidden))});
       document.addEventListener('click',e=>{
@@ -11970,13 +11990,57 @@ document.addEventListener('mousedown',function(e){
       document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!menu.hidden){menu.hidden=true;btn.setAttribute('aria-expanded','false');btn.focus()}});
     }
     if(box.parentElement!==head)head.appendChild(box);
+    ensurePanelNote(head);
     return box;
   }
+
+  // ---- Panel note --------------------------------------------------------------------------
+  // "📝 Panel note +" beside the units. It edits the selected panel's own note (part.notes,
+  // the same field every output reads). With no panel selected it fills the hidden #fNotes,
+  // which the next dot takes as its note, exactly as before.
+  function noteNow(){const p=typeof part==='function'?part():null;if(p)return String(p.notes||'');const h=document.getElementById('fNotes');return h?String(h.value||''):''}
+  function ensurePanelNote(head){
+    let box=document.getElementById('fiqPanelNote');
+    if(!box){
+      box=document.createElement('div');box.className='fiq-panel-note';box.id='fiqPanelNote';
+      box.innerHTML='<button type="button" class="fiq-panel-note-btn" id="fiqPanelNoteBtn"></button>'+
+        '<div class="fiq-panel-note-edit" id="fiqPanelNoteEdit" hidden><input type="text" id="fiqPanelNoteInput" maxlength="300" autocomplete="off" aria-label="Panel note" placeholder="e.g. LED channel 70 mm from front"><button type="button" class="btn primary" id="fiqPanelNoteDone">Done</button></div>';
+      const btn=box.querySelector('#fiqPanelNoteBtn'),ed=box.querySelector('#fiqPanelNoteEdit'),input=box.querySelector('#fiqPanelNoteInput'),done=box.querySelector('#fiqPanelNoteDone');
+      let open=false;
+      const close=()=>{open=false;ed.hidden=true;btn.hidden=false;renderPanelNote()};
+      const commit=()=>{
+        if(!open)return;
+        const v=input.value.trim(),p=typeof part==='function'?part():null,hidden=document.getElementById('fNotes');
+        open=false;
+        if(p){
+          if(String(p.notes||'')!==v){p.notes=v;if(hidden)hidden.value=v;save();renderAll()}
+        }else if(hidden)hidden.value=v;
+        close();
+      };
+      btn.addEventListener('click',e=>{e.preventDefault();open=true;input.value=noteNow();btn.hidden=true;ed.hidden=false;input.focus();input.select()});
+      done.addEventListener('mousedown',e=>e.preventDefault());// keep focus so Done commits once
+      done.addEventListener('click',e=>{e.preventDefault();commit()});
+      input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();commit()}else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();open=false;close()}});// Escape only cancels the note (the page-wide Escape would leave Drawing)
+      input.addEventListener('blur',()=>setTimeout(()=>{if(open&&document.activeElement!==input)commit()},0));
+    }
+    if(box.parentElement!==head)head.appendChild(box);
+    return box;
+  }
+  function renderPanelNote(){
+    const btn=document.getElementById('fiqPanelNoteBtn');if(!btn)return;
+    const note=noteNow().trim();
+    btn.classList.toggle('has-note',!!note);
+    btn.innerHTML=note?'📝 <span></span>':'📝 Panel note +';
+    if(note)btn.querySelector('span').textContent=note;
+    btn.title=note?'Panel note: '+note+' (click to edit)':'Add a note for this panel';
+  }
+  window.fiqRenderPanelNote=renderPanelNote;
   function renderUnits(){
     const box=ensureUnits();if(!box)return;
     const u=currentUnit(),btn=box.querySelector('#fiqUnitsBtn');
     btn.innerHTML='<b>'+u+'</b> ▾';btn.title='Units for this drawing: '+unitNames[u];
     box.querySelectorAll('.unit-choice').forEach(b=>{const on=b.dataset.unit===u;b.classList.toggle('active',on);b.setAttribute('aria-checked',on?'true':'false')});
+    renderPanelNote();
   }
   window.fiqRenderUnits=renderUnits;
 

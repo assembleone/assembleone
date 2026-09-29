@@ -138,13 +138,13 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  // layout does not move.
  const layout0=await S(()=>{const s=document.getElementById('drawingStage').getBoundingClientRect(),m=document.querySelector('#screen-mark .measure-entry-row').getBoundingClientRect();return [s.height,s.width,m.top+scrollY,m.height].map(Math.round).join(',')});
  assert.equal(await S(()=>document.getElementById('fiqUnitsBtn').textContent),'mm ▾');
- assert.equal(await S(()=>!!document.querySelector('#screen-mark .measurement-entry-card .fiq-measure-head #fiqUnits')&&!document.getElementById('unitsToggle')&&document.querySelector('#screen-mark .fiq-measure-head b').textContent==='Measurements'),true,'one unit control on the Measurements line');
+ assert.equal(await S(()=>!!document.querySelector('#screen-mark .measurement-entry-card .fiq-measure-head #fiqUnits')&&!document.getElementById('unitsToggle')&&document.querySelector('#screen-mark .fiq-measure-head b').textContent===''&&!!document.querySelector('#screen-mark .fiq-measure-head #fiqPanelNote')),true,'one unit control on the top line (no "Measurements" word), Panel note beside it');
  assert.deepEqual(await S(()=>['thicknessUnitLabel','lengthUnitLabel','widthUnitLabel'].map(id=>getComputedStyle(document.getElementById(id)).display)),['none','none','none'],'no unit repeated inside the boxes');
  assert.equal(await S(()=>{const l=document.getElementById('fQtyUnlockBtn'),q=document.getElementById('fQty');return l.getBoundingClientRect().bottom<=q.getBoundingClientRect().top+1&&l.getBoundingClientRect().width>=28}),true,'Qty lock in the Qty header, comfortable size');
  for(const [u,shown] of [['cm','80'],['in','31.5'],['mm','800']]){
   await click('#fiqUnitsBtn');
   assert.equal(await S(()=>document.getElementById('fiqUnitsMenu').hidden),false,'the list opens');
-  assert.deepEqual(await S(()=>[...document.querySelectorAll('#fiqUnitsMenu .unit-choice')].map(b=>b.textContent.replace(/^✓ /,''))),['mm — Millimetres','cm — Centimetres','in — Inches']);
+  assert.deepEqual(await S(()=>[...document.querySelectorAll('#fiqUnitsMenu .unit-choice')].map(b=>b.textContent.replace(/^✓ /,''))),['mm','cm','in'],'short unit names');
   await click(`#fiqUnitsMenu .unit-choice[data-unit="${u}"]`);await page.waitForTimeout(120);
   const r=await S(()=>({label:document.getElementById('fiqUnitsBtn').textContent,closed:document.getElementById('fiqUnitsMenu').hidden,len:document.getElementById('fLength').value,stored:cabinet().parts[0].length,
    layout:(()=>{const s=document.getElementById('drawingStage').getBoundingClientRect(),m=document.querySelector('#screen-mark .measure-entry-row').getBoundingClientRect();return [s.height,s.width,m.top+scrollY,m.height].map(Math.round).join(',')})()}));

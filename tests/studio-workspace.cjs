@@ -18,6 +18,7 @@ const returnScript=source.match(/<script id="a222-cutting-list-return-script">([
   window.$=s=>document.querySelector(s);window.$$=s=>document.querySelectorAll(s);
   window.t=x=>x;window.renderMaterialPicker=window.renderNotesPicker=window.updateEdgePreview=window.renderSiteMeasurementOverlay=()=>{};
   window.ensureCustomerForProject=p=>{p.customerId='customer'};
+  window.fiqJobCustomerName=p=>String(p&&p.customer||'').trim();// the job has a customer name
   window.STORE='isolated-studio';window.clampPanelQty=x=>Math.max(1,Number(x)||1);
   window.isCompleteSupplierPart=p=>p.length>0&&p.width>0;window.renderCutting=()=>{};
   const drawing='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><!--'+'x'.repeat(2000000)+'--></svg>');
@@ -51,7 +52,7 @@ const returnScript=source.match(/<script id="a222-cutting-list-return-script">([
  const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem('isolated-studio')));
  assert.equal(restored.currentProject,null,'refresh must keep the workspace empty');assert.equal(restored.projects[0].cabinets[0].hasStoredDrawing,true);
  // Failure and concurrent navigation must never erase or close work.
- await page.evaluate(s=>{window.state=s;state.currentProject='job';state.currentCabinet='cabinet';state.currentPart='panel';state.currentRoom='room';window.ensureCustomerForProject=()=>{};window.renderAll=()=>{};window.save=async()=>false},restored);
+ await page.evaluate(s=>{window.state=s;state.currentProject='job';state.currentCabinet='cabinet';state.currentPart='panel';state.currentRoom='room';window.ensureCustomerForProject=()=>{};window.fiqJobCustomerName=p=>String(p&&p.customer||'').trim();window.renderAll=()=>{};window.save=async()=>false},restored);
  await page.addScriptTag({content:finish});
  assert.equal(await page.evaluate(async()=>{try{await finishDesignToCard('job')}catch{return state.currentProject}}),'job');
  await page.evaluate(()=>{window.save=async()=>{state.currentProject='other';return true}});
