@@ -49,7 +49,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  });
  await page.waitForTimeout(500);
  const savedBefore=await S(()=>JSON.stringify(state.projects.find(p=>p.id==='hj').cabinets[0].hardwareChecklist));
- const shop=()=>S(()=>{const b=document.querySelector('[data-shopping-list]');return b?{edging:[...b.querySelectorAll('[data-shop-edging]')].map(r=>r.innerText.replace(/\s+/g,' ').trim()),hw:[...b.querySelectorAll('[data-shop-hw]')].map(r=>r.innerText.replace(/\s+/g,' ').trim()),text:b.innerText}:null});
+ const shop=()=>S(()=>{const b=document.querySelector('[data-shopping-list]');return b?{edging:[...b.querySelectorAll('[data-shop-edging]')].map(r=>(r.querySelector('[data-shop-label]').innerText+' '+r.querySelector('b').innerText).replace(/\s+/g,' ').trim()),hw:[...b.querySelectorAll('[data-shop-hw]')].map(r=>(r.querySelector('[data-shop-label]').innerText+' '+r.querySelector('b').innerText).replace(/\s+/g,' ').trim()),text:b.innerText}:null});
  const hwOpen=()=>S(()=>{const b=document.querySelector('.fiq-hw-card .fiq-hw-body');return !!(b&&!b.hidden)});
 
  // Collapsed by default, with a summary.
