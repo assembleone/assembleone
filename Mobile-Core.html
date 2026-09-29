@@ -5861,6 +5861,13 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
           if(typeof canSeeJob==='function'&&!(newest.rooms&&newest.rooms.length?newest.rooms:[null]).some(room=>canSeeJob(newest,room)))return;
           if((state.deletedProjectIds||[]).includes(incoming.id)&&packet.status!=='waiting')return;
           const local=(state.projects||[]).find(x=>x.id===incoming.id);
+          // Already applied here (same Studio send, no new notes) but still marked waiting in
+          // the cloud, e.g. because Studio's retry re-wrote it: confirm it quietly instead of
+          // applying and announcing the same job again.
+          if(packet.status==='waiting'&&local&&!window.FittersIQSyncProtocol.shouldApply(local,packet,'_lastStudioPacketAt')){
+            if(typeof window.removeMobilePacket==='function')window.removeMobilePacket(packet).catch(()=>{});
+            return;
+          }
           if(packet.status==='waiting'||window.FittersIQSyncProtocol.shouldApply(local,packet,'_lastStudioPacketAt'))cloud.push(packet);
         });
       }

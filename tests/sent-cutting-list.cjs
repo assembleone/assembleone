@@ -57,7 +57,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  };
  const card=async()=>{await S(id=>{openCustomerCard(id)},customerId);await page.waitForTimeout(400)};
  const dialogText=()=>S(()=>{const d=document.querySelector('.fiq-job-dialog');return d?d.innerText.replace(/\s+/g,' ').trim():''});
- const dialogRows=()=>S(()=>[...document.querySelectorAll('.fiq-job-dialog .fiq-sent-latest tr[data-sent-panel]')].map(tr=>[...tr.children].map(td=>td.innerText.trim()).join(' | ').trim()));
+ const dialogRows=()=>S(()=>[...document.querySelectorAll('.fiq-job-dialog .fiq-sent-latest tr[data-sent-panel]')].map(tr=>[...tr.children].slice(0,-1).map(td=>td.innerText.trim()).join(' | ').trim()));
  const closeDialog=async()=>{await page.locator('.fiq-job-dialog [data-job-close]').first().click();await page.waitForTimeout(200)};
  const openSent=async name=>{await card();const row=page.locator('.customer-tab-row-wrap',{has:page.locator('strong',{hasText:name})});await row.locator('[data-open-cutting-list]').click();await page.waitForTimeout(300)};
 
@@ -73,7 +73,8 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await send('jk','uk');
  let vw=await versions('jw','room:rw'),vk=await versions('jk','room:rk');
  assert.deepEqual([vw.length,vk.length],[1,1]);
- assert.deepEqual(vw[0].panels,[
+ assert.deepEqual(vw[0].panels.map(r=>r.pieces.length),[2,4],"each physical piece has its QR saved");
+ assert.deepEqual(vw[0].panels.map(({pieces,...r})=>r),[
   {panelId:'w1',panelNumber:'P-001',partName:'Side',length:2000,width:580,thickness:18,quantity:2,material:'White melamine',edgeLong:1,edgeShort:0,notes:'Grain up',unit:'Wardrobe 1 design',room:'Wardrobe 1'},
   {panelId:'w2',panelNumber:'P-002',partName:'Shelf',length:764,width:560,thickness:18,quantity:4,material:'White melamine',edgeLong:1,edgeShort:0,notes:'',unit:'Wardrobe 1 design',room:'Wardrobe 1'}],'exact manufacturing data of Wardrobe 1');
  assert.deepEqual(vk[0].panels.map(r=>[r.panelNumber,r.partName,r.material,r.edgeLong,r.edgeShort]),[['P-001','Base side','Grey MFC',0,1],['P-002','Plinth','Grey MFC',1,0]],'Kitchen has its own');
