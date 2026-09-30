@@ -19,8 +19,9 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  const page=await context.newPage();
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  page.on('dialog',d=>d.accept());
- await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());
- const url=`http://127.0.0.1:${server.address().port}/Studio.html`;
+ if(process.env.STUDIO_URL)await page.route(u=>!String(u).startsWith('https://assembleone.github.io/'),r=>r.abort());
+ else await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());
+ const url=process.env.STUDIO_URL||`http://127.0.0.1:${server.address().port}/Studio.html`;
  async function open(){
   await page.goto(url);
   await page.waitForFunction(()=>typeof finishDesignToCard==='function'&&typeof openCuttingListForRoom==='function');

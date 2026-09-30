@@ -11,7 +11,8 @@
 //     still on the blank "No customer name" placeholder goes to the name typed on it;
 //  5. repeated reloads + Customer Library renders create, delete and move nothing.
 // Runs the real Studio loader with every network request blocked.
-// FIQ_ROOT=<folder> runs it against another checkout (used to show it fails on old code).
+// FIQ_ROOT=<folder> runs it against another checkout (used to show it fails on old code);
+// STUDIO_URL=<live Studio.html> runs it against the published Beta.
 const {chromium}=require('playwright');
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(process.env.FIQ_ROOT||path.resolve(__dirname,'..'));
@@ -24,11 +25,12 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  browser=await chromium.launch({headless:true});
  const page=await browser.newPage({viewport:{width:1366,height:900}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
- await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());
+ if(process.env.STUDIO_URL)await page.route(u=>!String(u).startsWith('https://assembleone.github.io/'),r=>r.abort());
+ else await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());
  const ready=async()=>{await page.waitForFunction(()=>window.fiqEditor&&window.fiqEditor.role==='editor');await page.waitForTimeout(600)};
  const openLibrary=()=>page.evaluate(()=>{document.body.classList.remove('fiq-locked');const g=document.getElementById('fiqAuthGate');if(g)g.style.display='none';show('customers');renderCustomers()});
  const reload=async()=>{await page.reload();await ready();await openLibrary();await page.waitForTimeout(200)};
- await page.goto(`http://127.0.0.1:${server.address().port}/Studio.html`);
+ await page.goto(process.env.STUDIO_URL||`http://127.0.0.1:${server.address().port}/Studio.html`);
  await ready();
  await page.evaluate(()=>{
   const st=(0,eval)('state');
