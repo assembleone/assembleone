@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Job photos and drawings sent from Studio to Mobile. Only an authenticated member of
+    // the owning company (the companyId custom claim set at sign-in/pairing time) may
+    // upload here, which is exactly who is allowed to write these jobs in Firestore too.
+    // Reads are left open because these download URLs are the exact same unguessable,
+    // per-object links Firebase's own getDownloadURL() is designed to hand out -- they are
+    // only ever reached by someone who already had legitimate, rules-checked Firestore
+    // access to the job document that contains the link.
+    match /companies/{companyId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.companyId == companyId;
+    }
+
+    // =====================================================================
+    // Stage 2 cloud master files (PROPOSAL, not deployed). A new top-level
+    // folder, so the existing companies/ rule above never applies to it and is
+    // left unchanged. Only an active company owner can read or add files.
+    //
+    //   fiqmaster/{companyId}/{env}/jobs/{jobId}/r{rev}.json   one file per job version
+    //   fiqmaster/{companyId}/{env}/media/{sha256}             photos and drawings
+    //
+    // Files are written once and never changed or deleted by an app.
+    // The member check reads Firestore (cross-service rules): the project must
+    // allow Storage rules to read Firestore (Firebase asks once, on first deploy).
+    // =====================================================================
+    match /fiqmaster/{companyId}/{env}/{allPaths=**} {
+      function masterUser() {
+        return request.auth != null
+               && request.auth.token.companyId == companyId
+               && request.auth.token.role == 'company_owner'
+               && (env == 'beta' || env == 'production')
+               && firestore.exists(/databases/(default)/documents/companies/$(companyId)/members/$(request.auth.uid))
+               && firestore.get(/databases/(default)/documents/companies/$(companyId)/members/$(request.auth.uid)).data.status == 'active'
+               && firestore.get(/databases/(default)/documents/companies/$(companyId)/members/$(request.auth.uid)).data.role == 'company_owner';
+      }
+      allow read: if masterUser();
+      allow create: if masterUser()
+                    && resource == null
+                    && request.resource.size < 50 * 1024 * 1024
+                    && (request.resource.contentType == 'application/json'
+                        || request.resource.contentType.matches('image/.*'));
+      allow update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

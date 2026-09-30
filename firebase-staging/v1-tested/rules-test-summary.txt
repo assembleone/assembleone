@@ -1,0 +1,89 @@
+ok    allow  lease: owner takes a free lease
+ok    deny   lease: fitter cannot take it
+ok    deny   read: fitter cannot read the lease
+ok    deny   lease: other company owner cannot take it
+ok    deny   read: other company owner cannot read the lease
+ok    deny   lease: forged claims (other owner says c1) cannot take it
+ok    deny   read: forged claims (other owner says c1) cannot read the lease
+ok    deny   lease: suspended owner cannot take it
+ok    deny   read: suspended owner cannot read the lease
+ok    deny   lease: FittersIQ admin cannot take it
+ok    deny   read: FittersIQ admin cannot read the lease
+ok    deny   lease: signed out cannot take it
+ok    deny   read: signed out cannot read
+ok    allow  read: owner reads the lease
+ok    deny   lease: a second Studio session cannot take an active lease
+ok    allow  lease: the holder renews it
+ok    deny   lease: longer than 5 minutes refused
+ok    deny   lease: deleting it refused
+ok    allow  job: create at version 1 while holding the lease
+ok    allow  job: owner reads it
+ok    deny   job: fitter cannot read it
+ok    deny   job: other company owner cannot read it
+ok    deny   job: forged claims cannot read it
+ok    deny   job: suspended owner cannot read it
+ok    deny   job: FittersIQ admin cannot read it
+ok    deny   job: signed out cannot read it
+ok    deny   job: fitter cannot write it
+ok    deny   job: session without the lease cannot write
+ok    allow  job: update to the next version (2)
+ok    deny   job: stale computer writes version 2 again
+ok    deny   job: skipping a version (4) refused
+ok    deny   job: going back a version (1) refused
+ok    deny   job: file name not matching the version refused
+ok    deny   job: computer clock instead of server time refused
+ok    deny   job: another person's name as writer refused
+ok    deny   job: unknown extra field refused
+ok    deny   job: hard delete refused
+ok    deny   job: new job created at version 2 refused
+ok    allow  tombstone: delete (version 3, deleted, server time)
+ok    deny   tombstone: stale save that does not know about the delete refused
+ok    deny   tombstone: changing a deleted job refused
+ok    deny   tombstone: new delete time on a deleted job refused
+ok    deny   tombstone: restore that changes the delete time refused
+ok    deny   tombstone: restore with computer clock refused
+ok    deny   tombstone: fitter cannot restore
+ok    deny   tombstone: hard delete of a deleted job refused
+ok    allow  tombstone: deliberate Restore (version 4)
+ok    allow  lease: another Studio takes over on purpose
+ok    deny   job: the old Studio session can no longer write
+ok    allow  job: the new holder writes version 5
+ok    deny   job: holder with an expired lease cannot write
+ok    allow  lease: an expired lease can be taken without take-over
+ok    allow  customer: create by id
+ok    deny   customer: record id must match customer id
+ok    deny   customer: fitter cannot read
+ok    allow  customer: delete (tombstone)
+ok    deny   customer: stale save cannot bring it back
+ok    deny   customer: hard delete refused
+ok    allow  settings: create studio settings
+ok    deny   settings: other settings record refused
+ok    allow  settings: next version
+ok    deny   settings: stale version refused
+ok    allow  switch: create (browser master)
+ok    deny   switch: unknown mode refused
+ok    deny   switch: fitter cannot change it
+ok    deny   switch: delete refused
+ok    deny   env: only beta or production
+ok    allow  other company: its own master works (isolated)
+ok    deny   other company: owner of c1 cannot read c2 master
+ok    allow  file: owner adds a job version file
+ok    allow  file: owner reads it
+ok    deny   file: overwriting a version file refused
+ok    deny   file: deleting refused
+ok    allow  file: owner adds a photo
+ok    deny   file: other file types refused
+ok    deny   file: env other than beta/production refused
+ok    deny   file: fitter cannot read
+ok    deny   file: fitter cannot add
+ok    deny   file: other company owner cannot read
+ok    deny   file: other company owner cannot add
+ok    deny   file: forged claims cannot read
+ok    deny   file: forged claims cannot add
+ok    deny   file: suspended owner cannot read
+ok    deny   file: suspended owner cannot add
+ok    deny   file: FittersIQ admin cannot read
+ok    deny   file: FittersIQ admin cannot add
+ok    deny   file: signed out cannot read
+ok    deny   file: signed out cannot add
+ok    154 of 154 existing-path checks give the same answer (58 allowed, 96 denied under both)

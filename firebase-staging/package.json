@@ -1,0 +1,12 @@
+{
+  "name": "fittersiq-staging-rules",
+  "private": true,
+  "description": "Stage 2 cloud master rules: emulator tests only. Runs against the demo-fittersiq emulator project, never a real Firebase project.",
+  "scripts": {
+    "test": "firebase emulators:exec --project demo-fittersiq --config firebase.json --only firestore,storage \"node rules.test.cjs && node orphan.test.cjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.2.1"
+  }
+}

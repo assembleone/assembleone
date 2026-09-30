@@ -1,0 +1,1458 @@
+{
+ "ranAt": "2026-09-30T11:11:01.834Z",
+ "failures": 0,
+ "results": [
+  {
+   "label": "lease: owner takes a free lease",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "lease: fitter cannot take it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "read: fitter cannot read the lease",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "lease: other company owner cannot take it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "read: other company owner cannot read the lease",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "lease: forged claims (other owner says c1) cannot take it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "read: forged claims (other owner says c1) cannot read the lease",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "lease: suspended owner cannot take it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "read: suspended owner cannot read the lease",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "lease: FittersIQ admin cannot take it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "read: FittersIQ admin cannot read the lease",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "lease: signed out cannot take it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "read: signed out cannot read",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "read: owner reads the lease",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "lease: a second Studio session cannot take an active lease",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "lease: the holder renews it",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "lease: longer than 5 minutes refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "lease: deleting it refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: create at version 1 while holding the lease",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "job: owner reads it",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "job: fitter cannot read it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: other company owner cannot read it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: forged claims cannot read it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: suspended owner cannot read it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: FittersIQ admin cannot read it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: signed out cannot read it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: fitter cannot write it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: session without the lease cannot write",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: update to the next version (2)",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "job: stale computer writes version 2 again",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: skipping a version (4) refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: going back a version (1) refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: file name not matching the version refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: computer clock instead of server time refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: another person's name as writer refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: unknown extra field refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: hard delete refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: new job created at version 2 refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "tombstone: delete (version 3, deleted, server time)",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "tombstone: stale save that does not know about the delete refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "tombstone: changing a deleted job refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "tombstone: new delete time on a deleted job refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "tombstone: restore that changes the delete time refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "tombstone: restore with computer clock refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "tombstone: fitter cannot restore",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "tombstone: hard delete of a deleted job refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "tombstone: deliberate Restore (version 4)",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "lease: another Studio takes over on purpose",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "job: the old Studio session can no longer write",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "job: the new holder writes version 5",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "job: holder with an expired lease cannot write",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "lease: an expired lease can be taken without take-over",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "customer: create by id",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "customer: record id must match customer id",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "customer: fitter cannot read",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "customer: delete (tombstone)",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "customer: stale save cannot bring it back",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "customer: hard delete refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "settings: create studio settings",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "settings: other settings record refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "settings: next version",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "settings: stale version refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "switch: create (browser master)",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "switch: unknown mode refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "switch: fitter cannot change it",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "switch: delete refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "env: only beta or production",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "other company: its own master works (isolated)",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "other company: owner of c1 cannot read c2 master",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: owner adds a job version file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "file: owner reads it",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "file: overwriting a version file refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: deleting refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: owner adds a photo",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "file: other file types refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: env other than beta/production refused",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: fitter cannot read",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: fitter cannot add",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: other company owner cannot read",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: other company owner cannot add",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: forged claims cannot read",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: forged claims cannot add",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: suspended owner cannot read",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: suspended owner cannot add",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: FittersIQ admin cannot read",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: FittersIQ admin cannot add",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: signed out cannot read",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "file: signed out cannot add",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: read Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: send Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: mark message received",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: Studio to Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: delete message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: read company",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: update company",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: read member",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: change member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: register own device",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: approve device",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: create fitter record",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: read invitations",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: read licence",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: create own user record",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: support ticket",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: activity log",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: read pairing code",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: unknown top-level path",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: read job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: upload job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: owner: upload outside companies/",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: read Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: send Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: mark message received",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: Studio to Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: delete message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: read company",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: update company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: read member",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: change member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: register own device",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: approve device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: create fitter record",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: read invitations",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: read licence",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: create own user record",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: support ticket",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: activity log",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: read pairing code",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: unknown top-level path",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: read job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: upload job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: fitter: upload outside companies/",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: read Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: send Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: mark message received",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: Studio to Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: delete message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: read company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: update company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: read member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: change member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: register own device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: approve device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: create fitter record",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: read invitations",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: read licence",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: create own user record",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: support ticket",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: activity log",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: read pairing code",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: unknown top-level path",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: read job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: upload job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: susp: upload outside companies/",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: read Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: send Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: mark message received",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: Studio to Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: delete message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: read company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: update company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: read member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: change member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: register own device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: approve device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: create fitter record",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: read invitations",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: read licence",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: create own user record",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: support ticket",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: activity log",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: read pairing code",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: unknown top-level path",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: read job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: upload job media file",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: other: upload outside companies/",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: read Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: send Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: mark message received",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: Studio to Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: delete message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: read company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: update company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: read member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: change member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: register own device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: approve device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: create fitter record",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: read invitations",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: read licence",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: create own user record",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: support ticket",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: activity log",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: read pairing code",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: unknown top-level path",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: read job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: upload job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: forged: upload outside companies/",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: read Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: send Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: mark message received",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: Studio to Mobile message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: delete message",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: read company",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: update company",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: read member",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: change member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: register own device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: approve device",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: create fitter record",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: read invitations",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: read licence",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: create own user record",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: support ticket",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: activity log",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: read pairing code",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: unknown top-level path",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: read job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: upload job media file",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: admin: upload outside companies/",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: read Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: send Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: mark message received",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: Studio to Mobile message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: delete message",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: read company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: update company",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: read member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: change member",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: register own device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: approve device",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: create fitter record",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: read invitations",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: read licence",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: create own user record",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: support ticket",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: activity log",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: read pairing code",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: unknown top-level path",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: read job media file",
+   "want": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: upload job media file",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  },
+  {
+   "label": "same answer: anon: upload outside companies/",
+   "want": "deny",
+   "got": "deny",
+   "ok": true
+  }
+ ]
+}

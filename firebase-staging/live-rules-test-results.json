@@ -1,0 +1,495 @@
+{
+ "ranAt": "2026-09-30T12:22:50.276Z",
+ "project": "fittersiq-staging",
+ "fail": 0,
+ "log": [
+  {
+   "n": 1,
+   "who": "anon",
+   "what": "Signed out reads a master record",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 2,
+   "who": "anon",
+   "what": "Signed out takes the editing lock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 3,
+   "who": "fitter1",
+   "what": "Active fitter reads own company master",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 4,
+   "who": "fitter1",
+   "what": "Active fitter takes own company lock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 5,
+   "who": "fitter2",
+   "what": "Suspended fitter reads own company master",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 6,
+   "who": "fitter2",
+   "what": "Suspended fitter takes own company lock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 7,
+   "who": "owner",
+   "what": "Owner reads own company master (record does not exist)",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 8,
+   "who": "owner",
+   "what": "Owner reads OTHER company master",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 9,
+   "who": "owner",
+   "what": "Owner takes OTHER company lock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 10,
+   "who": "other",
+   "what": "Other company owner reads company A master",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 11,
+   "who": "fitter1",
+   "what": "Active fitter reads a message",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 12,
+   "who": "fitter2",
+   "what": "Suspended fitter reads a message",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 13,
+   "who": "other",
+   "what": "Other company owner reads a message",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 14,
+   "who": "anon",
+   "what": "Signed out reads a message",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 15,
+   "who": "other",
+   "what": "Studio S1 takes the free lock (2 minutes)",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 16,
+   "who": "other",
+   "what": "Second Studio S2 takes the active lock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 17,
+   "who": "other",
+   "what": "S1 renews its lock",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 18,
+   "who": "other",
+   "what": "S1 asks for a 10-minute lock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 19,
+   "who": "other",
+   "what": "Deleting the lock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 20,
+   "who": "other",
+   "what": "S1 adds the version 1 file",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 21,
+   "who": "other",
+   "what": "S1 creates the record at version 1",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 22,
+   "who": "other",
+   "what": "Stale Studio S0 (no lock) adds a version 2 file",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 23,
+   "who": "other",
+   "what": "Stale Studio S0 moves the record to version 2",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 24,
+   "who": "other",
+   "what": "S1 adds the version 2 file",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 25,
+   "who": "other",
+   "what": "S1 moves the record to version 2",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 26,
+   "who": "other",
+   "what": "A save based on the old version (version 2 again)",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 27,
+   "who": "other",
+   "what": "Skipping to version 4",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 28,
+   "who": "other",
+   "what": "Version 3 stamped with the computer clock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 29,
+   "who": "other",
+   "what": "Record naming a file whose fingerprint does not match",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 30,
+   "who": "other",
+   "what": "Overwriting the version 1 file",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 31,
+   "who": "other",
+   "what": "Deleting the version 1 file",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 32,
+   "who": "other",
+   "what": "Hard delete of the job record",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 33,
+   "who": "other",
+   "what": "Company B owner reads its job record",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 34,
+   "who": "owner",
+   "what": "Company A owner reads it",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 35,
+   "who": "fitter1",
+   "what": "A fitter reads it",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 36,
+   "who": "other",
+   "what": "Company B owner reads its file",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 37,
+   "who": "owner",
+   "what": "Company A owner reads it",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 38,
+   "who": "anon",
+   "what": "Signed out reads it",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 39,
+   "who": "fitter1",
+   "what": "A fitter adds a photo to company B",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 40,
+   "who": "other",
+   "what": "S1 deletes the job (version 3, tombstone)",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 41,
+   "who": "other",
+   "what": "A save that does not know about the delete",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 42,
+   "who": "other",
+   "what": "Changing the deleted job",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 43,
+   "who": "other",
+   "what": "Deliberate Restore (version 4)",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 44,
+   "who": "other",
+   "what": "Studio S2 takes over on purpose",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 45,
+   "who": "other",
+   "what": "Old Studio S1 saves after the take-over",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 46,
+   "who": "other",
+   "what": "Old Studio S1 adds a file after the take-over",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 47,
+   "who": "other",
+   "what": "S2 adds the version 5 file",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 48,
+   "who": "other",
+   "what": "S2 moves the record to version 5",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 49,
+   "who": "other",
+   "what": "S2 renews with a 45-second lock",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 50,
+   "who": "other",
+   "what": "S2 saves with an expired lock",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 51,
+   "who": "other",
+   "what": "Studio S3 takes the expired lock (no take-over needed)",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 52,
+   "who": "other",
+   "what": "Create customer livetest-cust-1",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 53,
+   "who": "other",
+   "what": "Customer record whose id does not match",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 54,
+   "who": "other",
+   "what": "Delete the customer (tombstone)",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 55,
+   "who": "other",
+   "what": "Stale save brings the customer back",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 56,
+   "who": "other",
+   "what": "Create Studio settings",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 57,
+   "who": "other",
+   "what": "Stale settings save (version 1 again)",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 58,
+   "who": "other",
+   "what": "Create the switch record (browser master)",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  },
+  {
+   "n": 59,
+   "who": "other",
+   "what": "Unknown switch mode",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 60,
+   "who": "fitter1",
+   "what": "A fitter creates company A switch record",
+   "expect": "refuse",
+   "got": "refuse",
+   "ok": true
+  },
+  {
+   "n": 61,
+   "who": "other",
+   "what": "S3 shortens its lock to 30 seconds so it expires by itself",
+   "expect": "allow",
+   "got": "allow",
+   "ok": true
+  }
+ ]
+}

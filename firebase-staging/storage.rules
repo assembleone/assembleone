@@ -1,0 +1,78 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Job photos and drawings sent from Studio to Mobile. Only an authenticated member of
+    // the owning company (the companyId custom claim set at sign-in/pairing time) may
+    // upload here, which is exactly who is allowed to write these jobs in Firestore too.
+    // Reads are left open because these download URLs are the exact same unguessable,
+    // per-object links Firebase's own getDownloadURL() is designed to hand out -- they are
+    // only ever reached by someone who already had legitimate, rules-checked Firestore
+    // access to the job document that contains the link.
+    match /companies/{companyId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.companyId == companyId;
+    }
+
+    // =====================================================================
+    // Stage 2 cloud master files (staging). A new top-level folder, so the
+    // existing companies/ rule above never applies to it and is left unchanged.
+    //
+    //   fiqmaster/{companyId}/{env}/jobs/{jobId}/r{rev}-{sha256}.json   job versions
+    //   fiqmaster/{companyId}/{env}/media/{sha256}                      photos, drawings
+    //
+    // Only an active company owner can read. Only the Studio session holding the
+    // editing lock can add a file (its session id travels as file metadata), so a
+    // second or stale Studio cannot add anything. Files are never changed or
+    // deleted. Job files are named by content fingerprint, so an unused file can
+    // never block or stand in for a later version; the Firestore job record is
+    // the only pointer to the master.
+    // Storage rules read Firestore (cross-service): Firebase asks once to allow it.
+    // =====================================================================
+    match /fiqmaster/{companyId}/{env} {
+      function member() {
+        return firestore.get(/databases/(default)/documents/companies/$(companyId)/members/$(request.auth.uid)).data;
+      }
+      function lease() {
+        return firestore.get(/databases/(default)/documents/companies/$(companyId)/fiqMaster/$(env)/lease/studio).data;
+      }
+      function masterUser() {
+        return request.auth != null
+               && request.auth.token.companyId == companyId
+               && request.auth.token.role == 'company_owner'
+               && (env == 'beta' || env == 'production')
+               && member().status == 'active'
+               && member().role == 'company_owner';
+      }
+      function holdsLease() {
+        return lease().holderUid == request.auth.uid
+               && lease().sessionId == request.resource.metadata.sessionId
+               && lease().expiresAt > request.time;
+      }
+      function newFile() {
+        return masterUser() && holdsLease()
+               && resource == null
+               && request.resource.size < 50 * 1024 * 1024;
+      }
+      match /{allPaths=**} {
+        allow read: if masterUser();
+        allow update, delete: if false;
+      }
+      match /jobs/{jobId}/{fileName} {
+        allow create: if newFile()
+                      && fileName.matches('^r[0-9]+-[0-9a-f]{64}[.]json$')
+                      && request.resource.contentType == 'application/json';
+      }
+      match /media/{hash} {
+        allow create: if newFile()
+                      && hash.matches('^[0-9a-f]{64}$')
+                      && request.resource.contentType.matches('image/.*');
+      }
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,117 @@
+{
+ "ranAt": "2026-09-30T11:11:03.773Z",
+ "v1": [
+  {
+   "step": "Setup: editing Studio saves version 1 (file + record)",
+   "got": "allow",
+   "safe": true
+  },
+  {
+   "step": "Stale Studio overwrites the valid version-1 file",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "Stale Studio adds its own next-version file (lock bypass)",
+   "got": "allow",
+   "safe": false
+  },
+  {
+   "step": "Stale Studio adds a photo (lock bypass)",
+   "got": "allow",
+   "safe": false
+  },
+  {
+   "step": "Stale Studio moves the record to version 2",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "Orphan present: editing Studio adds its version-2 file",
+   "got": "deny",
+   "safe": false
+  },
+  {
+   "step": "Orphan present: editing Studio moves the record to version 2",
+   "got": "allow",
+   "safe": true
+  },
+  {
+   "step": "The record points at content matching its checksum",
+   "got": "MISMATCH (stale copy)",
+   "safe": false
+  },
+  {
+   "step": "Record pointing at the orphan file with the right checksum",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "After take-over, the old Studio (S1) adds a file",
+   "got": "allow",
+   "safe": false
+  },
+  {
+   "step": "After take-over, the new holder (S2) adds a file",
+   "got": "deny",
+   "safe": false
+  }
+ ],
+ "v2": [
+  {
+   "step": "Setup: editing Studio saves version 1 (file + record)",
+   "got": "allow",
+   "safe": true
+  },
+  {
+   "step": "Stale Studio overwrites the valid version-1 file",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "Stale Studio adds its own next-version file (lock bypass)",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "Stale Studio adds a photo (lock bypass)",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "Stale Studio moves the record to version 2",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "Orphan present: editing Studio adds its version-2 file",
+   "got": "allow",
+   "safe": true
+  },
+  {
+   "step": "Orphan present: editing Studio moves the record to version 2",
+   "got": "allow",
+   "safe": true
+  },
+  {
+   "step": "The record points at content matching its checksum",
+   "got": "match",
+   "safe": true
+  },
+  {
+   "step": "Record pointing at the orphan file with the right checksum",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "After take-over, the old Studio (S1) adds a file",
+   "got": "deny",
+   "safe": true
+  },
+  {
+   "step": "After take-over, the new holder (S2) adds a file",
+   "got": "allow",
+   "safe": true
+  }
+ ]
+}
