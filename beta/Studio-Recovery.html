@@ -1794,7 +1794,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .fiq-save-chip[data-save-status="readonly"]{color:#1b3f73;border-color:#b9cbe6;background:#eef3fb}
 .fiq-save-chip .fiq-chip-long{display:inline}
 @media(max-width:900px){.fiq-save-chip .fiq-chip-long{display:none}}
-#fiqReadonlyBanner{position:fixed;left:0;right:0;top:0;z-index:100000;background:#1b3f73;color:#fff;font-weight:800;font-size:14px;line-height:1.35;padding:9px 16px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+#fiqReadonlyBanner,#fiqRestoreBanner{position:fixed;left:0;right:0;top:0;z-index:100000;background:#1b3f73;color:#fff;font-weight:800;font-size:14px;line-height:1.35;padding:9px 16px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 html.fiq-readonly body{padding-top:44px}
 .fiq-safety-sheet{width:min(860px,100%);max-height:92vh;overflow:auto}
 .fiq-safety-sheet h3{margin:6px 0 2px;font-size:15px}
@@ -1874,13 +1874,23 @@ html.fiq-readonly body{padding-top:44px}
 //     only shown after the browser really stored the data (see a131 writeStableState).
 //  3. Data safety dialog (click the status): complete backup download and Data Doctor
 //     storage/consistency report. Both only read; neither changes any saved data.
+// Stage 2.0: the editor asks the browser to keep this website's data permanently, and the
+// Data safety dialog can restore a full backup file (validated completely first, applied
+// through a journal so an interrupted restore is finished on the next open).
 (function(){
  const LOCK='fiq-studio-editor:'+location.pathname.replace(/[^\/]*$/,'');
  let role='pending',resolveReady,status='pending',detail='';
+ // While a restore runs (or an interrupted one is finished) nothing may write: the tab
+ // behaves exactly like a read-only tab until it reloads.
+ let suspended=false;
+ const RESTORE_MARK='fiq_restore_pending_v1';
+ let pendingRestore=null;try{pendingRestore=JSON.parse(localStorage.getItem(RESTORE_MARK)||'null')}catch(e){}
+ if(pendingRestore)suspended=true;
  const ready=new Promise(r=>{resolveReady=r});
  const gate=window.fiqEditor={
-  get role(){return role},ready,
-  canWrite:()=>role==='editor',
+  get role(){return suspended&&role==='editor'?'readonly':role},ready,
+  canWrite:()=>role==='editor'&&!suspended,
+  get restoring(){return suspended},
   wantSave:false,lockSupported:!!(navigator.locks&&navigator.locks.request),
   statusLog:[],
   setStatus(s,d){status=s;detail=d||'';gate.statusLog.push(s);paintChip()},
@@ -1892,9 +1902,11 @@ html.fiq-readonly body{padding-top:44px}
   if(window.fiqAuthDiagRole)window.fiqAuthDiagRole(r);
   document.documentElement.classList.toggle('fiq-readonly',r==='readonly');
   if(r==='readonly'){gate.setStatus('readonly');showBanner()}
+  else if(pendingRestore){setTimeout(finishInterruptedRestore,0)}
   else{
    if(status==='pending')gate.setStatus('saved');
    if(gate.wantSave&&typeof window.a131StableSave==='function')window.a131StableSave(false);
+   setTimeout(requestPersistentStorage,0);
   }
  }
  if(!gate.lockSupported){become('editor');console.warn('Web Locks not available: single-editor protection is off in this browser.')}
@@ -1935,7 +1947,7 @@ html.fiq-readonly body{padding-top:44px}
  const allowed=t=>!!(t&&t.closest&&t.closest('#fiqReadonlyBanner,#fiqSaveChip,.fiq-safety-dialog,a[data-fiq-safety-download],#fiqAuthGate'));
  const NAV_KEYS=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End']);
  function shield(e){
-  if(role!=='readonly'||allowed(e.target))return;
+  if((role!=='readonly'&&!suspended)||allowed(e.target))return;
   if(document.body&&document.body.classList.contains('guide-only'))return;
   if(e.type==='keydown'&&NAV_KEYS.has(e.key)&&!(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]')))return;
   e.preventDefault();e.stopImmediatePropagation();
@@ -1943,7 +1955,7 @@ html.fiq-readonly body{padding-top:44px}
  ['pointerdown','mousedown','mouseup','click','dblclick','contextmenu','keydown','keypress','beforeinput','input','change','submit','drop','dragstart','paste','cut','touchstart'].forEach(t=>window.addEventListener(t,shield,{capture:true,passive:false}));
 
  // ---- Save status chip. ----
- const TEXT={pending:['…',''],saving:['Saving…',''],saved:['✓ Saved',' on this computer'],failed:['⚠ Not saved',''],readonly:['🔒 Read-only',' tab'],external:['⚠ Another tab saved','']};
+ const TEXT={pending:['…',''],saving:['Saving…',''],saved:['✓ Saved',' on this computer'],failed:['⚠ Not saved',''],readonly:['🔒 Read-only',' tab'],external:['⚠ Another tab saved',''],restoring:['⏳ Restoring backup…','']};
  function paintChip(){
   let chip=document.getElementById('fiqSaveChip');
   if(!chip){
@@ -2001,7 +2013,9 @@ html.fiq-readonly body{padding-top:44px}
   let fbState=null;
   if(fb&&fb.state){fbState=clone(fb.state);(fbState.projects||[]).forEach(p=>(p.cabinets||[]).forEach(c=>{if(c.drawing){c.drawing=null;c.hasStoredDrawing=true}}))}
   const saved=raw?JSON.parse(raw):null;
-  return {kind:'fittersiq-studio-backup',backupVersion:1,app:'FittersIQ Studio',beta:isBeta,createdAt:new Date().toISOString(),
+  // Version 2 adds the Studio settings kept in their own browser keys (see SETTING_KEYS).
+  return {kind:'fittersiq-studio-backup',backupVersion:2,app:'FittersIQ Studio',beta:isBeta,createdAt:new Date().toISOString(),
+   settings:{values:collectSettings()},
    origin:location.origin,page:location.pathname,editorRole:role,saveStatus:status,storageKey:storeKey(),
    savedStateSha256:raw?await sha256(raw):'',savedStateBytes:raw?bytes(raw):0,
    summary:saved?{customers:(saved.customers||[]).length,jobs:(saved.projects||[]).length,deletedJobs:(saved.deletedProjectIds||[]).length}:null,
@@ -2105,8 +2119,9 @@ html.fiq-readonly body{padding-top:44px}
   o.innerHTML='<div class="a100-edit-sheet fiq-safety-sheet"><h2>Data safety</h2>'+
    '<div class="fiq-safety-status" data-safety-status>'+esc(st[0]+st[1])+(detail?' — '+esc(detail):'')+'</div>'+
    '<div class="muted">'+(role==='readonly'?'This tab is read-only because Studio is open for editing in another tab or window.':'Saved means stored in this browser on this computer. It is not a cloud copy: download a backup regularly.')+'</div>'+
-   '<div class="fiq-safety-actions"><button type="button" class="btn primary" data-safety-backup>Download full backup</button><button type="button" class="btn" data-safety-doctor>Data Doctor report</button></div>'+
-   '<div data-safety-out></div>'+
+   '<div class="muted" data-safety-persist="'+(gate.persistent===true?'yes':gate.persistent===false?'no':'unknown')+'">'+(gate.persistent===true?'Browser storage: protected from automatic clearing.':gate.persistent===false?'Browser storage: not protected. The browser may clear it when disk space is short.':'Browser storage: protection not checked yet.')+'</div>'+
+   '<div class="fiq-safety-actions"><button type="button" class="btn primary" data-safety-backup>Download full backup</button><button type="button" class="btn" data-safety-doctor>Data Doctor report</button><button type="button" class="btn" data-safety-restore'+(gate.canWrite()?'':' disabled title="Only the tab that is editing can restore a backup."')+'>Restore from backup file</button><input type="file" accept=".json,application/json" data-safety-restore-file hidden></div>'+
+   '<div data-safety-out>'+(restoreDoneMessage?'<p class="fiq-doc-ok" data-restore-done>'+esc(restoreDoneMessage)+'</p>':'')+'</div>'+
    '<div class="a100-edit-actions"><button type="button" class="btn" data-safety-close>Close</button></div></div>';
   document.body.appendChild(o);
   const out=o.querySelector('[data-safety-out]'),close=()=>o.remove();
@@ -2114,7 +2129,183 @@ html.fiq-readonly body{padding-top:44px}
   o.querySelector('[data-safety-close]').onclick=close;
   o.querySelector('[data-safety-backup]').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{const r=await downloadBackup();out.innerHTML='<p class="fiq-doc-ok" data-backup-done>✓ Backup downloaded: '+r.jobs+' jobs, '+r.drawings+' drawings, '+kb(r.bytes)+'. Keep the file somewhere safe (not only in Downloads).</p>'}catch(err){console.error(err);out.innerHTML='<p class="fiq-doc-warn">⚠ Backup could not be made: '+esc(err&&err.message||err)+'</p>'}finally{b.disabled=false}};
   o.querySelector('[data-safety-doctor]').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{const r=await buildDoctor();gate.lastDoctor=r;out.innerHTML=doctorHtml(r)+'<div class="fiq-safety-actions" style="margin-top:8px"><button type="button" class="btn" data-safety-doctor-download>Download report</button></div>';out.querySelector('[data-safety-doctor-download]').onclick=()=>download('FittersIQ-'+(isBeta?'Beta-':'')+'data-doctor-'+stamp()+'.json',JSON.stringify(r,null,1))}catch(err){console.error(err);out.innerHTML='<p class="fiq-doc-warn">⚠ Report could not be made: '+esc(err&&err.message||err)+'</p>'}finally{b.disabled=false}};
+  restoreDoneMessage='';
+  const fileInput=o.querySelector('[data-safety-restore-file]');
+  o.querySelector('[data-safety-restore]').onclick=()=>{if(gate.canWrite()){fileInput.value='';fileInput.click()}};
+  fileInput.onchange=async()=>{
+   const f=fileInput.files&&fileInput.files[0];if(!f)return;
+   out.innerHTML='<p class="muted">Checking the backup file…</p>';
+   let v;try{v=await validateBackupText(await f.text())}catch(err){v={ok:false,errors:['The file could not be read: '+(err&&err.message||err)],warnings:[]}}
+   if(!v.ok){out.innerHTML='<div class="fiq-doc-warn" data-restore-rejected><p><b>⚠ This file cannot be restored. Nothing was changed.</b></p><ul>'+v.errors.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>';return}
+   const s=v.summary;
+   out.innerHTML='<div data-restore-ready><p><b>Backup from '+esc(s.createdAt)+'</b></p><table class="fiq-doctor">'+
+    [['Customers',s.customers],['Jobs',s.jobs],['Rooms',s.rooms],['Units',s.units],['Panels',s.panels],['Drawings',s.drawings],['Photos inside jobs',s.photos],['Saved Cutting List versions',s.cuttingListVersions],['Deleted jobs',s.deletedJobs],['Settings',s.settings]].map(([a,b])=>'<tr><th>'+esc(a)+'</th><td>'+esc(b)+'</td></tr>').join('')+'</table>'+
+    (v.warnings.length?'<ul class="fiq-doc-warn">'+v.warnings.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+
+    '<p>Everything Studio has saved in this browser will be replaced by this backup. A copy of the current data is downloaded first.</p>'+
+    '<div class="fiq-safety-actions"><button type="button" class="btn primary" data-restore-confirm>Replace with this backup</button><button type="button" class="btn" data-restore-cancel>Cancel</button></div></div>';
+   out.querySelector('[data-restore-cancel]').onclick=()=>{out.innerHTML=''};
+   out.querySelector('[data-restore-confirm]').onclick=async e=>{
+    e.currentTarget.disabled=true;out.querySelector('[data-restore-cancel]').disabled=true;
+    out.insertAdjacentHTML('beforeend','<p class="muted" data-restore-running>Restoring… do not close this tab.</p>');
+    try{await restoreBackup(v.backup,s)}
+    catch(err){console.error(err);out.innerHTML='<div class="fiq-doc-warn" data-restore-failed><p><b>⚠ '+esc(err&&err.message||err)+'</b></p></div>'}
+   };
+  };
  }
+
+ // ---- Stage 2.0: persistent storage and restore from a full backup. ----
+ // Studio settings that live in their own browser keys. Only these are written back from a
+ // backup file; anything else in a file is ignored.
+ const SETTING_KEYS=['assembleone_material_library_v1','assembleone_notes_library_v1','assembleone_supplier_system','assembleone_sheet_settings','fiq_supplier_prices_v1','assembleone_language','assembleone_mobile_lang'];
+ const SETTING_PREFIXES=['assembleone-checklist-'];
+ const isSettingKey=k=>SETTING_KEYS.includes(k)||SETTING_PREFIXES.some(p=>k.indexOf(p)===0);
+ function ownKeys(){
+  const out=[],rawKey=Storage.prototype.key;
+  for(let i=0;i<localStorage.length;i++){let k=rawKey.call(localStorage,i);if(k==null)continue;
+   if(isBeta){if(k.indexOf('fiqbeta:')!==0)continue;k=k.slice(8)}else if(k.indexOf('fiqbeta:')===0)continue;
+   out.push(k)}
+  return out;
+ }
+ function collectSettings(){const v={};ownKeys().filter(isSettingKey).forEach(k=>{const x=localStorage.getItem(k);if(x!=null)v[k]=x});return v}
+ function applySettings(values){
+  ownKeys().filter(isSettingKey).forEach(k=>{if(!Object.prototype.hasOwnProperty.call(values,k))localStorage.removeItem(k)});
+  Object.keys(values).forEach(k=>{if(isSettingKey(k)&&typeof values[k]==='string')localStorage.setItem(k,values[k])});
+ }
+ async function requestPersistentStorage(){
+  try{
+   if(!navigator.storage||!navigator.storage.persisted)return;
+   let p=await navigator.storage.persisted();
+   if(!p&&navigator.storage.persist){gate.persistRequested=true;p=await navigator.storage.persist()}
+   gate.persistent=!!p;
+  }catch(e){console.warn('Persistent storage request failed',e)}
+ }
+ gate.requestPersistentStorage=requestPersistentStorage;
+
+ // A backup is checked completely before anything is changed.
+ async function validateBackupText(text){
+  const errors=[],warnings=[];
+  let b=null;
+  try{b=JSON.parse(text)}catch(e){return {ok:false,errors:['The file is damaged or incomplete (it is not complete JSON).'],warnings}}
+  if(!b||typeof b!=='object'||b.kind!=='fittersiq-studio-backup'||b.app!=='FittersIQ Studio')return {ok:false,errors:['This is not a FittersIQ Studio full backup file.'],warnings};
+  if(b.backupVersion!==1&&b.backupVersion!==2)errors.push(Number(b.backupVersion)>2?'This backup was made by a newer version of FittersIQ. Update Studio first.':'Unknown backup version: '+String(b.backupVersion)+'.');
+  if(!!b.beta!==isBeta)errors.push(b.beta?'This backup is from Beta Studio. It can only be restored in Beta Studio.':'This backup is from the normal Studio. It can only be restored in the normal Studio.');
+  if(b.storageKey&&b.storageKey!==storeKey())errors.push('This backup belongs to a different Studio storage ('+String(b.storageKey)+').');
+  const s=b.savedState;
+  if(!s||typeof s!=='object'||!Array.isArray(s.projects)||!Array.isArray(s.customers))errors.push('The backup contains no saved Studio data.');
+  if(!Array.isArray(b.drawings))errors.push('The backup has no drawings list.');
+  if(errors.length)return {ok:false,errors,warnings};
+  if(!s.projects.length&&!s.customers.length)errors.push('The backup contains no customers and no jobs.');
+  if(b.savedStateSha256){const h=await sha256(JSON.stringify(s));if(h&&h!==b.savedStateSha256)errors.push('The saved data inside the file does not match its checksum. The file has been changed or damaged.')}
+  else if(b.backupVersion>=1)errors.push('The backup has no checksum for its saved data.');
+  const dup=list=>{const seen=new Set(),d=new Set();list.forEach(x=>{if(seen.has(x))d.add(x);seen.add(x)});return [...d]};
+  if(s.projects.some(p=>!p||typeof p!=='object'||!p.id||!Array.isArray(p.cabinets||[])))errors.push('A job in the backup has no id or an invalid unit list.');
+  if(s.customers.some(c=>!c||typeof c!=='object'||!c.id))errors.push('A customer in the backup has no id.');
+  const dj=dup(s.projects.map(p=>p&&p.id)),dc=dup(s.customers.map(c=>c&&c.id));
+  if(dj.length)errors.push('Job ids appear twice: '+dj.slice(0,5).join(', '));
+  if(dc.length)errors.push('Customer ids appear twice: '+dc.slice(0,5).join(', '));
+  const dk=dup(b.drawings.map(d=>d&&d.key));if(dk.length)errors.push('Drawings appear twice: '+dk.slice(0,5).join(', '));
+  if(b.drawings.some(d=>!d||typeof d.key!=='string'||(d.drawing!=null&&typeof d.drawing!=='string')))errors.push('A drawing in the backup is invalid.');
+  if(b.settings!=null&&(typeof b.settings!=='object'||!b.settings.values||typeof b.settings.values!=='object'||Object.values(b.settings.values).some(v=>typeof v!=='string')))errors.push('The settings in the backup are invalid.');
+  if(errors.length)return {ok:false,errors,warnings};
+  const have=new Set(b.drawings.filter(d=>d.drawing).map(d=>d.key));
+  let rooms=0,units=0,panels=0,versions=0,photos=0;const noDrawing=[];
+  const walk=n=>{if(!n||typeof n!=='object')return;(Array.isArray(n)?n:Object.values(n)).forEach(v=>{if(typeof v==='string'){if(v.startsWith('data:image'))photos++}else walk(v)})};
+  s.projects.forEach(p=>{rooms+=(p.rooms||[]).length;(p.cabinets||[]).forEach(c=>{units++;panels+=(c.parts||[]).length;if(c.hasStoredDrawing&&!have.has(String(p.id)+':'+String(c.id)))noDrawing.push((p.name||p.id)+' · '+(c.name||c.id))});Object.values(p.sentCuttingLists||{}).forEach(l=>versions+=(l||[]).length);walk(p)});
+  if(noDrawing.length)warnings.push('These units had no drawing stored when the backup was made, so none can be restored: '+noDrawing.slice(0,8).join(', ')+(noDrawing.length>8?' …':''));
+  const settingsCount=b.settings?Object.keys(b.settings.values).filter(isSettingKey).length:null;
+  if(settingsCount===null)warnings.push('This older backup has no settings. The settings in this browser are kept as they are.');
+  return {ok:true,errors,warnings,backup:b,summary:{createdAt:String(b.createdAt||'').replace('T',' ').slice(0,16),customers:s.customers.length,jobs:s.projects.length,rooms,units,panels,drawings:have.size,photos,cuttingListVersions:versions,deletedJobs:(s.deletedProjectIds||[]).length,settings:settingsCount===null?'not in this backup (kept)':settingsCount}};
+ }
+
+ // The restore journal (its own database) holds the backup being restored and a copy of the
+ // current data. The mark in localStorage says a restore is under way and which of the two
+ // must end up in place; the next open finishes it before Studio writes anything.
+ function openDb(name,version,upgrade){return new Promise((res,rej)=>{const r=indexedDB.open(name,version);r.onupgradeneeded=()=>upgrade(r.result);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('Browser storage is busy. Close other Studio tabs and try again.'))})}
+ const journalDb=()=>openDb('fiq_restore_v1',1,d=>{if(!d.objectStoreNames.contains('journal'))d.createObjectStore('journal')});
+ async function journal(mode,value){
+  const d=await journalDb();
+  try{return await new Promise((res,rej)=>{const tx=d.transaction('journal',mode==='get'?'readonly':'readwrite'),st=tx.objectStore('journal');let r;
+   if(mode==='get')r=st.get('current');else if(mode==='put')st.put(value,'current');else st.delete('current');
+   tx.oncomplete=()=>res(r?r.result:undefined);tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('Restore journal could not be written'))})}
+  finally{d.close()}
+ }
+ const stableDb=()=>openDb('assembleone_stable_v1',2,d=>{if(!d.objectStoreNames.contains('drawings'))d.createObjectStore('drawings');if(!d.objectStoreNames.contains('project_state'))d.createObjectStore('project_state')});
+ async function hook(stage,target){if(typeof window.__fiqRestoreHook==='function')await window.__fiqRestoreHook(stage,target)}
+ // Puts one backup in place: drawings and the fallback copy in one IndexedDB transaction,
+ // then the settings, then the main saved data; then reads everything back.
+ async function applyBackup(b,target){
+  const lightJson=JSON.stringify(b.savedState);
+  const drawings=(b.drawings||[]).filter(x=>x&&x.drawing);
+  await hook('before-apply',target);
+  const d=await stableDb();
+  try{await new Promise((res,rej)=>{const tx=d.transaction(['drawings','project_state'],'readwrite'),ds=tx.objectStore('drawings');
+   ds.clear();drawings.forEach(x=>ds.put({drawing:x.drawing,drawingType:x.drawingType||'image',drawingName:x.drawingName||''},x.key));
+   tx.objectStore('project_state').put({savedAt:Date.now(),state:JSON.parse(lightJson)},'active');
+   tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('Drawings could not be written'))})}
+  finally{d.close()}
+  await hook('after-idb',target);
+  if(b.settings&&b.settings.values)applySettings(b.settings.values);
+  localStorage.setItem(storeKey(),lightJson);
+  try{sessionStorage.removeItem(storeKey()+'_draft')}catch(e){}
+  await hook('after-storage',target);
+  if(localStorage.getItem(storeKey())!==lightJson)throw new Error('The restored data could not be read back.');
+  const back=await readAll('assembleone_stable_v1','drawings');
+  if(back.entries.length!==drawings.length)throw new Error('The restored drawings could not be read back ('+back.entries.length+' of '+drawings.length+').');
+ }
+ function finishAndReload(message){
+  try{localStorage.removeItem(RESTORE_MARK)}catch(e){}
+  try{if(message)sessionStorage.setItem('fiqRestoreDoneMessage',message)}catch(e){}
+  location.reload();
+ }
+ async function restoreBackup(b,summary){
+  if(!gate.canWrite())throw new Error('Only the tab that is editing can restore a backup.');
+  if(typeof window.a131StableSave==='function')await window.a131StableSave(false);
+  const current=await buildBackup();
+  // The current data leaves the browser first, as an ordinary backup file.
+  download('FittersIQ-'+(isBeta?'Beta-':'')+'before-restore-'+stamp()+'.json',JSON.stringify(current));
+  suspended=true;gate.setStatus('restoring');
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  try{await journal('put',{id,createdAt:new Date().toISOString(),incoming:b,rollback:current})}
+  catch(err){suspended=false;gate.setStatus('saved');throw new Error('The restore could not start, nothing was changed: '+(err&&err.message||err))}
+  localStorage.setItem(RESTORE_MARK,JSON.stringify({id,target:'incoming'}));
+  try{await applyBackup(b,'incoming')}
+  catch(err){
+   console.error('Restore failed, putting the previous data back',err);
+   try{
+    localStorage.setItem(RESTORE_MARK,JSON.stringify({id,target:'rollback'}));
+    await applyBackup(current,'rollback');
+    try{localStorage.removeItem(RESTORE_MARK)}catch(e){}
+    try{await journal('delete')}catch(e){}
+    suspended=false;gate.setStatus('saved');
+   }catch(err2){
+    console.error('Putting the previous data back failed',err2);
+    throw new Error('The restore failed and is not finished. Reload Studio: it finishes putting your previous data back before anything else.');
+   }
+   throw new Error('The restore failed, so your previous data was kept. Nothing was changed. ('+(err&&err.message||err)+')');
+  }
+  try{await journal('delete')}catch(e){}
+  finishAndReload('✓ Backup restored: '+summary.customers+' customers, '+summary.jobs+' jobs, '+summary.drawings+' drawings.');
+ }
+ // Runs when Studio opens with a restore mark: finish putting the right data in place, then reload.
+ async function finishInterruptedRestore(){
+  gate.setStatus('restoring');
+  const put=()=>{if(document.getElementById('fiqRestoreBanner')||!document.body)return;const b=document.createElement('div');b.id='fiqRestoreBanner';b.setAttribute('role','status');b.textContent='⏳ Finishing a backup restore that was interrupted. Please wait…';document.body.prepend(b)};
+  if(document.body)put();else document.addEventListener('DOMContentLoaded',put,{once:true});
+  try{
+   const j=await journal('get');
+   const target=pendingRestore&&pendingRestore.target==='rollback'?'rollback':'incoming';
+   if(!j||j.id!==pendingRestore.id||!j[target]){console.warn('Restore mark without its journal; nothing to finish.');finishAndReload('');return}
+   await applyBackup(j[target],target);
+   try{await journal('delete')}catch(e){}
+   finishAndReload(target==='incoming'?'✓ The interrupted backup restore was finished.':'✓ The interrupted restore was undone. Your previous data is back.');
+  }catch(err){
+   console.error('Finishing the interrupted restore failed',err);
+   gate.setStatus('failed',"The interrupted restore could not be finished: "+(err&&err.message||err)+" Nothing is saved until it is. Reload to try again.");
+  }
+ }
+ let restoreDoneMessage='';try{restoreDoneMessage=sessionStorage.getItem('fiqRestoreDoneMessage')||'';if(restoreDoneMessage)sessionStorage.removeItem('fiqRestoreDoneMessage')}catch(e){}
+ if(restoreDoneMessage)ready.then(()=>setTimeout(()=>{if(document.body)openSafetyDialog()},300));
+ window.fiqValidateBackupText=validateBackupText;
  window.fiqBuildBackup=buildBackup;
  window.fiqBuildDataDoctor=buildDoctor;
  window.fiqOpenDataSafety=openSafetyDialog;
@@ -6317,7 +6508,7 @@ body.guide-only .a131-back-studio{display:block}
     rec.state.deletedProjectIds=[...deletedIds];
     state=rec.state;
     if(typeof migrateCustomers==='function')migrateCustomers();
-    if(!window.fiqEditor||await window.fiqEditor.ready==='editor'){try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}}
+    if(!window.fiqEditor||(await window.fiqEditor.ready==='editor'&&window.fiqEditor.canWrite())){try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}}
     renderAll();show(state.screen||'jobs');showSaved();
     return true;
   }
