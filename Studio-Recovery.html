@@ -2193,32 +2193,30 @@ function migrateCustomers(){
  state.projects.forEach(p=>{
    const hasSavedWork=(p.rooms||[]).length||(p.cabinets||[]).length||(p.cuttingList||[]).length;
    if(!String(p.name||'').trim()&&hasSavedWork)p.name=String(p.customer||'').trim()||'Recovered Project';
-   const linked=customerFor(p),projectCustomer=customerKeyFor(p.customer);
-   if(!p.customerId||!linked||(projectCustomer&&projectCustomer!==customerKeyFor(linked.name))){p.customerId=null;ensureCustomerForProject(p)}
+   // A valid customer ID is the job's identity: a different name on the job never moves
+   // it. Only a missing or broken link is recovered, and customer records are never
+   // merged or deleted here -- two different people can share a name. The blank
+   // "No customer name" placeholder a New Job starts with is not an identity: once a
+   // real name is typed on the job, it is recovered like a broken link.
+   const linked=customerFor(p),typed=customerKeyFor(p.customer);
+   if(!linked||(isPlaceholderCustomer(linked)&&typed&&typed!=="no customer name"))recoverCustomerLink(p);
  });
- // Older Studio and Mobile imports could each create their own permanent customer
- // record for the same name. The cards look identical, but their different ids split
- // Site Measurements from Jobs / Designs. Consolidate those records by normalized
- // customer name and redirect the existing projects to one id. No project, room,
- // drawing, panel, photo, note or history data is copied or recreated here.
- const canonicalByName=new Map(),duplicateIds=new Map();
- state.customers.forEach(c=>{
-   const key=customerKeyFor(c.name);
-   if(!key)return;
-   const canonical=canonicalByName.get(key);
-   if(!canonical){canonicalByName.set(key,c);return}
-   duplicateIds.set(c.id,canonical.id);
-   ["address","phone","email","notes","geoLat","geoLng"].forEach(field=>{
-     if((canonical[field]===undefined||canonical[field]===null||canonical[field]==="")&&c[field]!==undefined&&c[field]!==null&&c[field]!=="")canonical[field]=c[field];
-   });
-   canonical.createdAt=Math.min(canonical.createdAt||Infinity,c.createdAt||Infinity);
-   canonical.updatedAt=Math.max(canonical.updatedAt||0,c.updatedAt||0);
- });
- if(duplicateIds.size){
-   state.projects.forEach(p=>{if(duplicateIds.has(p.customerId))p.customerId=duplicateIds.get(p.customerId)});
-   state.customers=state.customers.filter(c=>!duplicateIds.has(c.id));
-   if(duplicateIds.has(state.currentCustomerCard))state.currentCustomerCard=duplicateIds.get(state.currentCustomerCard);
- }
+}
+// Broken link: a single customer with the job's name gets it. With several of that name,
+// only the one whose address/phone match the job; otherwise a separate new record from
+// the job's own details, so a job is never attached to a stranger.
+function isPlaceholderCustomer(c){const k=customerKeyFor(c&&c.name);return !k||k==="no customer name"}
+function recoverCustomerLink(p){
+ const key=customerKeyFor(p.customer);
+ const same=key?state.customers.filter(c=>customerKeyFor(c.name)===key&&c.id!==p.customerId):[];
+ const norm=v=>String(v||"").trim().toLowerCase().replace(/\s+/g," "),digits=v=>String(v||"").replace(/\D/g,"");
+ const detailMatch=same.filter(c=>(norm(p.address)&&norm(p.address)===norm(c.address))||(digits(p.phone)&&digits(p.phone)===digits(c.phone)));
+ const c=same.length===1?same[0]:detailMatch.length===1?detailMatch[0]:null;
+ if(c){p.customerId=c.id;return c.id}
+ const created={id:uid(),name:(p.customer||"").trim()||"No customer name",address:p.address||"",phone:p.phone||"",createdAt:p.updatedAt||Date.now(),updatedAt:p.updatedAt||Date.now()};
+ state.customers.push(created);
+ p.customerId=created.id;
+ return created.id;
 }
 // Job Notes / Communication: one chronological log per project (messages, missing/damaged
 // part reports, general notes, photos), each entry now tagged with the room it belongs to
@@ -4141,7 +4139,12 @@ if((state.deletedProjectIds||[]).includes(incoming.id))return null;
 let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
 const packetAt=Date.parse(incoming._packetExportedAt||'');
 const isStalePacket=Number.isFinite(packetAt)&&packetAt<Math.max(Number(base._lastRoomsSyncAt)||0,Number(base._lastMobilePacketAt)||0);
-if(!isStalePacket)["name","customer","address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng","siteNotes","siteNotePhotos","mobileJobCompleted","mobileJobCompletedAt"].forEach(k=>{if(incoming[k]!==undefined&&(!Array.isArray(incoming[k])||incoming[k].length))base[k]=incoming[k]});
+// A job already linked to a customer keeps that customer's name: an older or different
+// name in a Site Measure packet must not change who the job belongs to. (Still linked to
+// the blank "No customer name" placeholder = no customer yet, so the packet's name is used.)
+const linkedCustomer=(state.customers||[]).find(c=>c.id===base.customerId);
+const keepCustomer=!!linkedCustomer&&!/^(no customer name)?$/.test(String(linkedCustomer.name||'').trim().toLowerCase());
+if(!isStalePacket)["name",...(keepCustomer?[]:["customer"]),"address","phone","notes","siteMeasurements","sitePhotos","siteRoomName","siteRoomLocation","siteRoomNotes","siteMarkup","measureCaptures","notePhotos","geoLat","geoLng","siteNotes","siteNotePhotos","mobileJobCompleted","mobileJobCompletedAt"].forEach(k=>{if(incoming[k]!==undefined&&(!Array.isArray(incoming[k])||incoming[k].length))base[k]=incoming[k]});
 mergeJobLog(base,incoming.jobLog);
 base.updatedAt=Date.now();
 // Mobile can send several updates for the same job out of order (a dropped-signal
