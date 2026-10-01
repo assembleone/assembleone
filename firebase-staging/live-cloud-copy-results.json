@@ -1,0 +1,57 @@
+{
+ "ranAt": "2026-10-01T05:24:14.198Z",
+ "project": "fittersiq-staging",
+ "company": "SivhuYsf35ktlq7DXo9H",
+ "log": [
+  {
+   "step": 1,
+   "name": "Copy and verify 5 generated jobs (Company B): verified, marker written",
+   "ok": true
+  },
+  {
+   "step": 2,
+   "name": "Independent read-back: exact content, fingerprints, file names, ids and QR identities, customers",
+   "ok": true
+  },
+  {
+   "step": 3,
+   "name": "Browser data unchanged",
+   "ok": true
+  },
+  {
+   "step": 4,
+   "name": "Cloud-only records reported and left untouched (earlier live test in Company B)",
+   "ok": true
+  },
+  {
+   "step": 5,
+   "name": "Rerun with the same data: nothing new, versions unchanged, still verified",
+   "ok": true
+  },
+  {
+   "step": 6,
+   "name": "Changed job becomes version 2, version 1 file kept; new state verified, old state no longer verified",
+   "ok": true
+  },
+  {
+   "step": 7,
+   "name": "Interrupted upload: failed attempt, earlier marker kept, new state not verified, browser unchanged",
+   "ok": true
+  },
+  {
+   "step": 8,
+   "name": "Rerun completes: file from the interrupted run reused, version 2, verified",
+   "ok": true
+  },
+  {
+   "step": 9,
+   "name": "Incomplete copy (a changed job skipped): caught by read-back, no new marker",
+   "ok": true
+  },
+  {
+   "step": 10,
+   "name": "Final complete run: verified; marker confirms exactly the final browser state",
+   "ok": true
+  }
+ ]
+}

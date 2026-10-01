@@ -1,4 +1,6 @@
-node_modules/
-.staging-accounts.local.json
 *-debug.log
+.staging-accounts.local.json
+cloud-copy-run.log
 emulator-run.log
+full-run.log
+node_modules/

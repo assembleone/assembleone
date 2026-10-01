@@ -1,0 +1,66 @@
+{
+ "ranAt": "2026-10-01T05:22:42.634Z",
+ "failures": 0,
+ "results": [
+  {
+   "name": "1. Successful copy: everything copied, read back, identical; marker written; browser data untouched",
+   "ok": true
+  },
+  {
+   "name": "1b. Second copy of the same data changes nothing (no new versions)",
+   "ok": true
+  },
+  {
+   "name": "1c. One changed job becomes version 2; version 1 file is kept",
+   "ok": true
+  },
+  {
+   "name": "2. Interrupted upload: failure reported, no marker, browser untouched; a rerun completes without duplicates",
+   "ok": true
+  },
+  {
+   "name": "3. Bad fingerprint: a cloud file that does not match its fingerprint fails verification; no marker",
+   "ok": true
+  },
+  {
+   "name": "3b. A record whose fingerprint differs from the browser job fails verification",
+   "ok": true
+  },
+  {
+   "name": "4. Stale revision: another writer moves a record during the copy; copy stops, nothing overwritten, no marker",
+   "ok": true
+  },
+  {
+   "name": "4b. Job changed by another computer before the copy: reported as a conflict, not overwritten, no marker",
+   "ok": true
+  },
+  {
+   "name": "4c. Studio lock held by another computer: nothing is copied at all",
+   "ok": true
+  },
+  {
+   "name": "4d. Job deleted in the cloud (tombstone): not brought back by a copy",
+   "ok": true
+  },
+  {
+   "name": "5. Incomplete copy: a job silently skipped is caught by verification; no marker",
+   "ok": true
+  },
+  {
+   "name": "5b. Verification alone detects a customer missing from the cloud",
+   "ok": true
+  },
+  {
+   "name": "5c. Ids that cannot be stored are refused before anything is written",
+   "ok": true
+  },
+  {
+   "name": "7. A failed attempt keeps the earlier marker, reports itself as failed, and the old marker does not verify the new browser state",
+   "ok": true
+  },
+  {
+   "name": "6. Scale: 40 jobs, 2,000 panels, copied and verified",
+   "ok": true
+  }
+ ]
+}
