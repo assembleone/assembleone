@@ -14,7 +14,7 @@ const {initializeTestEnvironment}=require('@firebase/rules-unit-testing');
 const {doc,setDoc,getDoc,updateDoc,deleteDoc,serverTimestamp,Timestamp}=require('firebase/firestore');
 const {ref,uploadString,getBytes,deleteObject}=require('firebase/storage');
 
-const PROPOSED={firestore:fs.readFileSync(path.join(__dirname,'firestore.rules'),'utf8'),storage:fs.readFileSync(path.join(__dirname,'storage.rules'),'utf8')};
+const PROPOSED={firestore:fs.readFileSync(path.join(__dirname,process.env.RULES_DIR||'.','firestore.rules'),'utf8'),storage:fs.readFileSync(path.join(__dirname,process.env.RULES_DIR||'.','storage.rules'),'utf8')};
 const CURRENT={firestore:fs.readFileSync(path.join(__dirname,'..','firestore.rules'),'utf8'),storage:fs.readFileSync(path.join(__dirname,'..','storage.rules'),'utf8')};
 const FS_HOST='127.0.0.1',FS_PORT=8181,ST_PORT=9199;
 const SHA='a'.repeat(64);// content fingerprint used in test file names

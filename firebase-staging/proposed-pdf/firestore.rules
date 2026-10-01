@@ -1,0 +1,310 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isFittersIQAdmin() {
+      return signedIn() && request.auth.token.fittersiq_admin == true;
+    }
+
+    function memberPath(companyId) {
+      return /databases/$(database)/documents/companies/$(companyId)/members/$(request.auth.uid);
+    }
+
+    function isCompanyMember(companyId) {
+      return signedIn() && exists(memberPath(companyId))
+             && get(memberPath(companyId)).data.status == 'active';
+    }
+
+    function memberRole(companyId) {
+      return get(memberPath(companyId)).data.role;
+    }
+
+    function isCompanyOwner(companyId) {
+      return isCompanyMember(companyId) && memberRole(companyId) == 'company_owner';
+    }
+
+    match /users/{uid} {
+      allow read: if isFittersIQAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    match /companies/{companyId} {
+      allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+
+      // Company creation should normally be done by trusted onboarding backend.
+      allow create: if false;
+
+      allow update: if isFittersIQAdmin() || isCompanyOwner(companyId);
+      allow delete: if false;
+
+      match /members/{uid} {
+        allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+
+        // Membership changes should go through trusted invitation/admin backend.
+        allow create, delete: if false;
+
+        // Prevent a customer client from changing membership roles itself.
+        allow update: if false;
+      }
+
+      match /jobs/{jobId} {
+        allow read, create, update: if isFittersIQAdmin() || isCompanyMember(companyId);
+        allow delete: if isFittersIQAdmin() || isCompanyOwner(companyId);
+      }
+
+      match /invitations/{inviteId} {
+        allow read: if isFittersIQAdmin() || isCompanyOwner(companyId);
+        allow write: if false;
+      }
+
+      match /licences/{licenceId} {
+        allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+        allow write: if isFittersIQAdmin();
+      }
+
+      // Registered-device approval (opt-in per company via companies/{id}.deviceApprovalEnabled,
+      // checked client-side -- these rules apply regardless of that flag, they just have
+      // nothing to enforce until a device doc actually exists). A device always starts
+      // unapproved and can only self-register that way; only the doc's own uid may create
+      // it, so nobody can pre-approve themselves. Only a company owner (or FittersIQ admin)
+      // may flip approved, and only that field plus lastSeenAt -- never anything else.
+      match /members/{uid}/devices/{deviceId} {
+        allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+        allow create: if signedIn() && request.auth.uid == uid
+                      && isCompanyMember(companyId)
+                      && request.resource.data.approved == false;
+        allow update: if isFittersIQAdmin()
+                      || (isCompanyOwner(companyId)
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved','lastSeenAt']));
+        allow delete: if isFittersIQAdmin() || isCompanyOwner(companyId);
+      }
+
+      // The permanent fitter identity record (name/phone/email + the fitterId
+      // used everywhere else). Only the owner manages it, from Studio. No
+      // client can delete one -- a fitter is deactivated (mobileStatus),
+      // never removed, so their history is never orphaned.
+      match /fitters/{fitterId} {
+        allow read: if isFittersIQAdmin() || isCompanyMember(companyId);
+        allow create, update: if isFittersIQAdmin() || isCompanyOwner(companyId);
+        allow delete: if false;
+      }
+
+      // =====================================================================
+      // Stage 2 cloud master (PROPOSAL, not deployed). Everything above this
+      // block is unchanged. These rules only match the new fiqMaster paths, so
+      // no existing path gets a different answer.
+      //
+      //   companies/{companyId}/fiqMaster/{env}                 switch record
+      //   companies/{companyId}/fiqMaster/{env}/lease/studio    Studio editing lock
+      //   companies/{companyId}/fiqMaster/{env}/jobs/{jobId}    job index record
+      //   companies/{companyId}/fiqMaster/{env}/customers/{id}  customer record
+      //   companies/{companyId}/fiqMaster/{env}/settings/studio Studio settings
+      //
+      // env is 'beta' or 'production': Beta and normal Studio never share a master.
+      // Only an active company owner (Studio) can read or write. Fitters (Mobile)
+      // have no access at all; Mobile keeps using the jobs messages above.
+      // =====================================================================
+
+      match /fiqMaster/{env} {
+
+        function validEnv() {
+          return env == 'beta' || env == 'production';
+        }
+
+        // Active owner of this company, and the sign-in token names the same company.
+        function masterUser() {
+          return validEnv()
+                 && isCompanyOwner(companyId)
+                 && request.auth.token.companyId == companyId;
+        }
+
+        function leaseDoc() {
+          return get(/databases/$(database)/documents/companies/$(companyId)/fiqMaster/$(env)/lease/studio);
+        }
+
+        // One Studio across computers: a write is accepted only from the Studio
+        // session that currently holds the editing lock.
+        function holdsLease() {
+          return exists(/databases/$(database)/documents/companies/$(companyId)/fiqMaster/$(env)/lease/studio)
+                 && leaseDoc().data.holderUid == request.auth.uid
+                 && leaseDoc().data.sessionId == request.resource.data.sessionId
+                 && leaseDoc().data.expiresAt > request.time;
+        }
+
+        // Every write says who wrote it; the time is the server's, never the computer's clock.
+        function stamped() {
+          return request.resource.data.updatedAt == request.time
+                 && request.resource.data.updatedBy == request.auth.uid
+                 && request.resource.data.sessionId is string;
+        }
+
+        // Version numbers: a new record starts at 1 and every change adds exactly 1.
+        // A computer holding an older copy writes a number that is already taken,
+        // so its write is refused. Two computers can never both win.
+        function firstVersion() {
+          return request.resource.data.rev == 1;
+        }
+        function nextVersion() {
+          return request.resource.data.rev == resource.data.rev + 1;
+        }
+
+        // Tombstones are durable: records are never removed, and there is no time limit.
+        // A new record is not deleted. Deleting sets deleted=true with the server time.
+        // A deleted record is frozen: the only change allowed is a deliberate Restore
+        // (restoredAt = server time, deletedAt kept as it was). An ordinary save from a
+        // computer that does not know about the delete is refused.
+        function newNotDeleted() {
+          return request.resource.data.deleted == false;
+        }
+        function tombstoneRule() {
+          return (resource.data.deleted == true
+                  && request.resource.data.deleted == false
+                  && request.resource.data.restoredAt == request.time
+                  && request.resource.data.deletedAt == resource.data.deletedAt)
+              || (resource.data.deleted == false
+                  && (request.resource.data.deleted == false
+                      || (request.resource.data.deleted == true
+                          && request.resource.data.deletedAt == request.time)));
+        }
+
+        // The switch record: browser master ('local') or cloud master ('cloud').
+        // No FittersIQ admin access to master data: company owner only.
+        allow read: if masterUser();
+        allow create: if masterUser()
+                      && request.resource.data.keys().hasOnly(['rev','mode','migrationId','verifiedSha256','switchedAt','switchedBy','sessionId','updatedAt','updatedBy'])
+                      && request.resource.data.mode in ['local', 'cloud']
+                      && firstVersion() && stamped() && holdsLease();
+        allow update: if masterUser()
+                      && request.resource.data.keys().hasOnly(['rev','mode','migrationId','verifiedSha256','switchedAt','switchedBy','sessionId','updatedAt','updatedBy'])
+                      && request.resource.data.mode in ['local', 'cloud']
+                      && nextVersion() && stamped() && holdsLease();
+        allow delete: if false;
+
+        // The Studio editing lock. Taken when free or expired, renewed by its holder,
+        // or taken over on purpose (takenOverAt = server time). It expires by itself
+        // at most 5 minutes after the last heartbeat, so a dead computer frees it.
+        match /lease/{leaseId} {
+          allow read: if masterUser();
+          allow create, update: if masterUser()
+                                && leaseId == 'studio'
+                                && request.resource.data.keys().hasOnly(['holderUid','sessionId','deviceId','deviceName','heartbeatAt','expiresAt','takenOverAt'])
+                                && request.resource.data.holderUid == request.auth.uid
+                                && request.resource.data.sessionId is string
+                                && request.resource.data.heartbeatAt == request.time
+                                && request.resource.data.expiresAt > request.time
+                                && request.resource.data.expiresAt <= request.time + duration.value(5, 'm')
+                                && (resource == null
+                                    || resource.data.sessionId == request.resource.data.sessionId
+                                    || resource.data.expiresAt < request.time
+                                    || request.resource.data.takenOverAt == request.time);
+          allow delete: if false;
+        }
+
+        // One index record per job: the ONLY pointer to the master version. The job itself
+        // is an unchangeable file in Storage named by version and content fingerprint
+        // (r<rev>-<sha256>.json), and the record names exactly that file. A file that no
+        // record points to is ignored, and it can never take the name of a later version.
+        match /jobs/{jobId} {
+          function jobShape() {
+            return request.resource.data.keys().hasOnly(['rev','file','sha256','bytes','name','customerId','schema','deleted','deletedAt','restoredAt','sessionId','deviceId','updatedAt','updatedBy'])
+                   && request.resource.data.rev is int
+                   && request.resource.data.sha256 is string && request.resource.data.sha256.matches('^[0-9a-f]{64}$')
+                   && request.resource.data.file == 'fiqmaster/' + companyId + '/' + env + '/jobs/' + jobId + '/r' + string(request.resource.data.rev) + '-' + request.resource.data.sha256 + '.json'
+                   && request.resource.data.bytes is int && request.resource.data.bytes > 0
+                   && request.resource.data.deleted is bool;
+          }
+          allow read: if masterUser();
+          allow create: if masterUser() && jobShape() && firstVersion() && newNotDeleted() && stamped() && holdsLease();
+          allow update: if masterUser() && jobShape() && nextVersion() && tombstoneRule() && stamped() && holdsLease();
+          allow delete: if false;
+        }
+
+        // Customer records, by customer id (the id is the identity; never the name).
+        match /customers/{customerId} {
+          function customerShape() {
+            return request.resource.data.keys().hasOnly(['rev','data','schema','deleted','deletedAt','restoredAt','sessionId','deviceId','updatedAt','updatedBy'])
+                   && request.resource.data.rev is int
+                   && request.resource.data.data is map
+                   && request.resource.data.data.id == customerId
+                   && request.resource.data.deleted is bool;
+          }
+          allow read: if masterUser();
+          allow create: if masterUser() && customerShape() && firstVersion() && newNotDeleted() && stamped() && holdsLease();
+          allow update: if masterUser() && customerShape() && nextVersion() && tombstoneRule() && stamped() && holdsLease();
+          allow delete: if false;
+        }
+
+        // Studio settings (prices, libraries, sheet sizes, supplier system, checklists).
+        match /settings/{settingsId} {
+          function settingsShape() {
+            return settingsId == 'studio'
+                   && request.resource.data.keys().hasOnly(['rev','values','schema','sessionId','deviceId','updatedAt','updatedBy'])
+                   && request.resource.data.rev is int
+                   && request.resource.data.values is map;
+          }
+          allow read: if masterUser();
+          allow create: if masterUser() && settingsShape() && firstVersion() && stamped() && holdsLease();
+          allow update: if masterUser() && settingsShape() && nextVersion() && stamped() && holdsLease();
+          allow delete: if false;
+        }
+      }
+    }
+
+    // Short-lived, single-use phone-pairing codes (see createFitterPairingCode/
+    // redeemPairingCode in functions). Redeeming one happens before the fitter
+    // has any Firebase session, so no client rule could authorise it anyway --
+    // both creating and redeeming a code only ever happen through those trusted
+    // Cloud Functions (Admin SDK), never directly from Studio or Mobile.
+    match /pairingCodes/{code} {
+      allow read, write: if false;
+    }
+
+    match /supportSessions/{sessionId} {
+      allow read: if isFittersIQAdmin()
+                  || (signedIn()
+                      && resource.data.companyId is string
+                      && isCompanyOwner(resource.data.companyId));
+      allow write: if false;
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isFittersIQAdmin();
+      allow write: if false;
+    }
+
+    // AI Helper escalations: a help question the KB couldn't answer, or a bug report.
+    // Any signed-in user can raise one for themselves; a company owner can see their
+    // company's tickets; only FittersIQ admin can see/manage the full Support Inbox.
+    match /supportTickets/{ticketId} {
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow read: if isFittersIQAdmin()
+                  || (signedIn() && resource.data.uid == request.auth.uid)
+                  || (signedIn() && resource.data.companyId is string && isCompanyOwner(resource.data.companyId));
+      allow update: if isFittersIQAdmin();
+      allow delete: if false;
+    }
+
+    // Lightweight usage tracking for the FittersIQ admin (Monthly Active Companies/Users,
+    // new customers, inactivity, the 6 month trend). A signed-in company member can log
+    // their own event; only admin reads the log - individual customers never see it.
+    match /activityLog/{eventId} {
+      allow create: if signedIn()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.companyId is string
+                    && isCompanyMember(request.resource.data.companyId);
+      allow read: if isFittersIQAdmin();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,157 @@
+{
+ "ranAt": "2026-10-01T06:12:28.052Z",
+ "deployed": [
+  {
+   "label": "Owner holding the lock adds a PDF drawing to media",
+   "want": "allow",
+   "got": "refuse"
+  },
+  {
+   "label": "Owner reads the PDF back",
+   "want": "allow",
+   "got": "error: storage/object-not-found Firebase Storage: Object 'fiqmaster/c1/beta/media/b8660"
+  },
+  {
+   "label": "Overwriting the PDF",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Deleting the PDF",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF from a Studio session without the lock",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF by a fitter",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF by a suspended owner",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF by another company's owner",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF signed out",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Fitter reads the PDF",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF under a name that is not a fingerprint",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF as a job file (job files are JSON only)",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Other document types still refused (text/html)",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Other document types still refused (application/zip)",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Images still allowed",
+   "want": "allow",
+   "got": "allow"
+  }
+ ],
+ "proposed": [
+  {
+   "label": "Owner holding the lock adds a PDF drawing to media",
+   "want": "allow",
+   "got": "allow"
+  },
+  {
+   "label": "Owner reads the PDF back",
+   "want": "allow",
+   "got": "allow"
+  },
+  {
+   "label": "Overwriting the PDF",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Deleting the PDF",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF from a Studio session without the lock",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF by a fitter",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF by a suspended owner",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF by another company's owner",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF signed out",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Fitter reads the PDF",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF under a name that is not a fingerprint",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "PDF as a job file (job files are JSON only)",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Other document types still refused (text/html)",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Other document types still refused (application/zip)",
+   "want": "refuse",
+   "got": "refuse"
+  },
+  {
+   "label": "Images still allowed",
+   "want": "allow",
+   "got": "allow"
+  }
+ ]
+}

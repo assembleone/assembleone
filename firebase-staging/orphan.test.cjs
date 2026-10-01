@@ -60,7 +60,7 @@ async function scenario(label,rules,scheme){
 }
 (async()=>{
  const v1=await scenario('First tested rules (v1): job files named r<rev>.json, files not tied to the lock',load('v1-tested'),'v1');
- const v2=await scenario('Current rules: job files named r<rev>-<sha256>.json, files need the lock',load('.'),'v2');
+ const v2=await scenario('Current rules: job files named r<rev>-<sha256>.json, files need the lock',load(process.env.RULES_DIR||'.'),'v2');
  const unsafe=v2.filter(r=>!r.safe).length;
  fs.writeFileSync(path.join(__dirname,'orphan-test-results.json'),JSON.stringify({ranAt:new Date().toISOString(),v1,v2},null,1));
  console.log('\nv1 unsafe steps: '+v1.filter(r=>!r.safe).length+' · current unsafe steps: '+unsafe);

@@ -29,4 +29,29 @@ function makeState(opts){
   currentProject:null,screen:'jobs',drawingZoom:1};
 }
 function deepFreeze(o){if(o&&typeof o==='object'&&!Object.isFrozen(o)){Object.freeze(o);Object.values(o).forEach(deepFreeze)}return o}
-module.exports={makeState,deepFreeze};
+// Generated file bytes (not a real image; the cloud only checks type and fingerprint).
+const fakeBytes=(label,size)=>{const b=Buffer.alloc(size);const s=Buffer.from(label);for(let i=0;i<size;i++)b[i]=s[i%s.length]^(i&255);return b};
+const dataUrl=(type,label,size)=>'data:'+type+';base64,'+fakeBytes(label,size).toString('base64');
+// Full slice 2 input: the saved state plus IndexedDB drawings and durable setting keys.
+function makeInput(opts){
+ const seed=(opts&&opts.seed)||'t',drawingSize=(opts&&opts.drawingSize)||3000;
+ const state=makeState(opts);
+ // A recycle-bin job with a unit and an inline drawing (as Studio keeps it).
+ state.deletedProjects[0].project={id:seed+'-gone',name:'Deleted job',customer:'Anna Berg',customerId:seed+'-cA',rooms:[{id:seed+'-gone-r',name:'Hall'}],
+  cabinets:[{id:seed+'-gone-u',roomId:seed+'-gone-r',name:'Hall unit',drawing:dataUrl('image/jpeg',seed+'-bin-inline',800),drawingType:'image',parts:[]}]};
+ state.jobLifecycle=[{jobId:seed+'-gone',event:'deleted',at:state.deletedProjects[0].deletedAt}];
+ state.units='cm';state.lastChosenPartName='Side';state.fitters=[{id:'f1',name:'Fitter One',phone:'+34 600 000'}];
+ state.screen='mark';state.drawingZoom=1.5;state.currentProject=state.projects[0].id;state.dotCycle={cabinetId:'x',panelId:'y'};// screen state: not copied
+ const drawings=[];
+ state.projects.forEach((p,i)=>p.cabinets.forEach((c,k)=>{
+  if(i===0&&k===1)drawings.push({key:p.id+':'+c.id,drawing:dataUrl('application/pdf','%PDF-'+seed+'-'+p.id,drawingSize),drawingType:'pdf',drawingName:'plan.pdf'});
+  else if(i===1&&k===1)drawings.push({key:p.id+':'+c.id,drawing:dataUrl('image/jpeg',seed+'-shared',drawingSize),drawingType:'image',drawingName:'shared.jpg'});
+  else if(i===2&&k===1)drawings.push({key:p.id+':'+c.id,drawing:dataUrl('image/jpeg',seed+'-shared',drawingSize),drawingType:'image',drawingName:'shared.jpg'});// same drawing as job 2
+  else drawings.push({key:p.id+':'+c.id,drawing:dataUrl('image/jpeg',seed+'-'+p.id+'-'+c.id,drawingSize),drawingType:'image',drawingName:'plan.jpg'});
+ }));
+ drawings.push({key:seed+'-gone:'+seed+'-gone-u',drawing:dataUrl('image/jpeg',seed+'-bin-idb',drawingSize),drawingType:'image',drawingName:'hall.jpg'});
+ drawings.push({key:seed+'-oldjob:'+seed+'-oldunit',drawing:dataUrl('image/png',seed+'-orphan',drawingSize),drawingType:'image',drawingName:'old.png'});// orphan
+ const settings={'fiq_supplier_prices_v1':'{"White":{"sheet":40}}','assembleone_material_library_v1':'["White","Oak"]','assembleone_sheet_settings':'{"White":{"w":2800,"h":2070}}',['assembleone-checklist-'+state.projects[0].id]:'[true,false,false,false,false,false]'};
+ return {state,drawings,settings};
+}
+module.exports={makeState,makeInput,deepFreeze,dataUrl,fakeBytes};

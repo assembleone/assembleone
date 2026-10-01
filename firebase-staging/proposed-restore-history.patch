@@ -1,0 +1,29 @@
+diff --git a/Studio-Recovery.html b/Studio-Recovery.html
+index f9a2519..95e44df 100644
+--- a/Studio-Recovery.html
++++ b/Studio-Recovery.html
+@@ -3384,6 +3384,7 @@ function deleteProjectRecord(id){
+  state.projects=state.projects.filter(x=>x.id!==id);
+  state.deletedProjectIds=state.deletedProjectIds||[];
+  if(!state.deletedProjectIds.includes(id))state.deletedProjectIds.push(id);
++ recordJobLifecycle(id,'deleted');
+  if(typeof setMobileJobActive==='function')setMobileJobActive(id,false,'deleted');
+  if(state.currentProject===id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null}
+  return true;
+@@ -3395,9 +3396,16 @@ function restoreDeletedProject(id){
+  if(!state.projects.some(x=>x.id===id))state.projects.unshift(entry.project);
+  state.deletedProjects=state.deletedProjects.filter(x=>!x||!x.project||x.project.id!==id);
+  state.deletedProjectIds=(state.deletedProjectIds||[]).filter(x=>x!==id);
++ recordJobLifecycle(id,'restored',Number(entry.deletedAt)||null);
+  ensureCustomerForProject(entry.project);
+  return true;
+ }
++// Durable delete / restore history for the cloud copy (Stage 2.2). Append-only. No
++// workflow reads it and nothing shows it: delete and restore look and work as before.
++function recordJobLifecycle(jobId,event,deletedAt){
++ state.jobLifecycle=state.jobLifecycle||[];
++ state.jobLifecycle.push(deletedAt?{jobId,event,at:Date.now(),deletedAt}:{jobId,event,at:Date.now()});
++}
+ // The deliberate place to delete an old job -- takes an explicit job id (never
+ // project(), never "whatever's open") so it can only ever remove the one job the owner
+ // picked here, exactly like the existing per-card delete already on the Jobs screen

@@ -2,5 +2,10 @@
 .staging-accounts.local.json
 cloud-copy-run.log
 emulator-run.log
+full-proposed.log
 full-run.log
 node_modules/
+pdf-run.log
+pdf-run2.log
+s2-deployed.log
+s2-run.log

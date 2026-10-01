@@ -7,7 +7,7 @@ const {initializeTestEnvironment}=require('@firebase/rules-unit-testing');
 const fb=require('firebase/firestore'),st=require('firebase/storage');
 const {createCloudCopy,identities,sha256Hex}=require('../cloud-master/fiq-cloud-copy.js');
 const {makeState,deepFreeze}=require('./test-data.cjs');
-const RULES={firestore:fs.readFileSync(path.join(__dirname,'firestore.rules'),'utf8'),storage:fs.readFileSync(path.join(__dirname,'storage.rules'),'utf8')};
+const RULES={firestore:fs.readFileSync(path.join(__dirname,process.env.RULES_DIR||'.','firestore.rules'),'utf8'),storage:fs.readFileSync(path.join(__dirname,process.env.RULES_DIR||'.','storage.rules'),'utf8')};
 const CO='cA',ENV='beta',BASE='companies/'+CO+'/fiqMaster/'+ENV;
 let t,owner,failures=0,SEED='t';const results=[];
 const mk=o=>makeState({...o,seed:(o&&o.seed)||SEED}),J=n=>SEED+'-job-'+n,esc=x=>x.replace(/[-]/g,'\\-');
@@ -53,9 +53,9 @@ const fileExists=async p=>{let found=false;await asAdmin(async(db,s)=>{try{await
   assert.equal(JSON.stringify(state),before,'browser data unchanged');
   const c=await cloud();
   for(const p of state.projects){
-   assert.equal(c.jobs[p.id].rev,1);assert.equal(c.files[p.id],JSON.stringify(p),'job file is the exact browser JSON');
-   assert.equal(c.jobs[p.id].sha256,await sha256Hex(JSON.stringify(p)));
-   assert.deepEqual(identities(JSON.parse(c.files[p.id])),identities(p),'ids and QR / piece identities preserved');
+   assert.equal(c.jobs[p.id].rev,1);const pkg=JSON.parse(c.files[p.id]);assert.equal(pkg.fiqPackage,2);assert.equal(JSON.stringify(pkg.job),JSON.stringify(p),'job package holds the exact browser JSON');
+   assert.equal(c.jobs[p.id].sha256,await sha256Hex(c.files[p.id]),'record fingerprint = file fingerprint');
+   assert.deepEqual(identities(pkg.job),identities(p),'ids and QR / piece identities preserved');
   }
   for(const cu of state.customers)assert.deepEqual(c.customers[cu.id].data,cu,'customer identical');
   assert.equal(Object.keys(c.customers).length,3);
@@ -66,14 +66,15 @@ const fileExists=async p=>{let found=false;await asAdmin(async(db,s)=>{try{await
   const state=deepFreeze(mk({jobs:5}));
   const r=await copier({sessionId:'S2'}).copyAndVerify(state,'run-2');
   assert.equal(r.ok,true);assert.deepEqual([r.customers.unchanged,r.jobs.unchanged,r.jobs.created,r.jobs.updated],[3,5,0,0]);
-  const c=await cloud();assert.ok(Object.values(c.jobs).every(j=>j.rev===1));assert.equal(c.switch.rev,2);
+  const c=await cloud();assert.ok(Object.values(c.jobs).filter(j=>!j.deleted).every(j=>j.rev===1));assert.equal(c.switch.rev,2);
  });
  await check('1c. One changed job becomes version 2; version 1 file is kept',async()=>{
+  const v1File=(await cloud()).jobs[J(2)].file;
   const s=mk({jobs:5});s.projects[1].name='Renamed job';s.projects[1].cabinets[0].parts[0].length=711;deepFreeze(s);
   const r=await copier({sessionId:'S3'}).copyAndVerify(s,'run-3');
   assert.equal(r.ok,true);assert.deepEqual([r.jobs.updated,r.jobs.unchanged],[1,4]);
-  const c=await cloud();assert.equal(c.jobs[J(2)].rev,2);assert.equal(c.files[J(2)],JSON.stringify(s.projects[1]));
-  const v1=mk({jobs:5}).projects[1];assert.ok(await fileExists('fiqmaster/'+CO+'/'+ENV+'/jobs/'+J(2)+'/r1-'+await sha256Hex(JSON.stringify(v1))+'.json'),'old version file still there');
+  const c=await cloud();assert.equal(c.jobs[J(2)].rev,2);assert.equal(JSON.stringify(JSON.parse(c.files[J(2)]).job),JSON.stringify(s.projects[1]));
+  assert.ok(await fileExists(v1File),'old version file still there');
  });
 
  // ---------------------------------------------------------------- 2. interrupted upload
@@ -89,7 +90,7 @@ const fileExists=async p=>{let found=false;await asAdmin(async(db,s)=>{try{await
   const r2=await copier({sessionId:'S2'}).copyAndVerify(state,'run-i2');
   assert.equal(r2.ok,true,JSON.stringify(r2.error||r2.verify.problems));
   assert.deepEqual([r2.jobs.unchanged,r2.jobs.created,r2.filesReused],[2,3,1],'job 3 file from the interrupted run reused');
-  c=await cloud();assert.ok(Object.values(c.jobs).every(j=>j.rev===1),'no extra versions');assert.equal(c.switch.migrationId,'run-i2');
+  c=await cloud();assert.ok(Object.values(c.jobs).filter(j=>!j.deleted).every(j=>j.rev===1),'no extra versions');assert.equal(c.switch.migrationId,'run-i2');
  });
 
  // ---------------------------------------------------------------- 3. bad fingerprint
@@ -105,7 +106,7 @@ const fileExists=async p=>{let found=false;await asAdmin(async(db,s)=>{try{await
   await fresh('s4');
   const state=deepFreeze(mk({jobs:3}));
   const r=await copier({hooks:{beforeVerify:()=>asAdmin(db=>fb.updateDoc(fb.doc(db,BASE+'/jobs/'+J(1)),{sha256:'b'.repeat(64)}))}}).copyAndVerify(state,'run-f2');
-  assert.equal(r.ok,false);assert.ok(r.verify.problems.some(p=>new RegExp('different version.*'+esc(J(1))).test(p)));
+  assert.equal(r.ok,false);assert.ok(r.verify.problems.some(p=>new RegExp('(different version|wrong file).*'+esc(J(1))).test(p)));
  });
 
  // ---------------------------------------------------------------- 4. stale revision
