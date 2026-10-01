@@ -402,7 +402,9 @@ function createCloudCopy(o){
   const snap=await fb.getDoc(switchRef());const m=snap.exists()?snap.data():null;
   return {verified:!!m&&m.verifiedSha256===current,currentSha256:current,marker:m?{migrationId:m.migrationId,verifiedSha256:m.verifiedSha256,rev:m.rev,mode:m.mode}:null};
  }
- return {copyAndVerify,verifyOnly,checkVerified,filePath,mediaPath};
+ // Fingerprint of this browser state, computed on this computer only (no network).
+ async function fingerprint(input){return sourceSha(await readSource(input))}
+ return {copyAndVerify,verifyOnly,checkVerified,fingerprint,filePath,mediaPath};
 }
 return {createCloudCopy,identities,sha256Hex,sha256Bytes,findLinks,dataUrlToBytes,CopyError,SCHEMA};
 });

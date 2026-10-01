@@ -76,6 +76,9 @@ window.FIQ_FIREBASE_CONFIG={
       var config='<script>window.FIQ_FIREBASE_CONFIG='+JSON.stringify(window.FIQ_FIREBASE_CONFIG)+'<\/script>';
       html=html.replace(/<head([^>]*)>/i,function(m){return m+config+'<base href="'+here+'../">'});
       var patch='<script src="'+scriptUrl('studio-patch.js',await exists('studio-patch.js'))+'"><\/script>';
+      // Stage 2.3b: manual cloud copy. Only this staging page loads it.
+      var cloud='<script src="'+scriptUrl('cloud-master/fiq-cloud-copy.js',await exists('cloud-master/fiq-cloud-copy.js'))+'"><\/script>'+
+                '<script type="module" src="'+scriptUrl('cloud-master/studio-cloud-copy.js',await exists('cloud-master/studio-cloud-copy.js'))+'"><\/script>';
       var snapshot='<script src="studio-dispatch-snapshot.js?build=86&staging=1&ts='+stamp+'"><\/script>';
       var hardening='<script src="studio-sync-hardening.js?build=90&staging=1&ts='+stamp+'"><\/script>';
       var banner='<div id="fiqStagingBanner" style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#6d28d9;color:#fff;font:800 11px/1.6 Inter,Arial,sans-serif;text-align:center;letter-spacing:.04em;pointer-events:none">STAGING TEST COPY - FITTERSIQ-STAGING - TEST ACCOUNTS ONLY<\/div>';
@@ -83,7 +86,7 @@ window.FIQ_FIREBASE_CONFIG={
       // Last line of defence: if Firebase ever reports another project, stop the page.
       var guard='<script>(function(){function check(){var a=window.fiqFirestore&&window.fiqFirestore.app;if(!a)return setTimeout(check,200);if(a.options.projectId!=="'+STAGING_PROJECT+'"){document.documentElement.innerHTML="<body style=\\"font-family:Arial;padding:40px;background:#7f1d1d;color:#fff\\"><h1>Stopped</h1><p>This staging page was connected to the wrong Firebase project and has been stopped.</p></body>"}}check()})()<\/script>';
       var bodyClose=html.toLowerCase().lastIndexOf('</body>');
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+banner+retitle+guard+html.slice(bodyClose);
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+banner+retitle+guard+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);

@@ -1,0 +1,54 @@
+{
+ "ranAt": "2026-10-01T11:22:18.271Z",
+ "failed": 0,
+ "results": [
+  {
+   "name": "1. Switches off: no cloud traffic, no status line, Studio unchanged; company switch off refuses to turn on",
+   "ok": true
+  },
+  {
+   "name": "2. Copy to cloud now: Verified; saved jobs, drawings and settings byte-identical (only cloud-copy keys added)",
+   "ok": true
+  },
+  {
+   "name": "3. A save after a verified copy: \"Changes not copied yet\" without any cloud traffic; copy again: Verified",
+   "ok": true
+  },
+  {
+   "name": "4. A read-only second tab cannot copy; no copy during a backup restore",
+   "ok": true
+  },
+  {
+   "name": "5. Studio lock held by another installation: \"Waiting\", nothing written; free again: Verified",
+   "ok": true
+  },
+  {
+   "name": "6. Connection lost during a copy: \"Offline\", no new marker; no connection at all: \"Offline\" at once; connected again: Verified",
+   "ok": true
+  },
+  {
+   "name": "7. Tab closed in the middle of a copy: reopened, not verified; Copy completes, files reused",
+   "ok": true
+  },
+  {
+   "name": "8. Production-style photo link: \"Copied · photos pending\", never fetched; link removed: Verified",
+   "ok": true
+  },
+  {
+   "name": "9. A record written by another installation: \"Needs review\", nothing overwritten, never adopted",
+   "ok": true
+  },
+  {
+   "name": "10. Company switch turned off: no copy starts",
+   "ok": true
+  },
+  {
+   "name": "11. Wiped browser (new device id): older records show \"Needs review\", never silently claimed",
+   "ok": true
+  },
+  {
+   "name": "12. Copying 40 jobs and 80 drawings (100 KB each): no long freezes; Verified",
+   "ok": true
+  }
+ ]
+}
