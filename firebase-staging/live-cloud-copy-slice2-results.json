@@ -1,0 +1,58 @@
+{
+ "ranAt": "2026-10-01T08:16:51.181Z",
+ "project": "fittersiq-staging",
+ "company": "SivhuYsf35ktlq7DXo9H",
+ "env": "production",
+ "log": [
+  {
+   "step": 1,
+   "name": "Upload 2 generated photos where Mobile stores photos (Company B, staging)",
+   "ok": true
+  },
+  {
+   "step": 2,
+   "name": "Copy and verify: 4 jobs, drawings (JPEG, PDF, one shared), a deleted job with a drawing, an orphan drawing, settings, 2 photo links, delete history",
+   "ok": true
+  },
+  {
+   "step": 3,
+   "name": "Independent read-back: exact jobs in packages, ids and QR identities, drawing and photo bytes and types (PDF = application/pdf), tombstone with recycle-bin copy and delete time, settings exact without screen state, orphan in the recovery list",
+   "ok": true
+  },
+  {
+   "step": 4,
+   "name": "Browser input unchanged",
+   "ok": true
+  },
+  {
+   "step": 5,
+   "name": "Rerun with the same input: nothing new, no media uploaded again, still verified",
+   "ok": true
+  },
+  {
+   "step": 6,
+   "name": "Delete job 2 in the browser (recycle bin + history): tombstone in the cloud with the bin copy",
+   "ok": true
+  },
+  {
+   "step": 7,
+   "name": "Restore job 2 in the browser (recorded restore): deliberate cloud restore, history deleted + restored",
+   "ok": true
+  },
+  {
+   "step": 8,
+   "name": "A Production-style photo link added to job 3 (copied, not verified): the changed job is written as its next version, the photo is pending, Production is never fetched, no new marker, checkVerified false; link removed again: verified",
+   "ok": true
+  },
+  {
+   "step": 9,
+   "name": "Interrupted run (simulated network loss after a file): failed, earlier marker kept; rerun completes, files reused",
+   "ok": true
+  },
+  {
+   "step": 10,
+   "name": "Final: the marker confirms exactly the final browser state; an older state is not verified; Company B beta / Stage 2.1 evidence untouched",
+   "ok": true
+  }
+ ]
+}

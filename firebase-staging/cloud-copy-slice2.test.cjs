@@ -109,6 +109,32 @@ const clone=x=>JSON.parse(JSON.stringify(x));
   assert.ok(r.verify.problems.some(p=>/Production photo/.test(p)));
   const c=await cloud();assert.equal(c.jobs[J(2)].rev,1);assert.equal(c.switch,null);
  });
+ await check('S6b. Copied, not verified: a changed job with a Production link is written as the next version, its photo stays pending, Production is never fetched, no new marker, checkVerified false',async()=>{
+  await fresh('e2');
+  const inp=deepFreeze(makeInput({jobs:2,seed:'e2'}));
+  const ok=await copier().copyAndVerify(inp,'s6b-verified');assert.equal(ok.ok,true);
+  const before=await cloud();assert.equal(before.jobs[J(1)].rev,1);
+  const prod='https://firebasestorage.googleapis.com/v0/b/assembleone-fabac.firebasestorage.app/o/companies%2FX%2Fjobs%2Fj%2Fq.jpg?alt=media&token=t';
+  const changed=clone(inp);changed.state.projects[0].name='Changed with a Production photo';changed.state.projects[0].jobLog[0].photos=[prod];deepFreeze(changed);
+  fetched=[];
+  const r=await copier().copyAndVerify(changed,'s6b-pending');
+  const after=await cloud();
+  // 1. the changed job version is safely written
+  assert.equal(r.jobs.updated,1);assert.equal(after.jobs[J(1)].rev,2,'next version written');
+  assert.equal(JSON.stringify(after.files[J(1)].job),JSON.stringify(changed.state.projects[0]),'latest job data copied exactly');
+  // 2. the unresolved media is recorded as pending / not owned
+  assert.ok(!(prod in after.files[J(1)].links),'photo not in the owned media list');
+  assert.ok(r.mediaNotOwned.some(m=>m.id===J(1)&&m.links.includes(prod)),'pending photo reported');
+  assert.ok(r.verify.problems.some(p=>/Photo not owned by the cloud master yet.*Production photo/.test(p)));
+  // 3. the Production URL is never fetched
+  assert.ok(!fetched.some(u=>/assembleone-fabac/i.test(u)),'Production never fetched');
+  // 4. no new verified marker
+  assert.deepEqual([r.ok,r.markerWritten,r.attempt.outcome],[false,false,'incomplete']);
+  assert.equal(after.switch.migrationId,'s6b-verified','earlier marker kept, no new one');
+  // 5. checkVerified() is false for that browser state
+  assert.equal((await copier().checkVerified(changed)).verified,false);
+  assert.equal((await copier().checkVerified(inp)).verified,true,'the marker still only confirms the earlier state');
+ });
  await check('S7. Settings: a change becomes the next version; a stale settings version stops the run',async()=>{
   await fresh('f');
   const inp=makeInput({jobs:1,seed:'f'});deepFreeze(inp);

@@ -1,67 +1,59 @@
 {
- "ranAt": "2026-10-01T06:15:03.002Z",
+ "ranAt": "2026-10-01T08:13:43.223Z",
  "rules": ".",
- "failures": 12,
+ "failures": 0,
  "results": [
   {
    "name": "S1. Full copy: packages, drawings (JPEG + PDF, shared once), tombstone with recycle-bin copy, settings, orphan recovery, Mobile photo link; verified",
-   "ok": false,
-   "error": "{\"code\":\"storage/unauthorized\",\"message\":\"Firebase Storage: User does not have permission to access 'fiqmaster/cA/beta/media/53d1092d52babfed4ec69165099143f60618e889e1b162754d8d3447515ef0c0'. (storage/unauthorized)\"}\n\nfalse !== true\n"
+   "ok": true
   },
   {
    "name": "S2. Rerun: nothing new; no media uploaded again; still verified",
-   "ok": false,
-   "error": "Expected values to be strictly equal:\n\nfalse !== true\n"
+   "ok": true
   },
   {
    "name": "S3. Slice 1 plain job file is upgraded once to a package (next version)",
-   "ok": false,
-   "error": "{\"code\":\"storage/unauthorized\",\"message\":\"Firebase Storage: User does not have permission to access 'fiqmaster/cA/beta/media/e2d360142bcfb2cc6080d2efb58a22ed6747f850f069785b8520860bb13b3170'. (storage/unauthorized)\"}\n\nfalse !== true\n"
+   "ok": true
   },
   {
    "name": "S4. Interrupted run (after media and files): failed, no marker; rerun reuses media and files, nothing duplicated",
-   "ok": false,
-   "error": "{\"code\":\"storage/unauthorized\",\"message\":\"Firebase Storage: User does not have permission to access 'fiqmaster/cA/beta/media/e78434c9289153884fe27624f01a52284e80fede79e4f7b18d03c03176654816'. (storage/unauthorized)\"}\n\nfalse !== true\n"
+   "ok": true
   },
   {
    "name": "S5. Tampered media file: verification fails, no marker",
-   "ok": false,
-   "error": "Cannot read properties of null (reading 'problems')"
+   "ok": true
   },
   {
    "name": "S6. A Production photo link is never fetched: run incomplete, no marker, everything else copied",
-   "ok": false,
-   "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    false,\n    false,\n+   'failed'\n-   'incomplete'\n  ]\n"
+   "ok": true
+  },
+  {
+   "name": "S6b. Copied, not verified: a changed job with a Production link is written as the next version, its photo stays pending, Production is never fetched, no new marker, checkVerified false",
+   "ok": true
   },
   {
    "name": "S7. Settings: a change becomes the next version; a stale settings version stops the run",
-   "ok": false,
-   "error": "Expected values to be strictly equal:\n\nfalse !== true\n"
+   "ok": true
   },
   {
    "name": "S8. Deleted jobs: copied job deleted later -> tombstone; purged bin copy -> tombstone with no copy; a tombstone is never written again",
-   "ok": false,
-   "error": "Expected values to be strictly equal:\n\nfalse !== true\n"
+   "ok": true
   },
   {
    "name": "S9. Restore: with a recorded restore -> deliberate cloud restore; without -> conflict, never overwritten",
-   "ok": false,
-   "error": "Cannot read properties of undefined (reading 'job')"
+   "ok": true
   },
   {
    "name": "S10. Orphan drawings are never dropped from the recovery list",
-   "ok": false,
-   "error": "Expected values to be strictly equal:\n\nfalse !== true\n"
+   "ok": true
   },
   {
    "name": "S11. The marker covers everything: a changed drawing, setting, deleted list or history no longer counts as verified",
-   "ok": false,
-   "error": "Expected values to be strictly equal:\n\nfalse !== true\n"
+   "ok": true
   },
   {
    "name": "S12. Scale: 40 jobs, 80 drawings (100 KB), 200 Mobile photo links, verified",
-   "ok": false,
-   "error": "{\"code\":\"storage/unauthorized\",\"message\":\"Firebase Storage: User does not have permission to access 'fiqmaster/cA/beta/media/33a09a671be452ef05e31ce7c1475fb16fca8495eae8fa1cd1aba9745e0e5238'. (storage/unauthorized)\"}\n\nfalse !== true\n"
+   "ok": true
   }
  ]
 }
