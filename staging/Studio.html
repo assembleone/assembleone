@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>FittersIQ Studio STAGING</title>
+<script>
+// STAGING TEST COPY of FittersIQ Studio (Stage 2). It uses the separate Firebase project
+// fittersiq-staging and test accounts only; it can never reach the Production project.
+// Every browser storage name used here gets its own "fiqstaging:" prefix, so this copy
+// has its own saved jobs, databases and sign-in, apart from normal Studio and Beta.
+(function(){
+  var P='fiqstaging:';
+  try{
+    var ls=window.localStorage,proto=Storage.prototype;
+    var getItem=proto.getItem,setItem=proto.setItem,removeItem=proto.removeItem,key=proto.key;
+    proto.getItem=function(k){return this===ls?getItem.call(this,P+k):getItem.call(this,k)};
+    proto.setItem=function(k,v){return this===ls?setItem.call(this,P+k,v):setItem.call(this,k,v)};
+    proto.removeItem=function(k){return this===ls?removeItem.call(this,P+k):removeItem.call(this,k)};
+    // Clearing only ever removes this copy's own keys.
+    proto.clear=(function(clear){return function(){if(this!==ls)return clear.call(this);var mine=[];for(var i=0;i<this.length;i++){var k=key.call(this,i);if(k&&k.indexOf(P)===0)mine.push(k)}mine.forEach(function(k){removeItem.call(ls,k)})}})(proto.clear);
+  }catch(e){}
+  try{
+    var factory=IDBFactory.prototype,open=factory.open,del=factory.deleteDatabase;
+    factory.open=function(name,version){return version===undefined?open.call(this,P+name):open.call(this,P+name,version)};
+    factory.deleteDatabase=function(name){return del.call(this,P+name)};
+  }catch(e){}
+  try{
+    var BC=window.BroadcastChannel;
+    if(BC){var Staging=function(name){return new BC(P+name)};Staging.prototype=BC.prototype;window.BroadcastChannel=Staging}
+  }catch(e){}
+})();
+// The staging Firebase project. The core reads this instead of its own (Production) settings.
+window.FIQ_FIREBASE_CONFIG={
+  apiKey:"AIzaSyBlglyejGrObsr25JL5-eOSfhF9joBxZUI",
+  authDomain:"fittersiq-staging.firebaseapp.com",
+  databaseURL:"https://fittersiq-staging-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"fittersiq-staging",
+  storageBucket:"fittersiq-staging.firebasestorage.app",
+  messagingSenderId:"974434464573",
+  appId:"1:974434464573:web:f5b5499766d6dab2e0cb54"
+};
+</script>
+</head>
+<body style="font-family:Segoe UI,Arial,sans-serif;background:#4c1d95;color:white;display:grid;place-items:center;min-height:100vh;margin:0">
+  <div id="studioLoader" style="text-align:center">Opening FittersIQ Studio STAGING…</div>
+  <script>
+  (async function(){
+    var STAGING_PROJECT='fittersiq-staging';
+    var stamp=Date.now();
+    var here=location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/,'');
+    // A file from this folder if it is here, otherwise from the folder above (local testing).
+    async function fetchText(name){
+      var urls=[here+name,here+'../'+name];
+      for(var i=0;i<urls.length;i++){var r=await fetch(urls[i]+'?staging=1&ts='+stamp,{cache:'no-store'});if(r.ok)return {text:await r.text(),url:urls[i]}}
+      throw new Error('Could not load '+name);
+    }
+    function scriptUrl(name,found){return (found?here:here+'../')+name+'?staging=1&ts='+stamp}
+    async function exists(name){try{var r=await fetch(here+name+'?ts='+stamp,{method:'HEAD',cache:'no-store'});return r.ok}catch(e){return false}}
+    try{
+      var core=await fetchText('Studio-Recovery.html'),html=core.text;
+      var lower=html.toLowerCase();
+      if(html.length<100000||lower.indexOf('<body')===-1||lower.lastIndexOf('</body>')===-1||lower.lastIndexOf('</html>')===-1||html.indexOf('FittersIQ Studio')===-1){
+        throw new Error('Studio core failed safety validation');
+      }
+      // Only a core that takes the staging settings may run here; any other core (for example
+      // the normal site's Production core) is refused, so this page can never use Production.
+      if(html.indexOf('const firebaseConfig = window.FIQ_FIREBASE_CONFIG ||')===-1){
+        throw new Error('This Studio core cannot use the staging project');
+      }
+      html=html.replace('<link rel="manifest" href="manifest-studio.json?v=4">','');
+      var config='<script>window.FIQ_FIREBASE_CONFIG='+JSON.stringify(window.FIQ_FIREBASE_CONFIG)+'<\/script>';
+      html=html.replace(/<head([^>]*)>/i,function(m){return m+config+'<base href="'+here+'../">'});
+      var patch='<script src="'+scriptUrl('studio-patch.js',await exists('studio-patch.js'))+'"><\/script>';
+      // Stage 2.3b: manual cloud copy. Only this staging page loads it.
+      var cloud='<script src="'+scriptUrl('cloud-master/fiq-cloud-copy.js',await exists('cloud-master/fiq-cloud-copy.js'))+'"><\/script>'+
+                '<script type="module" src="'+scriptUrl('cloud-master/studio-cloud-copy.js',await exists('cloud-master/studio-cloud-copy.js'))+'"><\/script>';
+      var snapshot='<script src="studio-dispatch-snapshot.js?build=86&staging=1&ts='+stamp+'"><\/script>';
+      var hardening='<script src="studio-sync-hardening.js?build=90&staging=1&ts='+stamp+'"><\/script>';
+      var banner='<div id="fiqStagingBanner" style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#6d28d9;color:#fff;font:800 11px/1.6 Inter,Arial,sans-serif;text-align:center;letter-spacing:.04em;pointer-events:none">STAGING TEST COPY - FITTERSIQ-STAGING - TEST ACCOUNTS ONLY<\/div>';
+      var retitle='<script>document.title="STAGING "+String(document.title).replace(/^STAGING /,"")<\/script>';
+      // Last line of defence: if Firebase ever reports another project, stop the page.
+      var guard='<script>(function(){function check(){var a=window.fiqFirestore&&window.fiqFirestore.app;if(!a)return setTimeout(check,200);if(a.options.projectId!=="'+STAGING_PROJECT+'"){document.documentElement.innerHTML="<body style=\\"font-family:Arial;padding:40px;background:#7f1d1d;color:#fff\\"><h1>Stopped</h1><p>This staging page was connected to the wrong Firebase project and has been stopped.</p></body>"}}check()})()<\/script>';
+      var bodyClose=html.toLowerCase().lastIndexOf('</body>');
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+banner+retitle+guard+html.slice(bodyClose);
+      document.open();document.write(html);document.close();
+    }catch(e){
+      console.error(e);
+      var loader=document.getElementById('studioLoader');
+      if(loader)loader.innerHTML='FittersIQ Studio STAGING could not load.<br>'+String(e&&e.message||e);
+    }
+  })();
+  </script>
+</body>
+</html>
