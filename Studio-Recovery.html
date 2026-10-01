@@ -1385,7 +1385,9 @@ import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL, listAll, deleteObject } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 
-const firebaseConfig = {
+// A staging page may provide its own Firebase project (window.FIQ_FIREBASE_CONFIG, set by the
+// staging loader before this core runs). Without it, the settings below are used exactly as before.
+const firebaseConfig = window.FIQ_FIREBASE_CONFIG || {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
   authDomain: "assembleone-fabac.firebaseapp.com",
   databaseURL: "https://assembleone-fabac-default-rtdb.firebaseio.com",
