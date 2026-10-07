@@ -1223,10 +1223,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-method-switch{position:absolute;top:calc(env(safe-area-inset-top) + 44px);left:50%;transform:translateX(-50%);z-index:3;display:flex;border-radius:14px;overflow:hidden;border:2px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .scan-method-opt{min-height:46px;min-width:128px;white-space:nowrap;border:0;background:rgba(255,255,255,.92);color:#174E98;font-weight:900;font-size:15px;padding:0 14px}
 .scan-method-opt.active{background:#174E98;color:#fff}
-.scan-frame.number-mode:after{inset:38% 8%}
+.scan-frame.number-mode:after{inset:42.5% 8%}
 .number-scan-hint,.number-scan-status{display:none;position:absolute;left:8%;right:8%;z-index:2;text-align:center;color:#fff;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none}
-.scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(62% + 10px);font-size:15px}
-.scan-frame.number-mode .number-scan-status{display:block;top:calc(62% + 10px);font-size:16px}
+.scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(57.5% + 10px);font-size:15px}
+.scan-frame.number-mode .number-scan-status{display:block;top:calc(57.5% + 10px);font-size:16px}
 .number-scan-status.warn{color:#ffd166}
 </style>
 
@@ -4277,7 +4277,10 @@ function applyFittedStatus(pr,pt,piece){
 }
 let fpOpenedFromCard=false;
 function openFindPanelResult(fromCard){fpOpenedFromCard=!!fromCard;renderFindPanelResult();const next=$('#findPanelScanNextBtn');if(next)next.classList.toggle('hidden',fpOpenedFromCard);$('#findPanelOverlay').classList.remove('hidden')}
-function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden')}
+// Panel Number: while the panel view is open reading is paused, so it never opens twice.
+// Closing it (X, Scan next, tap outside) makes the scanner ready again at once, so the same
+// panel can be found again straight away; Find It never counts anything.
+function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden');try{resetNumberRepeat()}catch(e){}}
 $('#findPanelResultClose').onclick=closeFindPanelResult;
 $('#findPanelOverlay').addEventListener('click',e=>{if(e.target.id==='findPanelOverlay')closeFindPanelResult()});
 $('#findPanelScanNextBtn').onclick=()=>{closeFindPanelResult();startCamera()};
@@ -4530,26 +4533,31 @@ function ensureNumberReader(){
   const el=$('#numberScanStatus');if(el){clearTimeout(numberStatusTimer);el.classList.remove('warn');el.textContent='Preparing the number reader…'}
   if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
   const w=await Tesseract.createWorker('eng',1);
-  // Digits and the piece dash only; sparse text, since the strip may hold other label text.
-  await w.setParameters({tessedit_char_whitelist:'0123456789-',tessedit_pageseg_mode:'11'});
+  // Normal text, one line (the guide band holds the number line only; sparse mode lost
+  // the piece dash, 7002-2 -> 7002 2). A digits-only list made the box and sticker edges read as extra
+  // digits joined onto the number (7001 -> 700188); now edges read as separate marks.
+  await w.setParameters({tessedit_pageseg_mode:'7'});
   numberWorker=w;setNumberStatus('');return w;
  })().catch(e=>{numberWorkerPromise=null;throw e});
  return numberWorkerPromise;
 }
-// The guide strip (.scan-frame.number-mode:after, inset 38% 8%) mapped onto the video frame
+// The guide strip (.scan-frame.number-mode:after, inset 42.5% 8%) mapped onto the video frame
 // through object-fit:cover, so exactly what the fitter sees inside the box is read.
 function numberCropCanvas(){
  const v=$('#camera');if(!v||!v.videoWidth||!v.videoHeight)return null;
  const vw=v.videoWidth,vh=v.videoHeight,ew=v.clientWidth||vw,eh=v.clientHeight||vh,s=Math.max(ew/vw,eh/vh);
- const ox=(vw-ew/s)/2,oy=(vh-eh/s)/2,sx=ox+ew*0.08/s,sy=oy+eh*0.38/s,sw=ew*0.84/s,sh=eh*0.24/s;
- const k=Math.min(1,900/sw),w=Math.max(1,Math.round(sw*k)),h=Math.max(1,Math.round(sh*k));
+ const ox=(vw-ew/s)/2,oy=(vh-eh/s)/2,sx=ox+ew*0.08/s,sy=oy+eh*0.425/s,sw=ew*0.84/s,sh=eh*0.15/s;
+ // A thin band holding only the number line, read at about 480 px wide, reads far more
+ // reliably than a taller box with label edges and other text in it.
+ const k=Math.min(1,480/sw),w=Math.max(1,Math.round(sw*k)),h=Math.max(1,Math.round(sh*k));
  if(!numberCanvas){numberCanvas=document.createElement('canvas');numberCtx=numberCanvas.getContext('2d',{willReadFrequently:true})}
  if(numberCanvas.width!==w||numberCanvas.height!==h){numberCanvas.width=w;numberCanvas.height=h}
  numberCtx.drawImage(v,sx,sy,sw,sh,0,0,w,h);
  return numberCanvas;
 }
 function panelNumberTokens(text){
- const s=String(text||'').replace(/[ \t]*-[ \t]*/g,'-'),out=new Set(),re=/(^|[^0-9-])(\d{4,6})(?:-(\d{1,3}))?(?![0-9-])/g;let m;
+ // Any dash counts as the piece dash; a letter O between digits is read as 0.
+ const s=String(text||'').replace(/[‐-―−]/g,'-').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/[ \t]*-[ \t]*/g,'-'),out=new Set(),re=/(^|[^0-9-])(\d{4,6})(?:-(\d{1,3}))?(?![0-9-])/g;let m;
  while((m=re.exec(s)))out.add(m[2]+(m[3]?'-'+m[3]:''));
  return [...out];
 }
