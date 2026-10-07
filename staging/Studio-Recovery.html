@@ -281,6 +281,10 @@ th{background:#d3dcf1;font-family:'Inter',sans-serif}
 .fiq-sticker .fs-qr,.fiq-sticker .fs-qr>div{width:var(--fs-qr);height:var(--fs-qr);display:grid;place-items:center}
 .fiq-sticker .fs-qr img,.fiq-sticker .fs-qr canvas{width:var(--fs-qr)!important;height:var(--fs-qr)!important;image-rendering:pixelated}
 .supplier-labels .fiq-sticker{min-height:190px}
+.fiq-sticker .fs-num{width:var(--fs-qr);min-height:calc(var(--fs-qr)*.6);display:grid;place-items:center;border:3px solid #111;border-radius:8px;box-sizing:border-box;font:900 calc(var(--fs-qr)*.3) Arial,Helvetica,sans-serif;letter-spacing:.02em;line-height:1;white-space:nowrap;color:#000;background:#fff}
+.fiq-sticker .fs-num.fs-num-long{font-size:calc(var(--fs-qr)*.22)}
+.fiq-sticker .fs-num.fs-num-xl{font-size:calc(var(--fs-qr)*.17)}
+.fiq-sticker-number .fs-right{justify-content:center}
 @media (max-width:520px){.supplier-labels .fiq-sticker{--fs-qr:120px}}
 .cut-qr img,.cut-qr canvas{max-width:68px!important;max-height:68px!important}
 .qr-error{min-height:150px;display:grid;place-items:center;border:2px dashed #587bc7;border-radius:8px;padding:10px;color:#9a513d;font-weight:700}
@@ -1749,6 +1753,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="supplier-feedback" id="supplierActionStatus" aria-live="polite"></div>
 <h3 class="supplier-section-title">Cutting List</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
 <div hidden><table><tbody id="cuttingBody"></tbody></table><button id="downloadCsvBtn"></button><button id="printCuttingBtn"></button></div>
+<div class="supplier-sticker-settings fiq-label-mode-settings"><div><h3>Label scanning</h3><div class="muted">What the fitter scans. Each label carries one method only.</div></div><div class="fiq-label-mode-switch" role="radiogroup" aria-label="Label scanning"><button class="btn" type="button" role="radio" data-label-mode="qr">QR Code</button><button class="btn" type="button" role="radio" data-label-mode="number">Panel Number</button></div></div>
 <div class="supplier-sticker-settings"><div><h3 data-i18n="studio.supplier.stickerSizeHeading">QR sticker size</h3><div class="muted" data-i18n="studio.supplier.stickerSizeSubtitle">Choose a common size or enter your own measurements.</div></div><div class="sticker-size-grid"><label><span data-i18n="studio.supplier.widthMmLabel">Width mm</span><input id="stickerWidth" inputmode="decimal" max="300" min="20" step="1" type="number" value="70"/></label><label><span data-i18n="studio.supplier.heightMmLabel">Height mm</span><input id="stickerHeight" inputmode="decimal" max="300" min="20" step="1" type="number" value="50"/></label></div><div aria-label="Quick sticker sizes" data-i18n-aria="studio.supplier.quickStickerSizesAria" class="size-presets"><button class="btn sticker-preset" data-h="30" data-w="50" type="button">50 × 30</button><button class="btn sticker-preset" data-h="50" data-w="70" type="button">70 × 50</button><button class="btn sticker-preset" data-h="75" data-w="100" type="button">100 × 75</button></div></div>
 <h3 class="supplier-section-title" data-i18n="studio.supplier.stickerPreviewHeading">Sticker preview</h3><div class="supplier-labels" id="supplierLabels"></div>
 <div id="cuttingListReturnStrip"></div>
@@ -3810,14 +3815,42 @@ function panelDetailsHtml(p){
 // printed per physical panel (fiqStickerCopies), each carrying the same panel number and QR,
 // which is what Mobile's per-piece scan count already expects.
 function fiqStickerCopies(list){const out=[];(list||[]).forEach(p=>{const n=Math.max(1,Math.min(500,Math.floor(Number(p?.qty)||1)));for(let i=0;i<n;i++)out.push({p,i})});return out}
+// Panel Number labels. Each panel gets a fixed label number (pt.labelNo), unique within its
+// job and never changed or reused, even when P-codes are renumbered after a delete. Numbers
+// start at 7001: no board dimension reaches 7000 mm, so a length or width printed on the same
+// sticker can never be mistaken for a panel number by Mobile's camera. A panel with Qty > 1
+// prints one sticker per piece as number-piece (7004-2), the same piece identity a piece QR
+// carries. The job's label choice (QR Code or Panel Number) is pr.labelScanMode.
+const FIQ_LABEL_NO_START=7001;
+function fiqEnsureLabelNumbers(pr){
+ if(!pr||!Array.isArray(pr.cabinets))return false;
+ let changed=false,max=Math.max(FIQ_LABEL_NO_START,Math.floor(Number(pr.labelNoNext)||0))-1;const seen=new Set(),todo=[];
+ pr.cabinets.forEach(c=>(c.parts||[]).forEach(pt=>{const n=Number(pt.labelNo);
+  if(Number.isInteger(n)&&n>=FIQ_LABEL_NO_START&&!seen.has(n)){seen.add(n);if(n>max)max=n}else todo.push(pt)}));
+ todo.forEach(pt=>{pt.labelNo=++max;changed=true});
+ if(Number(pr.labelNoNext)!==max+1){pr.labelNoNext=max+1;changed=true}
+ return changed;
+}
+window.fiqEnsureLabelNumbers=fiqEnsureLabelNumbers;
+function fiqLabelMode(pr){return (pr||project())?.labelScanMode==="number"?"number":"qr"}
+window.fiqLabelMode=fiqLabelMode;
+function fiqLabelNumberText(p,piece){
+ if(!Number.isInteger(Number(p?.labelNo)))fiqEnsureLabelNumbers(project());
+ const n=Math.max(1,Math.floor(Number(p?.qty)||1));
+ return String(p?.labelNo??"")+(n>1&&piece?"-"+piece:"");
+}
+window.fiqLabelNumberText=fiqLabelNumberText;
 function fiqStickerData(p,piece){
  const pr=project(),v=x=>x==null||x===""?"—":String(x);
  return {code:String(p.code??""),name:String(p.name||"Unnamed part").toUpperCase(),length:v(p.length),width:v(p.width),thickness:v(p.thickness),
-  material:String(materialForPanel(p)||"Material not set"),customer:pr?.customer?String(pr.customer):"",piece:piece||null,qr:phoneQrText(p,piece)};
+  material:String(materialForPanel(p)||"Material not set"),customer:pr?.customer?String(pr.customer):"",piece:piece||null,qr:phoneQrText(p,piece),
+  mode:fiqLabelMode(pr),labelNumber:fiqLabelNumberText(p,piece)};
 }
-function fiqStickerHtml(p,qrHtml,extra){
- const d=fiqStickerData(p);
- return `<article class="fiq-sticker"${extra||""}><div class="fs-left"><div class="fs-name">${safe(d.name)}</div><div class="fs-dims">${safe(d.length)} × ${safe(d.width)} × ${safe(d.thickness)}&nbsp;mm</div><div class="fs-mat">${safe(d.material)}</div>${d.customer?`<div class="fs-cust">${safe(d.customer)}</div>`:""}</div><div class="fs-right"><div class="fs-code">${safe(d.code)}</div><div class="fs-qr">${qrHtml||""}</div></div></article>`;
+// A Panel Number sticker carries the number where the QR would be, never both.
+function fiqStickerHtml(p,qrHtml,extra,piece){
+ const d=fiqStickerData(p,piece);
+ const scan=d.mode==="number"?`<div class="fs-num${d.labelNumber.length>4?d.labelNumber.length>6?" fs-num-xl":" fs-num-long":""}">${safe(d.labelNumber)}</div>`:`<div class="fs-qr">${qrHtml||""}</div>`;
+ return `<article class="fiq-sticker${d.mode==="number"?" fiq-sticker-number":""}"${extra||""}><div class="fs-left"><div class="fs-name">${safe(d.name)}</div><div class="fs-dims">${safe(d.length)} × ${safe(d.width)} × ${safe(d.thickness)}&nbsp;mm</div><div class="fs-mat">${safe(d.material)}</div>${d.customer?`<div class="fs-cust">${safe(d.customer)}</div>`:""}</div><div class="fs-right"><div class="fs-code">${safe(d.code)}</div>${scan}</div></article>`;
 }
 function edgeText(p){return `${Number(p.edgeLong||0)} long edge(s), ${Number(p.edgeShort||0)} short edge(s)`}
 function isCompleteSupplierPart(p){
@@ -3838,7 +3871,7 @@ function renderCutting(){
  </tr>`).join(""):'<tr><td colspan="4">No complete parts ready for the supplier.</td></tr>';
 
  const stickerCopies=fiqStickerCopies(rows);
- $("#supplierLabels").innerHTML=stickerCopies.length?stickerCopies.map(({p,i})=>fiqStickerHtml(p,`<div id="supplierqr-${p.id}-${i}" class="qrbox"></div>`)).join(""):`<div class="empty">${t("studio.supplier.noStickersToPrintEmpty")}</div>`;
+ $("#supplierLabels").innerHTML=stickerCopies.length?stickerCopies.map(({p,i})=>fiqStickerHtml(p,`<div id="supplierqr-${p.id}-${i}" class="qrbox"></div>`,"",i+1)).join(""):`<div class="empty">${t("studio.supplier.noStickersToPrintEmpty")}</div>`;
 
  setTimeout(()=>rows.forEach(p=>{
    makeQr(document.getElementById("cutqr-"+p.id),phoneQrText(p),68);
@@ -4246,6 +4279,8 @@ async function sendPackToPhoneDirectly(pack){
 // out -- Studio keeps them, and they reach Mobile once they are finished.
 function fiqPanelFinished(pt){return typeof window.fiqPanelMissingFields==='function'?!window.fiqPanelMissingFields(pt).length:true}
 function fiqProjectForMobile(p){
+ // Panel Number labels: every panel the phone receives already has its fixed label number.
+ fiqEnsureLabelNumbers(p);
  const copy=JSON.parse(JSON.stringify(p));delete copy.sentCuttingLists;
  (copy.cabinets||[]).forEach(c=>{c.parts=(c.parts||[]).filter(fiqPanelFinished)});
  return copy;
@@ -5115,7 +5150,7 @@ $("#addSameMarkerBtn").onclick=()=>{const p=part();if(!p)return alert(t("studio.
   // value, so calling save() first would read the stale pre-bump number and clobber
   // this very update straight back out.
   renderAll();save();const d=document.querySelector(".panel-options");if(d)d.open=false;alert(t("studio.drawing.samePartNumberAddedAgain"))};
-$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert(t("studio.drawing.selectRepeatedMarkerFirst"));const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;
+$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert(t("studio.drawing.selectRepeatedMarkerFirst"));const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();delete copy.labelNo;copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;
   // Same ordering fix as addSameMarkerBtn -- render before save so commitVisible reads
   // the new copy's own qty (1) from #fQty, not the parent panel's stale pre-split value.
   renderAll();save();const d=document.querySelector(".panel-options");if(d)d.open=false};
@@ -5154,7 +5189,7 @@ function buildStickerPrint(){
  if(!p||!c){el.innerHTML="<p>No wardrobe selected.</p>";return}
  if(!rows.length){el.innerHTML="<p>No complete parts are ready for the supplier. Add the name, thickness, length and width first.</p>";return}
  const copies=fiqStickerCopies(rows),qr=Math.round(Math.min(dims.height*.72,dims.width*.46)*3.78);
- el.innerHTML=`<div class="sticker-sheet">${copies.map(({p,i})=>fiqStickerHtml(p,`<div id="printstqr-${p.id}-${i}"></div>`,` style="width:${dims.width}mm;height:${dims.height}mm;--fs-qr:${qr}px"`)).join("")}</div>`;
+ el.innerHTML=`<div class="sticker-sheet">${copies.map(({p,i})=>fiqStickerHtml(p,`<div id="printstqr-${p.id}-${i}"></div>`,` style="width:${dims.width}mm;height:${dims.height}mm;--fs-qr:${qr}px"`,i+1)).join("")}</div>`;
  setTimeout(()=>copies.forEach(({p,i})=>makeQr(document.getElementById("printstqr-"+p.id+"-"+i),phoneQrText(p,i+1),qr)),0);
 }
 function buildInstallPrint(){
@@ -6596,7 +6631,12 @@ body.guide-only .a131-back-studio{display:block}
   const qx=x+ST.w-ST.pad-ST.qr,qy=y+ST.h-ST.pad-ST.qr;
   doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(13);
   doc.text(pdfText(d.code),qx+ST.qr/2,qy-1.3,{align:'center'});
-  drawQr(doc,g,qx,qy,ST.qr);
+  if(d.mode==='number'){
+   // Panel Number sticker: the number in a box where the QR would be, never both.
+   const bh=ST.qr*0.62,by=qy+(ST.qr-bh)/2;doc.setLineWidth(0.8);doc.roundedRect(qx,by,ST.qr,bh,1.5,1.5,'S');
+   let fs=34;doc.setFontSize(fs);while(fs>12&&doc.getTextWidth(d.labelNumber)>ST.qr-4){fs-=1;doc.setFontSize(fs)}
+   doc.text(pdfText(d.labelNumber),qx+ST.qr/2,by+bh/2+fs*PT*0.35,{align:'center'});doc.setLineWidth(0.5);
+  }else drawQr(doc,g,qx,qy,ST.qr);
   const lx=x+ST.pad,lw=ST.w-2*ST.pad-ST.qr-3;let ty=y+ST.pad;
   doc.setFontSize(17);lines(doc,d.name,lw,3).forEach((l,i)=>{doc.text(l,lx,ty+17*PT*0.8+i*17*PT*1.05)});
   ty+=17*PT*0.8+(Math.min(3,doc.splitTextToSize(pdfText(d.name),lw).length)-1)*17*PT*1.05+1.5;
@@ -6654,7 +6694,7 @@ body.guide-only .a131-back-studio{display:block}
  function stickerHeader(doc,info,page,pages){
   const x0=PAGE.margin,x1=PAGE.w-PAGE.margin;
   doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(12);
-  doc.text(pdfText('QR stickers — '+info.customer+' · '+info.job),x0,14,{maxWidth:x1-x0-40});
+  doc.text(pdfText((fiqLabelMode()==='number'?'Panel number stickers — ':'QR stickers — ')+info.customer+' · '+info.job),x0,14,{maxWidth:x1-x0-40});
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text('Sticker page '+page+' of '+pages,x1,14,{align:'right'});
   doc.setDrawColor(200,30,30);doc.setLineWidth(0.8);doc.rect(x0,18,x1-x0,14,'S');
   doc.setTextColor(200,30,30);doc.setFont('helvetica','bold');doc.setFontSize(13);
@@ -6669,7 +6709,7 @@ body.guide-only .a131-back-studio{display:block}
   const x0=PAGE.margin;let y=18;
   doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('Supplier Cutting List',x0,y);y+=8;
   doc.setFontSize(10);
-  [['Customer',info.customer],['Job',info.job],['Room / unit',info.unit],['Job ref',info.ref],['Date',info.date],['Panels',info.count+' panel'+(info.count===1?'':'s')+' — one QR sticker per panel on the sticker pages']].forEach(([k,v])=>{
+  [['Customer',info.customer],['Job',info.job],['Room / unit',info.unit],['Job ref',info.ref],['Date',info.date],['Panels',info.count+' panel'+(info.count===1?'':'s')+' — one '+(fiqLabelMode()==='number'?'panel number':'QR')+' sticker per panel on the sticker pages']].forEach(([k,v])=>{
    doc.setFont('helvetica','bold');doc.text(k+':',x0,y);doc.setFont('helvetica','normal');doc.text(pdfText(v||'—'),x0+26,y,{maxWidth:PAGE.w-2*PAGE.margin-26});y+=5.2});
   y+=3;
   const cols=[['Panel',18],['Part name',36],['Length',17],['Width',17],['Thick',13],['Qty',10],['Material',42],['Edging',33]];
@@ -6700,7 +6740,7 @@ body.guide-only .a131-back-studio{display:block}
   doc.setProperties({title:fileName(info).replace(/\.pdf$/,''),subject:'Cutting list and print-ready QR stickers',creator:'FittersIQ'});
   try{doc.viewerPreferences({PrintScaling:'None'},true)}catch(e){}
   cuttingPages(doc,info,list);
-  const pieces=copies.map(({p,i})=>{const d=fiqStickerData(p,i+1);return {d,g:qrModules(d.qr)}});
+  const pieces=copies.map(({p,i})=>{const d=fiqStickerData(p,i+1);return {d,g:d.mode==='number'?null:qrModules(d.qr)}});
   const per=ST.cols*ST.rows,pages=Math.ceil(copies.length/per),x0=(PAGE.w-(ST.cols*ST.w+(ST.cols-1)*ST.gapX))/2;
   copies.forEach(({p},i)=>{const k=i%per;if(k===0){doc.addPage('a4','portrait');stickerHeader(doc,info,i/per+1,pages)}
    drawSticker(doc,pieces[i].d,pieces[i].g,x0+(k%ST.cols)*(ST.w+ST.gapX),ST.top+Math.floor(k/ST.cols)*(ST.h+ST.gapY))});
@@ -6763,7 +6803,7 @@ body.guide-only .a131-back-studio{display:block}
     grainDirection:'Length',
     customer:d.customer,job:String(pr?.name||''),room:String(room?.name||''),unit:String(unit?.name||''),
     roomUnit:[room?.name,unit?.name].filter(Boolean).filter((v,k,a)=>a.indexOf(v)===k).join(' · '),jobRef:ref,
-    notes:String(p.notes||''),qr:d.qr,qrLabel:fiqQrLabelText(d.qr)};
+    notes:String(p.notes||''),qr:d.qr,qrLabel:fiqQrLabelText(d.qr),labelNumber:d.labelNumber};
   });
   return {generatedFrom:'FittersIQ',customer:pr?.customer||'',job:pr?.name||'',roomUnit:rows[0]?.roomUnit||'',jobRef:ref,units:'mm',rows};
  };
@@ -6789,7 +6829,11 @@ body.guide-only .a131-back-studio{display:block}
  window.fiqSupplierProfile=function(systemOrProfile){
   const o=typeof systemOrProfile==='string'?{system:systemOrProfile}:(systemOrProfile||{});
   const base=window.FIQ_SUPPLIER_ADAPTERS[o.system]||window.FIQ_SUPPLIER_ADAPTERS.standard;
-  return {...base,...o,system:base.id,columns:(o.columns||base.columns).map(c=>({header:String(c.header),field:String(c.field)}))};
+  let columns=(o.columns||base.columns).map(c=>({header:String(c.header),field:String(c.field)}));
+  // Panel Number labels: the file carries the panel number where the QR text was, never both,
+  // so a supplier printing its own labels from this file prints the number. QR files unchanged.
+  if((o.labelMode||fiqLabelMode())==='number'){let done=false;columns=columns.flatMap(c=>{if(c.field!=='qr'&&c.field!=='qrLabel')return [c];if(done)return [];done=true;return [{header:c.header.replace(/\s*\(label text\)/,'').replace('QR','Number'),field:'labelNumber'}]})}
+  return {...base,...o,system:base.id,columns};
  };
  const DIMS=new Set(['length','width','thickness']);
  window.fiqSupplierExport=function(profile,dataset){
@@ -6820,6 +6864,26 @@ body.guide-only .a131-back-studio{display:block}
 },true);
  window.fiqRefreshProductionSub=refreshSub;
  wire();
+})();
+</script>
+<script id="fiq-label-mode-switch">
+// Label scanning switch (Supplier screen): QR Code or Panel Number for this job's labels.
+// Sticker Preview, the Supplier PDF and the production file all follow it.
+(function(){
+ function paint(){const m=fiqLabelMode();document.querySelectorAll('[data-label-mode]').forEach(b=>{const on=b.dataset.labelMode===m;b.classList.toggle('primary',on);b.setAttribute('aria-checked',on?'true':'false')})}
+ document.addEventListener('click',function(e){
+  const b=e.target.closest('[data-label-mode]');if(!b)return;e.preventDefault();
+  const pr=project();if(!pr){alert(t("msg.openProjectFirst"));return}
+  if(b.dataset.labelMode==='number'){pr.labelScanMode='number';fiqEnsureLabelNumbers(pr)}else delete pr.labelScanMode;
+  pr.updatedAt=Date.now();save();
+  if(typeof renderCutting==='function')renderCutting();
+  if(typeof window.fiqRefreshProductionSub==='function')window.fiqRefreshProductionSub();
+  paint();
+ });
+ const base=window.renderCutting;
+ window.renderCutting=function(){const pr=project();if(pr&&fiqLabelMode(pr)==='number'&&fiqEnsureLabelNumbers(pr))setTimeout(save,0);const r=typeof base==='function'?base.apply(this,arguments):undefined;paint();return r};
+ try{renderCutting=window.renderCutting}catch(e){}
+ paint();
 })();
 </script>
 
