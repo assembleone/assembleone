@@ -1228,6 +1228,9 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(57.5% + 10px);font-size:15px}
 .scan-frame.number-mode .number-scan-status{display:block;top:calc(57.5% + 10px);font-size:16px}
 .number-scan-status.warn{color:#ffd166}
+/* Staging test readout: what the camera reads in every frame and what it matches. */
+.number-scan-read{display:none;position:absolute;left:8px;right:8px;top:calc(57.5% + 64px);z-index:2;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.72);color:#fff;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;pointer-events:none;white-space:pre-wrap;word-break:break-all}
+.scan-frame.number-mode.fiq-number-diag .number-scan-read{display:block}
 </style>
 
 <style id="a-build2-mobile-compact">
@@ -1332,7 +1335,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section id="scan" class="screen">
  <div class="scan-tool scan55-tool">
   <div class="pc-header"><strong id="scanHeaderTitle">Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div><button type="button" id="scanSoundBtn" class="pc-sound-btn" aria-label="Scan sound settings">🔊</button></div>
-  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><div id="scanMethodSwitch" class="scan-method-switch" role="radiogroup" aria-label="Scan method"><button type="button" class="scan-method-opt" role="radio" data-method="qr">QR Code</button><button type="button" class="scan-method-opt" role="radio" data-method="number">Panel Number</button></div><div id="numberScanHint" class="number-scan-hint">Point the box at the panel number</div><div id="numberScanStatus" class="number-scan-status" aria-live="polite"></div><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
+  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><div id="scanMethodSwitch" class="scan-method-switch" role="radiogroup" aria-label="Scan method"><button type="button" class="scan-method-opt" role="radio" data-method="qr">QR Code</button><button type="button" class="scan-method-opt" role="radio" data-method="number">Panel Number</button></div><div id="numberScanHint" class="number-scan-hint">Point the box at the panel number</div><div id="numberScanStatus" class="number-scan-status" aria-live="polite"></div><div id="numberScanRead" class="number-scan-read"></div><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
   <div class="scan-actions scan55-actions" id="scanStartRow" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
@@ -4590,8 +4593,26 @@ function readNumberFrame(text){
 }
 function resetNumberRepeat(){numberLastKey=null;numberLastSeenAt=0;numberHistory=[]}
 function numberResultKey(r){return r.kind+':'+r.token+(r.route?':'+r.route.projectId+':'+r.route.panelId:'')}
+// Staging only: a test readout of exactly what the camera read and what it matched, so a
+// failed reading can be seen. Never shown in Beta or Production.
+function numberDiagOn(){return !!(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.projectId==='fittersiq-staging')}
+let numberDiagFrames=0;
+function showNumberDiag(text,r){
+ const el=$('#numberScanRead'),wrap=$('#cameraWrap');if(!el)return;if(wrap)wrap.classList.add('fiq-number-diag');
+ numberDiagFrames++;
+ const raw=String(text||'').replace(/\s+/g,' ').trim().slice(0,40)||'(nothing)',toks=panelNumberTokens(text);
+ let what;
+ if(r&&r.kind==='match'){const pr=state.projects.find(x=>x.id===r.route.projectId),c=pr&&(pr.cabinets||[]).find(x=>x.id===r.route.cabinetId),pt=c&&(c.parts||[]).find(x=>x.id===r.route.panelId),q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1)),k=r.route.copyIndex===-1?1:r.route.copyIndex+2;
+  what=r.token+' = '+(pt?pt.code+' '+(pt.name||''):'?')+(q>1?', piece '+k+' of '+q:'')}
+ else if(r&&r.kind==='nomatch')what=r.token+' = not in this job';
+ else if(r&&r.kind==='duplicate')what=r.token+' = in more than one open job';
+ else what=toks.length?'unclear: '+toks.join(', '):'no panel number';
+ const agree=r?numberHistory.filter(k=>k===numberResultKey(r)).length+1:0;
+ el.textContent='TEST  frame '+numberDiagFrames+'\nCamera read: '+raw+'\nMeans: '+what+(r?'\nSame reading in '+Math.min(agree,NUMBER_HISTORY_FRAMES)+' of the last '+NUMBER_HISTORY_FRAMES+' frames (needs '+NUMBER_CONFIRM_FRAMES+')':'');
+}
 function handleNumberFrame(text){
  const r=readNumberFrame(text),key=r?numberResultKey(r):null,now=Date.now();
+ if(numberDiagOn())showNumberDiag(text,r);
  numberHistory.push(key);if(numberHistory.length>NUMBER_HISTORY_FRAMES)numberHistory.shift();
  if(!key)return;
  // The label just acted on is still in view: nothing happens again until it has been out

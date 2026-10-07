@@ -6886,6 +6886,84 @@ body.guide-only .a131-back-studio{display:block}
  paint();
 })();
 </script>
+<script id="fiq-panel-number-test">
+// STAGING ONLY: Panel Number test on the QR labels screen, beside the existing QR test.
+// Shows the open unit's panel numbers large on screen (one per physical piece, exactly as
+// the stickers print them) so they can be scanned from the computer screen with the phone,
+// each with the panel it must open, plus one number that is in no panel (must open nothing).
+// "Make test job" builds P-001 (7001) and P-002 Qty 3 (7002-1/2/3, three dots) on a simple
+// drawing and sends it to Mobile. Never shown outside the staging page.
+(function(){
+ const STAGING=!!(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.projectId==='fittersiq-staging');
+ if(!STAGING)return;
+ const css=document.createElement('style');css.textContent=
+  '.fiq-nt{margin:0 0 14px;padding:14px;border:2px solid #6d28d9;border-radius:16px;background:#faf7ff}'+
+  '.fiq-nt h3{margin:0 0 4px}.fiq-nt .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}'+
+  '#qrGrid.fiq-nt-grid{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))!important}'+
+  '.fiq-nt-card{background:#fff;border:2px solid #111;border-radius:14px;padding:12px;text-align:center}'+
+  '.fiq-nt-card.unknown{border-color:#b91c1c;background:#fff5f5}'+
+  '.fiq-nt-num{display:inline-block;margin:6px auto 8px;padding:10px 22px;border:4px solid #111;border-radius:10px;background:#fff;color:#000;font:900 60px/1 Arial,Helvetica,sans-serif;letter-spacing:.02em;white-space:nowrap}'+
+  '.fiq-nt-expect{font-weight:900;font-size:15px}.fiq-nt-meta{font-size:12px;color:#555;margin-top:2px}'+
+  '.fiq-nt-card .btn{margin-top:8px;width:100%}';
+ document.head.appendChild(css);
+ function ensureBox(){
+  const screen=document.getElementById('screen-qr'),grid=document.getElementById('qrGrid');if(!screen||!grid)return null;
+  let box=document.getElementById('fiqNumberTest');
+  if(!box){box=document.createElement('div');box.id='fiqNumberTest';box.className='fiq-nt';
+   box.innerHTML='<h3>Panel Number test (staging)</h3><div class="muted">Scan these from this screen with FittersIQ Mobile: Scan, then Panel Number. Each card says which panel must open.</div>'+
+    '<div class="row"><div class="fiq-label-mode-switch" role="radiogroup" aria-label="Label scanning"><button class="btn" type="button" role="radio" data-label-mode="qr">QR Code</button><button class="btn" type="button" role="radio" data-label-mode="number">Panel Number</button></div>'+
+    '<button class="btn primary" type="button" id="fiqNumberTestMake">Make test job and send to Mobile</button></div>';
+   screen.insertBefore(box,grid.previousElementSibling);
+   document.getElementById('fiqNumberTestMake').onclick=makeTestJob}
+  return box;
+ }
+ function expectText(p,piece,n){return p.code+' '+(p.name||'')+(n>1?' · piece '+piece+' of '+n:'')}
+ function renderNumbers(){
+  const pr=project(),grid=document.getElementById('qrGrid');if(!pr||!grid)return;
+  fiqEnsureLabelNumbers(pr);
+  const room=(pr.rooms||[]).find(r=>r.id===cabinet()?.roomId),parts=cabinetParts(),where=[room?.name,cabinet()?.name].filter(Boolean).join(' · ');
+  const cards=[];
+  parts.forEach(p=>{const n=Math.max(1,Math.floor(Number(p.qty)||1));for(let k=1;k<=n;k++)cards.push('<div class="fiq-nt-card"><div class="fiq-nt-num">'+safe(fiqLabelNumberText(p,k))+'</div><div class="fiq-nt-expect">Must open: '+safe(expectText(p,k,n))+'</div><div class="fiq-nt-meta">'+safe(where)+' · '+safe(p.length||'—')+' × '+safe(p.width||'—')+' × '+safe(p.thickness||'—')+' mm</div><button class="btn test-link" data-test="'+p.id+'">Show in drawing</button></div>')});
+  // A number no panel in this job has: it must open nothing.
+  const used=new Set(pr.cabinets.flatMap(c=>(c.parts||[]).map(x=>Number(x.labelNo))));let u=Math.max(7099,(Number(pr.labelNoNext)||0)+90);while(used.has(u))u++;
+  cards.push('<div class="fiq-nt-card unknown"><div class="fiq-nt-num">'+u+'</div><div class="fiq-nt-expect">Must open nothing</div><div class="fiq-nt-meta">Not a panel in this job. The phone should say it is not in this job.</div></div>');
+  // The QR boxes stay (hidden): the QR screen still draws into them a moment later.
+  const qrCards=grid.innerHTML;
+  grid.innerHTML=(parts.length?cards.join(''):'<div class="empty">No panels in this unit. Use Make test job.</div>')+'<div hidden>'+qrCards+'</div>';
+ }
+ function paintSwitch(){const m=fiqLabelMode();document.querySelectorAll('#fiqNumberTest [data-label-mode]').forEach(b=>{const on=b.dataset.labelMode===m;b.classList.toggle('primary',on);b.setAttribute('aria-checked',on?'true':'false')})}
+ const base=window.renderQr;
+ window.renderQr=function(){
+  const out=typeof base==='function'?base.apply(this,arguments):undefined;
+  ensureBox();paintSwitch();
+  const g=document.getElementById('qrGrid');if(g)g.classList.toggle('fiq-nt-grid',fiqLabelMode()==='number');
+  if(fiqLabelMode()==='number')renderNumbers();
+  return out;
+ };
+ try{renderQr=window.renderQr}catch(e){}
+ // The label switch here is the same job setting as on the Supplier screen.
+ document.addEventListener('click',e=>{if(e.target.closest('#fiqNumberTest [data-label-mode]'))setTimeout(()=>window.renderQr(),0)});
+ async function makeTestJob(){
+  const st=(0,eval)('state'),stamp=new Date(),id='numtest-'+stamp.getTime().toString(36);
+  const name='Panel Number Test '+stamp.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="800" height="560" viewBox="0 0 800 560"><rect width="800" height="560" fill="#fff"/>'+
+   '<rect x="60" y="60" width="300" height="440" fill="#f3efe6" stroke="#333" stroke-width="6"/><text x="210" y="290" font-family="Arial" font-size="30" text-anchor="middle" fill="#333">SIDE</text>'+
+   '<rect x="420" y="60" width="320" height="440" fill="none" stroke="#333" stroke-width="6"/>'+[150,280,410].map(y=>'<rect x="430" y="'+(y-12)+'" width="300" height="24" fill="#e9e1cf" stroke="#333" stroke-width="3"/>').join('')+
+   '<text x="580" y="530" font-family="Arial" font-size="24" text-anchor="middle" fill="#333">SHELVES</text></svg>';
+  const drawing='data:image/svg+xml;base64,'+btoa(svg);
+  const part=(pid,code,pname,qty,l,w,x,y,copies)=>{const p={id:pid,code,name:pname,length:l,width:w,thickness:18,qty,material:'White melamine',edgeLong:1,edgeShort:0,notes:'',status:'ready',x,y,copies:copies||[]};if(typeof window.panelReviewSignature==='function')p.reviewSignature=window.panelReviewSignature(p);return p};
+  const roomId=id+'-r',unitId=id+'-u';
+  const pr={id,name,customer:'Panel Number Test',rooms:[{id:roomId,name:'Test room'}],cabinets:[{id:unitId,roomId,name:'Test unit',drawing,drawingType:'image',parts:[
+   part(id+'-p1','P-001','Side',1,720,560,26,50),part(id+'-p2','P-002','Shelf',3,600,400,73,27,[{x:73,y:50,status:'ready'},{x:73,y:73,status:'ready'}])]}],jobLog:[],updatedAt:Date.now(),labelScanMode:'number'};
+  st.projects.unshift(pr);if(typeof ensureCustomerForProject==='function')ensureCustomerForProject(pr);
+  fiqEnsureLabelNumbers(pr);switchToProject(id,unitId);save();renderAll();show('qr');window.renderQr();
+  await exportProjectToMobile(pr);
+  // Sending moves Studio on; come back to the test cards.
+  switchToProject(id,unitId);renderAll();show('qr');window.renderQr();
+ }
+ if(state&&state.screen==='qr')setTimeout(()=>window.renderQr(),150);
+})();
+</script>
 
 <style id="fiq-drawing-lock-style">
 .fiq-drawing-lock-banner{display:none}
