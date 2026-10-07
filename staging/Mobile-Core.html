@@ -4306,7 +4306,11 @@ $('#fpMarkDamaged').onclick=()=>{
 // result card and Missing Panels/Summary links are all "checked" concepts that don't apply
 // while just looking up where a panel goes, so they're hidden rather than shown alongside
 // an unrelated Find Panel result.
+let lastAppliedScanMode=null;
 function applyScanModeUI(){
+ // Panel Number: a label already acted on in the other mode must open again in this one,
+ // even while it is still in view (Panel Check 7001, then Find It on the same 7001).
+ if(state.scanMode!==lastAppliedScanMode){lastAppliedScanMode=state.scanMode;try{resetNumberRepeat()}catch(e){}}
  const tool=document.querySelector('#scan .scan-tool');
  if(tool)tool.classList.toggle('find-mode',state.scanMode==='find');
  const title=$('#scanHeaderTitle');if(title)title.textContent=state.scanMode==='find'?'Find Panel':'Panel Check';
@@ -4509,7 +4513,7 @@ function applyScanMethodUI(){
   if(track&&track.applyConstraints&&!track.__fiqNumberRes){track.__fiqNumberRes=true;track.applyConstraints({width:{ideal:1920},height:{ideal:1080}}).catch(()=>{})}
  }
 }
-document.querySelectorAll('#scanMethodSwitch .scan-method-opt').forEach(b=>b.onclick=()=>{setScanMethod(b.dataset.method);numberHistory=[];setNumberStatus('');applyScanMethodUI()});
+document.querySelectorAll('#scanMethodSwitch .scan-method-opt').forEach(b=>b.onclick=()=>{setScanMethod(b.dataset.method);resetNumberRepeat();setNumberStatus('');applyScanMethodUI()});
 applyScanMethodUI();
 const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const NUMBER_CONFIRM_FRAMES=3,NUMBER_HISTORY_FRAMES=4,NUMBER_REPEAT_QUIET_MS=3000;
@@ -4576,6 +4580,7 @@ function readNumberFrame(text){
  const keys=[...new Set(pool.map(numberResultKey))];
  return keys.length===1?pool[0]:null;
 }
+function resetNumberRepeat(){numberLastKey=null;numberLastSeenAt=0;numberHistory=[]}
 function numberResultKey(r){return r.kind+':'+r.token+(r.route?':'+r.route.projectId+':'+r.route.panelId:'')}
 function handleNumberFrame(text){
  const r=readNumberFrame(text),key=r?numberResultKey(r):null,now=Date.now();
