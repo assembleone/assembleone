@@ -4567,9 +4567,10 @@ function numberCropCanvas(){
  let x0=(gx-dx)/sxs,y0=(gy-dy)/sys,x1=(gx+gw-dx)/sxs,y1=(gy+gh-dy)/sys;
  x0=Math.max(0,Math.min(vw,x0));x1=Math.max(0,Math.min(vw,x1));y0=Math.max(0,Math.min(vh,y0));y1=Math.max(0,Math.min(vh,y1));
  const sw=x1-x0,sh=y1-y0;if(sw<8||sh<8)return null;
- // Read at 480 px wide (smaller pictures are enlarged), in grey with the contrast stretched,
- // which also helps a number photographed off a computer screen.
- const k=480/sw,w=480,h=Math.max(1,Math.round(sh*k));
+ // Read at the camera's own detail (at least 480 and at most 960 px wide), so small printed
+ // numbers keep every pixel the camera has; in grey with the contrast stretched, which also
+ // helps a number photographed off a computer screen.
+ const w=Math.round(Math.max(480,Math.min(960,sw))),k=w/sw,h=Math.max(1,Math.round(sh*k));
  if(!numberCanvas){numberCanvas=document.createElement('canvas');numberCtx=numberCanvas.getContext('2d',{willReadFrequently:true})}
  if(numberCanvas.width!==w||numberCanvas.height!==h){numberCanvas.width=w;numberCanvas.height=h}
  numberCtx.drawImage(v,x0,y0,sw,sh,0,0,w,h);
@@ -4596,14 +4597,18 @@ function numberCropCanvas(){
  }
  comps.forEach(c=>{const bw=c.x1-c.x0+1,bh=c.y1-c.y0+1,fill=c.count/(bw*bh);
   c.line=((bw>w*0.5||bh>h*0.9)&&fill<0.3)||(bh/bw>=7&&bh>=h*0.25)||(bw/bh>=7&&bw>=w*0.2)||(bh>=h*0.97)});
- const text=comps.filter(c=>!c.line&&c.count>=12),tallest=text.reduce((m,c)=>Math.max(m,c.y1-c.y0+1),0);
- const big=text.filter(c=>(c.y1-c.y0+1)>=tallest*0.6);
- numberCut=tallest>=h*0.12&&big.some(c=>c.y0<=1||c.y1>=h-2||c.x0<=1||c.x1>=w-2);
- // Only the number's own line is kept: the biggest text and whatever sits on that line (the
- // dash and piece). Smaller label text above or below (P-013, sizes) confused the one-line
- // reader (7002-2 read as 002.).
- if(big.length){const ry0=Math.min(...big.map(c=>c.y0)),ry1=Math.max(...big.map(c=>c.y1));
-  comps.forEach(c=>{if(c.line)return;const cy=(c.y0+c.y1)/2;if(cy<ry0||cy>ry1)c.line=true})}
+ // Only the text line the fitter aims at is kept: the line nearest the middle of the guide
+ // (the number, its dash and piece). Label text above or below (P-013, sizes, or a
+ // supplier's own larger print) confused the one-line reader (7002-2 read as 002.).
+ const text=comps.filter(c=>!c.line&&c.count>=12).sort((a,b)=>(b.y1-b.y0)-(a.y1-a.y0)),lines=[];
+ text.forEach(c=>{const ln=lines.find(l=>c.y0<=l.y1&&c.y1>=l.y0&&(c.y1-c.y0+1)>=(l.y1-l.y0+1)*0.35);
+  if(ln){ln.cs.push(c);ln.y0=Math.min(ln.y0,c.y0);ln.y1=Math.max(ln.y1,c.y1)}else lines.push({y0:c.y0,y1:c.y1,cs:[c]})});
+ const real=lines.filter(l=>l.cs.length>=2&&(l.y1-l.y0+1)>=h*0.08);
+ const pick=real.sort((a,b)=>Math.abs((a.y0+a.y1)/2-h/2)-Math.abs((b.y0+b.y1)/2-h/2))[0];
+ // A number cut by the strip's edge can read as another number (7013 cut read as 7012):
+ // that frame is not read at all.
+ numberCut=!!pick&&pick.cs.some(c=>(c.y1-c.y0+1)>=(pick.y1-pick.y0+1)*0.6&&(c.y0<=1||c.y1>=h-2||c.x0<=1||c.x1>=w-2));
+ if(pick)comps.forEach(c=>{if(c.line)return;const cy=(c.y0+c.y1)/2;if(cy<pick.y0||cy>pick.y1)c.line=true});
  // Pure black and white: no grey traces of removed shapes are left for the reader.
  for(let p=0;p<n;p++){const id=lab[p],i=p*4,v=(id>=0&&!comps[id].line)?0:255;d[i]=d[i+1]=d[i+2]=v}
  numberCtx.putImageData(img,0,0);
@@ -4653,7 +4658,14 @@ function resetNumberRepeat(){numberLastKey=null;numberLastSeenAt=0;numberHistory
 function numberResultKey(r){return r.kind+':'+r.token+(r.route?':'+r.route.projectId+':'+r.route.panelId:'')}
 // Staging only: a test readout of exactly what the camera read and what it matched, so a
 // failed reading can be seen. Never shown in Beta or Production.
-function numberDiagOn(){return !!(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.projectId==='fittersiq-staging')}
+// Off on the normal camera screen. On the staging page only, opening it with ?numbertest=1
+// turns the readout on for this phone (?numbertest=0 turns it off again).
+const NUMBER_DIAG_KEY='fiq_number_test_readout_v1';
+try{const m=/[?&]numbertest=([01])/.exec(location.search);if(m){if(m[1]==='1')localStorage.setItem(NUMBER_DIAG_KEY,'1');else localStorage.removeItem(NUMBER_DIAG_KEY)}}catch(e){}
+function numberDiagOn(){
+ if(!(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.projectId==='fittersiq-staging'))return false;
+ try{return localStorage.getItem(NUMBER_DIAG_KEY)==='1'}catch(e){return false}
+}
 let numberDiagFrames=0,numberReadMs=0,numberReadError='',numberRawText=null;
 function showNumberDiag(text,r){
  const el=$('#numberScanRead'),wrap=$('#cameraWrap');if(!el)return;if(wrap)wrap.classList.add('fiq-number-diag');

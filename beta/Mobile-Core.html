@@ -824,7 +824,9 @@ import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 
-const firebaseConfig = {
+// A staging page may provide its own Firebase project (window.FIQ_FIREBASE_CONFIG, set by the
+// staging loader before this core runs). Without it, the settings below are used exactly as before.
+const firebaseConfig = window.FIQ_FIREBASE_CONFIG || {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
   authDomain: "assembleone-fabac.firebaseapp.com",
   databaseURL: "https://assembleone-fabac-default-rtdb.firebaseio.com",
@@ -1216,6 +1218,24 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .panel-check-row[data-open-panel]{cursor:pointer}.panel-check-row[data-open-panel]:active{background:#f3f6fb}
 #damagePanelOverlay{z-index:5300!important}
 .fp-actions .btn{min-height:54px}
+/* Scan method (QR Code / Panel Number), shown on the live camera. In Panel Number mode the
+   guide box turns into a wide strip; only what is inside it is read. */
+.scan-method-switch{position:absolute;top:calc(env(safe-area-inset-top) + 44px);left:50%;transform:translateX(-50%);z-index:3;display:flex;border-radius:14px;overflow:hidden;border:2px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.scan-method-opt{min-height:46px;min-width:128px;white-space:nowrap;border:0;background:rgba(255,255,255,.92);color:#174E98;font-weight:900;font-size:15px;padding:0 14px}
+.scan-method-opt.active{background:#174E98;color:#fff}
+.scan-frame.number-mode:after{inset:40% 8%}
+.number-scan-hint,.number-scan-status{display:none;position:absolute;left:8%;right:8%;z-index:2;text-align:center;color:#fff;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none}
+.scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(60% + 10px);font-size:15px}
+.scan-frame.number-mode .number-scan-status{display:block;top:calc(60% + 10px);font-size:16px}
+.number-scan-status.warn{color:#ffd166}
+/* Staging test readout: what the camera reads in every frame and what it matches. */
+.number-scan-read{display:none;position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 98px);z-index:2;padding:6px 8px;border-radius:10px;background:rgba(0,0,0,.72);color:#fff;font:700 11px/1.35 ui-monospace,Menlo,Consolas,monospace;pointer-events:none;white-space:pre-wrap;word-break:break-all}
+.scan-frame.number-mode.fiq-number-diag .number-scan-read{display:block}
+.number-scan-read .nsr-label{font-size:11px;opacity:.85}
+.number-scan-read .nsr-pic{display:block;width:100%;height:auto;margin:3px 0 6px;border:2px solid #ffd166;background:#fff}
+/* Panel Number: the camera picture fills the whole screen, so the guide sits in it (a
+   general video{max-height:480px} rule otherwise left the guide at the picture's edge). */
+.scan-frame.number-mode video{max-height:none;border-radius:0}
 </style>
 
 <style id="a-build2-mobile-compact">
@@ -1320,7 +1340,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section id="scan" class="screen">
  <div class="scan-tool scan55-tool">
   <div class="pc-header"><strong id="scanHeaderTitle">Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div><button type="button" id="scanSoundBtn" class="pc-sound-btn" aria-label="Scan sound settings">🔊</button></div>
-  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
+  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><div id="scanMethodSwitch" class="scan-method-switch" role="radiogroup" aria-label="Scan method"><button type="button" class="scan-method-opt" role="radio" data-method="qr">QR Code</button><button type="button" class="scan-method-opt" role="radio" data-method="number">Panel Number</button></div><div id="numberScanHint" class="number-scan-hint">Point the box at the panel number</div><div id="numberScanStatus" class="number-scan-status" aria-live="polite"></div><div id="numberScanRead" class="number-scan-read"></div><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
   <div class="scan-actions scan55-actions" id="scanStartRow" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
@@ -3725,7 +3745,7 @@ $("#importStudio").onchange=e=>{importStudioFile(e.target.files[0]);e.target.val
 function download(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 function syncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open(DIRECT_SYNC_DB,2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"});if(!db.objectStoreNames.contains("mobileInbox"))db.createObjectStore("mobileInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
-const ASSEMBLEONE_FIREBASE_URL="https://assembleone-fabac-default-rtdb.firebaseio.com";
+const ASSEMBLEONE_FIREBASE_URL=(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.databaseURL)||"https://assembleone-fabac-default-rtdb.firebaseio.com";
 function firebaseSafeKey(value){return String(value||uid()).replace(/[.#$\[\]/]/g,"_")}
 async function firebasePut(path,value){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(value)});if(!r.ok)throw new Error(`Firebase write failed: ${r.status}`);return r.json()}
 async function firebaseGet(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{cache:"no-store"});if(!r.ok)throw new Error(`Firebase read failed: ${r.status}`);return r.json()}
@@ -4187,7 +4207,8 @@ function handlePanelIdentified(){
  if(state.scanMode==='check'){handlePanelCheckScan();return}
  markCurrentPanelScanned();
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
- stopCamera();
+ // Panel Number keeps the camera running; reading pauses while the panel view is open.
+ if(getScanMethod()!=='number')stopCamera();
  openFindPanelResult();
 }
 // Find Panel's one job is "this is panel P-XX, this is where it goes" -- shown as an
@@ -4264,7 +4285,10 @@ function applyFittedStatus(pr,pt,piece){
 }
 let fpOpenedFromCard=false;
 function openFindPanelResult(fromCard){fpOpenedFromCard=!!fromCard;renderFindPanelResult();const next=$('#findPanelScanNextBtn');if(next)next.classList.toggle('hidden',fpOpenedFromCard);$('#findPanelOverlay').classList.remove('hidden')}
-function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden')}
+// Panel Number: while the panel view is open reading is paused, so it never opens twice.
+// Closing it (X, Scan next, tap outside) makes the scanner ready again at once, so the same
+// panel can be found again straight away; Find It never counts anything.
+function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden');try{resetNumberRepeat()}catch(e){}}
 $('#findPanelResultClose').onclick=closeFindPanelResult;
 $('#findPanelOverlay').addEventListener('click',e=>{if(e.target.id==='findPanelOverlay')closeFindPanelResult()});
 $('#findPanelScanNextBtn').onclick=()=>{closeFindPanelResult();startCamera()};
@@ -4293,7 +4317,11 @@ $('#fpMarkDamaged').onclick=()=>{
 // result card and Missing Panels/Summary links are all "checked" concepts that don't apply
 // while just looking up where a panel goes, so they're hidden rather than shown alongside
 // an unrelated Find Panel result.
+let lastAppliedScanMode=null;
 function applyScanModeUI(){
+ // Panel Number: a label already acted on in the other mode must open again in this one,
+ // even while it is still in view (Panel Check 7001, then Find It on the same 7001).
+ if(state.scanMode!==lastAppliedScanMode){lastAppliedScanMode=state.scanMode;try{resetNumberRepeat()}catch(e){}}
  const tool=document.querySelector('#scan .scan-tool');
  if(tool)tool.classList.toggle('find-mode',state.scanMode==='find');
  const title=$('#scanHeaderTitle');if(title)title.textContent=state.scanMode==='find'?'Find Panel':'Panel Check';
@@ -4420,11 +4448,13 @@ async function startCamera(){
   // (or resumed) from a direct user interaction, and by the time a scan actually succeeds
   // we're several async ticks away from the tap that started this.
   ensureScanAudio();
+  applyScanMethodUI();
   scanLoop();
  }catch(e){scanRunning=false;alert(t('msg.cameraCouldNotOpen'))}
 }
 async function scanLoop(){
  if(!scanRunning)return;
+ if(getScanMethod()==='number'){numberScanTick();return}
  try{
   if(detector){
    let codes=null;
@@ -4470,6 +4500,233 @@ function handleDetectedQrText(raw){
  lastScannedQrText=raw;lastScannedQrAt=now;
  const ok=openScannedText(raw);
  if(ok)playScanSuccessFeedback();else playScanErrorFeedback();
+}
+// Panel Number scanning: the second scan method beside QR. Studio gives every panel a fixed
+// label number (pt.labelNo, from 7001, unique within its job); a Qty > 1 panel prints one
+// sticker per piece as number-piece (7004-2). The live camera reads the number inside the
+// guide strip with OCR (Tesseract, loaded on first use). A number is turned into exactly the
+// identity a piece QR carries (project, unit, panel, copyIndex) and opened through
+// openScannedText, so access rules, Panel Check counting, the panel view, the drawing
+// highlight and every action are the QR's own. Only the job(s) open in this scanner are
+// searched. A number is acted on only after it reads the same in several frames; a label
+// still in view is not acted on again; an unclear or two-label frame is simply skipped.
+const SCAN_METHOD_KEY='fiq_scan_method_v1';
+function getScanMethod(){try{return localStorage.getItem(SCAN_METHOD_KEY)==='number'?'number':'qr'}catch(e){return 'qr'}}
+function setScanMethod(m){try{localStorage.setItem(SCAN_METHOD_KEY,m==='number'?'number':'qr')}catch(e){}}
+function applyScanMethodUI(){
+ const m=getScanMethod();
+ document.querySelectorAll('#scanMethodSwitch .scan-method-opt').forEach(b=>{const on=b.dataset.method===m;b.classList.toggle('active',on);b.setAttribute('aria-checked',on?'true':'false')});
+ const wrap=$('#cameraWrap');if(wrap)wrap.classList.toggle('number-mode',m==='number');
+ if(m==='number'&&scanRunning){
+  ensureNumberReader().catch(()=>{});
+  // Printed digits need a sharper picture than a QR; iPhone Safari opens the camera small.
+  const track=mediaStream&&mediaStream.getVideoTracks()[0];
+  if(track&&track.applyConstraints&&!track.__fiqNumberRes){track.__fiqNumberRes=true;track.applyConstraints({width:{ideal:1920},height:{ideal:1080}}).catch(()=>{})}
+ }
+}
+document.querySelectorAll('#scanMethodSwitch .scan-method-opt').forEach(b=>b.onclick=()=>{setScanMethod(b.dataset.method);resetNumberRepeat();setNumberStatus('');applyScanMethodUI()});
+applyScanMethodUI();
+const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+const NUMBER_CONFIRM_FRAMES=3,NUMBER_HISTORY_FRAMES=4,NUMBER_REPEAT_QUIET_MS=3000;
+let numberWorker=null,numberWorkerPromise=null,numberBusy=false,numberCanvas=null,numberCtx=null;
+let numberHistory=[],numberLastKey=null,numberLastSeenAt=0,numberStatusTimer=null;
+function setNumberStatus(text,warn){
+ const el=$('#numberScanStatus');if(!el)return;
+ el.textContent=text||'';el.classList.toggle('warn',!!warn);
+ clearTimeout(numberStatusTimer);if(text)numberStatusTimer=setTimeout(()=>{el.textContent=''},2600);
+}
+function ensureNumberReader(){
+ if(numberWorker)return Promise.resolve(numberWorker);
+ if(!numberWorkerPromise)numberWorkerPromise=(async()=>{
+  const el=$('#numberScanStatus');if(el){clearTimeout(numberStatusTimer);el.classList.remove('warn');el.textContent='Preparing the number reader…'}
+  if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
+  const w=await Tesseract.createWorker('eng',1);
+  // Normal text, one line (the guide band holds the number line only; sparse mode lost
+  // the piece dash, 7002-2 -> 7002 2). A digits-only list made the box and sticker edges read as extra
+  // digits joined onto the number (7001 -> 700188); now edges read as separate marks.
+  await w.setParameters({tessedit_pageseg_mode:'7'});
+  numberWorker=w;setNumberStatus('');return w;
+ })().catch(e=>{numberWorkerPromise=null;throw e});
+ return numberWorkerPromise;
+}
+// Exactly the picture inside the visible guide (.scan-frame.number-mode:after, inset 40%
+// 8% of the camera screen), mapped onto the camera frame through the video's real on-screen
+// box and object-fit. (Measuring against the video element alone read the wrong strip on a
+// phone: a general video{max-height:480px} rule made the video shorter than the screen the
+// guide is drawn on, so the reader looked well above the number and saw nothing.)
+let numberLastCrop=null;
+function numberCropCanvas(){
+ const v=$('#camera'),wrap=$('#cameraWrap');if(!v||!wrap||!v.videoWidth||!v.videoHeight)return null;
+ const vw=v.videoWidth,vh=v.videoHeight,vr=v.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
+ if(!vr.width||!vr.height)return null;
+ const fit=(getComputedStyle(v).objectFit||'fill');
+ const sxs=fit==='contain'?Math.min(vr.width/vw,vr.height/vh):fit==='fill'?vr.width/vw:Math.max(vr.width/vw,vr.height/vh);
+ const sys=fit==='fill'?vr.height/vh:sxs;
+ const dx=vr.left+(vr.width-vw*sxs)/2,dy=vr.top+(vr.height-vh*sys)/2;
+ const gx=wr.left+wr.width*0.08,gy=wr.top+wr.height*0.40,gw=wr.width*0.84,gh=wr.height*0.20;
+ let x0=(gx-dx)/sxs,y0=(gy-dy)/sys,x1=(gx+gw-dx)/sxs,y1=(gy+gh-dy)/sys;
+ x0=Math.max(0,Math.min(vw,x0));x1=Math.max(0,Math.min(vw,x1));y0=Math.max(0,Math.min(vh,y0));y1=Math.max(0,Math.min(vh,y1));
+ const sw=x1-x0,sh=y1-y0;if(sw<8||sh<8)return null;
+ // Read at the camera's own detail (at least 480 and at most 960 px wide), so small printed
+ // numbers keep every pixel the camera has; in grey with the contrast stretched, which also
+ // helps a number photographed off a computer screen.
+ const w=Math.round(Math.max(480,Math.min(960,sw))),k=w/sw,h=Math.max(1,Math.round(sh*k));
+ if(!numberCanvas){numberCanvas=document.createElement('canvas');numberCtx=numberCanvas.getContext('2d',{willReadFrequently:true})}
+ if(numberCanvas.width!==w||numberCanvas.height!==h){numberCanvas.width=w;numberCanvas.height=h}
+ numberCtx.drawImage(v,x0,y0,sw,sh,0,0,w,h);
+ const img=numberCtx.getImageData(0,0,w,h),d=img.data,n=w*h,g=new Uint8ClampedArray(n),hist=new Uint32Array(256);let sum=0,sq=0;
+ for(let i=0,j=0;j<n;i+=4,j++){const y=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;g[j]=y;hist[y]++;sum+=y;sq+=y*y}
+ let lo=0,hi=255,acc=0;for(;lo<255;lo++){acc+=hist[lo];if(acc>n*0.02)break}acc=0;for(;hi>0;hi--){acc+=hist[hi];if(acc>n*0.02)break}
+ const span=Math.max(1,hi-lo);
+ for(let i=0,j=0;j<n;i+=4,j++){const y=Math.max(0,Math.min(255,Math.round((g[j]-lo)*255/span)));g[j]=y;d[i]=d[i+1]=d[i+2]=y;d[i+3]=255}
+ // Every separate dark shape is measured. Lines and frames (the number's box, label edges)
+ // are never digits and are painted white: a box edge beside the number was read as a 1
+ // (7013 -> 17013). Then the biggest text, which is the panel number, must lie wholly
+ // inside the strip: a number cut by the strip's edge can read as another number (7013 cut
+ // read as 7012), so that frame is not read at all.
+ const lab=new Int32Array(n).fill(-1),comps=[],stack=new Int32Array(n);
+ for(let p0=0;p0<n;p0++){
+  if(g[p0]>=128||lab[p0]>=0)continue;
+  const id=comps.length,c={x0:w,x1:0,y0:h,y1:0,count:0};comps.push(c);
+  let sp=0;stack[sp++]=p0;lab[p0]=id;
+  while(sp){const p=stack[--sp],x=p%w,y=(p-x)/w;c.count++;if(x<c.x0)c.x0=x;if(x>c.x1)c.x1=x;if(y<c.y0)c.y0=y;if(y>c.y1)c.y1=y;
+   if(x>0&&g[p-1]<128&&lab[p-1]<0){lab[p-1]=id;stack[sp++]=p-1}
+   if(x<w-1&&g[p+1]<128&&lab[p+1]<0){lab[p+1]=id;stack[sp++]=p+1}
+   if(y>0&&g[p-w]<128&&lab[p-w]<0){lab[p-w]=id;stack[sp++]=p-w}
+   if(y<h-1&&g[p+w]<128&&lab[p+w]<0){lab[p+w]=id;stack[sp++]=p+w}}
+ }
+ comps.forEach(c=>{const bw=c.x1-c.x0+1,bh=c.y1-c.y0+1,fill=c.count/(bw*bh);
+  c.line=((bw>w*0.5||bh>h*0.9)&&fill<0.3)||(bh/bw>=7&&bh>=h*0.25)||(bw/bh>=7&&bw>=w*0.2)||(bh>=h*0.97)});
+ // Only the text line the fitter aims at is kept: the line nearest the middle of the guide
+ // (the number, its dash and piece). Label text above or below (P-013, sizes, or a
+ // supplier's own larger print) confused the one-line reader (7002-2 read as 002.).
+ const text=comps.filter(c=>!c.line&&c.count>=12).sort((a,b)=>(b.y1-b.y0)-(a.y1-a.y0)),lines=[];
+ text.forEach(c=>{const ln=lines.find(l=>c.y0<=l.y1&&c.y1>=l.y0&&(c.y1-c.y0+1)>=(l.y1-l.y0+1)*0.35);
+  if(ln){ln.cs.push(c);ln.y0=Math.min(ln.y0,c.y0);ln.y1=Math.max(ln.y1,c.y1)}else lines.push({y0:c.y0,y1:c.y1,cs:[c]})});
+ const real=lines.filter(l=>l.cs.length>=2&&(l.y1-l.y0+1)>=h*0.08);
+ const pick=real.sort((a,b)=>Math.abs((a.y0+a.y1)/2-h/2)-Math.abs((b.y0+b.y1)/2-h/2))[0];
+ // A number cut by the strip's edge can read as another number (7013 cut read as 7012):
+ // that frame is not read at all.
+ numberCut=!!pick&&pick.cs.some(c=>(c.y1-c.y0+1)>=(pick.y1-pick.y0+1)*0.6&&(c.y0<=1||c.y1>=h-2||c.x0<=1||c.x1>=w-2));
+ if(pick)comps.forEach(c=>{if(c.line)return;const cy=(c.y0+c.y1)/2;if(cy<pick.y0||cy>pick.y1)c.line=true});
+ // Pure black and white: no grey traces of removed shapes are left for the reader.
+ for(let p=0;p<n;p++){const id=lab[p],i=p*4,v=(id>=0&&!comps[id].line)?0:255;d[i]=d[i+1]=d[i+2]=v}
+ numberCtx.putImageData(img,0,0);
+ const mean=sum/n;
+ numberLastCrop={video:vw+'×'+vh,box:Math.round(x0)+','+Math.round(y0)+' '+Math.round(sw)+'×'+Math.round(sh),light:Math.round(mean),contrast:Math.round(Math.sqrt(Math.max(0,sq/n-mean*mean)))};
+ return numberCanvas;
+}
+function panelNumberTokens(text){
+ // Any dash counts as the piece dash; a letter O between digits is read as 0.
+ const s=String(text||'').replace(/[‐-―−]/g,'-').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/[ \t]*-[ \t]*/g,'-'),out=new Set(),re=/(^|[^0-9-])(\d{4,6})(?:-(\d{1,3}))?(?![0-9-])/g;let m;
+ while((m=re.exec(s)))out.add(m[2]+(m[3]?'-'+m[3]:''));
+ return [...out];
+}
+// The job(s) this scanner is working in: a combined Panel Check session's jobs, otherwise
+// the open job. Never any other job on the phone.
+function numberScanProjects(){
+ if(combinedCheckActive()){const ids=new Set(state.activeCardKeys.map(k=>parseCardKey(k).projectId));return state.projects.filter(p=>ids.has(p.id))}
+ const p=project();return p?[p]:[];
+}
+function resolvePanelNumber(token,projects){
+ const m=String(token).match(/^(\d+)(?:-(\d+))?$/);if(!m)return {kind:'unclear'};
+ const n=Number(m[1]),piece=m[2]!=null?Number(m[2]):null,hits=[];
+ projects.forEach(pr=>(pr.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(Number(pt.labelNo)===n)hits.push({pr,c,pt})})));
+ if(!hits.length)return {kind:'nomatch',token};
+ if(hits.length>1)return {kind:'duplicate',token};
+ const {pr,c,pt}=hits[0],q=Math.max(1,Math.floor(Number(pt.qty)||1));
+ // Same piece rule as the stickers: Qty 1 prints the bare number, Qty > 1 number-piece.
+ if(q>1){if(piece==null)return {kind:'unclear'};if(piece<1||piece>q)return {kind:'nomatch',token}}
+ else if(piece!=null)return {kind:'unclear'};
+ const k=q>1?piece:1;
+ return {kind:'match',token,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
+}
+// Why a frame was not read (staging readout). The reader's own word and letter positions
+// and confidence proved unusable (every digit reported as the full strip height; a correct
+// 7013 at 12%), so the cut-off check is done on the picture itself (numberCropCanvas).
+let numberDropped='',numberCut=false;
+function numberTextFromResult(data){return (data&&data.text)||''}
+// One camera frame's reading: one clear panel number, or nothing (unclear, or two labels).
+function readNumberFrame(text){
+ const projects=numberScanProjects();
+ const res=panelNumberTokens(text).map(t=>resolvePanelNumber(t,projects)).filter(r=>r.kind!=='unclear');
+ const matches=res.filter(r=>r.kind==='match'),pool=matches.length?matches:res;
+ const keys=[...new Set(pool.map(numberResultKey))];
+ return keys.length===1?pool[0]:null;
+}
+function resetNumberRepeat(){numberLastKey=null;numberLastSeenAt=0;numberHistory=[]}
+function numberResultKey(r){return r.kind+':'+r.token+(r.route?':'+r.route.projectId+':'+r.route.panelId:'')}
+// Staging only: a test readout of exactly what the camera read and what it matched, so a
+// failed reading can be seen. Never shown in Beta or Production.
+// Off on the normal camera screen. On the staging page only, opening it with ?numbertest=1
+// turns the readout on for this phone (?numbertest=0 turns it off again).
+const NUMBER_DIAG_KEY='fiq_number_test_readout_v1';
+try{const m=/[?&]numbertest=([01])/.exec(location.search);if(m){if(m[1]==='1')localStorage.setItem(NUMBER_DIAG_KEY,'1');else localStorage.removeItem(NUMBER_DIAG_KEY)}}catch(e){}
+function numberDiagOn(){
+ if(!(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.projectId==='fittersiq-staging'))return false;
+ try{return localStorage.getItem(NUMBER_DIAG_KEY)==='1'}catch(e){return false}
+}
+let numberDiagFrames=0,numberReadMs=0,numberReadError='',numberRawText=null;
+function showNumberDiag(text,r){
+ const el=$('#numberScanRead'),wrap=$('#cameraWrap');if(!el)return;if(wrap)wrap.classList.add('fiq-number-diag');
+ numberDiagFrames++;
+ const raw=String(numberRawText!=null?numberRawText:text||'').replace(/\s+/g,' ').trim().slice(0,40)||'(nothing)',toks=panelNumberTokens(text);
+ let what;
+ if(r&&r.kind==='match'){const pr=state.projects.find(x=>x.id===r.route.projectId),c=pr&&(pr.cabinets||[]).find(x=>x.id===r.route.cabinetId),pt=c&&(c.parts||[]).find(x=>x.id===r.route.panelId),q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1)),k=r.route.copyIndex===-1?1:r.route.copyIndex+2;
+  what=r.token+' = '+(pt?pt.code+' '+(pt.name||''):'?')+(q>1?', piece '+k+' of '+q:'')}
+ else if(r&&r.kind==='nomatch')what=r.token+' = not in this job';
+ else if(r&&r.kind==='duplicate')what=r.token+' = in more than one open job';
+ else what=toks.length?'unclear: '+toks.join(', '):'no panel number';
+ const agree=r?numberHistory.filter(k=>k===numberResultKey(r)).length+1:0;
+ const c=numberLastCrop;
+ const info='TEST  frame '+numberDiagFrames+(numberReadMs?'  '+numberReadMs+' ms':'')+'\nCamera read: '+raw+'\nMeans: '+what+(r?'\nSame reading in '+Math.min(agree,NUMBER_HISTORY_FRAMES)+' of the last '+NUMBER_HISTORY_FRAMES+' frames (needs '+NUMBER_CONFIRM_FRAMES+')':'')+
+  (c?'\nCamera '+c.video+', reads box '+c.box+'\nLight '+c.light+'  contrast '+c.contrast+(c.contrast<12?'  (too flat)':''):'')+(numberDropped?'\nNot used: '+numberDropped:'')+(numberReadError?'\nReader: '+numberReadError:'');
+ let txt=el.querySelector('.nsr-text'),pic=el.querySelector('canvas');
+ if(!txt){el.textContent='';el.insertAdjacentHTML('beforeend','<div class="nsr-label">What the reader gets:</div><canvas class="nsr-pic"></canvas><div class="nsr-text"></div>');txt=el.querySelector('.nsr-text');pic=el.querySelector('canvas')}
+ if(numberCanvas&&numberCanvas.width){pic.width=numberCanvas.width;pic.height=numberCanvas.height;pic.getContext('2d').drawImage(numberCanvas,0,0)}
+ txt.textContent=info;
+}
+function handleNumberFrame(text){
+ const r=readNumberFrame(text),key=r?numberResultKey(r):null,now=Date.now();
+ if(numberDiagOn())showNumberDiag(text,r);
+ numberHistory.push(key);if(numberHistory.length>NUMBER_HISTORY_FRAMES)numberHistory.shift();
+ if(!key)return;
+ // The label just acted on is still in view: nothing happens again until it has been out
+ // of view for NUMBER_REPEAT_QUIET_MS.
+ if(key===numberLastKey&&(now-numberLastSeenAt)<NUMBER_REPEAT_QUIET_MS){numberLastSeenAt=now;return}
+ if(numberHistory.filter(k=>k===key).length<NUMBER_CONFIRM_FRAMES)return;
+ numberHistory=[];numberLastKey=key;numberLastSeenAt=now;
+ if(r.kind==='match'){
+  $("#scanResult").textContent='Panel number '+r.token+' found';
+  const ok=openScannedText(JSON.stringify(r.route));
+  if(ok){setNumberStatus('Panel number '+r.token);playScanSuccessFeedback()}
+  else{setNumberStatus($("#scanResult").textContent,true);playScanErrorFeedback()}
+ }else{
+  const msg=r.kind==='duplicate'?'Panel number '+r.token+' matches more than one panel in the open jobs. Open one job and scan again.':'Panel number '+r.token+' is not in this job.';
+  $("#scanResult").textContent=msg;setNumberStatus(msg,true);playScanErrorFeedback();
+ }
+}
+function numberViewOpen(){return ['findPanelOverlay','damagePanelOverlay'].some(id=>{const el=document.getElementById(id);return el&&!el.classList.contains('hidden')})}
+async function numberScanTick(){
+ if(!scanRunning||numberBusy)return;
+ numberBusy=true;
+ try{
+  // Reading pauses while the panel view is open; its label counts as still in view.
+  if(numberViewOpen()){if(numberLastKey)numberLastSeenAt=Date.now()}
+  else{
+   const w=await ensureNumberReader();
+   const canvas=scanRunning&&getScanMethod()==='number'&&!numberViewOpen()?numberCropCanvas():null;
+   if(canvas&&numberCut){numberDropped='the number touches the box edge, move so all of it is inside';numberRawText=null;numberReadMs=0;handleNumberFrame('')}
+   else if(canvas){numberDropped='';const t0=performance.now();const out=await w.recognize(canvas);numberReadMs=Math.round(performance.now()-t0);numberReadError='';if(scanRunning&&getScanMethod()==='number'){numberRawText=out&&out.data?out.data.text:'';handleNumberFrame(numberTextFromResult(out&&out.data))}}
+   else if(numberDiagOn()&&scanRunning&&!numberViewOpen()){numberReadError='no camera picture yet';showNumberDiag('',null)}
+  }
+ }catch(e){
+  console.error('Panel number reading failed',e);
+  numberReadError=String(e&&e.message||e).slice(0,80);if(numberDiagOn())showNumberDiag('',null);
+  setNumberStatus('The number reader could not start. Check the internet connection.',true);
+  await new Promise(r=>setTimeout(r,3000));
+ }finally{numberBusy=false}
+ if(scanRunning){clearTimeout(scanLoopTimer);scanLoopTimer=setTimeout(scanLoop,numberViewOpen()?300:40)}
 }
 // Short Web Audio tones instead of an audio file -- no asset to add, and it works the
 // instant the scanner opens rather than waiting on a network request. Needs to be created
