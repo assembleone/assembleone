@@ -1223,14 +1223,19 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-method-switch{position:absolute;top:calc(env(safe-area-inset-top) + 44px);left:50%;transform:translateX(-50%);z-index:3;display:flex;border-radius:14px;overflow:hidden;border:2px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .scan-method-opt{min-height:46px;min-width:128px;white-space:nowrap;border:0;background:rgba(255,255,255,.92);color:#174E98;font-weight:900;font-size:15px;padding:0 14px}
 .scan-method-opt.active{background:#174E98;color:#fff}
-.scan-frame.number-mode:after{inset:42.5% 8%}
+.scan-frame.number-mode:after{inset:40% 8%}
 .number-scan-hint,.number-scan-status{display:none;position:absolute;left:8%;right:8%;z-index:2;text-align:center;color:#fff;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none}
-.scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(57.5% + 10px);font-size:15px}
-.scan-frame.number-mode .number-scan-status{display:block;top:calc(57.5% + 10px);font-size:16px}
+.scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(60% + 10px);font-size:15px}
+.scan-frame.number-mode .number-scan-status{display:block;top:calc(60% + 10px);font-size:16px}
 .number-scan-status.warn{color:#ffd166}
 /* Staging test readout: what the camera reads in every frame and what it matches. */
-.number-scan-read{display:none;position:absolute;left:8px;right:8px;top:calc(57.5% + 64px);z-index:2;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.72);color:#fff;font:700 13px/1.4 ui-monospace,Menlo,Consolas,monospace;pointer-events:none;white-space:pre-wrap;word-break:break-all}
+.number-scan-read{display:none;position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 98px);z-index:2;padding:6px 8px;border-radius:10px;background:rgba(0,0,0,.72);color:#fff;font:700 11px/1.35 ui-monospace,Menlo,Consolas,monospace;pointer-events:none;white-space:pre-wrap;word-break:break-all}
 .scan-frame.number-mode.fiq-number-diag .number-scan-read{display:block}
+.number-scan-read .nsr-label{font-size:11px;opacity:.85}
+.number-scan-read .nsr-pic{display:block;width:100%;height:auto;margin:3px 0 6px;border:2px solid #ffd166;background:#fff}
+/* Panel Number: the camera picture fills the whole screen, so the guide sits in it (a
+   general video{max-height:480px} rule otherwise left the guide at the picture's edge). */
+.scan-frame.number-mode video{max-height:none;border-radius:0}
 </style>
 
 <style id="a-build2-mobile-compact">
@@ -4544,18 +4549,66 @@ function ensureNumberReader(){
  })().catch(e=>{numberWorkerPromise=null;throw e});
  return numberWorkerPromise;
 }
-// The guide strip (.scan-frame.number-mode:after, inset 42.5% 8%) mapped onto the video frame
-// through object-fit:cover, so exactly what the fitter sees inside the box is read.
+// Exactly the picture inside the visible guide (.scan-frame.number-mode:after, inset 40%
+// 8% of the camera screen), mapped onto the camera frame through the video's real on-screen
+// box and object-fit. (Measuring against the video element alone read the wrong strip on a
+// phone: a general video{max-height:480px} rule made the video shorter than the screen the
+// guide is drawn on, so the reader looked well above the number and saw nothing.)
+let numberLastCrop=null;
 function numberCropCanvas(){
- const v=$('#camera');if(!v||!v.videoWidth||!v.videoHeight)return null;
- const vw=v.videoWidth,vh=v.videoHeight,ew=v.clientWidth||vw,eh=v.clientHeight||vh,s=Math.max(ew/vw,eh/vh);
- const ox=(vw-ew/s)/2,oy=(vh-eh/s)/2,sx=ox+ew*0.08/s,sy=oy+eh*0.425/s,sw=ew*0.84/s,sh=eh*0.15/s;
- // A thin band holding only the number line, read at about 480 px wide, reads far more
- // reliably than a taller box with label edges and other text in it.
- const k=Math.min(1,480/sw),w=Math.max(1,Math.round(sw*k)),h=Math.max(1,Math.round(sh*k));
+ const v=$('#camera'),wrap=$('#cameraWrap');if(!v||!wrap||!v.videoWidth||!v.videoHeight)return null;
+ const vw=v.videoWidth,vh=v.videoHeight,vr=v.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
+ if(!vr.width||!vr.height)return null;
+ const fit=(getComputedStyle(v).objectFit||'fill');
+ const sxs=fit==='contain'?Math.min(vr.width/vw,vr.height/vh):fit==='fill'?vr.width/vw:Math.max(vr.width/vw,vr.height/vh);
+ const sys=fit==='fill'?vr.height/vh:sxs;
+ const dx=vr.left+(vr.width-vw*sxs)/2,dy=vr.top+(vr.height-vh*sys)/2;
+ const gx=wr.left+wr.width*0.08,gy=wr.top+wr.height*0.40,gw=wr.width*0.84,gh=wr.height*0.20;
+ let x0=(gx-dx)/sxs,y0=(gy-dy)/sys,x1=(gx+gw-dx)/sxs,y1=(gy+gh-dy)/sys;
+ x0=Math.max(0,Math.min(vw,x0));x1=Math.max(0,Math.min(vw,x1));y0=Math.max(0,Math.min(vh,y0));y1=Math.max(0,Math.min(vh,y1));
+ const sw=x1-x0,sh=y1-y0;if(sw<8||sh<8)return null;
+ // Read at 480 px wide (smaller pictures are enlarged), in grey with the contrast stretched,
+ // which also helps a number photographed off a computer screen.
+ const k=480/sw,w=480,h=Math.max(1,Math.round(sh*k));
  if(!numberCanvas){numberCanvas=document.createElement('canvas');numberCtx=numberCanvas.getContext('2d',{willReadFrequently:true})}
  if(numberCanvas.width!==w||numberCanvas.height!==h){numberCanvas.width=w;numberCanvas.height=h}
- numberCtx.drawImage(v,sx,sy,sw,sh,0,0,w,h);
+ numberCtx.drawImage(v,x0,y0,sw,sh,0,0,w,h);
+ const img=numberCtx.getImageData(0,0,w,h),d=img.data,n=w*h,g=new Uint8ClampedArray(n),hist=new Uint32Array(256);let sum=0,sq=0;
+ for(let i=0,j=0;j<n;i+=4,j++){const y=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;g[j]=y;hist[y]++;sum+=y;sq+=y*y}
+ let lo=0,hi=255,acc=0;for(;lo<255;lo++){acc+=hist[lo];if(acc>n*0.02)break}acc=0;for(;hi>0;hi--){acc+=hist[hi];if(acc>n*0.02)break}
+ const span=Math.max(1,hi-lo);
+ for(let i=0,j=0;j<n;i+=4,j++){const y=Math.max(0,Math.min(255,Math.round((g[j]-lo)*255/span)));g[j]=y;d[i]=d[i+1]=d[i+2]=y;d[i+3]=255}
+ // Every separate dark shape is measured. Lines and frames (the number's box, label edges)
+ // are never digits and are painted white: a box edge beside the number was read as a 1
+ // (7013 -> 17013). Then the biggest text, which is the panel number, must lie wholly
+ // inside the strip: a number cut by the strip's edge can read as another number (7013 cut
+ // read as 7012), so that frame is not read at all.
+ const lab=new Int32Array(n).fill(-1),comps=[],stack=new Int32Array(n);
+ for(let p0=0;p0<n;p0++){
+  if(g[p0]>=128||lab[p0]>=0)continue;
+  const id=comps.length,c={x0:w,x1:0,y0:h,y1:0,count:0};comps.push(c);
+  let sp=0;stack[sp++]=p0;lab[p0]=id;
+  while(sp){const p=stack[--sp],x=p%w,y=(p-x)/w;c.count++;if(x<c.x0)c.x0=x;if(x>c.x1)c.x1=x;if(y<c.y0)c.y0=y;if(y>c.y1)c.y1=y;
+   if(x>0&&g[p-1]<128&&lab[p-1]<0){lab[p-1]=id;stack[sp++]=p-1}
+   if(x<w-1&&g[p+1]<128&&lab[p+1]<0){lab[p+1]=id;stack[sp++]=p+1}
+   if(y>0&&g[p-w]<128&&lab[p-w]<0){lab[p-w]=id;stack[sp++]=p-w}
+   if(y<h-1&&g[p+w]<128&&lab[p+w]<0){lab[p+w]=id;stack[sp++]=p+w}}
+ }
+ comps.forEach(c=>{const bw=c.x1-c.x0+1,bh=c.y1-c.y0+1,fill=c.count/(bw*bh);
+  c.line=((bw>w*0.5||bh>h*0.9)&&fill<0.3)||(bh/bw>=7&&bh>=h*0.25)||(bw/bh>=7&&bw>=w*0.2)||(bh>=h*0.97)});
+ const text=comps.filter(c=>!c.line&&c.count>=12),tallest=text.reduce((m,c)=>Math.max(m,c.y1-c.y0+1),0);
+ const big=text.filter(c=>(c.y1-c.y0+1)>=tallest*0.6);
+ numberCut=tallest>=h*0.12&&big.some(c=>c.y0<=1||c.y1>=h-2||c.x0<=1||c.x1>=w-2);
+ // Only the number's own line is kept: the biggest text and whatever sits on that line (the
+ // dash and piece). Smaller label text above or below (P-013, sizes) confused the one-line
+ // reader (7002-2 read as 002.).
+ if(big.length){const ry0=Math.min(...big.map(c=>c.y0)),ry1=Math.max(...big.map(c=>c.y1));
+  comps.forEach(c=>{if(c.line)return;const cy=(c.y0+c.y1)/2;if(cy<ry0||cy>ry1)c.line=true})}
+ // Pure black and white: no grey traces of removed shapes are left for the reader.
+ for(let p=0;p<n;p++){const id=lab[p],i=p*4,v=(id>=0&&!comps[id].line)?0:255;d[i]=d[i+1]=d[i+2]=v}
+ numberCtx.putImageData(img,0,0);
+ const mean=sum/n;
+ numberLastCrop={video:vw+'×'+vh,box:Math.round(x0)+','+Math.round(y0)+' '+Math.round(sw)+'×'+Math.round(sh),light:Math.round(mean),contrast:Math.round(Math.sqrt(Math.max(0,sq/n-mean*mean)))};
  return numberCanvas;
 }
 function panelNumberTokens(text){
@@ -4583,6 +4636,11 @@ function resolvePanelNumber(token,projects){
  const k=q>1?piece:1;
  return {kind:'match',token,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
 }
+// Why a frame was not read (staging readout). The reader's own word and letter positions
+// and confidence proved unusable (every digit reported as the full strip height; a correct
+// 7013 at 12%), so the cut-off check is done on the picture itself (numberCropCanvas).
+let numberDropped='',numberCut=false;
+function numberTextFromResult(data){return (data&&data.text)||''}
 // One camera frame's reading: one clear panel number, or nothing (unclear, or two labels).
 function readNumberFrame(text){
  const projects=numberScanProjects();
@@ -4596,11 +4654,11 @@ function numberResultKey(r){return r.kind+':'+r.token+(r.route?':'+r.route.proje
 // Staging only: a test readout of exactly what the camera read and what it matched, so a
 // failed reading can be seen. Never shown in Beta or Production.
 function numberDiagOn(){return !!(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.projectId==='fittersiq-staging')}
-let numberDiagFrames=0;
+let numberDiagFrames=0,numberReadMs=0,numberReadError='',numberRawText=null;
 function showNumberDiag(text,r){
  const el=$('#numberScanRead'),wrap=$('#cameraWrap');if(!el)return;if(wrap)wrap.classList.add('fiq-number-diag');
  numberDiagFrames++;
- const raw=String(text||'').replace(/\s+/g,' ').trim().slice(0,40)||'(nothing)',toks=panelNumberTokens(text);
+ const raw=String(numberRawText!=null?numberRawText:text||'').replace(/\s+/g,' ').trim().slice(0,40)||'(nothing)',toks=panelNumberTokens(text);
  let what;
  if(r&&r.kind==='match'){const pr=state.projects.find(x=>x.id===r.route.projectId),c=pr&&(pr.cabinets||[]).find(x=>x.id===r.route.cabinetId),pt=c&&(c.parts||[]).find(x=>x.id===r.route.panelId),q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1)),k=r.route.copyIndex===-1?1:r.route.copyIndex+2;
   what=r.token+' = '+(pt?pt.code+' '+(pt.name||''):'?')+(q>1?', piece '+k+' of '+q:'')}
@@ -4608,7 +4666,13 @@ function showNumberDiag(text,r){
  else if(r&&r.kind==='duplicate')what=r.token+' = in more than one open job';
  else what=toks.length?'unclear: '+toks.join(', '):'no panel number';
  const agree=r?numberHistory.filter(k=>k===numberResultKey(r)).length+1:0;
- el.textContent='TEST  frame '+numberDiagFrames+'\nCamera read: '+raw+'\nMeans: '+what+(r?'\nSame reading in '+Math.min(agree,NUMBER_HISTORY_FRAMES)+' of the last '+NUMBER_HISTORY_FRAMES+' frames (needs '+NUMBER_CONFIRM_FRAMES+')':'');
+ const c=numberLastCrop;
+ const info='TEST  frame '+numberDiagFrames+(numberReadMs?'  '+numberReadMs+' ms':'')+'\nCamera read: '+raw+'\nMeans: '+what+(r?'\nSame reading in '+Math.min(agree,NUMBER_HISTORY_FRAMES)+' of the last '+NUMBER_HISTORY_FRAMES+' frames (needs '+NUMBER_CONFIRM_FRAMES+')':'')+
+  (c?'\nCamera '+c.video+', reads box '+c.box+'\nLight '+c.light+'  contrast '+c.contrast+(c.contrast<12?'  (too flat)':''):'')+(numberDropped?'\nNot used: '+numberDropped:'')+(numberReadError?'\nReader: '+numberReadError:'');
+ let txt=el.querySelector('.nsr-text'),pic=el.querySelector('canvas');
+ if(!txt){el.textContent='';el.insertAdjacentHTML('beforeend','<div class="nsr-label">What the reader gets:</div><canvas class="nsr-pic"></canvas><div class="nsr-text"></div>');txt=el.querySelector('.nsr-text');pic=el.querySelector('canvas')}
+ if(numberCanvas&&numberCanvas.width){pic.width=numberCanvas.width;pic.height=numberCanvas.height;pic.getContext('2d').drawImage(numberCanvas,0,0)}
+ txt.textContent=info;
 }
 function handleNumberFrame(text){
  const r=readNumberFrame(text),key=r?numberResultKey(r):null,now=Date.now();
@@ -4640,10 +4704,13 @@ async function numberScanTick(){
   else{
    const w=await ensureNumberReader();
    const canvas=scanRunning&&getScanMethod()==='number'&&!numberViewOpen()?numberCropCanvas():null;
-   if(canvas){const out=await w.recognize(canvas);if(scanRunning&&getScanMethod()==='number')handleNumberFrame(out&&out.data?out.data.text:'')}
+   if(canvas&&numberCut){numberDropped='the number touches the box edge, move so all of it is inside';numberRawText=null;numberReadMs=0;handleNumberFrame('')}
+   else if(canvas){numberDropped='';const t0=performance.now();const out=await w.recognize(canvas);numberReadMs=Math.round(performance.now()-t0);numberReadError='';if(scanRunning&&getScanMethod()==='number'){numberRawText=out&&out.data?out.data.text:'';handleNumberFrame(numberTextFromResult(out&&out.data))}}
+   else if(numberDiagOn()&&scanRunning&&!numberViewOpen()){numberReadError='no camera picture yet';showNumberDiag('',null)}
   }
  }catch(e){
   console.error('Panel number reading failed',e);
+  numberReadError=String(e&&e.message||e).slice(0,80);if(numberDiagOn())showNumberDiag('',null);
   setNumberStatus('The number reader could not start. Check the internet connection.',true);
   await new Promise(r=>setTimeout(r,3000));
  }finally{numberBusy=false}
