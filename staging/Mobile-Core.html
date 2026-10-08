@@ -4647,7 +4647,40 @@ function panelNumberTokens(text){
  // Any dash counts as the piece dash; a letter O between digits is read as 0.
  const s=String(text||'').replace(/[‐-―−]/g,'-').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/[ \t]*-[ \t]*/g,'-'),out=new Set(),re=/(^|[^0-9-])(\d{4,6})(?:-(\d{1,3}))?(?![0-9-])/g;let m;
  while((m=re.exec(s)))out.add(m[2]+(m[3]?'-'+m[3]:''));
+ // Scan references: room letters, then the job-wide number (KB12; a piece KB12-2). Each
+ // word, and each word joined to the next one (the reader can split KB 12), is a candidate.
+ // Only a candidate that matches a panel of the open job is ever acted on (resolveScanRef).
+ String(text||'').toUpperCase().replace(/[‐-―−]/g,'-').replace(/[ \t]*-[ \t]*/g,'-').split(/\n+/).forEach(line=>{
+  const w=line.split(/[^A-Z0-9|-]+/).filter(Boolean);
+  w.forEach((x,i)=>[x,i+1<w.length?x+w[i+1]:''].forEach(c=>{c=c.replace(/^-+|-+$/g,'');if(c&&scanRefShape(c))out.add('R:'+c)}));
+ });
  return [...out];
+}
+// A word that could be a scan reference once the reader's look-alike mistakes are allowed
+// (B/8, O/0, I/1, S/5, Z/2, G/6): it starts with a letter, then 1-4 room letters, a
+// number, and maybe a piece number.
+const SCAN_REF_LOOSE=/^([A-Z0-9|]{1,4}?)([0-9OQDILSBZG|]{1,5})(?:-([0-9OQDILSBZG|]{1,3}))?$/;
+function scanRefShape(c){return /^[A-Z|]/.test(c)&&SCAN_REF_LOOSE.test(c)}
+function scanRefCanon(x){return String(x||'').toUpperCase().replace(/[OQD]/g,'0').replace(/[IL|]/g,'1').replace(/S/g,'5').replace(/B/g,'8').replace(/Z/g,'2').replace(/G/g,'6').replace(/[^A-Z0-9]/g,'')}
+// Every panel number in a job is used once, so a reference matches at most one panel even
+// with look-alike letters allowed. When two references still look alike (MS5 and M55),
+// only a letter-for-letter reading counts. Nothing that matches no panel is guessed.
+function resolveScanRef(word,projects){
+ const dash=word.lastIndexOf('-'),base=dash>0?word.slice(0,dash):word,pieceRaw=dash>0?word.slice(dash+1):null;
+ const pieceCanon=pieceRaw==null?null:scanRefCanon(pieceRaw);
+ if(pieceCanon!=null&&!/^\d{1,3}$/.test(pieceCanon))return {kind:'unclear'};
+ const want=scanRefCanon(base),hits=[];
+ projects.forEach(pr=>(pr.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{const code=String(pt.code||'').toUpperCase();if(/^[A-Z]{1,4}\d+$/.test(code)&&scanRefCanon(code)===want)hits.push({pr,c,pt,exact:code===base})})));
+ const pool=hits.length>1?hits.filter(h=>h.exact):hits;
+ const clear=/^[A-Z]{1,4}\d{1,5}$/.test(base)&&(pieceRaw==null||/^\d{1,3}$/.test(pieceRaw));
+ if(!pool.length)return clear&&!hits.length?{kind:'nomatch',token:word}:{kind:'unclear'};
+ if(pool.length>1)return {kind:'duplicate',token:word};
+ const {pr,c,pt}=pool[0],q=Math.max(1,Math.floor(Number(pt.qty)||1)),piece=pieceCanon==null?null:Number(pieceCanon);
+ // Same piece rule as the stickers: Qty 1 prints KB12, Qty > 1 prints KB12-1, KB12-2 ...
+ if(q>1){if(piece==null)return {kind:'unclear'};if(piece<1||piece>q)return {kind:'nomatch',token:pt.code+'-'+piece}}
+ else if(piece!=null)return {kind:'unclear'};
+ const k=q>1?piece:1;
+ return {kind:'match',token:pt.code+(q>1?'-'+k:''),route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
 }
 // The job(s) this scanner is working in: a combined Panel Check session's jobs, otherwise
 // the open job. Never any other job on the phone.
@@ -4656,6 +4689,7 @@ function numberScanProjects(){
  const p=project();return p?[p]:[];
 }
 function resolvePanelNumber(token,projects){
+ if(String(token).startsWith('R:'))return resolveScanRef(String(token).slice(2),projects);
  const m=String(token).match(/^(\d+)(?:-(\d+))?$/);if(!m)return {kind:'unclear'};
  const n=Number(m[1]),piece=m[2]!=null?Number(m[2]):null,hits=[];
  projects.forEach(pr=>(pr.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(Number(pt.labelNo)===n)hits.push({pr,c,pt})})));
@@ -5736,7 +5770,7 @@ load();
  })();
  function refreshManualContext(){
    const el=document.querySelector('#manualJobContext'),pr=project();if(!el)return;
-   el.innerHTML=pr?`${t('scan.currentJob')}: <strong>${safe(pr.name)}</strong> · ${mobileJobRef(pr)}<br>${t('scan.typeOnlyPanelHint')} <strong>P-001</strong>.`:t('scan.openCorrectJobFirst');
+   el.innerHTML=pr?`${t('scan.currentJob')}: <strong>${safe(pr.name)}</strong> · ${mobileJobRef(pr)}<br>${t('scan.typeOnlyPanelHint')} <strong>${safe(((pr.cabinets||[]).flatMap(c=>c.parts||[])[0]||{}).code||'P-001')}</strong>.`:t('scan.openCorrectJobFirst');
  }
  const oldRenderAll=window.renderAll;
  window.renderAll=function(){oldRenderAll();refreshManualContext()}
