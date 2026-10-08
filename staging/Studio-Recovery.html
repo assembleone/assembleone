@@ -6943,12 +6943,7 @@ body.guide-only .a131-back-studio{display:block}
    sheet='<div class="fiq-nt-card" style="grid-column:1/-1;text-align:left"><div class="fiq-nt-expect">Typed text comparison: the same numbers as ordinary spreadsheet text</div><div class="fiq-nt-meta">Scan a number here, then the same number on its card above. Both must open the same panel.</div>'+
     '<table style="border-collapse:collapse;margin:10px 0;background:#fff"><tr>'+['Number','Panel','Part','Size'].map(x=>'<td style="'+td+';background:#f3f3f3">'+x+'</td>').join('')+'</tr>'+
     rows.map(r=>'<tr>'+r.map(x=>'<td style="'+td+'">'+safe(x)+'</td>').join('')+'</tr>').join('')+'</table>'+
-    '<button class="btn" type="button" id="fiqNumberSheetCsv" style="width:auto">Download as spreadsheet (CSV)</button></div>'+
-    // Panel numbers inside ordinary sentences: one number in a sentence, then two close
-    // together (aim the + at one, or tap its highlight; between them nothing is chosen).
-    (rows.length>=3?'<div class="fiq-nt-card" style="grid-column:1/-1;text-align:left"><div class="fiq-nt-expect">Numbers inside normal text</div><div class="fiq-nt-meta">Scan each sentence. The first must open '+safe(rows[Math.min(3,rows.length-2)][1])+'. In the second, aim the + at one number or tap its box.</div>'+
-     '<p style="font:400 13pt Calibri,Carlito,Arial,sans-serif;color:#000;margin:14px 0">The shelf for the kids bedroom is panel '+safe(rows[Math.min(3,rows.length-2)][0])+', measuring 800 × 550 mm.</p>'+
-     '<p style="font:700 13pt Arial,sans-serif;color:#000;margin:14px 0">Fit '+safe(rows[0][0])+' and '+safe(rows[1][0])+' on the left side, 2400 x 600 x 18.</p></div>':'');
+    '<button class="btn" type="button" id="fiqNumberSheetCsv" style="width:auto">Download as spreadsheet (CSV)</button></div>';
   }
   // The QR boxes move to a hidden holder: the QR screen still draws into them a moment
   // later, but only the numbers are on screen and printed.
@@ -7006,7 +7001,11 @@ body.guide-only .a131-back-studio{display:block}
  }
  async function makeTestJob(){
   const st=(0,eval)('state'),stamp=new Date(),id='numtest-'+stamp.getTime().toString(36);
-  const name='Panel Number Test '+stamp.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  // Each test job has its own running number in its name, room and customer: identical test
+  // jobs (same room, same customer, same numbers 7001...) could not be told apart in Job
+  // Overview or on the phone, so scanning could happen in an older one by mistake.
+  const testNo=st.projects.filter(p=>/^numtest-/.test(String(p.id))).reduce((m,p)=>Math.max(m,Number(String(p.name).match(/Number test (\d+)/)?.[1])||0),0)+1;
+  const name='Number test '+testNo;
   const svg='<svg xmlns="http://www.w3.org/2000/svg" width="800" height="560" viewBox="0 0 800 560"><rect width="800" height="560" fill="#fff"/>'+
    '<rect x="60" y="60" width="300" height="440" fill="#f3efe6" stroke="#333" stroke-width="6"/><text x="210" y="290" font-family="Arial" font-size="30" text-anchor="middle" fill="#333">SIDE</text>'+
    '<rect x="420" y="60" width="320" height="440" fill="none" stroke="#333" stroke-width="6"/>'+[150,280,410].map(y=>'<rect x="430" y="'+(y-12)+'" width="300" height="24" fill="#e9e1cf" stroke="#333" stroke-width="3"/>').join('')+
@@ -7014,7 +7013,7 @@ body.guide-only .a131-back-studio{display:block}
   const drawing='data:image/svg+xml;base64,'+btoa(svg);
   const part=(pid,code,pname,qty,l,w,x,y,copies)=>{const p={id:pid,code,name:pname,length:l,width:w,thickness:18,qty,material:'White melamine',edgeLong:1,edgeShort:0,notes:'',status:'ready',x,y,copies:copies||[]};if(typeof window.panelReviewSignature==='function')p.reviewSignature=window.panelReviewSignature(p);return p};
   const roomId=id+'-r',unitId=id+'-u';
-  const pr={id,name,customer:'Panel Number Test',rooms:[{id:roomId,name:'Test room'}],cabinets:[{id:unitId,roomId,name:'Test unit',drawing,drawingType:'image',parts:[
+  const pr={id,name,customer:name,rooms:[{id:roomId,name:name}],cabinets:[{id:unitId,roomId,name:name+' unit',drawing,drawingType:'image',parts:[
    part(id+'-p1','P-001','Side',1,720,560,26,50),part(id+'-p2','P-002','Shelf',3,600,400,73,27,[{x:73,y:50,status:'ready'},{x:73,y:73,status:'ready'}])]}],jobLog:[],updatedAt:Date.now(),labelScanMode:'number'};
   st.projects.unshift(pr);if(typeof ensureCustomerForProject==='function')ensureCustomerForProject(pr);
   fiqEnsureLabelNumbers(pr);switchToProject(id,unitId);save();renderAll();show('qr');window.renderQr();

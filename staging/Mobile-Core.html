@@ -1223,20 +1223,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-method-switch{position:absolute;top:calc(env(safe-area-inset-top) + 44px);left:50%;transform:translateX(-50%);z-index:3;display:flex;border-radius:14px;overflow:hidden;border:2px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .scan-method-opt{min-height:46px;min-width:128px;white-space:nowrap;border:0;background:rgba(255,255,255,.92);color:#174E98;font-weight:900;font-size:15px;padding:0 14px}
 .scan-method-opt.active{background:#174E98;color:#fff}
-.scan-frame.number-mode:after{inset:32% 6%}
+.scan-frame.number-mode:after{inset:40% 8%}
 .number-scan-hint,.number-scan-status{display:none;position:absolute;left:8%;right:8%;z-index:2;text-align:center;color:#fff;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none}
-.scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(68% + 10px);font-size:15px}
-.scan-frame.number-mode .number-scan-status{display:block;top:calc(68% + 10px);font-size:16px}
+.scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(60% + 10px);font-size:15px}
+.scan-frame.number-mode .number-scan-status{display:block;top:calc(60% + 10px);font-size:16px}
 .number-scan-status.warn{color:#ffd166}
-/* The + aim point in the middle of the guide box, and the highlights over panel numbers the
-   camera found (green = the one aimed at, yellow = another; tap one to choose it). */
-.number-aim{display:none;position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;z-index:2;pointer-events:none}
-.number-aim:before,.number-aim:after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px rgba(0,0,0,.9)}
-.number-aim:before{left:13px;top:0;width:2px;height:28px}.number-aim:after{top:13px;left:0;height:2px;width:28px}
-.scan-frame.number-mode .number-aim{display:block}
-.number-marks{position:absolute;inset:0;z-index:3;pointer-events:none}
-.number-mark{position:absolute;border:3px solid #ffd166;border-radius:8px;background:rgba(255,209,102,.12);pointer-events:auto;padding:0;margin:0;cursor:pointer}
-.number-mark.aimed{border-color:#4ade80;background:rgba(74,222,128,.16)}
 /* Staging test readout: what the camera reads in every frame and what it matches. */
 .number-scan-read{display:none;position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 98px);z-index:2;padding:6px 8px;border-radius:10px;background:rgba(0,0,0,.72);color:#fff;font:700 11px/1.35 ui-monospace,Menlo,Consolas,monospace;pointer-events:none;white-space:pre-wrap;word-break:break-all}
 .scan-frame.number-mode.fiq-number-diag .number-scan-read{display:block}
@@ -1349,7 +1340,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section id="scan" class="screen">
  <div class="scan-tool scan55-tool">
   <div class="pc-header"><strong id="scanHeaderTitle">Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div><button type="button" id="scanSoundBtn" class="pc-sound-btn" aria-label="Scan sound settings">🔊</button></div>
-  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><div id="scanMethodSwitch" class="scan-method-switch" role="radiogroup" aria-label="Scan method"><button type="button" class="scan-method-opt" role="radio" data-method="qr">QR Code</button><button type="button" class="scan-method-opt" role="radio" data-method="number">Panel Number</button></div><div id="numberMarks" class="number-marks"></div><div class="number-aim" aria-hidden="true"></div><div id="numberScanHint" class="number-scan-hint">Aim the + at the panel number</div><div id="numberScanStatus" class="number-scan-status" aria-live="polite"></div><div id="numberScanRead" class="number-scan-read"></div><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
+  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><div id="scanMethodSwitch" class="scan-method-switch" role="radiogroup" aria-label="Scan method"><button type="button" class="scan-method-opt" role="radio" data-method="qr">QR Code</button><button type="button" class="scan-method-opt" role="radio" data-method="number">Panel Number</button></div><div id="numberScanHint" class="number-scan-hint">Point the box at the panel number</div><div id="numberScanStatus" class="number-scan-status" aria-live="polite"></div><div id="numberScanRead" class="number-scan-read"></div><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
   <div class="scan-actions scan55-actions" id="scanStartRow" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
@@ -4362,6 +4353,10 @@ function positionScanModeSwitch(){
  sw.style.bottom=bottomPx+'px';
  const tool=document.querySelector('#scan .scan-tool');
  if(tool)tool.style.paddingBottom=(bottomPx+90)+'px';
+ // Close scanner sits just above this switch: at its old place the bottom nav covered it,
+ // so it could not be tapped and the only way out of the camera was the Jobs button.
+ const stop=document.getElementById('stopScanner');
+ if(stop)stop.style.bottom=(bottomPx+(sw.offsetHeight||58)+14)+'px';
 }
 window.addEventListener('resize',positionScanModeSwitch);
 window.addEventListener('orientationchange',function(){setTimeout(positionScanModeSwitch,150)});
@@ -4457,7 +4452,7 @@ async function startCamera(){
   // (or resumed) from a direct user interaction, and by the time a scan actually succeeds
   // we're several async ticks away from the tap that started this.
   ensureScanAudio();
-  applyScanMethodUI();
+  applyScanMethodUI();positionScanModeSwitch();
   scanLoop();
  }catch(e){scanRunning=false;alert(t('msg.cameraCouldNotOpen'))}
 }
@@ -4550,60 +4545,53 @@ function ensureNumberReader(){
   const el=$('#numberScanStatus');if(el){clearTimeout(numberStatusTimer);el.classList.remove('warn');el.textContent='Preparing the number reader…'}
   if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
   const w=await Tesseract.createWorker('eng',1);
-  // Normal text as a block of lines (the guide box holds whole sentences now; each line is
-  // read with its words in place). A digits-only list made box edges read as extra digits
-  // joined onto a number (7001 -> 700188), so normal text it is.
-  await w.setParameters({tessedit_pageseg_mode:'6'});
+  // Normal text, one line (the guide band holds the number line only; sparse mode lost
+  // the piece dash, 7002-2 -> 7002 2). A digits-only list made the box and sticker edges read as extra
+  // digits joined onto the number (7001 -> 700188); now edges read as separate marks.
+  await w.setParameters({tessedit_pageseg_mode:'7'});
   numberWorker=w;setNumberStatus('');return w;
  })().catch(e=>{numberWorkerPromise=null;throw e});
  return numberWorkerPromise;
 }
-// The guide box is .scan-frame.number-mode:after (inset 32% 6% of the camera screen, see
-// numberGuideBox). Measuring against the video element alone read the wrong strip on a
+// Exactly the picture inside the visible guide (.scan-frame.number-mode:after, inset 40%
+// 8% of the camera screen), mapped onto the camera frame through the video's real on-screen
+// box and object-fit. (Measuring against the video element alone read the wrong strip on a
 // phone: a general video{max-height:480px} rule made the video shorter than the screen the
-// guide is drawn on, so the reader looked well above the number and saw nothing.
+// guide is drawn on, so the reader looked well above the number and saw nothing.)
 let numberLastCrop=null;
-// Panel numbers in ordinary text. The camera reads every text line inside the guide box (for
-// example "The shelf is panel 7002-3, measuring 800 × 550 mm"), finds the complete panel
-// numbers in it (with the piece suffix) and checks each against the open job. Only numbers
-// that are panels of the open job count; the one under the + in the middle of the box is
-// the one aimed at. Each is highlighted on the camera; tapping a highlight chooses it.
-// Nothing is ever corrected to fit a panel, and with two numbers in view and none clearly
-// aimed at, nothing is chosen.
-const NUMBER_FIRST_NO=7001;// Studio numbers panels from 7001 (FIQ_LABEL_NO_START); lower numbers are sizes or text
-let numberWork=null,numberWorkCtx=null,numberTmp=null,numberMap=null,numberDropped='',numberCut=false;
-function numberGuideBox(wr){return {x:wr.left+wr.width*0.06,y:wr.top+wr.height*0.32,w:wr.width*0.88,h:wr.height*0.36}}
+let numberWork=null,numberWorkCtx=null,numberTmp=null;
 function numberCropCanvas(){
  const v=$('#camera'),wrap=$('#cameraWrap');if(!v||!wrap||!v.videoWidth||!v.videoHeight)return null;
  const vw=v.videoWidth,vh=v.videoHeight,vr=v.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
  if(!vr.width||!vr.height)return null;
- // Exactly the picture inside the visible guide box, mapped onto the camera frame through
- // the video's real on-screen box and object-fit.
  const fit=(getComputedStyle(v).objectFit||'fill');
  const sxs=fit==='contain'?Math.min(vr.width/vw,vr.height/vh):fit==='fill'?vr.width/vw:Math.max(vr.width/vw,vr.height/vh);
  const sys=fit==='fill'?vr.height/vh:sxs;
- const dx=vr.left+(vr.width-vw*sxs)/2,dy=vr.top+(vr.height-vh*sys)/2,gb=numberGuideBox(wr);
- let x0=(gb.x-dx)/sxs,y0=(gb.y-dy)/sys,x1=(gb.x+gb.w-dx)/sxs,y1=(gb.y+gb.h-dy)/sys;
+ const dx=vr.left+(vr.width-vw*sxs)/2,dy=vr.top+(vr.height-vh*sys)/2;
+ const gx=wr.left+wr.width*0.08,gy=wr.top+wr.height*0.40,gw=wr.width*0.84,gh=wr.height*0.20;
+ let x0=(gx-dx)/sxs,y0=(gy-dy)/sys,x1=(gx+gw-dx)/sxs,y1=(gy+gh-dy)/sys;
  x0=Math.max(0,Math.min(vw,x0));x1=Math.max(0,Math.min(vw,x1));y0=Math.max(0,Math.min(vh,y0));y1=Math.max(0,Math.min(vh,y1));
  const sw=x1-x0,sh=y1-y0;if(sw<8||sh<8)return null;
- // At the camera's own detail (480 to 960 px wide), grey, contrast stretched (small typed
- // text can be well under 2% of the picture, so the dark end is taken at 0.5%).
+ // The strip at the camera's own detail (at least 480 and at most 960 px wide), in grey with
+ // the contrast stretched (also helps a number photographed off a computer screen).
  const w=Math.round(Math.max(480,Math.min(960,sw))),k=w/sw,h=Math.max(1,Math.round(sh*k));
  if(!numberWork){numberWork=document.createElement('canvas');numberWorkCtx=numberWork.getContext('2d',{willReadFrequently:true})}
  if(numberWork.width!==w||numberWork.height!==h){numberWork.width=w;numberWork.height=h}
  numberWorkCtx.drawImage(v,x0,y0,sw,sh,0,0,w,h);
  const img=numberWorkCtx.getImageData(0,0,w,h),d=img.data,n=w*h,g=new Uint8ClampedArray(n),hist=new Uint32Array(256);let sum=0,sq=0;
  for(let i=0,j=0;j<n;i+=4,j++){const y=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;g[j]=y;hist[y]++;sum+=y;sq+=y*y}
+ // Small typed text can be well under 2% of the strip, so the dark end is taken at 0.5% and
+ // the stretch never amplifies a near-white strip into noise.
  let lo=0,hi=255,acc=0;for(;lo<255;lo++){acc+=hist[lo];if(acc>n*0.005)break}acc=0;for(;hi>0;hi--){acc+=hist[hi];if(acc>n*0.02)break}
  const span=Math.max(60,hi-lo);
  for(let j=0;j<n;j++)g[j]=Math.max(0,Math.min(255,Math.round((g[j]-lo)*255/span)));
  // Every separate dark shape is measured. Lines and frames (a number's box, label edges,
- // spreadsheet gridlines) are never characters and are left out: a box edge beside a number
+ // spreadsheet gridlines) are never digits and are left out: a box edge beside the number
  // was read as a 1 (7013 -> 17013).
  const lab=new Int32Array(n).fill(-1),comps=[],stack=new Int32Array(n);
  for(let p0=0;p0<n;p0++){
   if(g[p0]>=128||lab[p0]>=0)continue;
-  const id=comps.length,c={id,x0:w,x1:0,y0:h,y1:0,count:0};comps.push(c);
+  const id=comps.length,c={x0:w,x1:0,y0:h,y1:0,count:0};comps.push(c);
   let sp=0;stack[sp++]=p0;lab[p0]=id;
   while(sp){const p=stack[--sp],x=p%w,y=(p-x)/w;c.count++;if(x<c.x0)c.x0=x;if(x>c.x1)c.x1=x;if(y<c.y0)c.y0=y;if(y>c.y1)c.y1=y;
    if(x>0&&g[p-1]<128&&lab[p-1]<0){lab[p-1]=id;stack[sp++]=p-1}
@@ -4614,71 +4602,53 @@ function numberCropCanvas(){
  const ht=c=>c.y1-c.y0+1;
  comps.forEach(c=>{const bw=c.x1-c.x0+1,bh=ht(c),fill=c.count/(bw*bh);
   c.line=((bw>w*0.5||bh>h*0.9)&&fill<0.3)||(bh/bw>=7&&bh>=h*0.25)||(bw/bh>=7&&bw>=w*0.2)||(bh>=h*0.97)});
- // A frame of any size: a thin shape with two or more other shapes wholly inside it (the box
- // round a small number). A character (0, 8) never has other shapes inside it.
+ // A frame of any size: a thin shape with two or more other shapes wholly inside it (the
+ // box round a small number). A digit (0, 8) never has other shapes inside it.
  comps.forEach(c=>{if(c.line||c.count/((c.x1-c.x0+1)*ht(c))>=0.3)return;let inside=0;
   for(const o of comps){if(o!==c&&o.count>=6&&o.x0>c.x0&&o.x1<c.x1&&o.y0>c.y0&&o.y1<c.y1&&++inside>=2){c.line=true;break}}});
- // Text lines (shapes side by side at the same height, from about 7 px tall) and their words
- // (a gap wider than a fifth of the line height, a word space, starts a new word). A word cut by the box edge
- // is left out, never guessed (7013 cut read as 7012); everything wholly inside is kept.
+ // Text lines: shapes side by side at the same height. The line nearest the middle of the
+ // guide is the one the fitter aims at; label text above or below (P-013, sizes, other
+ // spreadsheet rows) is left out. Small typed text counts too (from about 7 px tall).
  const text=comps.filter(c=>!c.line&&c.count>=6&&ht(c)>=5).sort((a,b)=>ht(b)-ht(a)),lines=[];
  text.forEach(c=>{const ln=lines.find(l=>c.y0<=l.y1&&c.y1>=l.y0&&ht(c)>=(l.y1-l.y0+1)*0.35);
   if(ln){ln.cs.push(c);ln.y0=Math.min(ln.y0,c.y0);ln.y1=Math.max(ln.y1,c.y1)}else lines.push({y0:c.y0,y1:c.y1,cs:[c]})});
- const real=lines.filter(l=>l.cs.length>=2&&(l.y1-l.y0+1)>=7);
+ const pick=lines.filter(l=>l.cs.length>=2&&(l.y1-l.y0+1)>=7).sort((a,b)=>Math.abs((a.y0+a.y1)/2-h/2)-Math.abs((b.y0+b.y1)/2-h/2))[0];
  numberCut=false;numberDropped='';
  const mean=sum/n;
  numberLastCrop={video:vw+'×'+vh,box:Math.round(x0)+','+Math.round(y0)+' '+Math.round(sw)+'×'+Math.round(sh),light:Math.round(mean),contrast:Math.round(Math.sqrt(Math.max(0,sq/n-mean*mean)))};
  if(!numberCanvas){numberCanvas=document.createElement('canvas');numberCtx=numberCanvas.getContext('2d',{willReadFrequently:true})}
- const blank=()=>{numberMap=null;numberCanvas.width=Math.max(1,w>>2);numberCanvas.height=Math.max(1,h>>2);numberCtx.fillStyle='#fff';numberCtx.fillRect(0,0,numberCanvas.width,numberCanvas.height);return numberCanvas};
- if(!real.length)return blank();
- const owner=new Map();
- comps.forEach(c=>{if(c.line||c.count<3)return;const cy=(c.y0+c.y1)/2;let best=null;
-  real.forEach(l=>{if(cy>=l.y0&&cy<=l.y1){const dd=Math.abs((l.y0+l.y1)/2-cy);if(!best||dd<best.dd)best={l,dd}}});if(best)owner.set(c,best.l)});
- const words=[];
- real.forEach(l=>{const lh=l.y1-l.y0+1,ms=[...owner].filter(([,ln])=>ln===l).map(([c])=>c).sort((a,b)=>a.x0-b.x0);let wd=null;
-  ms.forEach(c=>{if(wd&&c.x0-wd.x1<=lh*0.2){wd.cs.push(c);wd.x1=Math.max(wd.x1,c.x1);wd.y0=Math.min(wd.y0,c.y0);wd.y1=Math.max(wd.y1,c.y1)}else{wd={x0:c.x0,x1:c.x1,y0:c.y0,y1:c.y1,cs:[c],lh};words.push(wd)}})});
- // Within about one character of the left or right edge counts as cut too: a cut 7002-13 could
- // otherwise read as the real piece 7002-1.
- const keep=words.filter(wd=>{const mx=Math.max(2,wd.lh*0.8);return !(wd.x0<=mx||wd.x1>=w-1-mx||wd.y0<=1||wd.y1>=h-2)});
+ if(!pick){numberCanvas.width=Math.max(1,w>>2);numberCanvas.height=Math.max(1,h>>2);numberCtx.fillStyle='#fff';numberCtx.fillRect(0,0,numberCanvas.width,numberCanvas.height);return numberCanvas}
+ // Words on that line (a gap wider than most of the line height starts a new word: the
+ // next spreadsheet cell, or the next item on a label). A word cut by the strip's edge is
+ // left out, never guessed (7013 cut read as 7012); words wholly inside are kept, so a
+ // spreadsheet cell running off the edge no longer stops the number beside it.
+ const lh=pick.y1-pick.y0+1;
+ const members=comps.filter(c=>!c.line&&c.count>=3&&(c.y0+c.y1)/2>=pick.y0&&(c.y0+c.y1)/2<=pick.y1).sort((a,b)=>a.x0-b.x0),words=[];
+ members.forEach(c=>{const wd=words[words.length-1];if(wd&&c.x0-wd.x1<=lh*0.8){wd.cs.push(c);wd.x1=Math.max(wd.x1,c.x1);wd.y0=Math.min(wd.y0,c.y0);wd.y1=Math.max(wd.y1,c.y1)}else words.push({x0:c.x0,x1:c.x1,y0:c.y0,y1:c.y1,cs:[c]})});
+ const keep=words.filter(wd=>!(wd.x0<=1||wd.x1>=w-2||wd.y0<=1||wd.y1>=h-2));
  if(keep.length<words.length)numberDropped='text touching the box edge left out';
- if(!keep.length){numberCut=true;return blank()}
- // The reader gets just the kept text, black on white, enlarged so lines are about 40 px tall.
- const kept=new Set();keep.forEach(wd=>wd.cs.forEach(c=>kept.add(c.id)));
+ if(!keep.length){numberCut=true;return numberCanvas}
+ // The reader gets just that line, black on white, enlarged so its text is about 48 px tall
+ // (small typed text at its own size was read as nothing or as EE).
+ const kept=new Set();keep.forEach(wd=>wd.cs.forEach(c=>kept.add(comps.indexOf(c))));
  const bx0=Math.min(...keep.map(x=>x.x0)),bx1=Math.max(...keep.map(x=>x.x1)),by0=Math.min(...keep.map(x=>x.y0)),by1=Math.max(...keep.map(x=>x.y1));
- const rw=bx1-bx0+1,rh=by1-by0+1,lhs=keep.map(x=>x.lh).sort((a,b)=>a-b),medLh=lhs[lhs.length>>1];
+ const rw=bx1-bx0+1,rh=by1-by0+1;
  if(!numberTmp)numberTmp=document.createElement('canvas');numberTmp.width=rw;numberTmp.height=rh;
  const tctx=numberTmp.getContext('2d'),tim=tctx.createImageData(rw,rh),td=tim.data;
- for(let y=0;y<rh;y++)for(let x=0;x<rw;x++){const id=lab[(by0+y)*w+bx0+x],i=(y*rw+x)*4,val=(id>=0&&kept.has(id))?0:255;td[i]=td[i+1]=td[i+2]=val;td[i+3]=255}
+ for(let y=0;y<rh;y++)for(let x=0;x<rw;x++){const id=lab[(by0+y)*w+bx0+x],i=(y*rw+x)*4,v=(id>=0&&kept.has(id))?0:255;td[i]=td[i+1]=td[i+2]=v;td[i+3]=255}
  tctx.putImageData(tim,0,0);
- const s=Math.max(0.6,Math.min(4,40/medLh,1600/rw)),m=24;
+ const s=Math.max(0.5,Math.min(5,48/lh)),m=Math.round(24);
  numberCanvas.width=Math.round(rw*s)+2*m;numberCanvas.height=Math.round(rh*s)+2*m;
  numberCtx.fillStyle='#fff';numberCtx.fillRect(0,0,numberCanvas.width,numberCanvas.height);
  numberCtx.imageSmoothingEnabled=true;numberCtx.drawImage(numberTmp,0,0,rw,rh,m,m,Math.round(rw*s),Math.round(rh*s));
- // How a spot in the reader's picture maps back to the camera screen (for the highlights),
- // and where the + aim point is in the reader's picture.
- numberMap={k,x0,y0,bx0,by0,s,m,sxs,sys,dx,dy,wl:wr.left,wt:wr.top,aimX:(w/2-bx0)*s+m,aimY:(h/2-by0)*s+m,medLh:medLh*s};
  return numberCanvas;
 }
-// Complete panel numbers in a line of text, with their place in it. The number must stand on
-// its own (no digit or letter joined before it, no digit after), the piece suffix is read in
-// full (7002-3; 7002 - 3 when the reader spaces the dash), and a number followed by a dash
-// and digits that are not a valid suffix is not read at all.
-function panelNumberMatches(text){
- const s=String(text||'').replace(/[‐-―−]/g,'-').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/(\d)[Oo](?=[\dOo])/g,'$10'),out=[],re=/\d{4,6}/g;let m;
- while((m=re.exec(s))){
-  const st=m.index;let en=st+m[0].length;
-  if(st>0&&/[0-9A-Za-z.,]/.test(s[st-1])&&!(s[st-1]===','&&!/\d/.test(s[st-2]||'')))continue;
-  if(/\d/.test(s[en]||''))continue;
-  let token=m[0];const rest=s.slice(en),suf=/^[ \t]*-[ \t]*(\d{1,3})(?![0-9])/.exec(rest);
-  if(suf){token+='-'+suf[1];en+=suf[0].length}
-  else if(/^[ \t]*-[ \t]*\d/.test(rest))continue;
-  re.lastIndex=en;
-  if(Number(m[0])<NUMBER_FIRST_NO)continue;
-  out.push({token,start:st,end:en});
- }
- return out;
+function panelNumberTokens(text){
+ // Any dash counts as the piece dash; a letter O between digits is read as 0.
+ const s=String(text||'').replace(/[‐-―−]/g,'-').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/[ \t]*-[ \t]*/g,'-'),out=new Set(),re=/(^|[^0-9-])(\d{4,6})(?:-(\d{1,3}))?(?![0-9-])/g;let m;
+ while((m=re.exec(s)))out.add(m[2]+(m[3]?'-'+m[3]:''));
+ return [...out];
 }
-function panelNumberTokens(text){return [...new Set(panelNumberMatches(text).map(x=>x.token))]}
 // The job(s) this scanner is working in: a combined Panel Check session's jobs, otherwise
 // the open job. Never any other job on the phone.
 function numberScanProjects(){
@@ -4698,99 +4668,62 @@ function resolvePanelNumber(token,projects){
  const k=q>1?piece:1;
  return {kind:'match',token,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
 }
+// Why a frame was not read (staging readout). The reader's own word and letter positions
+// and confidence proved unusable (every digit reported as the full strip height; a correct
+// 7013 at 12%), so the cut-off check is done on the picture itself (numberCropCanvas).
+let numberDropped='',numberCut=false;
+function numberTextFromResult(data){return (data&&data.text)||''}
+// One camera frame's reading: one clear panel number, or nothing (unclear, or two labels).
+function readNumberFrame(text){
+ const projects=numberScanProjects();
+ const res=panelNumberTokens(text).map(t=>resolvePanelNumber(t,projects)).filter(r=>r.kind!=='unclear');
+ const matches=res.filter(r=>r.kind==='match'),pool=matches.length?matches:res;
+ const keys=[...new Set(pool.map(numberResultKey))];
+ return keys.length===1?pool[0]:null;
+}
+function resetNumberRepeat(){numberLastKey=null;numberLastSeenAt=0;numberHistory=[]}
 function numberResultKey(r){return r.kind+':'+r.token+(r.route?':'+r.route.projectId+':'+r.route.panelId:'')}
-// The numbers the reader found, each with its place in the reader's picture (from the reader's
-// own word boxes, used only for where to highlight, never for what the number is).
-function numberCandidatesFromResult(data){
- const lines=(data&&data.lines)||[],cands=[];
- lines.forEach(ln=>{const ws=(ln.words||[]).filter(wd=>String(wd.text||'').trim());let text='';const spans=[];
-  ws.forEach(wd=>{if(text)text+=' ';const st=text.length;text+=String(wd.text);spans.push({st,en:text.length,b:wd.bbox})});
-  panelNumberMatches(text).forEach(t=>{const ov=spans.filter(sp=>sp.en>t.start&&sp.st<t.end&&sp.b);
-   cands.push({token:t.token,box:ov.length?{x0:Math.min(...ov.map(o=>o.b.x0)),x1:Math.max(...ov.map(o=>o.b.x1)),y0:Math.min(...ov.map(o=>o.b.y0)),y1:Math.max(...ov.map(o=>o.b.y1))}:null})})});
- if(!lines.length)panelNumberTokens(data&&data.text).forEach(t=>cands.push({token:t,box:null}));
- return cands;
-}
-// One frame: which panel numbers are in view, and which one is aimed at. Only one number in
-// view: that one. Several (panel numbers of this job, or numbers from 7001 that are not): the
-// one under the +, or clearly nearest to it, decides; if that one is not in the job it is
-// reported and nothing opens (a valid number beside it is never taken instead). None clearly
-// aimed at: nothing is chosen (the fitter aims at one or taps it).
-function numberDecide(cands){
- const projects=numberScanProjects(),byKey=new Map();
- cands.forEach(c=>{const r={...c,...resolvePanelNumber(c.token,projects)};if(r.kind==='unclear')return;const key=numberResultKey(r);r.key=key;
-  const prev=byKey.get(key);if(!prev||(!prev.box&&r.box))byKey.set(key,r)});
- const all=[...byKey.values()],matches=all.filter(r=>r.kind==='match');
- let target=null,ambiguous=false,report=null;
- const take=r=>{if(r.kind==='match')target=r;else report=r};
- if(all.length===1)take(all[0]);
- else if(all.length>1){
-  const M=numberMap;
-  if(M&&all.every(r=>r.box)){
-   const dist=r=>{const b=r.box,ax=M.aimX,ay=M.aimY,ddx=ax<b.x0?b.x0-ax:ax>b.x1?ax-b.x1:0,ddy=ay<b.y0?b.y0-ay:ay>b.y1?ay-b.y1:0;return Math.hypot(ddx,ddy*1.5)};
-   const sorted=all.map(r=>({r,d:dist(r)})).sort((a,b)=>a.d-b.d);
-   if(sorted[0].d===0&&sorted[1].d>0)take(sorted[0].r);
-   else if(sorted[0].d<sorted[1].d*0.4&&sorted[1].d>(M.medLh||40))take(sorted[0].r);
-   else ambiguous=matches.length>0;
-  }else ambiguous=matches.length>0;
- }
- return {matches,target,ambiguous,report};
-}
-// Highlights on the camera: every valid panel number in view, the aimed one green, others
-// yellow; tapping one chooses it. They fade when not seen for a moment.
-let numberMarkTimer=null;
-function numberBoxToScreen(b){
- const M=numberMap;if(!M||!b)return null;
- const toX=x=>M.dx+(M.x0+((x-M.m)/M.s+M.bx0)/M.k)*M.sxs-M.wl,toY=y=>M.dy+(M.y0+((y-M.m)/M.s+M.by0)/M.k)*M.sys-M.wt;
- const l=toX(b.x0),t=toY(b.y0);return {left:l,top:t,width:Math.max(8,toX(b.x1)-l),height:Math.max(8,toY(b.y1)-t)};
-}
-function showNumberMarks(dec){
- const layer=$('#numberMarks');if(!layer)return;
- layer.textContent='';
- if(dec&&scanRunning&&!numberViewOpen())dec.matches.forEach(r=>{const sc=numberBoxToScreen(r.box);if(!sc)return;
-  const b=document.createElement('button');b.type='button';b.className='number-mark'+(dec.target===r?' aimed':'');b.setAttribute('aria-label','Panel number '+r.token);
-  b.style.cssText='left:'+(sc.left-6)+'px;top:'+(sc.top-6)+'px;width:'+(sc.width+12)+'px;height:'+(sc.height+12)+'px';
-  b.onclick=e=>{e.preventDefault();e.stopPropagation();numberTap(r)};layer.appendChild(b)});
- clearTimeout(numberMarkTimer);numberMarkTimer=setTimeout(()=>{const l=$('#numberMarks');if(l)l.textContent=''},900);
-}
-function clearNumberMarks(){const l=$('#numberMarks');if(l)l.textContent=''}
 // Staging only: a test readout of exactly what the camera read and what it matched, so a
-// failed reading can be seen. Never shown in Beta or Production. Off on the normal camera
-// screen; on the staging page ?numbertest=1 turns it on for this phone (?numbertest=0 off).
+// failed reading can be seen. Never shown in Beta or Production.
+// Off on the normal camera screen. On the staging page only, and only while the page address
+// itself carries ?numbertest=1; nothing is remembered on the phone (an older build kept it on
+// once it had been opened that way, so that stored setting is cleared).
 const NUMBER_DIAG_KEY='fiq_number_test_readout_v1';
-try{const m=/[?&]numbertest=([01])/.exec(location.search);if(m){if(m[1]==='1')localStorage.setItem(NUMBER_DIAG_KEY,'1');else localStorage.removeItem(NUMBER_DIAG_KEY)}}catch(e){}
+try{localStorage.removeItem(NUMBER_DIAG_KEY)}catch(e){}
 function numberDiagOn(){
  if(!(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.projectId==='fittersiq-staging'))return false;
- try{return localStorage.getItem(NUMBER_DIAG_KEY)==='1'}catch(e){return false}
+ return /[?&]numbertest=1(?:&|$)/.test(location.search);
 }
 let numberDiagFrames=0,numberReadMs=0,numberReadError='',numberRawText=null;
-function numberPanelText(r){
- const pr=state.projects.find(x=>x.id===r.route.projectId),c=pr&&(pr.cabinets||[]).find(x=>x.id===r.route.cabinetId),pt=c&&(c.parts||[]).find(x=>x.id===r.route.panelId),q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1)),k=r.route.copyIndex===-1?1:r.route.copyIndex+2;
- return pt?pt.code+' '+(pt.name||'')+(q>1?', piece '+k+' of '+q:''):'?';
-}
-function showNumberDiag(text,dec){
+function showNumberDiag(text,r){
  const el=$('#numberScanRead'),wrap=$('#cameraWrap');if(!el)return;if(wrap)wrap.classList.add('fiq-number-diag');
  numberDiagFrames++;
- const raw=String(numberRawText!=null?numberRawText:text||'').replace(/\s+/g,' ').trim().slice(0,60)||'(nothing)';
+ const raw=String(numberRawText!=null?numberRawText:text||'').replace(/\s+/g,' ').trim().slice(0,40)||'(nothing)',toks=panelNumberTokens(text);
  let what;
- if(!dec||(!dec.matches.length&&!dec.report))what='no panel number of this job';
- else{
-  what=dec.matches.map(r=>r.token+' = '+numberPanelText(r)+(dec.target===r?' (aimed)':'')).join('; ');
-  if(dec.ambiguous)what+='\nTwo or more in view: aim the + at one or tap it';
-  if(dec.report)what=dec.report.token+(dec.report.kind==='duplicate'?' = in more than one open job':' = not in this job');
- }
- const tk=dec&&(dec.target||dec.report),agree=tk?numberHistory.filter(k=>k===tk.key).length+1:0;
+ if(r&&r.kind==='match'){const pr=state.projects.find(x=>x.id===r.route.projectId),c=pr&&(pr.cabinets||[]).find(x=>x.id===r.route.cabinetId),pt=c&&(c.parts||[]).find(x=>x.id===r.route.panelId),q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1)),k=r.route.copyIndex===-1?1:r.route.copyIndex+2;
+  what=r.token+' = '+(pt?pt.code+' '+(pt.name||''):'?')+(q>1?', piece '+k+' of '+q:'')}
+ else if(r&&r.kind==='nomatch')what=r.token+' = not in this job';
+ else if(r&&r.kind==='duplicate')what=r.token+' = in more than one open job';
+ else what=toks.length?'unclear: '+toks.join(', '):'no panel number';
+ const agree=r?numberHistory.filter(k=>k===numberResultKey(r)).length+1:0;
  const c=numberLastCrop;
- const info='TEST  frame '+numberDiagFrames+(numberReadMs?'  '+numberReadMs+' ms':'')+'\nCamera read: '+raw+'\nFound: '+what+(tk?'\nSame reading in '+Math.min(agree,NUMBER_HISTORY_FRAMES)+' of the last '+NUMBER_HISTORY_FRAMES+' frames (needs '+NUMBER_CONFIRM_FRAMES+')':'')+
+ const info='TEST  frame '+numberDiagFrames+(numberReadMs?'  '+numberReadMs+' ms':'')+'\nCamera read: '+raw+'\nMeans: '+what+(r?'\nSame reading in '+Math.min(agree,NUMBER_HISTORY_FRAMES)+' of the last '+NUMBER_HISTORY_FRAMES+' frames (needs '+NUMBER_CONFIRM_FRAMES+')':'')+
   (c?'\nCamera '+c.video+', reads box '+c.box+'\nLight '+c.light+'  contrast '+c.contrast+(c.contrast<12?'  (too flat)':''):'')+(numberDropped?'\nNot used: '+numberDropped:'')+(numberReadError?'\nReader: '+numberReadError:'');
  let txt=el.querySelector('.nsr-text'),pic=el.querySelector('canvas');
  if(!txt){el.textContent='';el.insertAdjacentHTML('beforeend','<div class="nsr-label">What the reader gets:</div><canvas class="nsr-pic"></canvas><div class="nsr-text"></div>');txt=el.querySelector('.nsr-text');pic=el.querySelector('canvas')}
  if(numberCanvas&&numberCanvas.width){pic.width=numberCanvas.width;pic.height=numberCanvas.height;pic.getContext('2d').drawImage(numberCanvas,0,0)}
  txt.textContent=info;
 }
-function resetNumberRepeat(){numberLastKey=null;numberLastSeenAt=0;numberHistory=[]}
-// Opening the panel for a chosen number: the same route a piece QR takes.
-function numberAct(r,now){
- numberHistory=[];numberLastKey=r.key;numberLastSeenAt=now;clearNumberMarks();
+function handleNumberFrame(text){
+ const r=readNumberFrame(text),key=r?numberResultKey(r):null,now=Date.now();
+ if(numberDiagOn())showNumberDiag(text,r);
+ numberHistory.push(key);if(numberHistory.length>NUMBER_HISTORY_FRAMES)numberHistory.shift();
+ if(!key)return;
+ // The label just acted on is still in view: nothing happens again until it has been out
+ // of view for NUMBER_REPEAT_QUIET_MS.
+ if(key===numberLastKey&&(now-numberLastSeenAt)<NUMBER_REPEAT_QUIET_MS){numberLastSeenAt=now;return}
+ if(numberHistory.filter(k=>k===key).length<NUMBER_CONFIRM_FRAMES)return;
+ numberHistory=[];numberLastKey=key;numberLastSeenAt=now;
  if(r.kind==='match'){
   $("#scanResult").textContent='Panel number '+r.token+' found';
   const ok=openScannedText(JSON.stringify(r.route));
@@ -4801,39 +4734,18 @@ function numberAct(r,now){
   $("#scanResult").textContent=msg;setNumberStatus(msg,true);playScanErrorFeedback();
  }
 }
-// Tapping a highlighted number is the fitter's own choice: it opens straight away.
-function numberTap(r){if(!scanRunning||numberViewOpen())return;numberAct(r,Date.now())}
-let numberAmbiguousShownAt=0;
-function handleNumberCandidates(cands,text){
- const dec=numberDecide(cands),pick=dec.target||dec.report,key=pick?pick.key:null,now=Date.now();
- if(numberDiagOn())showNumberDiag(text,dec);
- showNumberMarks(dec);
- if(dec.ambiguous&&now-numberAmbiguousShownAt>2500){numberAmbiguousShownAt=now;setNumberStatus('Two panel numbers in view. Aim the + at one or tap it.',true)}
- numberHistory.push(key);if(numberHistory.length>NUMBER_HISTORY_FRAMES)numberHistory.shift();
- if(!key)return;
- // The number just acted on is still in view: nothing happens again until it has been out
- // of view for NUMBER_REPEAT_QUIET_MS (closing the panel view makes it ready again at once).
- if(key===numberLastKey&&(now-numberLastSeenAt)<NUMBER_REPEAT_QUIET_MS){numberLastSeenAt=now;return}
- if(numberHistory.filter(k=>k===key).length<NUMBER_CONFIRM_FRAMES)return;
- numberAct(pick,now);
-}
-// Text without places (tests, a reader result without lines): numbers have no position, so
-// two different valid numbers are never told apart.
-function handleNumberFrame(text){handleNumberCandidates(panelNumberTokens(text).map(t=>({token:t,box:null})),text)}
 function numberViewOpen(){return ['findPanelOverlay','damagePanelOverlay'].some(id=>{const el=document.getElementById(id);return el&&!el.classList.contains('hidden')})}
 async function numberScanTick(){
  if(!scanRunning||numberBusy)return;
  numberBusy=true;
  try{
-  // Reading pauses while the panel view is open; its number counts as still in view.
-  if(numberViewOpen()){if(numberLastKey)numberLastSeenAt=Date.now();clearNumberMarks()}
+  // Reading pauses while the panel view is open; its label counts as still in view.
+  if(numberViewOpen()){if(numberLastKey)numberLastSeenAt=Date.now()}
   else{
    const w=await ensureNumberReader();
    const canvas=scanRunning&&getScanMethod()==='number'&&!numberViewOpen()?numberCropCanvas():null;
-   if(canvas&&numberCut){numberDropped='the text touches the box edge, move so the number is wholly inside';numberRawText=null;numberReadMs=0;handleNumberCandidates([],'')}
-   else if(canvas&&!numberMap){numberRawText=null;numberReadMs=0;handleNumberCandidates([],'')}
-   else if(canvas){const t0=performance.now();const out=await w.recognize(canvas);numberReadMs=Math.round(performance.now()-t0);numberReadError='';
-    if(scanRunning&&getScanMethod()==='number'&&!numberViewOpen()){numberRawText=out&&out.data?out.data.text:'';handleNumberCandidates(numberCandidatesFromResult(out&&out.data),numberRawText)}}
+   if(canvas&&numberCut){numberDropped='the number touches the box edge, move so all of it is inside';numberRawText=null;numberReadMs=0;handleNumberFrame('')}
+   else if(canvas){const t0=performance.now();const out=await w.recognize(canvas);numberReadMs=Math.round(performance.now()-t0);numberReadError='';if(scanRunning&&getScanMethod()==='number'){numberRawText=out&&out.data?out.data.text:'';handleNumberFrame(numberTextFromResult(out&&out.data))}}
    else if(numberDiagOn()&&scanRunning&&!numberViewOpen()){numberReadError='no camera picture yet';showNumberDiag('',null)}
   }
  }catch(e){
