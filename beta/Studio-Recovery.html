@@ -6907,8 +6907,17 @@ body.guide-only .a131-back-studio{display:block}
  // Inline so the number looks the same on screen and in the printed labels.
  const NUM_STYLE='display:inline-block;margin:6px auto 8px;padding:10px 22px;border:4px solid #111;border-radius:10px;background:#fff;color:#000;font:900 60px/1 Arial,Helvetica,sans-serif;letter-spacing:.02em;white-space:nowrap';
  function ensureBox(){
-  if(!STAGING)return null;
   const screen=document.getElementById('screen-qr'),grid=document.getElementById('qrGrid');if(!screen||!grid)return null;
+  // Everyone: the job's Label scanning switch (the same setting as on the Supplier screen),
+  // so the label type can be changed here too. The test tools below are staging only.
+  if(!STAGING){
+   let box=document.getElementById('fiqNumberTest');
+   if(!box){box=document.createElement('div');box.id='fiqNumberTest';box.className='supplier-sticker-settings fiq-label-mode-settings';box.style.margin='0 0 14px';
+    box.innerHTML='<div><h3>Label scanning</h3><div class="muted">What the fitter scans. Each label carries one method only.</div></div>'+
+     '<div class="fiq-label-mode-switch" role="radiogroup" aria-label="Label scanning"><button class="btn" type="button" role="radio" data-label-mode="qr">QR Code</button><button class="btn" type="button" role="radio" data-label-mode="number">Panel Number</button></div>';
+    screen.insertBefore(box,grid.previousElementSibling)}
+   return box;
+  }
   let box=document.getElementById('fiqNumberTest');
   if(!box){box=document.createElement('div');box.id='fiqNumberTest';box.className='fiq-nt';
    box.innerHTML='<h3>Panel Number test (staging)</h3><div class="muted">Scan these from this screen with FittersIQ Mobile: Scan, then Panel Number. Each card says which panel must open.</div>'+
