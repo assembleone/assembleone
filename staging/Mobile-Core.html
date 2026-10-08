@@ -4555,6 +4555,7 @@ function ensureNumberReader(){
 // phone: a general video{max-height:480px} rule made the video shorter than the screen the
 // guide is drawn on, so the reader looked well above the number and saw nothing.)
 let numberLastCrop=null;
+let numberWork=null,numberWorkCtx=null,numberTmp=null;
 function numberCropCanvas(){
  const v=$('#camera'),wrap=$('#cameraWrap');if(!v||!wrap||!v.videoWidth||!v.videoHeight)return null;
  const vw=v.videoWidth,vh=v.videoHeight,vr=v.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
@@ -4567,23 +4568,22 @@ function numberCropCanvas(){
  let x0=(gx-dx)/sxs,y0=(gy-dy)/sys,x1=(gx+gw-dx)/sxs,y1=(gy+gh-dy)/sys;
  x0=Math.max(0,Math.min(vw,x0));x1=Math.max(0,Math.min(vw,x1));y0=Math.max(0,Math.min(vh,y0));y1=Math.max(0,Math.min(vh,y1));
  const sw=x1-x0,sh=y1-y0;if(sw<8||sh<8)return null;
- // Read at the camera's own detail (at least 480 and at most 960 px wide), so small printed
- // numbers keep every pixel the camera has; in grey with the contrast stretched, which also
- // helps a number photographed off a computer screen.
+ // The strip at the camera's own detail (at least 480 and at most 960 px wide), in grey with
+ // the contrast stretched (also helps a number photographed off a computer screen).
  const w=Math.round(Math.max(480,Math.min(960,sw))),k=w/sw,h=Math.max(1,Math.round(sh*k));
- if(!numberCanvas){numberCanvas=document.createElement('canvas');numberCtx=numberCanvas.getContext('2d',{willReadFrequently:true})}
- if(numberCanvas.width!==w||numberCanvas.height!==h){numberCanvas.width=w;numberCanvas.height=h}
- numberCtx.drawImage(v,x0,y0,sw,sh,0,0,w,h);
- const img=numberCtx.getImageData(0,0,w,h),d=img.data,n=w*h,g=new Uint8ClampedArray(n),hist=new Uint32Array(256);let sum=0,sq=0;
+ if(!numberWork){numberWork=document.createElement('canvas');numberWorkCtx=numberWork.getContext('2d',{willReadFrequently:true})}
+ if(numberWork.width!==w||numberWork.height!==h){numberWork.width=w;numberWork.height=h}
+ numberWorkCtx.drawImage(v,x0,y0,sw,sh,0,0,w,h);
+ const img=numberWorkCtx.getImageData(0,0,w,h),d=img.data,n=w*h,g=new Uint8ClampedArray(n),hist=new Uint32Array(256);let sum=0,sq=0;
  for(let i=0,j=0;j<n;i+=4,j++){const y=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;g[j]=y;hist[y]++;sum+=y;sq+=y*y}
- let lo=0,hi=255,acc=0;for(;lo<255;lo++){acc+=hist[lo];if(acc>n*0.02)break}acc=0;for(;hi>0;hi--){acc+=hist[hi];if(acc>n*0.02)break}
- const span=Math.max(1,hi-lo);
- for(let i=0,j=0;j<n;i+=4,j++){const y=Math.max(0,Math.min(255,Math.round((g[j]-lo)*255/span)));g[j]=y;d[i]=d[i+1]=d[i+2]=y;d[i+3]=255}
- // Every separate dark shape is measured. Lines and frames (the number's box, label edges)
- // are never digits and are painted white: a box edge beside the number was read as a 1
- // (7013 -> 17013). Then the biggest text, which is the panel number, must lie wholly
- // inside the strip: a number cut by the strip's edge can read as another number (7013 cut
- // read as 7012), so that frame is not read at all.
+ // Small typed text can be well under 2% of the strip, so the dark end is taken at 0.5% and
+ // the stretch never amplifies a near-white strip into noise.
+ let lo=0,hi=255,acc=0;for(;lo<255;lo++){acc+=hist[lo];if(acc>n*0.005)break}acc=0;for(;hi>0;hi--){acc+=hist[hi];if(acc>n*0.02)break}
+ const span=Math.max(60,hi-lo);
+ for(let j=0;j<n;j++)g[j]=Math.max(0,Math.min(255,Math.round((g[j]-lo)*255/span)));
+ // Every separate dark shape is measured. Lines and frames (a number's box, label edges,
+ // spreadsheet gridlines) are never digits and are left out: a box edge beside the number
+ // was read as a 1 (7013 -> 17013).
  const lab=new Int32Array(n).fill(-1),comps=[],stack=new Int32Array(n);
  for(let p0=0;p0<n;p0++){
   if(g[p0]>=128||lab[p0]>=0)continue;
@@ -4595,25 +4595,48 @@ function numberCropCanvas(){
    if(y>0&&g[p-w]<128&&lab[p-w]<0){lab[p-w]=id;stack[sp++]=p-w}
    if(y<h-1&&g[p+w]<128&&lab[p+w]<0){lab[p+w]=id;stack[sp++]=p+w}}
  }
- comps.forEach(c=>{const bw=c.x1-c.x0+1,bh=c.y1-c.y0+1,fill=c.count/(bw*bh);
+ const ht=c=>c.y1-c.y0+1;
+ comps.forEach(c=>{const bw=c.x1-c.x0+1,bh=ht(c),fill=c.count/(bw*bh);
   c.line=((bw>w*0.5||bh>h*0.9)&&fill<0.3)||(bh/bw>=7&&bh>=h*0.25)||(bw/bh>=7&&bw>=w*0.2)||(bh>=h*0.97)});
- // Only the text line the fitter aims at is kept: the line nearest the middle of the guide
- // (the number, its dash and piece). Label text above or below (P-013, sizes, or a
- // supplier's own larger print) confused the one-line reader (7002-2 read as 002.).
- const text=comps.filter(c=>!c.line&&c.count>=12).sort((a,b)=>(b.y1-b.y0)-(a.y1-a.y0)),lines=[];
- text.forEach(c=>{const ln=lines.find(l=>c.y0<=l.y1&&c.y1>=l.y0&&(c.y1-c.y0+1)>=(l.y1-l.y0+1)*0.35);
+ // A frame of any size: a thin shape with two or more other shapes wholly inside it (the
+ // box round a small number). A digit (0, 8) never has other shapes inside it.
+ comps.forEach(c=>{if(c.line||c.count/((c.x1-c.x0+1)*ht(c))>=0.3)return;let inside=0;
+  for(const o of comps){if(o!==c&&o.count>=6&&o.x0>c.x0&&o.x1<c.x1&&o.y0>c.y0&&o.y1<c.y1&&++inside>=2){c.line=true;break}}});
+ // Text lines: shapes side by side at the same height. The line nearest the middle of the
+ // guide is the one the fitter aims at; label text above or below (P-013, sizes, other
+ // spreadsheet rows) is left out. Small typed text counts too (from about 7 px tall).
+ const text=comps.filter(c=>!c.line&&c.count>=6&&ht(c)>=5).sort((a,b)=>ht(b)-ht(a)),lines=[];
+ text.forEach(c=>{const ln=lines.find(l=>c.y0<=l.y1&&c.y1>=l.y0&&ht(c)>=(l.y1-l.y0+1)*0.35);
   if(ln){ln.cs.push(c);ln.y0=Math.min(ln.y0,c.y0);ln.y1=Math.max(ln.y1,c.y1)}else lines.push({y0:c.y0,y1:c.y1,cs:[c]})});
- const real=lines.filter(l=>l.cs.length>=2&&(l.y1-l.y0+1)>=h*0.08);
- const pick=real.sort((a,b)=>Math.abs((a.y0+a.y1)/2-h/2)-Math.abs((b.y0+b.y1)/2-h/2))[0];
- // A number cut by the strip's edge can read as another number (7013 cut read as 7012):
- // that frame is not read at all.
- numberCut=!!pick&&pick.cs.some(c=>(c.y1-c.y0+1)>=(pick.y1-pick.y0+1)*0.6&&(c.y0<=1||c.y1>=h-2||c.x0<=1||c.x1>=w-2));
- if(pick)comps.forEach(c=>{if(c.line)return;const cy=(c.y0+c.y1)/2;if(cy<pick.y0||cy>pick.y1)c.line=true});
- // Pure black and white: no grey traces of removed shapes are left for the reader.
- for(let p=0;p<n;p++){const id=lab[p],i=p*4,v=(id>=0&&!comps[id].line)?0:255;d[i]=d[i+1]=d[i+2]=v}
- numberCtx.putImageData(img,0,0);
+ const pick=lines.filter(l=>l.cs.length>=2&&(l.y1-l.y0+1)>=7).sort((a,b)=>Math.abs((a.y0+a.y1)/2-h/2)-Math.abs((b.y0+b.y1)/2-h/2))[0];
+ numberCut=false;numberDropped='';
  const mean=sum/n;
  numberLastCrop={video:vw+'×'+vh,box:Math.round(x0)+','+Math.round(y0)+' '+Math.round(sw)+'×'+Math.round(sh),light:Math.round(mean),contrast:Math.round(Math.sqrt(Math.max(0,sq/n-mean*mean)))};
+ if(!numberCanvas){numberCanvas=document.createElement('canvas');numberCtx=numberCanvas.getContext('2d',{willReadFrequently:true})}
+ if(!pick){numberCanvas.width=Math.max(1,w>>2);numberCanvas.height=Math.max(1,h>>2);numberCtx.fillStyle='#fff';numberCtx.fillRect(0,0,numberCanvas.width,numberCanvas.height);return numberCanvas}
+ // Words on that line (a gap wider than most of the line height starts a new word: the
+ // next spreadsheet cell, or the next item on a label). A word cut by the strip's edge is
+ // left out, never guessed (7013 cut read as 7012); words wholly inside are kept, so a
+ // spreadsheet cell running off the edge no longer stops the number beside it.
+ const lh=pick.y1-pick.y0+1;
+ const members=comps.filter(c=>!c.line&&c.count>=3&&(c.y0+c.y1)/2>=pick.y0&&(c.y0+c.y1)/2<=pick.y1).sort((a,b)=>a.x0-b.x0),words=[];
+ members.forEach(c=>{const wd=words[words.length-1];if(wd&&c.x0-wd.x1<=lh*0.8){wd.cs.push(c);wd.x1=Math.max(wd.x1,c.x1);wd.y0=Math.min(wd.y0,c.y0);wd.y1=Math.max(wd.y1,c.y1)}else words.push({x0:c.x0,x1:c.x1,y0:c.y0,y1:c.y1,cs:[c]})});
+ const keep=words.filter(wd=>!(wd.x0<=1||wd.x1>=w-2||wd.y0<=1||wd.y1>=h-2));
+ if(keep.length<words.length)numberDropped='text touching the box edge left out';
+ if(!keep.length){numberCut=true;return numberCanvas}
+ // The reader gets just that line, black on white, enlarged so its text is about 48 px tall
+ // (small typed text at its own size was read as nothing or as EE).
+ const kept=new Set();keep.forEach(wd=>wd.cs.forEach(c=>kept.add(comps.indexOf(c))));
+ const bx0=Math.min(...keep.map(x=>x.x0)),bx1=Math.max(...keep.map(x=>x.x1)),by0=Math.min(...keep.map(x=>x.y0)),by1=Math.max(...keep.map(x=>x.y1));
+ const rw=bx1-bx0+1,rh=by1-by0+1;
+ if(!numberTmp)numberTmp=document.createElement('canvas');numberTmp.width=rw;numberTmp.height=rh;
+ const tctx=numberTmp.getContext('2d'),tim=tctx.createImageData(rw,rh),td=tim.data;
+ for(let y=0;y<rh;y++)for(let x=0;x<rw;x++){const id=lab[(by0+y)*w+bx0+x],i=(y*rw+x)*4,v=(id>=0&&kept.has(id))?0:255;td[i]=td[i+1]=td[i+2]=v;td[i+3]=255}
+ tctx.putImageData(tim,0,0);
+ const s=Math.max(0.5,Math.min(5,48/lh)),m=Math.round(24);
+ numberCanvas.width=Math.round(rw*s)+2*m;numberCanvas.height=Math.round(rh*s)+2*m;
+ numberCtx.fillStyle='#fff';numberCtx.fillRect(0,0,numberCanvas.width,numberCanvas.height);
+ numberCtx.imageSmoothingEnabled=true;numberCtx.drawImage(numberTmp,0,0,rw,rh,m,m,Math.round(rw*s),Math.round(rh*s));
  return numberCanvas;
 }
 function panelNumberTokens(text){
@@ -4717,7 +4740,7 @@ async function numberScanTick(){
    const w=await ensureNumberReader();
    const canvas=scanRunning&&getScanMethod()==='number'&&!numberViewOpen()?numberCropCanvas():null;
    if(canvas&&numberCut){numberDropped='the number touches the box edge, move so all of it is inside';numberRawText=null;numberReadMs=0;handleNumberFrame('')}
-   else if(canvas){numberDropped='';const t0=performance.now();const out=await w.recognize(canvas);numberReadMs=Math.round(performance.now()-t0);numberReadError='';if(scanRunning&&getScanMethod()==='number'){numberRawText=out&&out.data?out.data.text:'';handleNumberFrame(numberTextFromResult(out&&out.data))}}
+   else if(canvas){const t0=performance.now();const out=await w.recognize(canvas);numberReadMs=Math.round(performance.now()-t0);numberReadError='';if(scanRunning&&getScanMethod()==='number'){numberRawText=out&&out.data?out.data.text:'';handleNumberFrame(numberTextFromResult(out&&out.data))}}
    else if(numberDiagOn()&&scanRunning&&!numberViewOpen()){numberReadError='no camera picture yet';showNumberDiag('',null)}
   }
  }catch(e){

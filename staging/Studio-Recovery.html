@@ -6929,16 +6929,30 @@ body.guide-only .a131-back-studio{display:block}
   parts.forEach(p=>{const n=Math.max(1,Math.floor(Number(p.qty)||1));for(let k=1;k<=n;k++)cards.push('<div class="fiq-nt-card qr-card"><div class="fiq-nt-num" style="'+NUM_STYLE+'">'+safe(fiqLabelNumberText(p,k))+'</div>'+
    (STAGING?'<div class="fiq-nt-expect">Must open: '+safe(expectText(p,k,n))+'</div>':'<h3>'+safe(p.code)+(n>1?' · piece '+k+' of '+n:'')+'</h3><div>'+safe(p.name||'')+'</div>')+
    '<div class="fiq-nt-meta qr-meta">'+safe(where)+' · '+safe(p.length||'—')+' × '+safe(p.width||'—')+' × '+safe(p.thickness||'—')+' mm</div><button class="btn test-link" data-test="'+p.id+'">Show in drawing</button></div>')});
+  let sheet='';
   if(STAGING){
    // A number no panel in this job has: it must open nothing.
    const used=new Set(pr.cabinets.flatMap(c=>(c.parts||[]).map(x=>Number(x.labelNo))));let u=Math.max(7099,(Number(pr.labelNoNext)||0)+90);while(used.has(u))u++;
    cards.push('<div class="fiq-nt-card unknown"><div class="fiq-nt-num" style="'+NUM_STYLE+'">'+u+'</div><div class="fiq-nt-expect">Must open nothing</div><div class="fiq-nt-meta">Not a panel in this job. The phone should say it is not in this job.</div></div>');
+   // Typed text comparison: the same numbers as ordinary spreadsheet text (Excel defaults:
+   // Calibri 11, normal weight, grey gridlines), the way a supplier's own software prints them.
+   const rows=[];parts.forEach(p=>{const n=Math.max(1,Math.floor(Number(p.qty)||1));for(let k=1;k<=n;k++)rows.push([fiqLabelNumberText(p,k),p.code+(n>1?' piece '+k:''),p.name||'',p.length+' x '+p.width+' x '+p.thickness])});
+   rows.push([String(u),'(not in this job)','','']);
+   const td='border:1px solid #d4d4d4;padding:2px 6px;height:20px;font:400 11pt Calibri,Carlito,Arial,sans-serif;color:#000;white-space:nowrap';
+   window.__fiqSheetRows=rows;
+   sheet='<div class="fiq-nt-card" style="grid-column:1/-1;text-align:left"><div class="fiq-nt-expect">Typed text comparison: the same numbers as ordinary spreadsheet text</div><div class="fiq-nt-meta">Scan a number here, then the same number on its card above. Both must open the same panel.</div>'+
+    '<table style="border-collapse:collapse;margin:10px 0;background:#fff"><tr>'+['Number','Panel','Part','Size'].map(x=>'<td style="'+td+';background:#f3f3f3">'+x+'</td>').join('')+'</tr>'+
+    rows.map(r=>'<tr>'+r.map(x=>'<td style="'+td+'">'+safe(x)+'</td>').join('')+'</tr>').join('')+'</table>'+
+    '<button class="btn" type="button" id="fiqNumberSheetCsv" style="width:auto">Download as spreadsheet (CSV)</button></div>';
   }
   // The QR boxes move to a hidden holder: the QR screen still draws into them a moment
   // later, but only the numbers are on screen and printed.
   let holder=document.getElementById('fiqQrHidden');if(!holder){holder=document.createElement('div');holder.id='fiqQrHidden';holder.hidden=true;grid.parentNode.appendChild(holder)}
   holder.innerHTML=grid.innerHTML;
-  grid.innerHTML=parts.length?cards.join(''):'<div class="empty">No panels in this unit.'+(STAGING?' Use Make test job.':'')+'</div>';
+  grid.innerHTML=parts.length?cards.join('')+sheet:'<div class="empty">No panels in this unit.'+(STAGING?' Use Make test job.':'')+'</div>';
+  const csvBtn=document.getElementById('fiqNumberSheetCsv');
+  if(csvBtn)csvBtn.onclick=()=>{const q=v=>'"'+String(v).replace(/"/g,'""')+'"';const csv='﻿'+[['Number','Panel','Part','Size'],...(window.__fiqSheetRows||[])].map(r=>r.map((v,i)=>i===0&&/-/.test(v)?'="'+v+'"':q(v)).join(',')).join('\r\n');// 7002-1 stays text, never a date
+   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='Panel number typed text test - '+String(pr.name||'job').replace(/[\\/:*?"<>|]+/g,' ')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)};
  }
  function paintSwitch(){const m=fiqLabelMode();document.querySelectorAll('#fiqNumberTest [data-label-mode]').forEach(b=>{const on=b.dataset.labelMode===m;b.classList.toggle('primary',on);b.setAttribute('aria-checked',on?'true':'false')})}
  const base=window.renderQr;
