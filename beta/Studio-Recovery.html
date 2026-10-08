@@ -2650,7 +2650,8 @@ function addCabinet(){
  const c={id:uid(),name:name||defaultName,roomId:room?.id||"",drawing:null,drawingType:null,parts:[]};
  p.cabinets.push(c);state.currentCabinet=c.id;state.currentPart=null;save();renderAll();show("mark")
 }
-function nextCode(c){return `P-${String(c.parts.length+1).padStart(3,"0")}`}
+// A new panel's scan reference (room code + job-wide number, e.g. KB12; see fiq-scan-references).
+function nextCode(c){return typeof window.fiqNextScanRef==="function"?window.fiqNextScanRef(c):`P-${String(c.parts.length+1).padStart(3,"0")}`}
 // A panel's dot position is optional: Remove dot clears it (x/y null) while the panel and
 // its measurements stay in the Cutting List. Every drawing view skips unplaced dots.
 function hasMarkPosition(m){return !!m&&m.x!=null&&m.y!=null&&m.x!==''&&m.y!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y))}
@@ -2689,7 +2690,7 @@ function createPartAt(x,y){
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('panel_created');
  const rememberedThickness=Number(c.lastThickness ?? 19) || 19;
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
- const p={id:uid(),code:nextCode(c),name:state.lastChosenPartName||"",length:"",width:"",thickness:rememberedThickness,qty:"",material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
+ const p={id:uid(),code:nextCode(c),scanRefFixed:true,name:state.lastChosenPartName||"",length:"",width:"",thickness:rememberedThickness,qty:"",material:inheritedMaterial,edgeLong:0,edgeShort:0,notes:"",status:"ready",x,y,copies:[]};
  // Placing another dot while a panel is selected repeats that panel exactly: the same name,
  // size, thickness, material, complete edging and note, as a new panel number (one dot is
  // one piece). save() first stores anything just typed on the selected panel. With no panel
@@ -2998,7 +2999,7 @@ function renderRooms(){
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
    const marks=[{x:p.x,y:p.y,index:-1},...(p.copies||[]).map((m,index)=>({...m,index}))].filter(hasMarkPosition);
-   marks.forEach(m=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}`;d.textContent=isSelected?p.code.replace("P-",""):"";d.title=`${p.code}${p.name?" — "+p.name:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll();openPinMenu(p.id,m.index)};canvas.appendChild(d)})
+   marks.forEach(m=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}`;d.textContent=isSelected?p.code.replace("P-",""):"";if(isSelected&&/[A-Z]/.test(d.textContent))d.style.fontSize=([0,20,20,15,13,11][d.textContent.length]||10)+"px";d.title=`${p.code}${p.name?" — "+p.name:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll();openPinMenu(p.id,m.index)};canvas.appendChild(d)})
  })
  if(state.currentPart&&state.focusMarker){requestAnimationFrame(()=>{const selected=stage.querySelector('.pin.selected');if(selected){const left=selected.offsetLeft-stage.clientWidth/2;const top=selected.offsetTop-stage.clientHeight/2;stage.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:'smooth'})}state.focusMarker=false})}
  else if(c?.viewState){requestAnimationFrame(()=>stage.scrollTo({left:Number(c.viewState.scrollLeft||0),top:Number(c.viewState.scrollTop||0)}))}
@@ -3033,6 +3034,14 @@ document.addEventListener("click",e=>{if(!e.target.closest?.("#fiqPinMenu,.pin")
 function panelDotCount(p){return (hasMarkPosition(p)?1:0)+(p.copies||[]).filter(hasMarkPosition).length}
 function deletePanelAndRenumber(c,p){
  if(!c||!p)return;
+ // Scan references (KB12) are fixed: deleting a panel changes no other reference, and its
+ // number is never used again (the job's counter only goes up). Nothing to renumber.
+ if(p.scanRefFixed){
+  c.parts=c.parts.filter(x=>x.id!==p.id);
+  c.deletedPartIds=[...new Set([...(c.deletedPartIds||[]),p.id])];
+  if(state.currentPart===p.id)state.currentPart=null;
+  state.selectedCopy=-1;return;
+ }
  // Remember what each panel was called before this round of changes, so the notice can
  // list old -> new numbers for anything already printed or exported.
  const notice=c.panelNumbersNotice||{since:Date.now(),originalCodes:{},deleted:[]};
@@ -3071,11 +3080,12 @@ function deletePanelDot(partId,copyIndex){
   if(typeof toast==="function")toast(panelDotCount(p)?`${p.code} now has quantity ${p.qty}.`:`${p.code} now has quantity ${p.qty} and no dot. Click the drawing to place it.`);
   return;
  }
- if(!confirm(`Delete panel ${p.code} and its measurements? The panels after it will be renumbered.`))return;
+ const fixed=!!p.scanRefFixed;
+ if(!confirm(fixed?`Delete panel ${p.code} and its measurements? Other panels keep their references, and ${p.code} is not used again.`:`Delete panel ${p.code} and its measurements? The panels after it will be renumbered.`))return;
  const code=p.code;
  deletePanelAndRenumber(c,p);
  closePinMenu();renderAll();save();
- if(typeof toast==="function")toast(`${code} deleted. Panel numbers updated.`);
+ if(typeof toast==="function")toast(fixed?`${code} deleted.`:`${code} deleted. Panel numbers updated.`);
 }
 // Shown on the drawing and the Cutting List until the owner confirms that anything printed
 // or exported with the old numbers has been redone. Studio does not record every export or
@@ -3824,9 +3834,12 @@ function fiqStickerCopies(list){const out=[];(list||[]).forEach(p=>{const n=Math
 const FIQ_LABEL_NO_START=7001;
 function fiqEnsureLabelNumbers(pr){
  if(!pr||!Array.isArray(pr.cabinets))return false;
- let changed=false,max=Math.max(FIQ_LABEL_NO_START,Math.floor(Number(pr.labelNoNext)||0))-1;const seen=new Set(),todo=[];
+ // Scan references (KB12) replace these numbers. A number already given is kept only so a
+ // label printed with it still scans; a panel with a scan reference never gets a new one.
+ let changed=typeof window.fiqEnsureScanRefs==="function"?window.fiqEnsureScanRefs(pr):false;
+ let max=Math.max(FIQ_LABEL_NO_START,Math.floor(Number(pr.labelNoNext)||0))-1;const seen=new Set(),todo=[];
  pr.cabinets.forEach(c=>(c.parts||[]).forEach(pt=>{const n=Number(pt.labelNo);
-  if(Number.isInteger(n)&&n>=FIQ_LABEL_NO_START&&!seen.has(n)){seen.add(n);if(n>max)max=n}else todo.push(pt)}));
+  if(Number.isInteger(n)&&n>=FIQ_LABEL_NO_START&&!seen.has(n)){seen.add(n);if(n>max)max=n}else if(pt.scanRefFixed){if(pt.labelNo!=null){delete pt.labelNo;changed=true}}else todo.push(pt)}));
  todo.forEach(pt=>{pt.labelNo=++max;changed=true});
  if(Number(pr.labelNoNext)!==max+1){pr.labelNoNext=max+1;changed=true}
  return changed;
@@ -3834,10 +3847,12 @@ function fiqEnsureLabelNumbers(pr){
 window.fiqEnsureLabelNumbers=fiqEnsureLabelNumbers;
 function fiqLabelMode(pr){return (pr||project())?.labelScanMode==="number"?"number":"qr"}
 window.fiqLabelMode=fiqLabelMode;
+// The text a Panel Number sticker carries: the scan reference, with the piece for Qty > 1
+// (KB12, or KB12-2). The same single reference the Cutting List and spreadsheet show.
 function fiqLabelNumberText(p,piece){
- if(!Number.isInteger(Number(p?.labelNo)))fiqEnsureLabelNumbers(project());
+ if(!p?.scanRefFixed)fiqEnsureLabelNumbers(project());
  const n=Math.max(1,Math.floor(Number(p?.qty)||1));
- return String(p?.labelNo??"")+(n>1&&piece?"-"+piece:"");
+ return String(p?.code??"")+(n>1&&piece?"-"+piece:"");
 }
 window.fiqLabelNumberText=fiqLabelNumberText;
 function fiqStickerData(p,piece){
@@ -3849,6 +3864,8 @@ function fiqStickerData(p,piece){
 // A Panel Number sticker carries the number where the QR would be, never both.
 function fiqStickerHtml(p,qrHtml,extra,piece){
  const d=fiqStickerData(p,piece);
+ // Panel Number: the reference alone on the top line, the part and size underneath.
+ if(d.mode==="number")return `<article class="fiq-sticker fiq-sticker-number fiq-sticker-ref"${extra||""}><div class="fs-ref${d.labelNumber.length>6?" fs-ref-long":""}">${safe(d.labelNumber)}</div><div class="fs-name">${safe(d.name)}</div><div class="fs-dims">${safe(d.length)} × ${safe(d.width)} × ${safe(d.thickness)}&nbsp;mm</div><div class="fs-mat">${safe(d.material)}</div>${d.customer?`<div class="fs-cust">${safe(d.customer)}</div>`:""}</article>`;
  const scan=d.mode==="number"?`<div class="fs-num${d.labelNumber.length>4?d.labelNumber.length>6?" fs-num-xl":" fs-num-long":""}">${safe(d.labelNumber)}</div>`:`<div class="fs-qr">${qrHtml||""}</div>`;
  return `<article class="fiq-sticker${d.mode==="number"?" fiq-sticker-number":""}"${extra||""}><div class="fs-left"><div class="fs-name">${safe(d.name)}</div><div class="fs-dims">${safe(d.length)} × ${safe(d.width)} × ${safe(d.thickness)}&nbsp;mm</div><div class="fs-mat">${safe(d.material)}</div>${d.customer?`<div class="fs-cust">${safe(d.customer)}</div>`:""}</div><div class="fs-right"><div class="fs-code">${safe(d.code)}</div>${scan}</div></article>`;
 }
@@ -4417,6 +4434,8 @@ const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","meas
       marks:(clonedIr.siteMarkup&&clonedIr.siteMarkup.marks&&clonedIr.siteMarkup.marks.length)?clonedIr.siteMarkup.marks:br.siteMarkup.marks
     });
   }
+  // A room's scan code is set in Studio; a phone copy never changes it.
+  if(br.scanCode)clonedIr.scanCode=br.scanCode;
   Object.assign(br,clonedIr);
 });
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
@@ -6635,6 +6654,20 @@ body.guide-only .a131-back-studio{display:block}
  function wrapTokens(doc,tokens,width){const out=[];let cur='';tokens.forEach(t=>{const next=cur?cur+' '+t:t;if(cur&&doc.getTextWidth(next)>width){out.push(cur);cur=t}else cur=next});if(cur)out.push(cur);return out}
  function drawSticker(doc,d,g,x,y){
   doc.setDrawColor(17,17,17);doc.setLineWidth(0.5);doc.roundedRect(x,y,ST.w,ST.h,ST.radius,ST.radius,'S');
+  if(d.mode==='number'){
+   // Panel Number sticker: the scan reference alone on the top line (KB12-2), then the part
+   // name, size and material underneath. No box round it (the reader drops frames anyway).
+   const lx=x+ST.pad,lw=ST.w-2*ST.pad;let ty=y+ST.pad;
+   doc.setTextColor(0,0,0);doc.setFont('helvetica','bold');
+   let fs=40;doc.setFontSize(fs);while(fs>14&&doc.getTextWidth(pdfText(d.labelNumber))>lw){fs-=1;doc.setFontSize(fs)}
+   doc.text(pdfText(d.labelNumber),lx,ty+fs*PT*0.75);ty+=fs*PT*0.75+3;
+   doc.setTextColor(17,17,17);doc.setFontSize(15);
+   const nm=lines(doc,d.name,lw,2);nm.forEach((l,i)=>doc.text(l,lx,ty+15*PT*0.8+i*15*PT*1.05));ty+=15*PT*0.8+(nm.length-1)*15*PT*1.05+1.8;
+   doc.setFontSize(11);doc.text(pdfText(d.length+' × '+d.width+' × '+d.thickness+' mm'),lx,ty+11*PT*0.8);ty+=11*PT*0.8+1.6;
+   doc.setFont('helvetica','normal');doc.setFontSize(9.5);lines(doc,d.material,lw,1).forEach(l=>doc.text(l,lx,ty+9.5*PT*0.8));
+   if(d.customer){doc.setFontSize(7.5);doc.setTextColor(68,68,68);doc.text(lines(doc,d.customer,lw,1)[0],lx,y+ST.h-ST.pad-0.4);doc.setTextColor(17,17,17)}
+   return;
+  }
   const qx=x+ST.w-ST.pad-ST.qr,qy=y+ST.h-ST.pad-ST.qr;
   doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(13);
   doc.text(pdfText(d.code),qx+ST.qr/2,qy-1.3,{align:'center'});
@@ -6800,7 +6833,7 @@ body.guide-only .a131-back-studio{display:block}
   const copies=fiqStickerCopies(list||supplierParts()),count={};copies.forEach(({p})=>count[p.id]=(count[p.id]||0)+1);
   const rows=copies.map(({p,i})=>{
    const d=fiqStickerData(p,i+1),[top,bottom]=edgePair(p.edgeLong),[left,right]=edgePair(p.edgeShort),n=count[p.id];
-   return {panelId:p.id,panelNumber:d.code,piece:i+1,pieces:n,pieceLabel:(i+1)+'/'+n,pieceRef:d.code+'-'+(i+1),
+   return {panelId:p.id,panelNumber:d.code,piece:i+1,pieces:n,pieceLabel:(i+1)+'/'+n,pieceRef:d.labelNumber,
     partName:String(p.name||''),length:num(p.length),width:num(p.width),thickness:num(p.thickness),units:'mm',
     material:String(materialForPanel(p)||''),quantity:1,totalQuantity:n,
     // Edging: FittersIQ records how many long and short edges are edged. With Length
@@ -6948,7 +6981,7 @@ body.guide-only .a131-back-studio{display:block}
   let sheet='';
   if(STAGING){
    // A number no panel in this job has: it must open nothing.
-   const used=new Set(pr.cabinets.flatMap(c=>(c.parts||[]).map(x=>Number(x.labelNo))));let u=Math.max(7099,(Number(pr.labelNoNext)||0)+90);while(used.has(u))u++;
+   const u=window.fiqUnusedScanRef(pr);
    cards.push('<div class="fiq-nt-card unknown"><div class="fiq-nt-num" style="'+NUM_STYLE+'">'+u+'</div><div class="fiq-nt-expect">Must open nothing</div><div class="fiq-nt-meta">Not a panel in this job. The phone should say it is not in this job.</div></div>');
    // Typed text comparison: the same numbers as ordinary spreadsheet text (Excel defaults:
    // Calibri 11, normal weight, grey gridlines), the way a supplier's own software prints them.
@@ -7007,7 +7040,7 @@ body.guide-only .a131-back-studio{display:block}
     const x=12,w=90;doc.setDrawColor(150);doc.setLineWidth(0.2);doc.rect(x,y,w,rowH-2);
     doc.setTextColor(120);doc.setFont('helvetica','normal');doc.setFontSize(6);doc.text(sz+' pt',x+1.5,y+3);doc.setTextColor(0);
     const mid=y+(rowH-2)/2;doc.setFont('helvetica','bold');doc.setFontSize(sz);const tw=doc.getTextWidth(c.it.num);
-    if(i===0){doc.setFontSize(9);doc.text('P-'+String(c.it.p.code).replace(/^P-/,''),x+w-14,y+5);doc.setFontSize(sz);const bw=Math.min(w-6,tw+4),bh=sz*PT*1.2+3;doc.setDrawColor(0);doc.setLineWidth(0.5);doc.roundedRect(x+w-bw-3,mid-bh/2+1.5,bw,bh,1,1);doc.text(c.it.num,x+w-3-bw/2,mid+1.5+sz*PT*0.36,{align:'center'})}
+    if(i===0){doc.setFontSize(9);doc.text(String(c.it.p.code),x+w-14,y+5);doc.setFontSize(sz);const bw=Math.min(w-6,tw+4),bh=sz*PT*1.2+3;doc.setDrawColor(0);doc.setLineWidth(0.5);doc.roundedRect(x+w-bw-3,mid-bh/2+1.5,bw,bh,1,1);doc.text(c.it.num,x+w-3-bw/2,mid+1.5+sz*PT*0.36,{align:'center'})}
     else if(i===1){doc.setFontSize(7);doc.text('JOB 2231 - KITCHEN - '+String(c.it.p.name||'').toUpperCase(),x+3,mid-sz*PT*0.5-1.5);doc.setFontSize(sz);doc.text(c.it.num,x+3,mid+sz*PT*0.36);doc.setFontSize(7);doc.text('600 x 400 x 18 WHITE MEL',x+3,mid+sz*PT*0.5+3.5)}
     else{doc.setFontSize(7);const lead=String(c.it.p.name||'').toUpperCase()+' 600x400';doc.text(lead,x+3,mid+1);const lw=doc.getTextWidth(lead);doc.setFontSize(sz);doc.text(c.it.num,Math.min(x+3+lw+2,x+w-tw-1),mid+1)}
     y+=rowH;
@@ -7038,6 +7071,184 @@ body.guide-only .a131-back-studio{display:block}
   switchToProject(id,unitId);renderAll();show('qr');window.renderQr();
  }
  if(state&&state.screen==='qr')setTimeout(()=>window.renderQr(),150);
+})();
+</script>
+<script id="fiq-scan-references">
+// Scan references. Every panel has one visible reference: its room's short code followed by a
+// number that runs across the whole job, e.g. KB12 (Kids bedroom) and MB13 (Master bedroom).
+// It is stored in pt.code once and never changed: renaming a room, changing its code, moving
+// the panel or deleting another panel leaves it as it is, and a deleted panel's number is
+// never used again (pr.scanRefNext only goes up). pt.scanRefFixed marks a panel that has its
+// reference. A panel of an older job keeps its old P-code in pt.legacyCode and its old label
+// number in pt.labelNo, so labels printed before still scan. A Qty > 1 panel prints one
+// sticker per piece as KB12-1, KB12-2 ... A unit with no room uses the code P.
+(function(){
+ const NO_ROOM='P',REF=/^([A-Z]{1,4})(\d{1,5})$/;
+ const codeOk=c=>/^[A-Z]{1,4}$/.test(String(c||''));
+ const words=s=>String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z]+/g,' ').trim().split(/\s+/).filter(Boolean);
+ // Kids bedroom KB, Master bedroom MB, Living Room LR; one word: first letter and the next
+ // consonant (Kitchen KT, Bedroom BD), then other letters of the name, then a letter added.
+ function suggestions(name){
+  const w=words(name),a=w[0]||'ROOM',out=[];
+  if(w.length>=2){const ini=w.slice(0,3).map(x=>x[0]).join('');out.push(ini);for(const ch of w[Math.min(2,w.length-1)].slice(1))out.push(ini+ch)}
+  const cons=a.slice(1).replace(/[AEIOU]/g,'');if(cons)out.push(a[0]+cons[0]);
+  for(const ch of a.slice(1))out.push(a[0]+ch);
+  const first=out[0]||a.slice(0,2);for(let k=65;k<=90;k++)out.push(first+String.fromCharCode(k));
+  return [...new Set(out.filter(c=>codeOk(c)&&c!==NO_ROOM))];
+ }
+ const codeOf=r=>String(r&&r.scanCode||'').toUpperCase();
+ function suggestRoomCode(pr,name,exceptRoomId){const used=new Set((pr&&pr.rooms||[]).filter(r=>r.id!==exceptRoomId).map(codeOf));return suggestions(name).find(c=>!used.has(c))||'R'}
+ // Why a typed room code cannot be used ('' = it can).
+ function roomCodeProblem(pr,code,roomId){
+  const c=String(code||'').trim().toUpperCase();
+  if(!codeOk(c))return 'Use 1 to 4 letters, A to Z.';
+  if(c===NO_ROOM)return 'P is kept for units without a room. Choose other letters.';
+  const other=(pr&&pr.rooms||[]).find(r=>r.id!==roomId&&codeOf(r)===c);
+  return other?c+' is already used by '+(other.name||'another room')+'.':'';
+ }
+ // Every room gets a code; a missing or repeated one gets the next free suggestion.
+ function ensureRoomCodes(pr){
+  let ch=false;const rooms=pr.rooms||[],seen=new Set();
+  rooms.forEach(r=>{
+   let c=codeOf(r);
+   if(codeOk(c)&&c!==NO_ROOM&&!seen.has(c)){if(r.scanCode!==c){r.scanCode=c;ch=true}seen.add(c);return}
+   const taken=new Set([...seen,...rooms.filter(x=>x!==r).map(codeOf)]);
+   c=suggestions(r.name).find(x=>!taken.has(x))||'R';r.scanCode=c;seen.add(c);ch=true;
+  });
+  return ch;
+ }
+ function roomCodeFor(pr,c){const r=(pr.rooms||[]).find(x=>x.id===c.roomId);return r?codeOf(r):NO_ROOM}
+ function refNumber(code){const m=String(code||'').match(REF);return m?Number(m[2]):0}
+ // Rooms in order, the units of each room in order, then units without a room.
+ function orderedCabinets(pr){
+  const cabs=pr.cabinets||[],ids=new Set((pr.rooms||[]).map(r=>r.id)),out=[];
+  (pr.rooms||[]).forEach(r=>cabs.forEach(c=>{if(c.roomId===r.id)out.push(c)}));
+  cabs.forEach(c=>{if(!ids.has(c.roomId))out.push(c)});
+  return out;
+ }
+ function ensureScanRefs(pr){
+  if(!pr||!Array.isArray(pr.cabinets))return false;
+  pr.rooms=Array.isArray(pr.rooms)?pr.rooms:[];
+  let ch=ensureRoomCodes(pr),max=Math.max(0,Math.floor(Number(pr.scanRefNext)||1)-1);
+  const seen=new Set(),todo=[];
+  orderedCabinets(pr).forEach((c,ci)=>(c.parts||[]).forEach((pt,pi)=>{const n=pt.scanRefFixed?refNumber(pt.code):0;
+   if(n&&!seen.has(n)){seen.add(n);if(n>max)max=n}else{const old=String(pt.code||'').match(/(\d+)$/);todo.push({c,pt,ci,k:old?Number(old[1]):1e6+pi})}}));
+  // Within a unit, panels keep the order of their old numbers (P-001 gets the lowest number).
+  todo.sort((a,b)=>a.ci-b.ci||a.k-b.k);
+  todo.forEach(({c,pt})=>{if(!pt.scanRefFixed&&pt.code&&pt.legacyCode==null)pt.legacyCode=pt.code;pt.code=roomCodeFor(pr,c)+(++max);pt.scanRefFixed=true;ch=true});
+  if(Number(pr.scanRefNext)!==max+1){pr.scanRefNext=max+1;ch=true}
+  return ch;
+ }
+ function projectOf(c){return (state.projects||[]).find(p=>(p.cabinets||[]).includes(c))||project()}
+ // The reference for a panel about to be added to unit c (the caller sets scanRefFixed).
+ function nextScanRef(c){
+  const pr=projectOf(c);if(!pr)return 'P'+((c&&c.parts||[]).length+1);
+  ensureScanRefs(pr);
+  const ref=roomCodeFor(pr,c)+pr.scanRefNext;pr.scanRefNext+=1;return ref;
+ }
+ // A reference no panel of this job has (staging test: it must open nothing).
+ function unusedScanRef(pr){ensureScanRefs(pr);const c=cabinet();return (c?roomCodeFor(pr,c):NO_ROOM)+(Number(pr.scanRefNext)+90)}
+ Object.assign(window,{fiqEnsureScanRefs:ensureScanRefs,fiqNextScanRef:nextScanRef,fiqSuggestRoomCode:suggestRoomCode,fiqRoomCodeProblem:roomCodeProblem,fiqEnsureRoomCodes:ensureRoomCodes,fiqUnusedScanRef:unusedScanRef,fiqOrderedCabinets:orderedCabinets});
+
+ // One combined spreadsheet for the whole job: every room and wardrobe, one row per sticker
+ // (Quantity 1), so a supplier's own label system prints KB12-1, KB12-2 and KB12-3 straight
+ // from the Scan number column without adding anything itself. Plain text, no images.
+ const SHEET_COLUMNS=['Scan number','Part name','Length (mm)','Width (mm)','Thickness (mm)','Quantity','Material','Edging','Notes','Room','Wardrobe'];
+ const edging=pt=>{const l=Math.max(0,Math.floor(Number(pt.edgeLong)||0)),s=Math.max(0,Math.floor(Number(pt.edgeShort)||0));return l||s?[l?l+' long':'',s?s+' short':''].filter(Boolean).join(', '):'None'};
+ function ready(pt){
+  const missing=typeof window.fiqPanelMissingFields==='function'?window.fiqPanelMissingFields(pt):[];
+  const reviewed=typeof window.panelIsReviewed==='function'?window.panelIsReviewed(pt):true;
+  return !missing.length&&reviewed;
+ }
+ function jobSheet(pr){
+  pr=pr||project();if(!pr)return {rows:[],left:[]};
+  ensureScanRefs(pr);
+  const rows=[],left=[];
+  orderedCabinets(pr).forEach(c=>{const room=(pr.rooms||[]).find(r=>r.id===c.roomId);
+   (c.parts||[]).forEach(pt=>{
+    if(!ready(pt)){left.push(pt.code);return}
+    const n=Math.max(1,Math.min(500,Math.floor(Number(pt.qty)||1))),mat=String(pt.material||pr.defaultMaterial||c.lastMaterial||'').trim();
+    for(let k=1;k<=n;k++)rows.push({num:refNumber(pt.code),piece:k,cells:[pt.code+(n>1?'-'+k:''),String(pt.name||''),pt.length,pt.width,pt.thickness,1,mat,edging(pt),String(pt.notes||''),String(room&&room.name||''),String(c.name||'')]});
+   })});
+  rows.sort((a,b)=>a.num-b.num||a.piece-b.piece);
+  return {columns:SHEET_COLUMNS,rows:rows.map(r=>r.cells),left};
+ }
+ function sheetCsv(sheet){
+  const q=v=>{const t=v==null?'':String(v);return /[",\r\n]/.test(t)||/^\s|\s$/.test(t)?'"'+t.replace(/"/g,'""')+'"':t};
+  return '﻿'+[sheet.columns,...sheet.rows].map(r=>r.map(q).join(',')).join('\r\n')+'\r\n';
+ }
+ function downloadJobSheet(pr){
+  pr=pr||project();const msg=document.getElementById('supplierActionStatus'),say=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle('error',!!err)}};
+  if(!pr){say('Open a job first.',true);return null}
+  const sheet=jobSheet(pr);
+  if(!sheet.rows.length){say('No panels are ready for the supplier yet in this job.',true);return null}
+  save();
+  const name=((pr.customer?pr.customer+' - ':'')+(pr.name||'Job')+' - cutting list').replace(/[\\/:*?"<>|\x00-\x1F]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150)+'.csv';
+  const text=sheetCsv(sheet),url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+  say('Downloaded '+name+' — '+sheet.rows.length+' sticker row'+(sheet.rows.length===1?'':'s')+' for the whole job.'+(sheet.left.length?' Not ready yet, left out: '+sheet.left.join(', ')+'.':''),!!sheet.left.length);
+  return {name,text,rows:sheet.rows.length,left:sheet.left};
+ }
+ Object.assign(window,{fiqJobSheet:jobSheet,fiqJobSheetCsv:sheetCsv,fiqDownloadJobSheet:downloadJobSheet});
+ function sheetButton(){
+  const bar=document.querySelector('#screen-cutting .supplier-actions-simple')||document.querySelector('.supplier-actions-simple');if(!bar)return;
+  let b=document.getElementById('fiqJobSheetBtn');
+  if(!b){b=document.createElement('button');b.type='button';b.id='fiqJobSheetBtn';b.className='supplier-action export';
+   b.innerHTML='<span class="supplier-action-icon">⇩</span><strong>Download Job Spreadsheet</strong><small id="fiqJobSheetSub">All rooms and wardrobes</small>';
+   b.addEventListener('click',e=>{e.preventDefault();downloadJobSheet()});bar.insertBefore(b,bar.firstChild)}
+  const sub=document.getElementById('fiqJobSheetSub'),pr=project();
+  if(sub&&pr){let n=0;try{n=jobSheet(pr).rows.length}catch(e){}sub.textContent='All rooms and wardrobes · '+n+' sticker row'+(n===1?'':'s')}
+ }
+
+ // Room code: shown and edited in the room's own window, beside its full name.
+ const css=document.createElement('style');css.textContent=
+  '.fiq-room-code-row{display:flex;gap:8px;align-items:center}.fiq-room-code-row input{width:90px;height:40px;text-transform:uppercase;font:900 18px Inter,Arial,sans-serif;letter-spacing:.06em;text-align:center;border:1px solid #cfd6e4;border-radius:10px}'+
+  '.fiq-room-code-msg{margin-top:6px;font-size:13px;color:#5b6b85}.fiq-room-code-msg.err{color:#b42318;font-weight:700}'+
+  '.fiq-sticker.fiq-sticker-ref{display:flex;flex-direction:column;gap:4px}'+
+  '.fiq-sticker-ref .fs-ref{align-self:flex-start;font:900 calc(var(--fs-qr)*.36)/1 Arial,Helvetica,sans-serif;letter-spacing:.03em;white-space:nowrap;color:#000;padding-bottom:4px;margin-bottom:calc(var(--fs-qr)*.12)}'+
+  '.fiq-sticker-ref .fs-ref.fs-ref-long{font-size:calc(var(--fs-qr)*.28)}';
+ document.head.appendChild(css);
+ const baseOpenRoom=window.openStudioRoom;
+ if(typeof baseOpenRoom==='function')window.openStudioRoom=function(roomId){
+  const out=baseOpenRoom.apply(this,arguments);
+  try{
+   const pr=project(),r=pr&&(pr.rooms||[]).find(x=>x.id===roomId),sheets=document.querySelectorAll('.room-detail-sheet'),sheet=sheets[sheets.length-1];
+   if(pr&&r&&sheet&&!sheet.querySelector('[data-room-code]')){
+    ensureRoomCodes(pr);save();
+    const refs=(pr.cabinets||[]).filter(c=>c.roomId===r.id).flatMap(c=>c.parts||[]).map(x=>x.code);
+    const sec=document.createElement('div');sec.className='room-detail-section';
+    sec.innerHTML='<h3>Scan code</h3><div class="fiq-room-code-row"><input data-room-code maxlength="4" autocomplete="off" aria-label="Scan code for '+safe(r.name||'this room')+'" value="'+safe(r.scanCode)+'"><button class="btn" type="button" data-room-code-save>Save code</button></div>'+
+     '<div class="fiq-room-code-msg" data-room-code-msg>Panels in this room are numbered '+safe(r.scanCode)+' and the job number, for example '+safe(r.scanCode)+'12. Numbers run across the whole job.'+(refs.length?' Existing panels keep their references.':'')+'</div>';
+    const anchor=sheet.querySelector('.room-detail-section');sheet.insertBefore(sec,anchor||null);
+    const inp=sec.querySelector('[data-room-code]'),msg=sec.querySelector('[data-room-code-msg]');
+    inp.addEventListener('input',()=>{const v=inp.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,4);if(v!==inp.value)inp.value=v});
+    sec.querySelector('[data-room-code-save]').onclick=()=>{
+     const v=inp.value.trim().toUpperCase(),problem=v===r.scanCode?'':roomCodeProblem(pr,v,r.id);
+     if(problem){msg.textContent=problem;msg.classList.add('err');inp.focus();return}
+     r.scanCode=v;pr.updatedAt=Date.now();save();msg.classList.remove('err');
+     msg.textContent='Saved. New panels in this room start with '+v+'.'+(refs.length?' Existing panels keep their references ('+refs.slice(0,3).join(', ')+(refs.length>3?' …':'')+').':'');
+    };
+   }
+  }catch(e){console.error('Room code field failed',e)}
+  return out;
+ };
+ try{openStudioRoom=window.openStudioRoom}catch(e){}
+ // A new room gets its suggested code at once (editable in its window).
+ const baseCreateRoom=window.createStudioRoom;
+ if(typeof baseCreateRoom==='function'){window.createStudioRoom=function(){const out=baseCreateRoom.apply(this,arguments);try{const pr=project();if(pr&&ensureRoomCodes(pr))save()}catch(e){}return out};try{createStudioRoom=window.createStudioRoom}catch(e){}}
+ const base=window.renderAll;
+ window.renderAll=function(){
+  if(ensureAll())setTimeout(save,0);
+  const r=typeof base==='function'?base.apply(this,arguments):undefined;
+  try{sheetButton()}catch(e){}
+  return r;
+ };
+ try{renderAll=window.renderAll}catch(e){}
+ // Every job gets its references as soon as Studio opens, so Job Overview, Customer Library
+ // and the phone all show the same reference, not only the job that is open.
+ function ensureAll(){let ch=false;try{(state.projects||[]).forEach(p=>{if(ensureScanRefs(p))ch=true})}catch(e){console.error('Scan references failed',e)}return ch}
+ window.fiqEnsureAllScanRefs=ensureAll;
+ setTimeout(()=>{try{if(ensureAll()){save();renderAll()}sheetButton()}catch(e){}},300);
 })();
 </script>
 <script id="fiq-next-wardrobe">
@@ -7093,20 +7304,28 @@ body.guide-only .a131-back-studio{display:block}
  window.fiqOpenWardrobe=openWardrobe;
  function openDialog(after){
   const p=project(),c=cabinet();if(!p){alert(t("msg.openProjectFirst"));return}
+  if(typeof window.fiqEnsureRoomCodes==='function')window.fiqEnsureRoomCodes(p);
   saveNow();
   const rooms=p.rooms||[],cur=c?c.roomId:(rooms[0]&&rooms[0].id)||'';
   const incomplete=c?(c.parts||[]).filter(x=>typeof window.fiqPanelMissingFields==='function'&&window.fiqPanelMissingFields(x).length):[];
   const o=document.createElement('div');o.className='a100-edit-dialog fiq-nw-dialog';
   o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="fiqNwTitle"><h2 id="fiqNwTitle">Next wardrobe</h2>'+
    '<label for="fiqNwName">Name</label><input id="fiqNwName" autocomplete="off" value="'+safe(nextName(p,c))+'">'+
-   '<label for="fiqNwRoom">Room</label><select id="fiqNwRoom">'+rooms.map(r=>'<option value="'+safe(r.id)+'"'+(r.id===cur?' selected':'')+'>'+safe(r.name||'Room')+'</option>').join('')+'<option value="__new__"'+(rooms.length?'':' selected')+'>+ New room…</option></select>'+
+   '<label for="fiqNwRoom">Room</label><select id="fiqNwRoom">'+rooms.map(r=>'<option value="'+safe(r.id)+'"'+(r.id===cur?' selected':'')+'>'+safe(r.name||'Room')+(r.scanCode?' ('+safe(r.scanCode)+')':'')+'</option>').join('')+'<option value="__new__"'+(rooms.length?'':' selected')+'>+ New room…</option></select>'+
    '<input id="fiqNwNewRoom" autocomplete="off" placeholder="New room name, e.g. Bedroom 2"'+(rooms.length?' hidden':'')+' style="margin-top:6px">'+
+   // A new room's scan code: suggested from its name, editable, never one the job already uses.
+   '<div id="fiqNwCodeRow"'+(rooms.length?' hidden':'')+'><label for="fiqNwRoomCode">Room scan code</label><input id="fiqNwRoomCode" maxlength="4" autocomplete="off" style="width:110px;text-transform:uppercase;font-weight:900;letter-spacing:.06em"><div class="fiq-nw-note" id="fiqNwCodeMsg">Panels in this room are numbered with these letters and the job number, for example KB12.</div></div>'+
    '<div class="fiq-nw-note">'+(c?safe(c.name||'This wardrobe')+' is kept with its drawing, panels, Cutting List and Panel Check. Open it again any time from the wardrobe list.':'')+'</div>'+
    (incomplete.length?'<div class="fiq-nw-warn">'+incomplete.map(x=>safe(x.code)).join(', ')+' '+(incomplete.length===1?'is':'are')+' not complete yet and stay'+(incomplete.length===1?'s':'')+' in '+safe(c.name||'this wardrobe')+' to finish later.</div>':'')+
    '<div class="a100-edit-actions"><button type="button" class="btn" data-nw-cancel>Cancel</button><button type="button" class="btn primary" data-nw-go>Start next wardrobe</button></div></div>';
   document.body.appendChild(o);
   const name=o.querySelector('#fiqNwName'),room=o.querySelector('#fiqNwRoom'),newRoom=o.querySelector('#fiqNwNewRoom');
-  room.onchange=()=>{newRoom.hidden=room.value!=='__new__';if(!newRoom.hidden)newRoom.focus()};
+  const codeRow=o.querySelector('#fiqNwCodeRow'),code=o.querySelector('#fiqNwRoomCode'),codeMsg=o.querySelector('#fiqNwCodeMsg');let codeTyped=false;
+  const suggest=()=>{if(!codeTyped&&typeof window.fiqSuggestRoomCode==='function')code.value=window.fiqSuggestRoomCode(p,newRoom.value||'Room')};
+  newRoom.addEventListener('input',suggest);
+  code.addEventListener('input',()=>{codeTyped=true;const v=code.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,4);if(v!==code.value)code.value=v});
+  suggest();
+  room.onchange=()=>{newRoom.hidden=room.value!=='__new__';codeRow.hidden=newRoom.hidden;if(!newRoom.hidden){suggest();newRoom.focus()}};
   const close=()=>o.remove();
   o.querySelector('[data-nw-cancel]').onclick=close;o.onclick=e=>{if(e.target===o)close()};
   o.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}});
@@ -7115,7 +7334,9 @@ body.guide-only .a131-back-studio{display:block}
    let roomId=room.value;
    if(roomId==='__new__'){
     const rn=newRoom.value.trim();if(!rn){newRoom.focus();return}
-    const r={id:uid(),type:'Custom',name:rn,icon:'🏠',beforePhotos:[],designImages:[],notes:'',siteMarkup:{image:null,w:0,h:0,marks:[]}};
+    const sc=code.value.trim().toUpperCase(),problem=typeof window.fiqRoomCodeProblem==='function'?window.fiqRoomCodeProblem(p,sc,null):'';
+    if(problem){codeMsg.textContent=problem;codeMsg.style.color='#b42318';code.focus();return}
+    const r={id:uid(),type:'Custom',name:rn,scanCode:sc||undefined,icon:'🏠',beforePhotos:[],designImages:[],notes:'',siteMarkup:{image:null,w:0,h:0,marks:[]}};
     p.rooms=p.rooms||[];p.rooms.push(r);roomId=r.id;
    }
    const nc={id:uid(),name:nm,roomId:roomId||'',drawing:null,drawingType:null,parts:[]};
@@ -11501,6 +11722,7 @@ body.fiq-locked .app{display:none!important}
  // Called only by Send to Job Overview.
  function recordSent(p,roomId,cabinetId){
   if(!p)return null;
+  if(typeof window.fiqEnsureScanRefs==='function')window.fiqEnsureScanRefs(p);
   const key=jobKeyFor(roomId,cabinetId),rows=currentRows(p,key);
   if(!rows.length)return null;
   const list=versionsOf(p,key),latest=list[list.length-1];
@@ -11512,7 +11734,7 @@ body.fiq-locked .app{display:none!important}
   // Each piece's panel number (Panel Number labels) is stored beside its QR the same way.
   if(typeof fiqEnsureLabelNumbers==='function')fiqEnsureLabelNumbers(p);
   rows.forEach(r=>{const c=cabs.find(x=>(x.parts||[]).some(pt=>String(pt.id)===r.panelId)),pt=c&&c.parts.find(x=>String(x.id)===r.panelId);
-   r.pieces=pt?Array.from({length:r.quantity},(_,i)=>{const qr=fiqPieceQrText(p,c,pt,i+1);return {piece:i+1,qr,label:typeof window.fiqQrLabelText==='function'?window.fiqQrLabelText(qr):qr,number:String(pt.labelNo??'')+(r.quantity>1?'-'+(i+1):'')}}):[]});
+   r.pieces=pt?Array.from({length:r.quantity},(_,i)=>{const qr=fiqPieceQrText(p,c,pt,i+1);return {piece:i+1,qr,label:typeof window.fiqQrLabelText==='function'?window.fiqQrLabelText(qr):qr,number:fiqLabelNumberText(pt,i+1)}}):[]});
   const snap=JSON.parse(JSON.stringify({version:list.length+1,sentAt:new Date().toISOString(),jobKey:key,
    job:String(p.name||''),room:String(room&&room.name||''),customer:String(p.customer||''),
    units:scopeCabinets(p,key).map(c=>String(c.name||'')),
@@ -11534,10 +11756,12 @@ body.fiq-locked .app{display:none!important}
   if(pc&&pc.number)return String(pc.number);
   const pt=(p&&p.cabinets||[]).flatMap(c=>c.parts||[]).find(x=>String(x.id)===String(r.panelId));if(!pt)return '';
   if(!Number.isInteger(Number(pt.labelNo))&&typeof fiqEnsureLabelNumbers==='function')fiqEnsureLabelNumbers(p);
-  return String(pt.labelNo??'')+(r.quantity>1?'-'+pc.piece:'');
+  return pt.scanRefFixed?String(pt.code||'')+(r.quantity>1?'-'+pc.piece:''):String(pt.labelNo??'')+(r.quantity>1?'-'+pc.piece:'');
  }
  function savedStickerHtml(p,snap,r,pc,mode,qrImg){
   const v=x=>x==null||x===''?'—':String(x),n=pieceNumber(p,r,pc);
+  // Panel Number: the reference alone on the top line, as on the live stickers.
+  if(mode==='number')return '<article class="fiq-sticker fiq-sticker-number fiq-sticker-ref"><div class="fs-ref'+(n.length>6?' fs-ref-long':'')+'">'+safe(n)+'</div><div class="fs-name">'+safe(String(r.partName||'Unnamed part').toUpperCase())+'</div><div class="fs-dims">'+safe(v(r.length))+' × '+safe(v(r.width))+' × '+safe(v(r.thickness))+'&nbsp;mm</div><div class="fs-mat">'+safe(r.material||'Material not set')+'</div>'+(snap.customer?'<div class="fs-cust">'+safe(snap.customer)+'</div>':'')+'</article>';
   const scan=mode==='number'?'<div class="fs-num fiq-print-num">'+safe(n)+'</div>':'<div class="fs-qr">'+(qrImg?'<img alt="QR" src="'+qrImg+'">':'')+'</div>';
   return '<article class="fiq-sticker'+(mode==='number'?' fiq-sticker-number':'')+'"><div class="fs-left"><div class="fs-name">'+safe(String(r.partName||'Unnamed part').toUpperCase())+'</div><div class="fs-dims">'+safe(v(r.length))+' × '+safe(v(r.width))+' × '+safe(v(r.thickness))+'&nbsp;mm</div><div class="fs-mat">'+safe(r.material||'Material not set')+'</div>'+(snap.customer?'<div class="fs-cust">'+safe(snap.customer)+'</div>':'')+'</div><div class="fs-right"><div class="fs-code">'+safe(r.panelNumber)+'</div>'+scan+'</div></article>';
  }
@@ -11545,7 +11769,7 @@ body.fiq-locked .app{display:none!important}
   const mode=fiqLabelMode(p),stickers=[];
   rowList.forEach(r=>(r.pieces||[]).forEach(pc=>stickers.push(savedStickerHtml(p,snap,r,pc,mode,mode==='qr'&&typeof window.qrData==='function'?window.qrData(pc.qr):''))));
   if(!stickers.length)return;
-  const css='<style>.fiq-print-num{display:grid;place-items:center;width:37mm;min-height:23mm;border:0.7mm solid #111;border-radius:1.5mm;box-sizing:border-box;font:900 24pt Arial,Helvetica,sans-serif;white-space:nowrap;color:#000}</style>';
+  const css='<style>.fiq-print-num{display:grid;place-items:center;width:37mm;min-height:23mm;border:0.7mm solid #111;border-radius:1.5mm;box-sizing:border-box;font:900 24pt Arial,Helvetica,sans-serif;white-space:nowrap;color:#000}.fiq-sticker.fiq-sticker-ref{display:flex;flex-direction:column;gap:1mm}.fiq-sticker-ref .fs-ref{font:900 26pt/1 Arial,Helvetica,sans-serif;letter-spacing:.03em;white-space:nowrap;color:#000}.fiq-sticker-ref .fs-ref.fs-ref-long{font-size:20pt}</style>';
   window.a131OpenPrintPreview((mode==='number'?'Panel number labels':'QR labels')+' — '+[snap.job,snap.room].filter(Boolean).join(' · ')+' · Version '+snap.version,css+'<div class="stickers">'+stickers.join('')+'</div>');
  }
  function tableHtml(snap,p){
