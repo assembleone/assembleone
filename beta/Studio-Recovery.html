@@ -4904,7 +4904,10 @@ async function importRoomsFile(file){
  // Panel dots belong to the drawing they were placed on. A new drawing must never show the
  // old drawing's dots, so any panels on this unit are removed -- only after asking.
  const attached=(c.parts||[]).length;
- if(attached&&!(await confirmDrawingPanelsRemoval(c.drawing?'replace':'new',attached)))return;
+ if(attached){const ans=await confirmDrawingPanelsRemoval(c.drawing?'replace':'new',attached);
+  // Keep this wardrobe: the new drawing goes into the next wardrobe once it is created.
+  if(ans==='next'){window.fiqNextWardrobe(()=>importRoomsFile(file));return}
+  if(!ans)return}
  const stage=$("#drawingStage");
  stage.classList.add("importing");
  showRoomsMessage(t("studio.drawing.openingFileTemplate",[file.name||t("studio.drawing.photoOrScreenshotFallback")]));
@@ -4965,11 +4968,15 @@ function confirmDrawingPanelsRemoval(kind,n){
    ?'This unit still has '+panels+' from its previous drawing. Choosing a new drawing will remove those panel dots and their associated panel data from this unit.'
    :'This drawing has '+panels+' attached to it. '+(kind==='delete'?'Deleting':'Replacing')+' it will remove those panel dots and their associated panel data from this drawing.';
   const go=kind==='delete'?'Delete and remove panels':'Replace and remove panels';
+  // Moving on to the next wardrobe never needs this: the drawing and its panels can be kept
+  // and the next wardrobe started as its own unit (resolves 'next').
+  const keep=typeof window.fiqNextWardrobe==='function'?(kind==='delete'?'Keep it, start next wardrobe':'Keep it, put this drawing in a new wardrobe'):'';
   const o=document.createElement('div');o.className='a100-edit-dialog fiq-drawing-replace-dialog';
-  o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="fiqDrawReplaceTitle"><h2 id="fiqDrawReplaceTitle">'+title+'</h2><p>'+body+'</p><div class="a100-edit-actions"><button type="button" class="btn" data-drawing-cancel>Cancel</button><button type="button" class="btn danger" data-drawing-go>'+go+'</button></div></div>';
+  o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="fiqDrawReplaceTitle"><h2 id="fiqDrawReplaceTitle">'+title+'</h2><p>'+body+'</p>'+(keep?'<p>Starting the next wardrobe? Keep this one instead: its drawing, panels, Cutting List and Panel Check stay in the job.</p>':'')+'<div class="a100-edit-actions"><button type="button" class="btn" data-drawing-cancel>Cancel</button>'+(keep?'<button type="button" class="btn primary" data-drawing-next>'+keep+'</button>':'')+'<button type="button" class="btn danger" data-drawing-go>'+go+'</button></div></div>';
   document.body.appendChild(o);
   const done=v=>{o.remove();resolve(v)};
   o.querySelector('[data-drawing-cancel]').onclick=()=>done(false);
+  const nb=o.querySelector('[data-drawing-next]');if(nb)nb.onclick=()=>done('next');
   o.querySelector('[data-drawing-go]').onclick=()=>done(true);
   o.onclick=e=>{if(e.target===o)done(false)};
  });
@@ -4978,7 +4985,7 @@ async function deleteCurrentDrawing(){
  const c=cabinet();
  if(!c?.drawing)return;
  const attached=(c.parts||[]).length;
- if(attached){if(!(await confirmDrawingPanelsRemoval('delete',attached)))return;removeDrawingPanels(c)}
+ if(attached){const ans=await confirmDrawingPanelsRemoval('delete',attached);if(ans==='next'){window.fiqNextWardrobe();return}if(!ans)return;removeDrawingPanels(c)}
  else if(!confirm("Delete this drawing?"))return;
  c.drawing=null;
  c.drawingType=null;
@@ -7031,6 +7038,100 @@ body.guide-only .a131-back-studio{display:block}
   switchToProject(id,unitId);renderAll();show('qr');window.renderQr();
  }
  if(state&&state.screen==='qr')setTimeout(()=>window.renderQr(),150);
+})();
+</script>
+<script id="fiq-next-wardrobe">
+// Next wardrobe. The normal way to move on: every wardrobe is its own unit in the job, so the
+// one just drawn keeps its drawing, panels, Cutting List and Panel Check progress, stays in
+// the job sent to Mobile, and can be opened again from the wardrobe picker. Deleting the
+// drawing is never needed to make room for the next wardrobe.
+(function(){
+ const css=document.createElement('style');css.textContent=
+  '.fiq-wardrobe-bar{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}'+
+  '.fiq-wardrobe-bar select{height:28px;max-width:190px;border:1px solid #cfd6e4;border-radius:8px;background:#fff;color:#23364e;font:700 12px Inter,Arial,sans-serif;padding:0 6px}'+
+  '.fiq-wardrobe-bar .fiq-next-wardrobe{height:28px;padding:0 10px;font-size:12px;font-weight:800;white-space:nowrap;border-radius:8px}'+
+  '.fiq-nw-dialog .a100-edit-sheet{max-width:420px}.fiq-nw-dialog label{display:block;margin:10px 0 4px;font-weight:800}'+
+  '.fiq-nw-dialog input,.fiq-nw-dialog select{width:100%;box-sizing:border-box;height:40px;border:1px solid #cfd6e4;border-radius:10px;padding:0 10px;font:600 15px Inter,Arial,sans-serif}'+
+  '.fiq-nw-note{margin-top:10px;font-size:13px;color:#5b6b85}.fiq-nw-warn{margin-top:10px;font-size:13px;color:#8a5a00}';
+ document.head.appendChild(css);
+ const roomOf=(p,c)=>(p.rooms||[]).find(r=>r.id===c.roomId);
+ const wardrobeLabel=(p,c)=>{const r=roomOf(p,c);return (r&&r.name&&r.name!==c.name?r.name+' · ':'')+(c.name||'Wardrobe')};
+ // The next name: Wardrobe A -> Wardrobe B, Wardrobe 2 -> Wardrobe 3, otherwise Wardrobe N.
+ function nextName(p,c){
+  const used=new Set((p.cabinets||[]).map(x=>String(x.name||'').trim().toLowerCase())),n=String(c&&c.name||'').trim();
+  let m=n.match(/^(.*?)(\d+)$/),cand=[];
+  if(m)for(let i=Number(m[2])+1;i<Number(m[2])+50;i++)cand.push(m[1]+i);
+  else if((m=n.match(/^(.*\s)([A-Y])$/)))for(let k=m[2].charCodeAt(0)+1;k<=90;k++)cand.push(m[1]+String.fromCharCode(k));
+  for(let i=(p.cabinets||[]).length+1;i<(p.cabinets||[]).length+60;i++)cand.push('Wardrobe '+i);
+  return cand.find(x=>!used.has(x.toLowerCase()))||'Wardrobe';
+ }
+ function ensure(){
+  const head=document.querySelector('#screen-mark .fiq-measure-head');if(!head)return;
+  let bar=document.getElementById('fiqWardrobeBar');
+  if(!bar){
+   bar=document.createElement('div');bar.id='fiqWardrobeBar';bar.className='fiq-wardrobe-bar';
+   bar.innerHTML='<select id="fiqWardrobeSelect" aria-label="Open wardrobe" title="Open another wardrobe of this job"></select>'+
+    '<button type="button" class="btn fiq-next-wardrobe" id="fiqNextWardrobeBtn" title="Keep this wardrobe and start the next one. Nothing is deleted.">＋ Next wardrobe</button>';
+   bar.querySelector('#fiqWardrobeSelect').addEventListener('change',e=>openWardrobe(e.target.value));
+   bar.querySelector('#fiqNextWardrobeBtn').addEventListener('click',e=>{e.preventDefault();openDialog(null)});
+  }
+  if(bar.parentElement!==head)head.appendChild(bar);
+  paint();
+ }
+ function paint(){
+  const sel=document.getElementById('fiqWardrobeSelect');if(!sel)return;
+  const p=project(),c=cabinet(),list=p?(p.cabinets||[]):[];
+  sel.innerHTML=list.map(x=>'<option value="'+safe(x.id)+'">'+safe(wardrobeLabel(p,x))+((x.parts||[]).length?' ('+x.parts.length+')':'')+'</option>').join('');
+  if(c)sel.value=c.id;
+  sel.hidden=list.length<2;
+ }
+ function saveNow(){try{if(typeof stableSave==='function')stableSave(false)}catch(e){}save()}
+ function openWardrobe(id){
+  const p=project();if(!p||!id)return;const c=(p.cabinets||[]).find(x=>x.id===id);if(!c)return;
+  saveNow();switchToProject(p.id,c.id);state.currentRoom=c.roomId||null;state.selectedCopy=-1;save();renderAll();show('mark');
+ }
+ window.fiqOpenWardrobe=openWardrobe;
+ function openDialog(after){
+  const p=project(),c=cabinet();if(!p){alert(t("msg.openProjectFirst"));return}
+  saveNow();
+  const rooms=p.rooms||[],cur=c?c.roomId:(rooms[0]&&rooms[0].id)||'';
+  const incomplete=c?(c.parts||[]).filter(x=>typeof window.fiqPanelMissingFields==='function'&&window.fiqPanelMissingFields(x).length):[];
+  const o=document.createElement('div');o.className='a100-edit-dialog fiq-nw-dialog';
+  o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="fiqNwTitle"><h2 id="fiqNwTitle">Next wardrobe</h2>'+
+   '<label for="fiqNwName">Name</label><input id="fiqNwName" autocomplete="off" value="'+safe(nextName(p,c))+'">'+
+   '<label for="fiqNwRoom">Room</label><select id="fiqNwRoom">'+rooms.map(r=>'<option value="'+safe(r.id)+'"'+(r.id===cur?' selected':'')+'>'+safe(r.name||'Room')+'</option>').join('')+'<option value="__new__"'+(rooms.length?'':' selected')+'>+ New room…</option></select>'+
+   '<input id="fiqNwNewRoom" autocomplete="off" placeholder="New room name, e.g. Bedroom 2"'+(rooms.length?' hidden':'')+' style="margin-top:6px">'+
+   '<div class="fiq-nw-note">'+(c?safe(c.name||'This wardrobe')+' is kept with its drawing, panels, Cutting List and Panel Check. Open it again any time from the wardrobe list.':'')+'</div>'+
+   (incomplete.length?'<div class="fiq-nw-warn">'+incomplete.map(x=>safe(x.code)).join(', ')+' '+(incomplete.length===1?'is':'are')+' not complete yet and stay'+(incomplete.length===1?'s':'')+' in '+safe(c.name||'this wardrobe')+' to finish later.</div>':'')+
+   '<div class="a100-edit-actions"><button type="button" class="btn" data-nw-cancel>Cancel</button><button type="button" class="btn primary" data-nw-go>Start next wardrobe</button></div></div>';
+  document.body.appendChild(o);
+  const name=o.querySelector('#fiqNwName'),room=o.querySelector('#fiqNwRoom'),newRoom=o.querySelector('#fiqNwNewRoom');
+  room.onchange=()=>{newRoom.hidden=room.value!=='__new__';if(!newRoom.hidden)newRoom.focus()};
+  const close=()=>o.remove();
+  o.querySelector('[data-nw-cancel]').onclick=close;o.onclick=e=>{if(e.target===o)close()};
+  o.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}});
+  o.querySelector('[data-nw-go]').onclick=()=>{
+   const nm=name.value.trim();if(!nm){name.focus();return}
+   let roomId=room.value;
+   if(roomId==='__new__'){
+    const rn=newRoom.value.trim();if(!rn){newRoom.focus();return}
+    const r={id:uid(),type:'Custom',name:rn,icon:'🏠',beforePhotos:[],designImages:[],notes:'',siteMarkup:{image:null,w:0,h:0,marks:[]}};
+    p.rooms=p.rooms||[];p.rooms.push(r);roomId=r.id;
+   }
+   const nc={id:uid(),name:nm,roomId:roomId||'',drawing:null,drawingType:null,parts:[]};
+   p.cabinets.push(nc);p.updatedAt=Date.now();
+   switchToProject(p.id,nc.id);state.currentRoom=roomId||null;state.currentPart=null;state.selectedCopy=-1;
+   save();close();renderAll();show('mark');
+   if(typeof toast==='function')toast(nm+' started. '+(c?(c.name||'The previous wardrobe')+' is kept with everything.':''));
+   if(typeof after==='function')setTimeout(after,0);
+  };
+  setTimeout(()=>{name.focus();name.select()},0);
+ }
+ window.fiqNextWardrobe=openDialog;
+ const base=window.renderAll;
+ window.renderAll=function(){const r=typeof base==='function'?base.apply(this,arguments):undefined;try{ensure()}catch(e){}return r};
+ try{renderAll=window.renderAll}catch(e){}
+ setTimeout(()=>{try{ensure()}catch(e){}},300);
 })();
 </script>
 
