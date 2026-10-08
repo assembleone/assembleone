@@ -200,6 +200,21 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .svs-room-info{flex:1;min-width:0}
 .svs-room-info b{display:block;font-size:15px;font-weight:900;color:var(--ink)}
 .svs-room-info small{display:block;font-size:12px;color:var(--muted);font-weight:700}
+.svs-room-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.svs-room-card .svs-room-row{border:0;border-radius:0}
+.svs-thumbs{display:flex;gap:8px;overflow-x:auto;padding:0 14px 10px}
+.svs-thumb{position:relative;flex:none;width:84px;height:64px;padding:0;border:2px solid #bcdcf7;border-radius:10px;overflow:hidden;background:#eef3f8}
+.svs-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.svs-thumb-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:22px}
+.svs-thumb-no{position:absolute;left:4px;top:4px;min-width:18px;height:18px;border-radius:9px;background:rgba(17,24,39,.75);color:#fff;font-size:11px;font-weight:900;line-height:18px;text-align:center;padding:0 4px}
+.svs-thumb-count{position:absolute;left:0;right:0;bottom:0;background:rgba(17,24,39,.7);color:#fff;font-size:10px;font-weight:800;text-align:center;padding:1px 0}
+.svs-sizes{list-style:none;margin:0;padding:0 14px 12px;display:grid;gap:3px}
+.svs-sizes li{display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--ink)}
+.svs-sizes li span{flex:1;min-width:0;color:var(--muted);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svs-sizes li b{font-weight:900;white-space:nowrap}
+.svs-sizes li small{font-size:11px;color:var(--muted);white-space:nowrap}
+.svs-sizes-more{color:var(--muted);font-weight:800}
+.svs-sizes-none{padding:0 14px 12px;font-size:12px;color:var(--muted);font-weight:700}
 .svs-room-check{flex:none;width:24px;height:24px;border-radius:50%;background:#2ea043;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center}
 .svs-room-chev{flex:none;color:var(--muted);font-size:18px}
 .svs-add-room-btn{display:block;width:calc(100% - 24px);margin:2px 12px 8px;min-height:48px;border-radius:12px;font-weight:900;border-style:dashed}
@@ -947,7 +962,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button class="mini-btn measure61-note" id="openRoomNote" type="button" aria-label="Room Note"><span class="measure61-top-icon">📝</span><span>Room Note</span><span class="room-note-count" id="roomNoteCount"></span></button>
    <input id="markupCameraPhoto" class="js-file-input" type="file" accept="image/*" capture="environment">
    <span id="measurePhotoStatus" class="measure-photo-status" aria-live="polite"></span>
-   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b></span></button>
+   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b><small>Back to rooms</small></span></button>
   </div>
   <div id="markupStage" class="markup-stage">
    <div id="markupWorld" class="markup-world">
@@ -2777,11 +2792,15 @@ function renderSendBar(){
 // directly on it (measureCaptures), so this just points the canvas at that
 // room's first photo. Add Picture, the pager, and editing marks all operate
 // on this exact room object from here on and can never touch a different one.
-function loadRoomForEdit(p,roomId){
+// photoIndex opens that exact photo (Site Visit Summary thumbnails); otherwise the first.
+function loadRoomForEdit(p,roomId,photoIndex){
  const r=(p.rooms||[]).find(x=>x.id===roomId);
  if(!r)return;
+ // Already working in this job (its summary or its room strip): no "Continue working?" question.
+ if(state.currentProject===p.id)jobConfirmedThisSession=true;
  state.currentRoom=r.id;
- state.currentCaptureIndex=0;
+ const photos=(r.measureCaptures||[]).length;
+ state.currentCaptureIndex=Math.max(0,Math.min(photos-1,Math.floor(Number(photoIndex)||0)));
  p.startNewRoom=false;
  save();
  show('measure');
@@ -3110,9 +3129,19 @@ function renderSiteVisitSummary(){
  list.innerHTML=rooms.map(r=>{
   const n=(r.measureCaptures||[]).length;
   const floorPrefix=floorDisplayLabel(r.location);
-  return `<button type="button" class="svs-room-row" data-svs-room="${r.id}"><span class="svs-room-icon">${r.icon||'📍'}</span><span class="svs-room-info"><b>${safe(r.name||'Unnamed')}</b><small>${floorPrefix?safe(floorPrefix)+' · ':''}${n} photo${n===1?'':'s'}</small></span>${roomHasNote(r)?'<span class="svs-room-note" title="Room Note" aria-label="Has a Room Note">📝</span>':''}<span class="svs-room-check">✓</span><span class="svs-room-chev">›</span></button>`;
+  // Each photo as a thumbnail (tap: that exact photo opens for editing) and the room's
+  // sizes as a short list, so measurements already taken can be checked without opening
+  // every photo. Read only from the room's own captures; nothing here changes them.
+  const sizes=[];
+  (r.measureCaptures||[]).forEach((cap,i)=>(cap.marks||[]).forEach(m=>{if(m&&m.type==='measure'&&String(m.value??'').trim()!=='')sizes.push({photo:i+1,name:m.name||m.kind||t('msg.measurementFallback'),value:m.value,unit:m.unit||'mm'})}));
+  const thumbs=(r.measureCaptures||[]).map((cap,i)=>{const k=(cap.marks||[]).filter(m=>m&&m.type==='measure').length;
+   return `<button type="button" class="svs-thumb" data-svs-photo="${r.id}" data-svs-photo-index="${i}" aria-label="Open photo ${i+1} of ${safe(r.name||'this room')}">${cap.image?`<img src="${cap.image}" alt="">`:'<span class="svs-thumb-empty">📷</span>'}<span class="svs-thumb-no">${i+1}</span>${k?`<span class="svs-thumb-count">${k} size${k===1?'':'s'}</span>`:''}</button>`}).join('');
+  const shown=sizes.slice(0,6),more=sizes.length-shown.length;
+  const sizeList=sizes.length?`<ul class="svs-sizes">${shown.map(x=>`<li><span>${safe(x.name)}</span><b>${safe(x.value)} ${safe(x.unit)}</b>${n>1?`<small>photo ${x.photo}</small>`:''}</li>`).join('')}${more?`<li class="svs-sizes-more">+ ${more} more</li>`:''}</ul>`:'<div class="svs-sizes-none">No sizes entered yet</div>';
+  return `<div class="svs-room-card"><button type="button" class="svs-room-row" data-svs-room="${r.id}"><span class="svs-room-icon">${r.icon||'📍'}</span><span class="svs-room-info"><b>${safe(r.name||'Unnamed')}</b><small>${floorPrefix?safe(floorPrefix)+' · ':''}${n} photo${n===1?'':'s'} · ${sizes.length} size${sizes.length===1?'':'s'}</small></span>${roomHasNote(r)?'<span class="svs-room-note" title="Room Note" aria-label="Has a Room Note">📝</span>':''}<span class="svs-room-check">✓</span><span class="svs-room-chev">›</span></button><div class="svs-thumbs">${thumbs}</div>${sizeList}</div>`;
  }).join('');
  list.querySelectorAll('[data-svs-room]').forEach(b=>b.onclick=()=>loadRoomForEdit(p,b.dataset.svsRoom));
+ list.querySelectorAll('[data-svs-photo]').forEach(b=>b.onclick=()=>loadRoomForEdit(p,b.dataset.svsPhoto,Number(b.dataset.svsPhotoIndex)));
  const custLine=document.getElementById('svsCustomerLine');
  if(custLine)custLine.textContent='Customer: '+(p.customer||'Not set');
  renderNotesRow();
