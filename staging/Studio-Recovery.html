@@ -6943,7 +6943,12 @@ body.guide-only .a131-back-studio{display:block}
    sheet='<div class="fiq-nt-card" style="grid-column:1/-1;text-align:left"><div class="fiq-nt-expect">Typed text comparison: the same numbers as ordinary spreadsheet text</div><div class="fiq-nt-meta">Scan a number here, then the same number on its card above. Both must open the same panel.</div>'+
     '<table style="border-collapse:collapse;margin:10px 0;background:#fff"><tr>'+['Number','Panel','Part','Size'].map(x=>'<td style="'+td+';background:#f3f3f3">'+x+'</td>').join('')+'</tr>'+
     rows.map(r=>'<tr>'+r.map(x=>'<td style="'+td+'">'+safe(x)+'</td>').join('')+'</tr>').join('')+'</table>'+
-    '<button class="btn" type="button" id="fiqNumberSheetCsv" style="width:auto">Download as spreadsheet (CSV)</button></div>';
+    '<button class="btn" type="button" id="fiqNumberSheetCsv" style="width:auto">Download as spreadsheet (CSV)</button></div>'+
+    // Panel numbers inside ordinary sentences: one number in a sentence, then two close
+    // together (aim the + at one, or tap its highlight; between them nothing is chosen).
+    (rows.length>=3?'<div class="fiq-nt-card" style="grid-column:1/-1;text-align:left"><div class="fiq-nt-expect">Numbers inside normal text</div><div class="fiq-nt-meta">Scan each sentence. The first must open '+safe(rows[Math.min(3,rows.length-2)][1])+'. In the second, aim the + at one number or tap its box.</div>'+
+     '<p style="font:400 13pt Calibri,Carlito,Arial,sans-serif;color:#000;margin:14px 0">The shelf for the kids bedroom is panel '+safe(rows[Math.min(3,rows.length-2)][0])+', measuring 800 × 550 mm.</p>'+
+     '<p style="font:700 13pt Arial,sans-serif;color:#000;margin:14px 0">Fit '+safe(rows[0][0])+' and '+safe(rows[1][0])+' on the left side, 2400 x 600 x 18.</p></div>':'');
   }
   // The QR boxes move to a hidden holder: the QR screen still draws into them a moment
   // later, but only the numbers are on screen and printed.
