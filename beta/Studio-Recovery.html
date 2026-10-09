@@ -3707,7 +3707,9 @@ function renderCustomerCard(){
    `<button type="button" class="btn primary customer-new-job-btn" data-new-job="${safe(c.id)}">${t("studio.customerLibrary.newJobBtn")}</button>`+
    `<button type="button" class="btn customer-select-toggle-btn" data-toggle-select>${customerCardSelectMode?t("studio.customerLibrary.cancelBtn"):t("studio.customerLibrary.selectBtn")}</button>`+
  `</div>`;
- const jobsTabRowsHtml=jobRows.length?jobRows.map(({project:p,room,cabinet,unitCount,firstInGroup})=>{
+ const jobsTabRowsHtml=jobRows.length?jobRows.map(({project:p,room,cabinet,unitCount,firstInGroup},rowIndex)=>{
+   // Above each job's rows: the job name and its combined Job Spreadsheet (all rooms and wardrobes).
+   const jobHead=rowIndex===0||jobRows[rowIndex-1].project.id!==p.id?`<div class="customer-job-head"><span>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</span><button type="button" class="customer-job-sheet-btn" data-job-sheet="${safe(p.id)}" title="One spreadsheet for every room and wardrobe in this job, one row per sticker">⇩ Job Spreadsheet</button></div>`:"";
    const icon=room?(room.icon||"⌂"):"⌂";
    const outsideRooms=!room&&(p.rooms||[]).some(r=>r.name);
    const name=(room?room.name:(p.name||t("studio.customerLibrary.untitledJob")))+((unitCount>1||outsideRooms)&&cabinet.name?" · "+cabinet.name:"");
@@ -3721,7 +3723,7 @@ function renderCustomerCard(){
    const rowBtn=`<button type="button" class="customer-tab-row" data-open-job-design="${safe(room?room.id:"")}" data-open-job-design-project="${safe(p.id)}" data-open-job-design-cabinet="${safe(cabinet.id)}">`+
      `<span class="customer-tab-row-icon">${safe(icon)}</span>`+
      `<span class="customer-tab-row-main"><strong>${safe(name)}</strong>${subtitle?`<span class="customer-tab-row-sub">${subtitle}</span>`:""}</span>`+
-     `<span class="customer-tab-row-meta"><span class="customer-job-status ${status.cls}">${status.label}</span>${panelHtml}${updatedHtml}</span>`+
+     `<span class="customer-tab-row-meta"><span class="customer-job-status ${status.cls}"${/Cutting List sent/.test(status.label)?` data-chip-open-list title="Open the saved Cutting List"`:""}>${status.label}</span>${panelHtml}${updatedHtml}</span>`+
      `<span class="customer-tab-row-chevron">›</span>`+
    `</button>`;
    const sentVersions=typeof window.fiqSentVersionCount==='function'?window.fiqSentVersionCount(p.id,room?room.id:"",cabinet.id):0;
@@ -3729,7 +3731,7 @@ function renderCustomerCard(){
    const evidenceCount=typeof window.fiqJobEvidenceCount==='function'?window.fiqJobEvidenceCount(p.id,room?room.id:"",cabinet.id):0;
    const evidenceBtn=evidenceCount?`<button type="button" class="customer-cutting-list-btn customer-evidence-btn" data-open-job-evidence="${safe(room?room.id:"")}" data-open-job-evidence-project="${safe(p.id)}" data-open-job-evidence-cabinet="${safe(cabinet.id)}" title="Photos and notes kept with this job">📷 ${evidenceCount}</button>`:"";
    const overflowHtml=`<div class="customer-row-overflow"><button type="button" class="customer-row-overflow-btn" data-overflow-toggle title="${t("studio.customerLibrary.jobOptionsMenuTitle")}">⋮</button><div class="customer-row-overflow-menu" hidden><button type="button" class="customer-row-overflow-item" data-delete-customer-job="${safe(p.id)}">🗑 ${t("detail.delete")}</button></div></div>`;
-   return `<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${cuttingListBtn}${evidenceBtn}${firstInGroup?overflowHtml:""}</div>`;
+   return jobHead+`<div class="customer-tab-row-wrap">${checkboxHtml}${rowBtn}${cuttingListBtn}${evidenceBtn}${firstInGroup?overflowHtml:""}</div>`;
  }).join(""):`<div class="empty">${t("studio.customerLibrary.noJobsDesignsYetEmpty")}</div>`;
  const supplierSendHtml=(customerCardSelectMode&&supplierSelectedJobIds.size>0)?`<button type="button" class="btn primary customer-supplier-send-btn" data-send-selected-supplier>${t(supplierSelectedJobIds.size===1?"studio.customerLibrary.sendToSupplierSingular":"studio.customerLibrary.sendToSupplierPlural",[supplierSelectedJobIds.size])}</button>`:"";
  const jobsTabHtml=jobsToolbarHtml+jobsTabRowsHtml+supplierSendHtml;
@@ -3770,7 +3772,11 @@ function renderCustomerCard(){
  // original record, or the other way round.
  // A job row opens that job's own page (Overview / Drawing / Cutting List / Panel Check /
  // Site Measure / Notes); its 📋 button opens the job's latest SENT Cutting List, read-only.
- body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=()=>window.fiqOpenJobPage(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet));
+ body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=e=>{
+  // The green "Cutting List sent" label opens the saved list itself; the rest of the row keeps its menu.
+  if(e&&e.target&&e.target.closest("[data-chip-open-list]")){window.fiqOpenSentCuttingList(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet);return}
+  window.fiqOpenJobPage(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet)});
+ body.querySelectorAll("[data-job-sheet]").forEach(el=>el.onclick=e=>{e.stopPropagation();const pr=state.projects.find(x=>x.id===el.dataset.jobSheet);if(pr&&typeof window.fiqDownloadJobSheet==="function"){const r=window.fiqDownloadJobSheet(pr);if(!r)alert("No panels in "+(pr.name||"this job")+" are ready for the supplier yet.")}});
  body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>window.fiqOpenSentCuttingList(el.dataset.openCuttingListProject,el.dataset.openCuttingList,el.dataset.openCuttingListCabinet));
  body.querySelectorAll("[data-open-job-evidence]").forEach(el=>el.onclick=()=>window.fiqOpenJobEvidence(el.dataset.openJobEvidenceProject,el.dataset.openJobEvidence,el.dataset.openJobEvidenceCabinet));
  // Each Site Measurement row (and every photo/photo-group) opens ONLY that room's own
@@ -7204,6 +7210,12 @@ body.guide-only .a131-back-studio{display:block}
  const css=document.createElement('style');css.textContent=
   '.fiq-room-code-row{display:flex;gap:8px;align-items:center}.fiq-room-code-row input{width:90px;height:40px;text-transform:uppercase;font:900 18px Inter,Arial,sans-serif;letter-spacing:.06em;text-align:center;border:1px solid #cfd6e4;border-radius:10px}'+
   '.fiq-room-code-msg{margin-top:6px;font-size:13px;color:#5b6b85}.fiq-room-code-msg.err{color:#b42318;font-weight:700}'+
+  // Customer Library: the saved Cutting List and the job window open in the middle of the screen;
+  // the green Cutting List label opens it directly; each job has its own Job Spreadsheet button.
+  '.fiq-job-dialog{align-items:center;padding:16px;box-sizing:border-box}.fiq-job-dialog .fiq-job-sheet{border-radius:20px;max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box}'+
+  '.customer-job-status[data-chip-open-list]{cursor:pointer;text-decoration:underline;text-underline-offset:2px}.customer-job-status[data-chip-open-list]:hover{filter:brightness(.95)}'+
+  '.customer-job-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 2px 6px;font-weight:900;color:#23364e}.customer-job-head:first-child{margin-top:4px}'+
+  '.customer-job-sheet-btn{height:30px;padding:0 12px;border:1px solid #6bbf3a;background:#e6f5dc;color:#1f5d12;border-radius:8px;font:800 12px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap}.customer-job-sheet-btn:hover{background:#d5eec5}'+
   '.fiq-sticker.fiq-sticker-ref{display:flex;flex-direction:column;gap:4px}'+
   '.fiq-sticker-ref .fs-ref{align-self:flex-start;font:900 calc(var(--fs-qr)*.36)/1 Arial,Helvetica,sans-serif;letter-spacing:.03em;white-space:nowrap;color:#000;padding-bottom:4px;margin-bottom:calc(var(--fs-qr)*.12)}'+
   '.fiq-sticker-ref .fs-ref.fs-ref-long{font-size:calc(var(--fs-qr)*.28)}';
@@ -7260,7 +7272,8 @@ body.guide-only .a131-back-studio{display:block}
  const css=document.createElement('style');css.textContent=
   '.fiq-wardrobe-bar{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}'+
   '.fiq-wardrobe-bar select{height:28px;max-width:190px;border:1px solid #cfd6e4;border-radius:8px;background:#fff;color:#23364e;font:700 12px Inter,Arial,sans-serif;padding:0 6px}'+
-  '.fiq-wardrobe-bar .fiq-next-wardrobe{height:28px;padding:0 10px;font-size:12px;font-weight:800;white-space:nowrap;border-radius:8px}'+
+  '.fiq-wardrobe-bar .fiq-next-wardrobe{height:28px;padding:0 10px;font-size:12px;font-weight:800;white-space:nowrap;border-radius:8px;background:#e6f5dc;border:1px solid #6bbf3a;color:#1f5d12;display:inline-flex;align-items:center;gap:4px}'+
+  '.fiq-wardrobe-bar .fiq-next-wardrobe:hover{background:#d5eec5}.fiq-wardrobe-bar .fiq-nw-plus{font-size:16px;font-weight:900;line-height:1}'+
   '.fiq-nw-dialog .a100-edit-sheet{max-width:420px}.fiq-nw-dialog label{display:block;margin:10px 0 4px;font-weight:800}'+
   '.fiq-nw-dialog input,.fiq-nw-dialog select{width:100%;box-sizing:border-box;height:40px;border:1px solid #cfd6e4;border-radius:10px;padding:0 10px;font:600 15px Inter,Arial,sans-serif}'+
   '.fiq-nw-note{margin-top:10px;font-size:13px;color:#5b6b85}.fiq-nw-warn{margin-top:10px;font-size:13px;color:#8a5a00}';
@@ -7282,7 +7295,7 @@ body.guide-only .a131-back-studio{display:block}
   if(!bar){
    bar=document.createElement('div');bar.id='fiqWardrobeBar';bar.className='fiq-wardrobe-bar';
    bar.innerHTML='<select id="fiqWardrobeSelect" aria-label="Open wardrobe" title="Open another wardrobe of this job"></select>'+
-    '<button type="button" class="btn fiq-next-wardrobe" id="fiqNextWardrobeBtn" title="Keep this wardrobe and start the next one. Nothing is deleted.">＋ Next wardrobe</button>';
+    '<button type="button" class="btn fiq-next-wardrobe" id="fiqNextWardrobeBtn" title="Keep this wardrobe and start the next one. Nothing is deleted."><b class="fiq-nw-plus" aria-hidden="true">＋</b>Next wardrobe</button>';
    bar.querySelector('#fiqWardrobeSelect').addEventListener('change',e=>openWardrobe(e.target.value));
    bar.querySelector('#fiqNextWardrobeBtn').addEventListener('click',e=>{e.preventDefault();openDialog(null)});
   }
