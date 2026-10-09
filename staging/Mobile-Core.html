@@ -214,6 +214,7 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .svs-sizes li b{font-weight:900;white-space:nowrap}
 .svs-sizes li small{font-size:11px;color:var(--muted);white-space:nowrap}
 .svs-sizes-more{color:var(--muted);font-weight:800}
+.svs-room-details{display:block;width:calc(100% - 28px);margin:0 14px 12px;min-height:38px;border:1px solid var(--line);border-radius:10px;background:#f8fafc;color:var(--ink);font-weight:800;font-size:13px}
 .svs-sizes-none{padding:0 14px 12px;font-size:12px;color:var(--muted);font-weight:700}
 .svs-room-check{flex:none;width:24px;height:24px;border-radius:50%;background:#2ea043;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center}
 .svs-room-chev{flex:none;color:var(--muted);font-size:18px}
@@ -324,6 +325,10 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .mobile-projects-title{font-size:30px;font-weight:900;color:#174E98;margin:8px 0 6px}.lang-switch{display:flex;justify-content:flex-end;padding:8px 4px;gap:8px}.lang-current-btn{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:900;line-height:1;background:#fff;border:2px solid #e2dfec;border-radius:14px;padding:9px 16px;color:#174E98}.lang-current-flag{width:28px;height:18px;border-radius:3px;overflow:hidden;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.lang-current-flag svg{width:100%;height:100%;display:block}.lang-picker-item{width:100%;display:flex;align-items:center;gap:14px;font-size:19px;font-weight:800;padding:14px 18px;border:2px solid #e2dfec;border-radius:14px;background:#fff;margin-bottom:10px;color:#174E98}.lang-picker-item.active{border-color:#FFC600;background:#fffbea}.lang-picker-flag{width:36px;height:24px;border-radius:4px;overflow:hidden;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.lang-picker-flag svg{width:100%;height:100%;display:block}.lang-picker-name{flex:1;text-align:left}.lang-btn.active{opacity:1;border-color:#FFC600;background:#fffbea}
 .mobile-projects-help{color:#69657b;font-size:15px;margin-bottom:10px}
 .mobile-archived-jobs{margin:14px 0}
+.mobile-sent-jobs{border-top:2px solid #bbf7d0;padding-top:4px}
+.site-unsent-overlay{position:fixed;inset:0;z-index:1200;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px}
+.site-unsent-sheet{background:#fff;border-radius:18px;padding:18px;width:min(420px,100%);display:grid;gap:10px}.site-unsent-sheet h3{margin:0;font-size:19px}.site-unsent-sheet p{margin:0;font-size:15px;line-height:1.45}.site-unsent-sheet .btn{width:100%;min-height:48px;font-weight:900}.site-unsent-sheet .btn.danger{color:#b42318;border-color:#f3b4ae}
+.site-received-banner{position:fixed;left:12px;right:12px;top:calc(56px + env(safe-area-inset-top));z-index:2147483647;background:#16a34a;color:#fff;font-weight:900;font-size:16px;padding:14px 16px;border-radius:14px;box-shadow:0 8px 24px #0004;transform:translateY(-150%);transition:transform .25s}.site-received-banner.show{transform:none}
 .mobile-archived-jobs summary{cursor:pointer;font-size:17px;font-weight:900;color:#16a34a;padding:12px 4px;list-style:none}
 .mobile-archived-jobs summary::-webkit-details-marker{display:none}
 .mobile-archived-jobs[open] summary{margin-bottom:6px}
@@ -2217,7 +2222,7 @@ function renderProjects(){
   const finished=realRoom?roomDone(realRoom):allRoomsFinished(p);
   const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);
   const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
-  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>${sync.detail?`<span class="job-sync-detail">${safe(sync.detail)}</span>`:''}${sync.removable?`<button type="button" class="btn job-delete-photos" data-remove-site-measure="${safe(p.id)}">Delete from this device</button>`:''}`:'';
+  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>${sync.detail?`<span class="job-sync-detail">${safe(sync.detail)}</span>`:''}${sync.removable?`<button type="button" class="btn job-delete-photos" data-remove-site-measure="${safe(p.id)}">Remove from this phone</button>`:''}`:'';
   const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);
   const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';
   // NEW badge reads the room's own mobileSeen where a real room exists (set the moment
@@ -2249,9 +2254,15 @@ function renderProjects(){
   // (icon | content | actions).
   const selectHtml=ready?`<label class="mobile-job-select" title="${safe(t('mobile.selectJobAria'))}"><input type="checkbox" class="mobile-job-select-checkbox" data-select-card="${safe(key)}" ${mobileSelectedCardKeys.has(key)?'checked':''}></label>`:'';
   const safetyCopy=!!card.safetyCopy;
-  const safetyBadge=safetyCopy?`<span class="job-status-badge finished">Protected for ${Math.max(1,Number(card.safetyHours)||1)} more hour${Number(card.safetyHours)===1?'':'s'}</span>`:'';
+  // A Site Measure card shows what was measured (rooms, photos, sizes) and only its send
+  // status; a received one also says when Studio received it.
+  const siteCard=!isStudioJob(p);
+  const siteCount=siteCard?siteMeasureCounts(p):null;
+  const receivedAt=siteCard&&p.mobileArchived?Date.parse(p.studioReceivedAt||p.mobileArchivedAt||''):NaN;
+  const safetyBadge=safetyCopy&&Number.isFinite(receivedAt)?`<span class="job-status-badge finished">Received ${safe(new Date(receivedAt).toLocaleDateString([],{day:'numeric',month:'short'}))}</span>`:'';
   const deleteHtml=safetyCopy?'':`<button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button>`;
-  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
+  const metaCounts=siteCard?`${siteCount.rooms} room${siteCount.rooms===1?'':'s'} · ${siteCount.photos} photo${siteCount.photos===1?'':'s'} · ${siteCount.sizes} size${siteCount.sizes===1?'':'s'}`:`${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}`;
+  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${siteCard?'':badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${metaCounts}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
  }
  // A job assigned to someone else's email never appears on this phone at all -- not
  // greyed out, not visible-but-locked, just not in the list, the same way it would look
@@ -2281,14 +2292,14 @@ function renderProjects(){
  // <details> section so they stop crowding the working list while staying one tap away.
  // Archiving itself is still a whole-project decision (archiveIfFinishedInstallation
  // requires every room finished), so every one of a project's cards moves together.
+ // A received Site Measure edited since its receipt goes back to the working list first.
+ unarchiveChangedSiteJobs();
  const siteJobs=visibleSiteProjects.filter(p=>!p.mobileArchived);
  const archivedSite=visibleSiteProjects.filter(p=>p.mobileArchived);
- // A Studio acceptance clears the active measuring queue immediately, but the complete
- // local record remains available as a protected safety copy for 24 hours. Older copies
- // stay in local storage for recovery but disappear from the working screen, so Mobile
- // remains a tool rather than a long-term storage list.
- const SITE_RECEIVED_SAFETY_MS=24*60*60*1000;
- const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0||siteMeasureRemovable(x.project));
+ // Sent to Studio: every Site Measure Studio has received stays listed (newest first) and
+ // can be reopened, until it is removed from this phone by hand. Nothing is hidden or
+ // removed automatically.
+ const receivedSafetySite=archivedSite.map(p=>({project:p,at:Date.parse(p.studioReceivedAt||p.mobileArchivedAt||'')||0})).sort((a,b)=>b.at-a.at);
  const installCardsActive=installCards.filter(c=>!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
   .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?roomDone(a.room):allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?roomDone(b.room):allRoomsFinished(b.project))?1:0;return fa-fb});
  const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt));
@@ -2301,7 +2312,7 @@ function renderProjects(){
  // cards) -- installHtml already carries its own "Studio Installation Jobs" heading when
  // there's real content, so this never doubles up with it.
  const jobsEmptyHtml=installCards.length?"":`<div class="mobile-empty-projects">${t('proj.noStudioJobsYetEmpty')}</div>`;
- const archivedSiteHtml=receivedSafetySite.length?`<details class="mobile-archived-jobs"><summary>✓ Received by Studio · 24 hour safety copy (${receivedSafetySite.length}) ›</summary>${receivedSafetySite.map(x=>jobCard({project:x.project,room:null,safetyCopy:true,safetyHours:Math.ceil(x.remaining/3600000)})).join("")}</details>`:"";
+ const archivedSiteHtml=receivedSafetySite.length?`<details class="mobile-archived-jobs mobile-sent-jobs" open><summary>✓ Sent to Studio (${receivedSafetySite.length}) ›</summary>${receivedSafetySite.map(x=>jobCard({project:x.project,room:null,safetyCopy:true})).join("")}</details>`:"";
  const archivedInstallHtml=archivedInstallCards.length?`<details class="mobile-archived-jobs"><summary>✓ Finished Installations (${archivedInstallCards.length}) ›</summary>${archivedInstallCards.map(jobCard).join("")}</details>`:"";
  // Site Measure (Mobile-created) and Jobs (Studio-sent) never share a list -- only one
  // half is ever drawn into #jobList at a time, matching whichever half of the header/
@@ -2331,9 +2342,18 @@ function renderProjects(){
   p.mobileSeen=true;
   if(room)room.mobileSeen=true;
   save();
+  // A Site Measure opens on its Site Visit Summary: its rooms, photo thumbnails and sizes,
+  // each photo one tap from editing. Installation jobs open as before.
+  if(!isStudioJob(p)){state.currentRoom=null;save();show('siteVisitSummary');return}
   show(isInstallationJob(p)&&!(p.rooms&&p.rooms.length)?"install":"drawings");
  });
- $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);[...mobileSelectedCardKeys].forEach(k=>{if(parseCardKey(k).projectId===p.id)mobileSelectedCardKeys.delete(k)});if(Array.isArray(state.activeCardKeys))state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
+ $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;
+  // A Site Measure with work Studio has not received: Send to Studio first, or Delete anyway
+  // behind a second warning (siteUnsentDeleteDialog). Everything else as before.
+  if(siteHasUnsentWork(p)){siteUnsentDeleteDialog(p);return}
+  if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;deleteJobFromPhone(p)});
+ function deleteJobFromPhone(p){if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);[...mobileSelectedCardKeys].forEach(k=>{if(parseCardKey(k).projectId===p.id)mobileSelectedCardKeys.delete(k)});if(Array.isArray(state.activeCardKeys))state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()}
+ window.fiqDeleteJobFromPhone=deleteJobFromPhone;
  $$(".mobile-job-select-checkbox").forEach(cb=>cb.onchange=()=>{
   if(cb.checked)mobileSelectedCardKeys.add(cb.dataset.selectCard);else mobileSelectedCardKeys.delete(cb.dataset.selectCard);
   const cardEl=cb.closest('.job');if(cardEl)cardEl.classList.toggle('mobile-job-selected',cb.checked);
@@ -2718,7 +2738,12 @@ function applySiteReceipt(p,rc){
  if(st.receipt.complete){
   st.status='received';st.receivedAt=new Date().toISOString();p.siteReceiptRetries=0;
   // Studio holds exactly what is on this phone: a queued resend is no longer needed.
-  if(fp===siteManifestFingerprint(buildSiteTransferManifest(p,'check'))&&typeof clearPendingStudioSync==='function')clearPendingStudioSync(p.id);
+  if(fp===siteManifestFingerprint(buildSiteTransferManifest(p,'check'))){
+   if(typeof clearPendingStudioSync==='function')clearPendingStudioSync(p.id);
+   // Studio holds exactly this Site Measure: it moves to Sent to Studio, and the fitter is
+   // told which job was received, whatever is open on the phone.
+   if(!isStudioJob(p)){const first=!p.mobileArchived;p.mobileArchived=true;p.mobileArchivedAt=p.mobileArchivedAt||st.receivedAt;p.studioReceivedAt=p.studioReceivedAt||st.receivedAt;if(first&&typeof showSiteReceivedBanner==='function')showSiteReceivedBanner(p)}
+  }
  }else{st.status='incomplete';p.siteReceiptRetries=(Number(p.siteReceiptRetries)||0)+1;if(p.siteReceiptRetries<=SITE_RECEIPT_RETRIES)setTimeout(()=>{if(typeof exportJob==='function')exportJob(p.id,true)},1500)}
  return true;
 }
@@ -2739,11 +2764,56 @@ function siteTransferChanged(p){const st=p&&p.siteTransfer;return !!(st&&st.fing
 // same as the existing "delete job from phone": the Site Measure and its photos leave this
 // phone; Studio and the cloud message keep everything. The local note in deletedProjectIds
 // stops a later message from bringing it back onto this phone.
+// What a Site Measure holds, for its job card: rooms with photos, photos, sizes entered.
+function siteMeasureCounts(p){
+ const rooms=(p.rooms||[]).filter(r=>(r.measureCaptures||[]).length);
+ const caps=rooms.flatMap(r=>r.measureCaptures||[]).concat(p.measureCaptures||[]);
+ return {rooms:rooms.length,photos:caps.length,sizes:caps.reduce((n,c)=>n+(c.marks||[]).filter(m=>m&&m.type==='measure'&&String(m.value??'').trim()!=='').length,0)};
+}
+// A received Site Measure edited since Studio's receipt is unsent work again: it goes back
+// to the working list (Changed since last send) so it can never sit hidden under Sent.
+function unarchiveChangedSiteJobs(){
+ let changed=false;
+ (state.projects||[]).forEach(p=>{if(p&&!isStudioJob(p)&&p.mobileArchived&&p.siteTransfer&&siteTransferChanged(p)){p.mobileArchived=false;p.mobileArchivedAt=null;changed=true}});
+ if(changed)save();
+ return changed;
+}
+// Work on this phone that Studio has not confirmed: a Site Measure with photos, sizes or notes
+// and no receipt for exactly its current content.
+function siteHasUnsentWork(p){
+ if(!p||isStudioJob(p))return false;
+ const c=siteMeasureCounts(p),notes=(p.rooms||[]).some(r=>String(r.notes||'').trim()||(r.notePhotos||[]).length)||String(p.siteNotes||'').trim()||(p.siteNotePhotos||[]).length;
+ if(!c.photos&&!notes)return false;
+ return !siteReceiptValid(p);
+}
+function siteUnsentDeleteDialog(p){
+ document.getElementById('siteUnsentDelete')?.remove();
+ const name=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||'this Site Measure'),c=siteMeasureCounts(p);
+ const o=document.createElement('div');o.id='siteUnsentDelete';o.className='site-unsent-overlay';
+ o.innerHTML=`<div class="site-unsent-sheet" role="dialog" aria-modal="true"><h3>Not received by Studio yet</h3><p><b>${safe(name)}</b> has work Studio has not received: ${c.rooms} room${c.rooms===1?'':'s'}, ${c.photos} photo${c.photos===1?'':'s'}, ${c.sizes} size${c.sizes===1?'':'s'}.</p><button type="button" class="btn primary" data-unsent-send>🚀 Send to Studio first</button><button type="button" class="btn danger" data-unsent-delete>Delete anyway…</button><button type="button" class="btn" data-unsent-cancel>Cancel</button></div>`;
+ document.body.appendChild(o);
+ const close=()=>o.remove();
+ o.onclick=e=>{if(e.target===o)close()};
+ o.querySelector('[data-unsent-cancel]').onclick=close;
+ o.querySelector('[data-unsent-send]').onclick=()=>{close();state.currentProject=p.id;jobConfirmedThisSession=true;save();show('siteVisitSummary');if(typeof sendAllRoomsToStudio==='function')sendAllRoomsToStudio(p)};
+ o.querySelector('[data-unsent-delete]').onclick=()=>{
+  if(!confirm('Delete anyway?\n\n'+name+' has not been received by Studio. Its measurements and photos on this phone will be lost and cannot be recovered.'))return;
+  close();if(typeof window.fiqDeleteJobFromPhone==='function')window.fiqDeleteJobFromPhone(p);
+ };
+}
+// "Received in Studio" with the job name, whatever screen is open, when the receipt arrives.
+function showSiteReceivedBanner(p){
+ const name=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||'Site Measure');
+ let el=document.getElementById('siteReceivedBanner');
+ if(!el){el=document.createElement('div');el.id='siteReceivedBanner';el.className='site-received-banner';el.setAttribute('role','status');document.body.appendChild(el)}
+ el.textContent='✓ Received in Studio: '+name;el.classList.add('show');
+ clearTimeout(el.__t);el.__t=setTimeout(()=>el.classList.remove('show'),6000);
+}
 function siteMeasureRemovable(p){return !!(p&&!isStudioJob(p)&&siteReceiptValid(p)&&!(typeof studioSendsInFlight!=='undefined'&&studioSendsInFlight.has(p.id)))}
 function removeConfirmedSiteMeasureFromDevice(p){
  if(!siteMeasureRemovable(p))return false;
  const photos=localSitePhotoItems(p).length;
- if(!confirm('This Site Measure will be removed from this device'+(photos?', including '+photos+' photo'+(photos===1?'':'s'):'')+'. It has been received in Studio, which keeps everything.'))return false;
+ if(!confirm('Remove this Site Measure from this phone'+(photos?', including '+photos+' photo'+(photos===1?'':'s'):'')+'? Studio has received it and keeps everything. Only the copy on this phone is removed.'))return false;
  if(!siteMeasureRemovable(p))return false;
  if(typeof clearPendingStudioSync==='function')clearPendingStudioSync(p.id);
  deleteAllPhotosForProject(p);
@@ -2775,6 +2845,7 @@ function siteTransferStatus(p){
  return null;
 }
 function renderSendBar(){
+ unarchiveChangedSiteJobs();
  const p=project(),box=document.getElementById('measureSendBar');
  if(!box)return;
  if(!p){box.innerHTML='';return}
@@ -2785,7 +2856,7 @@ function renderSendBar(){
  const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
  const syncLine='';
  const stateBlock=sync&&sync.label!=='Not sent yet'?`<div class="send-bar-state state-${sync.cls}" role="status"><b>${safe(sync.label)}</b>${sync.detail?`<small>${safe(sync.detail)}</small>`:''}</div>`:'';
- box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>${stateBlock}${sync&&sync.removable?`<button type="button" class="btn send-bar-delete-photos" data-remove-site-measure="${safe(p.id)}">Delete from this device</button>`:''}`;
+ box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>${stateBlock}${sync&&sync.removable?`<button type="button" class="btn send-bar-delete-photos" data-remove-site-measure="${safe(p.id)}">Remove from this phone</button>`:''}`;
  document.getElementById('sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
 }
 // Tapping a finished room's own tile edits ONLY that room -- its photos live
@@ -3138,9 +3209,10 @@ function renderSiteVisitSummary(){
    return `<button type="button" class="svs-thumb" data-svs-photo="${r.id}" data-svs-photo-index="${i}" aria-label="Open photo ${i+1} of ${safe(r.name||'this room')}">${cap.image?`<img src="${cap.image}" alt="">`:'<span class="svs-thumb-empty">📷</span>'}<span class="svs-thumb-no">${i+1}</span>${k?`<span class="svs-thumb-count">${k} size${k===1?'':'s'}</span>`:''}</button>`}).join('');
   const shown=sizes.slice(0,6),more=sizes.length-shown.length;
   const sizeList=sizes.length?`<ul class="svs-sizes">${shown.map(x=>`<li><span>${safe(x.name)}</span><b>${safe(x.value)} ${safe(x.unit)}</b>${n>1?`<small>photo ${x.photo}</small>`:''}</li>`).join('')}${more?`<li class="svs-sizes-more">+ ${more} more</li>`:''}</ul>`:'<div class="svs-sizes-none">No sizes entered yet</div>';
-  return `<div class="svs-room-card"><button type="button" class="svs-room-row" data-svs-room="${r.id}"><span class="svs-room-icon">${r.icon||'📍'}</span><span class="svs-room-info"><b>${safe(r.name||'Unnamed')}</b><small>${floorPrefix?safe(floorPrefix)+' · ':''}${n} photo${n===1?'':'s'} · ${sizes.length} size${sizes.length===1?'':'s'}</small></span>${roomHasNote(r)?'<span class="svs-room-note" title="Room Note" aria-label="Has a Room Note">📝</span>':''}<span class="svs-room-check">✓</span><span class="svs-room-chev">›</span></button><div class="svs-thumbs">${thumbs}</div>${sizeList}</div>`;
+  return `<div class="svs-room-card"><button type="button" class="svs-room-row" data-svs-room="${r.id}"><span class="svs-room-icon">${r.icon||'📍'}</span><span class="svs-room-info"><b>${safe(r.name||'Unnamed')}</b><small>${floorPrefix?safe(floorPrefix)+' · ':''}${n} photo${n===1?'':'s'} · ${sizes.length} size${sizes.length===1?'':'s'}</small></span>${roomHasNote(r)?'<span class="svs-room-note" title="Room Note" aria-label="Has a Room Note">📝</span>':''}<span class="svs-room-check">✓</span><span class="svs-room-chev">›</span></button><div class="svs-thumbs">${thumbs}</div>${sizeList}<button type="button" class="svs-room-details" data-svs-details="${r.id}">Room details: name, floor, notes, delete</button></div>`;
  }).join('');
  list.querySelectorAll('[data-svs-room]').forEach(b=>b.onclick=()=>loadRoomForEdit(p,b.dataset.svsRoom));
+ list.querySelectorAll('[data-svs-details]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.svsDetails;jobConfirmedThisSession=true;save();show('drawings')});
  list.querySelectorAll('[data-svs-photo]').forEach(b=>b.onclick=()=>loadRoomForEdit(p,b.dataset.svsPhoto,Number(b.dataset.svsPhotoIndex)));
  const custLine=document.getElementById('svsCustomerLine');
  if(custLine)custLine.textContent='Customer: '+(p.customer||'Not set');
@@ -4051,7 +4123,8 @@ async function checkPendingStudioReceipts(){
  try{await checkPendingStudioReceiptsOnce()}finally{checkingStudioReceipts=false}
 }
 async function checkPendingStudioReceiptsOnce(){
- const pending=state.projects.filter(p=>p.pendingStudioReceiptDocId&&!p.mobileArchived);
+ // A Site Measure already under Sent to Studio still hears Studio's acceptance.
+ const pending=state.projects.filter(p=>p.pendingStudioReceiptDocId&&(!p.mobileArchived||!isStudioJob(p)));
  if(!pending.length)return;
  const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
  if(!fs||!db||!user||!user.companyId)return;
