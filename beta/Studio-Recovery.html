@@ -3414,9 +3414,36 @@ function restoreDeletedProject(id){
  state.deletedProjects=state.deletedProjects.filter(x=>!x||!x.project||x.project.id!==id);
  state.deletedProjectIds=(state.deletedProjectIds||[]).filter(x=>x!==id);
  recordJobLifecycle(id,'restored',Number(entry.deletedAt)||null);
+ if(entry.customerMove){const c=(state.customers||[]).find(x=>x.id===entry.customerMove.customerId);if(c)delete c.movedToDeletedAt}
  ensureCustomerForProject(entry.project);
+ // Phone updates kept while the job was deleted are added now, oldest first, through the
+ // same merge as any phone update: counts take the highest value and pieces are matched by
+ // piece, so nothing is counted twice.
+ (entry.latePhoneUpdates||[]).slice().sort((a,b)=>(Date.parse(a.exportedAt)||a.receivedAt||0)-(Date.parse(b.exportedAt)||b.receivedAt||0)).forEach(u=>{
+  try{const inc=ensureSharedProject(JSON.parse(JSON.stringify(u.project)));if(u.exportedAt)inc._packetExportedAt=u.exportedAt;const m=mergeMobileProject(inc);
+   const at=Date.parse(u.exportedAt||'');if(m&&Number.isFinite(at))m._lastMobilePacketAt=Math.max(Number(m._lastMobilePacketAt)||0,at)}catch(e){console.error('Late phone update could not be added',e)}
+ });
  return true;
 }
+// A phone update for a job in Deleted Jobs: kept with that job (not thrown away) so a restore
+// adds it back. Only work the job did not already have is kept (sent after the job's last
+// merged phone update); the same update arriving twice is kept once. A job deleted forever,
+// or no longer in Deleted Jobs, has nothing to keep it with: the update is discarded, as before.
+function parkLatePhoneUpdate(incoming){
+ const entry=(state.deletedProjects||[]).find(x=>x&&x.project&&x.project.id===incoming.id);
+ if(!entry)return false;
+ const at=Date.parse(incoming._packetExportedAt||'');
+ if(Number.isFinite(at)&&at<=(Number(entry.project._lastMobilePacketAt)||0))return false;
+ entry.latePhoneUpdates=entry.latePhoneUpdates||[];
+ const key=incoming._packetExportedAt||'';
+ if(key&&entry.latePhoneUpdates.some(u=>u.exportedAt===key))return false;
+ const copy=JSON.parse(JSON.stringify(incoming));delete copy._packetExportedAt;
+ entry.latePhoneUpdates.push({receivedAt:Date.now(),exportedAt:key,project:copy});
+ if(entry.latePhoneUpdates.length>20)entry.latePhoneUpdates=entry.latePhoneUpdates.slice(-20);
+ try{save()}catch(e){}
+ return true;
+}
+window.fiqParkLatePhoneUpdate=parkLatePhoneUpdate;
 // Durable delete / restore history for the cloud copy (Stage 2.2). Append-only. No
 // workflow reads it and nothing shows it: delete and restore look and work as before.
 function recordJobLifecycle(jobId,event,deletedAt){
@@ -4394,7 +4421,9 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 // otherwise resurrect it. Returning null here (instead of re-adding) is the one
 // real fix; every caller of mergeMobileProject() must treat a null result as
 // "this project was deleted, discard the packet" rather than a project to use.
-if((state.deletedProjectIds||[]).includes(incoming.id))return null;
+// While the job can still be restored, a phone update that arrives late (an offline phone
+// sending its work later) is kept with the deleted job and added back on restore.
+if((state.deletedProjectIds||[]).includes(incoming.id)){parkLatePhoneUpdate(incoming);return null}
 let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
 const packetAt=Date.parse(incoming._packetExportedAt||'');
 const isStalePacket=Number.isFinite(packetAt)&&packetAt<Math.max(Number(base._lastRoomsSyncAt)||0,Number(base._lastMobilePacketAt)||0);
@@ -7261,6 +7290,93 @@ body.guide-only .a131-back-studio{display:block}
  function ensureAll(){let ch=false;try{(state.projects||[]).forEach(p=>{if(ensureScanRefs(p))ch=true})}catch(e){console.error('Scan references failed',e)}return ch}
  window.fiqEnsureAllScanRefs=ensureAll;
  setTimeout(()=>{try{if(ensureAll()){save();renderAll()}sheetButton()}catch(e){}},300);
+})();
+</script>
+<script id="fiq-customer-delete">
+// Move customer to Deleted (customer Edit window). Every job of the customer goes to Deleted
+// Jobs exactly as a single job delete does (deleteProjectRecord: a full copy, restorable for
+// the existing 30 days), marked as one group, so Restore customer brings all of them back
+// together with the customer details, which are never removed. Before anything moves, the
+// cloud is checked for phone updates of these jobs that have arrived but are not added yet;
+// if there are any, or the cloud cannot be checked, nothing moves. Phone updates that arrive
+// later are kept with the deleted job (parkLatePhoneUpdate) and added back on restore.
+(function(){
+ const css=document.createElement('style');css.textContent=
+  '.fiq-cust-move{margin-top:6px;padding-top:12px;border-top:1px solid #e3e8f1}.fiq-cust-move .btn{width:100%}'+
+  '.fiq-cdel .a100-edit-sheet{max-width:620px}.fiq-cdel-dialog{align-items:center;padding:16px;box-sizing:border-box}.fiq-cdel-dialog .a100-edit-sheet{border-radius:20px;max-height:calc(100vh - 32px);overflow:auto}'+
+  '.fiq-cdel-jobs{display:grid;gap:8px;margin:4px 0}.fiq-cdel-job{border:1px solid #e3e8f1;border-radius:12px;padding:10px 12px;background:#fafbfd}.fiq-cdel-job b{display:block;margin-bottom:3px}'+
+  '.fiq-cdel-job span{font-size:13px;color:#4a5a73}.fiq-cdel-note{font-size:13px;color:#4a5a73;line-height:1.45}.fiq-cdel-warn{font-size:14px;color:#8a3b00;font-weight:700;background:#fff4e5;border:1px solid #f3c48a;border-radius:10px;padding:10px 12px}';
+ document.head.appendChild(css);
+ const plural=(n,w)=>n+' '+w+(n===1?'':'s');
+ function jobSummary(p){
+  const cabs=p.cabinets||[],parts=cabs.flatMap(c=>c.parts||[]);
+  const versions=Object.values(p.sentCuttingLists||{}).reduce((n,l)=>n+(Array.isArray(l)?l.length:0),0);
+  const photos=(p.sitePhotos||[]).length+(p.measureCaptures||[]).length+(p.notePhotos||[]).length+(p.siteNotePhotos||[]).length+
+   (p.rooms||[]).reduce((n,r)=>n+(r.measureCaptures||[]).length+(r.beforePhotos||[]).length+(r.notePhotos||[]).length+(r.designImages||[]).length,0)+
+   parts.reduce((n,pt)=>n+(pt.panelPhotos||[]).length,0);
+  const checked=parts.reduce((n,pt)=>n+(Number(pt.scannedQty)||0),0),fitted=parts.reduce((n,pt)=>n+(Number(pt.installedQty)||0),0);
+  const pieces=parts.reduce((n,pt)=>n+Math.max(1,Number(pt.qty)||1),0);
+  return [plural((p.rooms||[]).length,'room'),plural(cabs.length,'wardrobe'),plural(pieces,'panel'),plural(versions,'saved Cutting List'),plural(photos,'picture'),
+   'Panel Check '+checked+' of '+pieces+(fitted?', '+fitted+' fitted':'')].join(' · ');
+ }
+ // Phone updates for these jobs already in the cloud but not added yet. null = cannot check.
+ async function waitingUpdates(ids){
+  const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
+  if(!fs||!db||!user||!user.companyId||typeof waitingSitePacketsQuery!=='function')return null;
+  try{
+   const snap=await fs.getDocs(waitingSitePacketsQuery(fs,db,user.companyId)),out=[];
+   snap.forEach(d=>{const x=d.data()||{},pr=x.project||x;if(pr&&ids.includes(pr.id))out.push(pr.id)});
+   let local=[];try{local=(typeof studioInboxPackets==='function'?await studioInboxPackets():[]).map(pk=>(pk&&pk.project?pk.project:pk)||{}).filter(pr=>ids.includes(pr.id)).map(pr=>pr.id)}catch(e){}
+   return [...new Set(out.concat(local))];
+  }catch(e){console.warn('Could not check for waiting phone updates',e);return null}
+ }
+ async function moveCustomer(c,editDialog){
+  const jobs=typeof customerProjects==='function'?customerProjects(c.id):[];
+  const o=document.createElement('div');o.className='a100-edit-dialog fiq-cdel-dialog fiq-cdel';
+  const close=()=>o.remove();
+  o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true"><h2>Move '+safe(c.name||'customer')+' to Deleted?</h2><div class="fiq-cdel-note">Checking for phone updates that have not been added yet…</div></div>';
+  document.body.appendChild(o);o.onclick=e=>{if(e.target===o)close()};
+  const ids=jobs.map(p=>p.id),waiting=ids.length?await waitingUpdates(ids):[];
+  if(waiting===null||waiting.length){
+   const names=(waiting||[]).map(id=>(jobs.find(p=>p.id===id)||{}).name||'a job');
+   o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true"><h2>Nothing was moved</h2><div class="fiq-cdel-warn">'+(waiting===null?'Studio could not check the cloud for phone updates (no connection). Try again when Studio is online.':'Phone updates for '+safe([...new Set(names)].join(', '))+' have arrived but are not added to Studio yet. Add them first (New Project, Site Jobs Ready, or wait a minute for Panel Check updates), then try again.')+'</div><div class="a100-edit-actions"><button type="button" class="btn primary" data-cdel-close>OK</button></div></div>';
+   o.querySelector('[data-cdel-close]').onclick=close;return false;
+  }
+  o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true"><h2>Move '+safe(c.name||'customer')+' to Deleted?</h2>'+
+   (jobs.length?'<div class="fiq-cdel-note"><b>What moves to Deleted:</b></div><div class="fiq-cdel-jobs">'+jobs.map(p=>'<div class="fiq-cdel-job"><b>'+safe(p.name||'Untitled job')+'</b><span>'+safe(jobSummary(p))+'</span></div>').join('')+'</div>':'<div class="fiq-cdel-note">This customer has no jobs.</div>')+
+   '<div class="fiq-cdel-note"><b>What can be restored:</b> everything above, together with the customer details ('+safe([c.phone,c.email,c.address].filter(Boolean).join(', ')||'name only')+'), from New Project, Deleted Jobs, Restore customer, for 30 days. The jobs leave the fitters’ phones.</div>'+
+   '<div class="fiq-cdel-note"><b>Phones:</b> a phone that is offline may still send work for these jobs later. That work is kept with the deleted jobs and added back if you restore.</div>'+
+   '<div class="a100-edit-actions"><button type="button" class="btn" data-cdel-cancel>Cancel</button><button type="button" class="btn danger" data-cdel-go>Move customer to Deleted</button></div></div>';
+  o.querySelector('[data-cdel-cancel]').onclick=close;
+  return new Promise(resolve=>{o.querySelector('[data-cdel-go]').onclick=()=>{
+   const gid=uid(),at=Date.now();
+   ids.forEach(id=>{if(deleteProjectRecord(id)){const e=(state.deletedProjects||[]).find(x=>x&&x.project&&x.project.id===id);if(e)e.customerMove={id:gid,customerId:c.id,customerName:c.name||'',at}}});
+   c.movedToDeletedAt=at;
+   save();close();if(editDialog)editDialog.remove();
+   const back=document.getElementById('customerCardBackBtn');if(back&&back.offsetParent)back.click();
+   renderAll();
+   if(typeof toast==='function')toast((c.name||'Customer')+' moved to Deleted. Restore from New Project, Deleted Jobs.');
+   resolve(true);
+  }});
+ }
+ window.fiqMoveCustomerToDeleted=moveCustomer;
+ const base=window.openEditCustomerDialog;
+ if(typeof base==='function'){
+  window.openEditCustomerDialog=function(customerId){
+   const out=base.apply(this,arguments);
+   try{
+    const c=(state.customers||[]).find(x=>x.id===customerId),dialogs=document.querySelectorAll('.a100-edit-dialog'),o=dialogs[dialogs.length-1],sheet=o&&o.querySelector('.a100-edit-sheet');
+    if(c&&sheet&&sheet.querySelector('#editCustName')&&!sheet.querySelector('[data-move-customer]')){
+     const box=document.createElement('div');box.className='fiq-cust-move';
+     box.innerHTML='<button type="button" class="btn danger" data-move-customer>Move customer to Deleted</button>';
+     sheet.appendChild(box);
+     box.querySelector('[data-move-customer]').onclick=()=>moveCustomer(c,o);
+    }
+   }catch(e){console.error('Move customer option failed',e)}
+   return out;
+  };
+  try{openEditCustomerDialog=window.openEditCustomerDialog}catch(e){}
+ }
 })();
 </script>
 <script id="fiq-next-wardrobe">
@@ -10484,12 +10600,17 @@ body.fiq-locked .app{display:none!important}
       const deleted=state.deletedProjects||[];
       const list=deleted.length?deleted.map(entry=>{
         const p=entry.project;
-        return '<div class="deleted-job-row"><span><strong>'+safe(p.customer||p.name||'Untitled job')+'</strong><small>'+safe(p.name||'Project')+' · Deleted '+new Date(entry.deletedAt).toLocaleDateString()+'</small></span><button type="button" class="btn" data-restore-deleted="'+safe(p.id)+'">Restore</button><button type="button" class="btn danger" data-forget-deleted="'+safe(p.id)+'">Delete forever</button></div>';
+        const late=(entry.latePhoneUpdates||[]).length;
+        return '<div class="deleted-job-row"><span><strong>'+safe(p.customer||p.name||'Untitled job')+'</strong><small>'+safe(p.name||'Project')+' · Deleted '+new Date(entry.deletedAt).toLocaleDateString()+(entry.customerMove?' · moved with the customer':'')+(late?' · '+late+' phone update'+(late===1?'':'s')+' kept, added back on restore':'')+'</small></span><button type="button" class="btn" data-restore-deleted="'+safe(p.id)+'">Restore</button><button type="button" class="btn danger" data-forget-deleted="'+safe(p.id)+'">Delete forever</button></div>';
       }).join(''):'<div class="empty">No deleted jobs</div>';
-      dialog.innerHTML='<div class="a100-edit-sheet"><h2>Deleted Jobs</h2><p class="muted">Jobs can be restored for 30 days.</p><div class="deleted-jobs-list">'+list+'</div><div class="a100-edit-actions"><button type="button" class="btn" data-close-deleted>Close</button></div></div>';
+      // Customers moved to Deleted: all their jobs come back together with one Restore.
+      const groups={};deleted.forEach(e=>{if(e.customerMove){const g=groups[e.customerMove.id]=groups[e.customerMove.id]||{name:e.customerMove.customerName,jobs:0};g.jobs++}});
+      const groupHtml=Object.entries(groups).map(([gid,g])=>'<div class="deleted-job-row deleted-customer-row"><span><strong>👤 '+safe(g.name||'Customer')+'</strong><small>Customer moved to Deleted · '+g.jobs+' job'+(g.jobs===1?'':'s')+'</small></span><button type="button" class="btn primary" data-restore-customer-group="'+safe(gid)+'">Restore customer</button></div>').join('');
+      dialog.innerHTML='<div class="a100-edit-sheet"><h2>Deleted Jobs</h2><p class="muted">Deleted jobs stay here for 30 days and can be restored with everything in them. After 30 days, or with Delete forever, the job is gone for good. Customer details are not removed automatically.</p><div class="deleted-jobs-list">'+groupHtml+list+'</div><div class="a100-edit-actions"><button type="button" class="btn" data-close-deleted>Close</button></div></div>';
       document.body.appendChild(dialog);
       const closeDeleted=()=>dialog.remove();dialog.onclick=e=>{if(e.target===dialog)closeDeleted()};dialog.querySelector('[data-close-deleted]').onclick=closeDeleted;
       dialog.querySelectorAll('[data-restore-deleted]').forEach(btn=>btn.onclick=()=>{if(restoreDeletedProject(btn.dataset.restoreDeleted)){save();closeDeleted();close();renderAll();window.openNewProjectLanding()}});
+      dialog.querySelectorAll('[data-restore-customer-group]').forEach(btn=>btn.onclick=()=>{const ids=(state.deletedProjects||[]).filter(e=>e&&e.customerMove&&e.customerMove.id===btn.dataset.restoreCustomerGroup).map(e=>e.project.id);let n=0;ids.forEach(id=>{if(restoreDeletedProject(id))n++});if(n){save();closeDeleted();close();renderAll();window.openNewProjectLanding()}});
       dialog.querySelectorAll('[data-forget-deleted]').forEach(btn=>btn.onclick=()=>{if(!confirm('Delete this job forever? This cannot be undone.'))return;state.deletedProjects=(state.deletedProjects||[]).filter(x=>x.project.id!==btn.dataset.forgetDeleted);save();closeDeleted();close();renderAll();if(incomingMeasurementProjects().length)window.openNewProjectLanding()});
     };
     overlay.querySelectorAll('[data-open-incoming-project]').forEach(card=>card.onclick=()=>{
