@@ -1954,7 +1954,7 @@ function jobAccessDeniedMessage(p){
  const names=[p&&p.assignedFitter,...((p&&p.otherFitters)||[])].filter(Boolean);
  return names.length?('This job is assigned to '+names.join(' and ')+'.'):'Job not assigned to you. Contact the office.';
 }
-function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){
+function openPanelRoute(q){if(typeof fiqRouteThroughLabels==="function")q=fiqRouteThroughLabels(q);const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){
  // The QR/manual identification only ever tells you the exact panel once you're already
  // allowed to see the job it belongs to -- a scan hitting someone else's job must not leak
  // the drawing, customer name or anything else about it, just the same generic message
@@ -3771,6 +3771,9 @@ function mergeStudioProject(incoming){
   // job ever reached Studio at all.
   incoming.address=incoming.address||old.address||"";incoming.phone=incoming.phone||old.phone||"";incoming.notes=incoming.notes||old.notes||"";
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;
+    // Studio made a piece of this panel unique: progress this phone keyed by the old piece order
+    // is not merged back (it would put the moved piece back); Studio's progress is kept as sent.
+    if(ip.piecesRenumberedAt&&ip.piecesRenumberedAt!==op.piecesRenumberedAt){["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});return}
     ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(op[k]!==undefined)ip[k]=Math.max(Number(ip[k])||0,Number(op[k])||0)});
     mergePieceStates(ip,op.pieceStates);
     ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});
@@ -4775,14 +4778,25 @@ function resolveScanRef(word,projects){
  projects.forEach(pr=>(pr.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{const code=String(pt.code||'').toUpperCase();if(/^[A-Z]{1,4}\d+$/.test(code)&&scanRefCanon(code)===want)hits.push({pr,c,pt,exact:code===base})})));
  const pool=hits.length>1?hits.filter(h=>h.exact):hits;
  const clear=/^[A-Z]{1,4}\d{1,5}$/.test(base)&&(pieceRaw==null||/^\d{1,3}$/.test(pieceRaw));
- if(!pool.length)return clear&&!hits.length?{kind:'nomatch',token:word}:{kind:'unclear'};
+ const piece=pieceCanon==null?null:Number(pieceCanon);
+ // A label printed before Make unique or Group identical pieces: its alias says which piece
+ // it is now (fiqFindAlias). The route counts printed label numbers; openPanelRoute turns it
+ // into the current piece (fiqRouteThroughLabels).
+ const byAlias=()=>{const al=typeof fiqFindAlias==='function'?fiqFindAlias(projects,a=>scanRefCanon(a.code)===want&&(a.labelNo==null?piece==null:Number(a.labelNo)===piece)):null;if(!al)return null;
+  const tq=Math.max(1,Math.floor(Number(al.pt.qty)||1)),split=Array.isArray(al.pt.pieceNos),lab=al.toLabel;
+  return {kind:'match',token:al.pt.code+(tq>1||split?'-'+lab:''),route:{a:'A1',v:8,projectId:al.pr.id,cabinetId:al.c.id,panelId:al.pt.id,copyIndex:lab===1?-1:lab-2}}};
+ if(!pool.length)return byAlias()||(clear&&!hits.length?{kind:'nomatch',token:word}:{kind:'unclear'});
  if(pool.length>1)return {kind:'duplicate',token:word};
- const {pr,c,pt}=pool[0],q=Math.max(1,Math.floor(Number(pt.qty)||1)),piece=pieceCanon==null?null:Number(pieceCanon);
+ const {pr,c,pt}=pool[0],q=Math.max(1,Math.floor(Number(pt.qty)||1)),split=Array.isArray(pt.pieceNos);
  // Same piece rule as the stickers: Qty 1 prints KB12, Qty > 1 prints KB12-1, KB12-2 ...
- if(q>1){if(piece==null)return {kind:'unclear'};if(piece<1||piece>q)return {kind:'nomatch',token:pt.code+'-'+piece}}
- else if(piece!=null)return {kind:'unclear'};
- const k=q>1?piece:1;
- return {kind:'match',token:pt.code+(q>1?'-'+k:''),route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
+ // (after Make unique, the label numbers in pt.pieceNos).
+ if(q>1||split){
+  if(piece==null)return byAlias()||{kind:'unclear'};
+  if(typeof fiqCurOfLabelNo==='function'?fiqCurOfLabelNo(pt,piece)==null:(piece<1||piece>q))return byAlias()||{kind:'nomatch',token:pt.code+'-'+piece};
+ }
+ else if(piece!=null)return byAlias()||{kind:'unclear'};
+ const k=q>1||split?piece:1;
+ return {kind:'match',token:pt.code+(q>1||split?'-'+k:''),route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
 }
 // The job(s) this scanner is working in: a combined Panel Check session's jobs, otherwise
 // the open job. Never any other job on the phone.
@@ -7269,4 +7283,35 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
 }
 </style>
 
+<script id="fiq-piece-labels">
+// Fixed piece labels. Every physical piece has its own printed label (MB2-1 ... MB2-5), and
+// Panel Check counts each one once. When Studio makes one piece unique, the others keep
+// their label numbers: pt.pieceNos lists the label number of each piece in order. The piece
+// that moved, and panels merged by Group identical pieces, are found again through
+// pt.labelAliases ({panelId, code, labelNo, legacyNo, toLabel}), so labels already printed
+// keep opening the right piece. A panel without pieceNos is numbered 1..qty as always.
+function fiqLabelNos(pt){const q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1));return Array.isArray(pt&&pt.pieceNos)?pt.pieceNos.slice(0,q):Array.from({length:q},(_,i)=>i+1)}
+function fiqLabelNoOf(pt,cur){const n=fiqLabelNos(pt)[cur-1];return n==null?cur:n}
+function fiqCurOfLabelNo(pt,no){const i=fiqLabelNos(pt).indexOf(Number(no));return i<0?null:i+1}
+// The panel and current piece an alias points to, inside the given jobs.
+function fiqFindAlias(projects,test){
+ for(const pr of projects)for(const c of (pr.cabinets||[]))for(const pt of (c.parts||[]))for(const a of (pt.labelAliases||[]))if(a&&test(a))return {pr,c,pt,toLabel:Number(a.toLabel)||1};
+ return null;
+}
+// A route from a printed label (its copyIndex counts printed label numbers) to the piece it
+// is now: unchanged for panels never split; moved and merged pieces follow their alias.
+function fiqRouteThroughLabels(q){
+ if(!q||!q.panelId)return q;
+ const pr=(state.projects||[]).find(x=>x.id===q.projectId);if(!pr)return q;
+ const lbl=q.copyIndex==null?null:(Number(q.copyIndex)===-1?1:Number(q.copyIndex)+2);
+ let hit=null;for(const c of (pr.cabinets||[]))for(const pt of (c.parts||[]))if(pt.id===q.panelId)hit={c,pt};
+ const toCur=(c,pt,label)=>{const cur=label==null?null:fiqCurOfLabelNo(pt,label);return {...q,cabinetId:c.id,panelId:pt.id,copyIndex:cur==null?null:(cur===1?-1:cur-2)}};
+ if(hit){
+  if(!Array.isArray(hit.pt.pieceNos))return q;
+  if(lbl==null||fiqCurOfLabelNo(hit.pt,lbl)!=null)return toCur(hit.c,hit.pt,lbl);
+ }
+ const a=fiqFindAlias([pr],x=>x.panelId===q.panelId&&(x.labelNo==null||Number(x.labelNo)===lbl));
+ return a?toCur(a.c,a.pt,a.toLabel):q;
+}
+</script>
 </body></html>

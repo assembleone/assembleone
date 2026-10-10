@@ -2687,6 +2687,20 @@ function createPartAt(x,y){
  // but no further dot is placed while a panel on this unit is unfinished (Part Name, Length,
  // Width, Thickness, Material; edging is optional) -- no blank dots to be decided later.
  if(fiqDotBlockedByUnfinished(c,pending))return;
+ // Shared references: another dot while a finished panel is selected is another position of
+ // that same panel (identical piece): same reference, quantity one higher, its own circle.
+ // Make unique splits a position off into its own panel when a piece turns out different.
+ if(pending&&typeof fiqPanelFinished==="function"&&fiqPanelFinished(pending)){
+  save();
+  const wasReviewed=!!pending.reviewSignature&&typeof window.panelReviewSignature==="function"&&pending.reviewSignature===window.panelReviewSignature(pending);
+  pending.copies=pending.copies||[];pending.copies.push({x,y});
+  pending.qty=Math.max(1,Math.floor(Number(pending.qty)||1))+1;
+  // Placing a repeated piece on purpose is itself the approval of the new quantity.
+  if(wasReviewed)pending.reviewSignature=window.panelReviewSignature(pending);
+  state.selectedCopy=pending.copies.length-1;
+  if(typeof renderForm==='function')renderForm();
+  save();renderAll();return;
+ }
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('panel_created');
  const rememberedThickness=Number(c.lastThickness ?? 19) || 19;
  const inheritedMaterial=(project()?.defaultMaterial||c.lastMaterial||"").trim();
@@ -3066,6 +3080,9 @@ function deletePanelDot(partId,copyIndex){
  if(qty>1){
   if(!confirm(`Remove one ${p.code}? Its quantity goes from ${qty} to ${qty-1}.`))return;
   const wasReviewed=!!p.reviewSignature&&typeof window.panelReviewSignature==="function"&&p.reviewSignature===window.panelReviewSignature(p);
+  // A grouped panel with Panel Check progress or fixed label numbers: the removed piece takes its
+  // own progress with it and the other pieces keep their printed labels (fiqForgetPiece).
+  if(typeof window.fiqForgetPiece==="function"&&(Array.isArray(p.pieceNos)||Number(p.scannedQty)>0||Object.keys(p.pieceStates||{}).length))window.fiqForgetPiece(p,i>=0&&p.copies?.[i]?i+2:(p.copies||[]).length?1:qty);
   if(i>=0&&p.copies?.[i])p.copies.splice(i,1);
   else if((p.copies||[]).length){const next=p.copies.shift();p.x=next.x;p.y=next.y}
   // A row whose quantity was typed higher than its dots can lose its last dot while
@@ -3736,7 +3753,7 @@ function renderCustomerCard(){
  `</div>`;
  const jobsTabRowsHtml=jobRows.length?jobRows.map(({project:p,room,cabinet,unitCount,firstInGroup},rowIndex)=>{
    // Above each job's rows: the job name and its combined Job Spreadsheet (all rooms and wardrobes).
-   const jobHead=rowIndex===0||jobRows[rowIndex-1].project.id!==p.id?`<div class="customer-job-head"><span>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</span><button type="button" class="customer-job-sheet-btn" data-job-sheet="${safe(p.id)}" title="One spreadsheet for every room and wardrobe in this job, one row per sticker">⇩ Job Spreadsheet</button></div>`:"";
+   const jobHead=rowIndex===0||jobRows[rowIndex-1].project.id!==p.id?`<div class="customer-job-head"><span>${safe(p.name||t("studio.customerLibrary.untitledJob"))}</span><span class="customer-job-sheet-btns"><button type="button" class="customer-job-sheet-btn" data-job-sheet="${safe(p.id)}" title="Cutting List for every room and wardrobe in this job, one row per panel with its quantity">⇩ Cutting List</button><button type="button" class="customer-job-sheet-btn" data-job-labels="${safe(p.id)}" title="The same pieces, one row per label. Not an extra order.">⇩ Label File</button></span></div>`:"";
    const icon=room?(room.icon||"⌂"):"⌂";
    const outsideRooms=!room&&(p.rooms||[]).some(r=>r.name);
    const name=(room?room.name:(p.name||t("studio.customerLibrary.untitledJob")))+((unitCount>1||outsideRooms)&&cabinet.name?" · "+cabinet.name:"");
@@ -3803,7 +3820,7 @@ function renderCustomerCard(){
   // The green "Cutting List sent" label opens the saved list itself; the rest of the row keeps its menu.
   if(e&&e.target&&e.target.closest("[data-chip-open-list]")){window.fiqOpenSentCuttingList(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet);return}
   window.fiqOpenJobPage(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet)});
- body.querySelectorAll("[data-job-sheet]").forEach(el=>el.onclick=e=>{e.stopPropagation();const pr=state.projects.find(x=>x.id===el.dataset.jobSheet);if(pr&&typeof window.fiqDownloadJobSheet==="function"){const r=window.fiqDownloadJobSheet(pr);if(!r)alert("No panels in "+(pr.name||"this job")+" are ready for the supplier yet.")}});
+ body.querySelectorAll("[data-job-sheet],[data-job-labels]").forEach(el=>el.onclick=e=>{e.stopPropagation();const id=el.dataset.jobSheet||el.dataset.jobLabels,pr=state.projects.find(x=>x.id===id),fn=el.dataset.jobLabels?window.fiqDownloadLabelFile:window.fiqDownloadJobSheet;if(pr&&typeof fn==="function"){const r=fn(pr);if(!r)alert("No panels in "+(pr.name||"this job")+" are ready for the supplier yet.")}});
  body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>window.fiqOpenSentCuttingList(el.dataset.openCuttingListProject,el.dataset.openCuttingList,el.dataset.openCuttingListCabinet));
  body.querySelectorAll("[data-open-job-evidence]").forEach(el=>el.onclick=()=>window.fiqOpenJobEvidence(el.dataset.openJobEvidenceProject,el.dataset.openJobEvidence,el.dataset.openJobEvidenceCabinet));
  // Each Site Measurement row (and every photo/photo-group) opens ONLY that room's own
@@ -3880,12 +3897,15 @@ function fiqEnsureLabelNumbers(pr){
 window.fiqEnsureLabelNumbers=fiqEnsureLabelNumbers;
 function fiqLabelMode(pr){return (pr||project())?.labelScanMode==="number"?"number":"qr"}
 window.fiqLabelMode=fiqLabelMode;
-// The text a Panel Number sticker carries: the scan reference, with the piece for Qty > 1
-// (KB12, or KB12-2). The same single reference the Cutting List and spreadsheet show.
+// The text a Panel Number sticker carries: the scan reference, with the piece label for
+// Qty > 1 (KB12, or KB12-2). Every physical piece has its own label. A piece keeps its label
+// number when another piece is made unique (fiqLabelNoOf), so printed labels stay right.
 function fiqLabelNumberText(p,piece){
  if(!p?.scanRefFixed)fiqEnsureLabelNumbers(project());
  const n=Math.max(1,Math.floor(Number(p?.qty)||1));
- return String(p?.code??"")+(n>1&&piece?"-"+piece:"");
+ if(!piece)return String(p?.code??"");
+ const no=typeof window.fiqLabelNoOf==="function"?window.fiqLabelNoOf(p,piece):piece;
+ return String(p?.code??"")+((n>1||Array.isArray(p?.pieceNos))?"-"+no:"");
 }
 window.fiqLabelNumberText=fiqLabelNumberText;
 function fiqStickerData(p,piece){
@@ -3938,7 +3958,8 @@ function mobileAppBase(){return (localStorage.getItem("assembleone_mobile_app_ur
 // The per-piece FittersIQ QR text for a panel of a given job/unit (same format everywhere).
 function fiqPieceQrText(pr,c,p,piece){
  const route=`${encodeURIComponent(pr?.id||"")}:${encodeURIComponent(c?.id||"")}:${encodeURIComponent(p.id)}`;
- const ci=Number.isInteger(piece)&&piece>=1?(piece===1?-1:piece-2):null;
+ const no=Number.isInteger(piece)&&piece>=1?(typeof window.fiqLabelNoOf==="function"?window.fiqLabelNoOf(p,piece):piece):null;
+ const ci=no!=null?(no===1?-1:no-2):null;
  const base=mobileAppBase();
  if(base)return `${base}#panel=${route}${ci!=null?":"+ci:""}`;
  const o={a:"A1",v:8,projectId:pr?.id||"",cabinetId:c?.id||"",panelId:p.id};if(ci!=null)o.copyIndex=ci;
@@ -4396,6 +4417,13 @@ function fiqMergePieceStates(base,inc){
   if(v.checkedAt&&(!b.checkedAt||Date.parse(v.checkedAt)<Date.parse(b.checkedAt))){b.checkedAt=v.checkedAt;b.checkedBy=v.checkedBy||null}
   if(v.statusAt&&(!b.statusAt||Number(v.statusAt)>Number(b.statusAt))){b.status=v.status||null;b.statusAt=v.statusAt;b.statusBy=v.statusBy||null;b.note=v.note||""}});
 }
+// After Make unique renumbered a panel's pieces, a phone that has not yet received the new
+// numbering still sends progress keyed by the old piece numbers: that progress is not merged
+// (it would put a moved piece back), until the phone has the renumbered panel.
+function fiqPhoneProgressFor(bp,ip){
+ if(!bp||!ip||!bp.piecesRenumberedAt||ip.piecesRenumberedAt===bp.piecesRenumberedAt)return ip;
+ const x={...ip};["pieceStates","scannedQty","installedQty","damagedQty","status","statusAt"].forEach(k=>delete x[k]);return x;
+}
 function mergePanelFields(bp,ip,stalePacket=false){
   ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(ip[k]!==undefined)bp[k]=Math.max(Number(bp[k])||0,Number(ip[k])||0)});
   fiqMergePieceStates(bp,ip.pieceStates);
@@ -4474,7 +4502,7 @@ const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","meas
   Object.assign(br,clonedIr);
 });
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){if((base.deletedCabinetIds||[]).includes(ic.id))return;base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,ip,isStalePacket)})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){if((base.deletedCabinetIds||[]).includes(ic.id))return;base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,fiqPhoneProgressFor(bp,ip),isStalePacket)})});return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);if(!merged){alert("This job was deleted from Studio and can't be restored from a backup file.");return}switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
@@ -5211,7 +5239,9 @@ $("#addSameMarkerBtn").onclick=()=>{const p=part();if(!p)return alert(t("studio.
   // value, so calling save() first would read the stale pre-bump number and clobber
   // this very update straight back out.
   renderAll();save();const d=document.querySelector(".panel-options");if(d)d.open=false;alert(t("studio.drawing.samePartNumberAddedAgain"))};
-$("#makeUniqueBtn").onclick=()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert(t("studio.drawing.selectRepeatedMarkerFirst"));const pos=p.copies.splice(i,1)[0];const copy=JSON.parse(JSON.stringify(p));copy.id=uid();delete copy.labelNo;copy.code=nextCode(c);copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];c.parts.push(copy);p.qty=Math.max(1,1+p.copies.length);state.currentPart=copy.id;state.selectedCopy=-1;
+$("#makeUniqueBtn").onclick=async()=>{const c=cabinet(),p=part(),i=Number(state.selectedCopy);if(!c||!p||i<0||!p.copies?.[i])return alert(t("studio.drawing.selectRepeatedMarkerFirst"));
+  // Split one position off with its own progress; asks when the received count is uncertain.
+  save();const copy=await window.fiqMakeUnique(c,p,i);if(!copy)return;state.currentPart=copy.id;state.selectedCopy=-1;
   // Same ordering fix as addSameMarkerBtn -- render before save so commitVisible reads
   // the new copy's own qty (1) from #fQty, not the parent panel's stale pre-split value.
   renderAll();save();const d=document.querySelector(".panel-options");if(d)d.open=false};
@@ -6414,7 +6444,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
  function mat(p){return String(materialForPanel(p)||'Not set').trim()||'Not set'}
  function rows(){return supplierParts()}
  function edge(n,kind){n=Number(n||0);const k=kind==='long'?{zero:'studio.supplier.noLongEdging',one:'studio.supplier.oneLongEdge',many:'studio.supplier.twoLongEdges'}:{zero:'studio.supplier.noShortEdging',one:'studio.supplier.oneShortEdge',many:'studio.supplier.twoShortEdges'};return n===0?t(k.zero):n===1?t(k.one):t(k.many)}
- function renderSupplierPage(){const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?(missing===1?t("studio.supplier.needsCheckingSingular",[missing]):t("studio.supplier.needsCheckingPlural",[missing])):t("studio.supplier.readyToManufacture");b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>${t("studio.supplier.completePanelsStatLabel")}</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>${t("studio.supplier.totalPiecesStatLabel")}</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>${t("bom.materials")}</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q===1?t("studio.supplier.pieceCountSingular",[q]):t("studio.supplier.pieceCountPlural",[q])}</span></div>`).join('')}</div>`:`<div class="muted">${t("studio.supplier.noCompleteMaterialsYet")}</div>`;const supplierRoom=(project()?.rooms||[]).find(r=>r.id===cabinet()?.roomId),supplierRoomTag=supplierRoom?`<div class="supplier-room-tag">${safe(supplierRoom.name)}</div>`:'';const cards=document.getElementById('supplierPanelCards');if(cards){const ids=new Set(list.map(p=>String(p.id))),pr=project(),cu=cabinet();const tbl=(list.length&&pr&&cu&&typeof window.fiqCuttingListRows==='function')?window.fiqCuttingListRows(pr,'unit:'+cu.id).filter(r=>ids.has(r.panelId)):[];cards.innerHTML=tbl.length?supplierRoomTag+'<div class="fiq-sent-scroll"><table class="fiq-sent-table fiq-cutting-table" data-cutting-table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Long edges</th><th class="num">Short edges</th><th class="num">Quantity</th><th>Material</th><th>Notes</th></tr></thead><tbody>'+tbl.map(r=>'<tr data-cutting-row="'+safe(r.panelNumber)+'"><td>'+safe(r.panelNumber)+'</td><td>'+safe(r.partName)+'</td><td class="num">'+r.thickness+'</td><td class="num">'+r.length+'</td><td class="num">'+r.width+'</td><td class="num">'+r.edgeLong+'</td><td class="num">'+r.edgeShort+'</td><td class="num">'+r.quantity+'</td><td>'+safe(r.material)+'</td><td>'+safe(r.notes)+'</td></tr>').join('')+'</tbody></table></div><div class="est-mat-note">All sizes in mm, as in the supplier spreadsheet.</div>':`<div class="empty">${t("studio.supplier.noCompletePanelsReadyForSupplier")}</div>`}}
+ function renderSupplierPage(){const all=cabinetParts(),list=rows(),missing=all.length-list.length,b=document.getElementById('supplierReadyBadge');if(b){b.textContent=missing?(missing===1?t("studio.supplier.needsCheckingSingular",[missing]):t("studio.supplier.needsCheckingPlural",[missing])):t("studio.supplier.readyToManufacture");b.className='supplier-ready '+(missing?'warn':'ready')}const mats={};list.forEach(p=>{const m=mat(p);mats[m]=(mats[m]||0)+Number(p.qty||1)});const s=document.getElementById('supplierSummary');if(s)s.innerHTML=`<div class="supplier-stat"><span>${t("studio.supplier.completePanelsStatLabel")}</span><strong>${list.length}</strong></div><div class="supplier-stat"><span>${t("studio.supplier.totalPiecesStatLabel")}</span><strong>${list.reduce((a,p)=>a+Number(p.qty||1),0)}</strong></div><div class="supplier-stat"><span>${t("bom.materials")}</span><strong>${Object.keys(mats).length}</strong></div>`;const ms=document.getElementById('supplierMaterialSummary');if(ms)ms.innerHTML=Object.keys(mats).length?`<div class="material-summary-grid">${Object.entries(mats).map(([m,q])=>`<div class="material-summary-item"><strong>${safe(m)}</strong><span>${q===1?t("studio.supplier.pieceCountSingular",[q]):t("studio.supplier.pieceCountPlural",[q])}</span></div>`).join('')}</div>`:`<div class="muted">${t("studio.supplier.noCompleteMaterialsYet")}</div>`;const supplierRoom=(project()?.rooms||[]).find(r=>r.id===cabinet()?.roomId),supplierRoomTag=supplierRoom?`<div class="supplier-room-tag">${safe(supplierRoom.name)}</div>`:'';const cards=document.getElementById('supplierPanelCards');if(cards){const ids=new Set(list.map(p=>String(p.id))),pr=project(),cu=cabinet();const tbl=(list.length&&pr&&cu&&typeof window.fiqCuttingListRows==='function')?window.fiqCuttingListRows(pr,'unit:'+cu.id).filter(r=>ids.has(r.panelId)):[];cards.innerHTML=tbl.length?supplierRoomTag+'<div class="fiq-sent-scroll"><table class="fiq-sent-table fiq-cutting-table" data-cutting-table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Long edges</th><th class="num">Short edges</th><th class="num">Quantity</th><th>Material</th><th>Notes</th></tr></thead><tbody>'+tbl.map(r=>'<tr data-cutting-row="'+safe(r.panelNumber)+'"><td>'+safe(r.panelNumber)+(typeof window.fiqLabelRangeFor==='function'?window.fiqLabelRangeFor(r.panelId):'')+'</td><td>'+safe(r.partName)+'</td><td class="num">'+r.thickness+'</td><td class="num">'+r.length+'</td><td class="num">'+r.width+'</td><td class="num">'+r.edgeLong+'</td><td class="num">'+r.edgeShort+'</td><td class="num">'+r.quantity+'</td><td>'+safe(r.material)+'</td><td>'+safe(r.notes)+'</td></tr>').join('')+'</tbody></table></div><div class="est-mat-note">All sizes in mm, as in the supplier spreadsheet.</div>':`<div class="empty">${t("studio.supplier.noCompletePanelsReadyForSupplier")}</div>`}}
  const baseRender=window.renderCutting;window.renderCutting=function(){if(typeof baseRender==='function')baseRender();renderSupplierPage()};
  function exportCsv(){const list=rows();if(!list.length){setStatus(t("studio.supplier.csvNoCompletePanelsErr"),'err');return}const btn=document.getElementById('exportSupplierCsvBtn');btn.disabled=true;setStatus(t("studio.supplier.csvCreating"));try{const data=[['Panel No.','Part name','Thickness mm','Length mm','Width mm','Long edges','Short edges','Quantity','Material','Notes'],...list.map(p=>[p.code,p.name||'',p.thickness,p.length,p.width,Number(p.edgeLong||0),Number(p.edgeShort||0),Number(p.qty||1),mat(p),p.notes||''])];const csv='\ufeff'+data.map(r=>r.map(escCsv).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=((project()?.name||'Job')+'_'+(cabinet()?.name||'Unit')+'_cutting_list.csv').replace(/[^a-z0-9_-]+/gi,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus(t("studio.supplier.csvExportedSuccess"))}catch(e){console.error(e);setStatus(t("studio.supplier.csvExportFailed"),'err')}finally{setTimeout(()=>btn.disabled=false,400)}}
  function openPrint(title,html){const w=window.open('','_blank');if(!w){setStatus('Print window was blocked. Allow popups for this file.','err');return false}w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safe(title)}</title><style>@page{margin:12mm}body{font-family:Arial,sans-serif;color:#223449}h1{font-family:Inter,sans-serif}.card{border:2px solid #d8d6e1;border-left:8px solid #0051ff;border-radius:14px;padding:14px;margin-bottom:10px;page-break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12px}.code{font-size:22px;font-weight:900}.name{font-size:18px;font-weight:900}.measure{font-size:18px;font-weight:800;margin-top:6px}.small{font-size:13px;color:#625c6d;margin-top:5px}.stickers{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}.sticker{border:2px solid #1f2329;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 90px;gap:10px;page-break-inside:avoid}.sticker img{width:90px;height:90px}.stickers .fiq-sticker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3mm;height:50mm;box-sizing:border-box;border:2px solid #111;border-radius:3mm;padding:3mm;color:#111;overflow:hidden;break-inside:avoid;page-break-inside:avoid}.fs-left{display:flex;flex-direction:column;gap:1.5mm;min-width:0}.fs-name{font:900 17pt Inter,Arial,sans-serif;line-height:1.05;overflow-wrap:anywhere}.fs-dims{font:800 10pt Arial,sans-serif}.fs-mat{font:700 10pt Arial,sans-serif;overflow-wrap:anywhere}.fs-cust{margin-top:auto;font:400 7.5pt Arial,sans-serif;color:#444;overflow-wrap:anywhere}.fs-right{display:flex;flex-direction:column;align-items:center;gap:1mm}.fs-code{font:900 13pt Inter,Arial,sans-serif;line-height:1;white-space:nowrap}.fs-qr img{display:block;width:37mm;height:37mm;image-rendering:pixelated}.qty{font-weight:900}</style>
@@ -6868,7 +6898,8 @@ body.guide-only .a131-back-studio{display:block}
   const copies=fiqStickerCopies(list||supplierParts()),count={};copies.forEach(({p})=>count[p.id]=(count[p.id]||0)+1);
   const rows=copies.map(({p,i})=>{
    const d=fiqStickerData(p,i+1),[top,bottom]=edgePair(p.edgeLong),[left,right]=edgePair(p.edgeShort),n=count[p.id];
-   return {panelId:p.id,panelNumber:d.code,piece:i+1,pieces:n,pieceLabel:(i+1)+'/'+n,pieceRef:d.labelNumber,
+   return {panelId:p.id,panelNumber:d.code,piece:i+1,pieces:n,pieceLabel:(i+1)+'/'+n,
+    pieceRef:d.labelNumber,
     partName:String(p.name||''),length:num(p.length),width:num(p.width),thickness:num(p.thickness),units:'mm',
     material:String(materialForPanel(p)||''),quantity:1,totalQuantity:n,
     // Edging: FittersIQ records how many long and short edges are edged. With Length
@@ -7185,54 +7216,83 @@ body.guide-only .a131-back-studio{display:block}
  function unusedScanRef(pr){ensureScanRefs(pr);const c=cabinet();return (c?roomCodeFor(pr,c):NO_ROOM)+(Number(pr.scanRefNext)+90)}
  Object.assign(window,{fiqEnsureScanRefs:ensureScanRefs,fiqNextScanRef:nextScanRef,fiqSuggestRoomCode:suggestRoomCode,fiqRoomCodeProblem:roomCodeProblem,fiqEnsureRoomCodes:ensureRoomCodes,fiqUnusedScanRef:unusedScanRef,fiqOrderedCabinets:orderedCabinets});
 
- // One combined spreadsheet for the whole job: every room and wardrobe, one row per sticker
- // (Quantity 1), so a supplier's own label system prints KB12-1, KB12-2 and KB12-3 straight
- // from the Scan number column without adding anything itself. Plain text, no images.
- const SHEET_COLUMNS=['Scan number','Part name','Length (mm)','Width (mm)','Thickness (mm)','Quantity','Material','Edging','Notes','Room','Wardrobe'];
+ // Two downloads made from the same panels of the whole job (every room and wardrobe):
+ // the Cutting List, one row per panel with its total quantity and its label range, to read
+ // and order from; and the Label File, one row per physical piece with its own label
+ // (MB2-1 ... MB2-5), to print labels from. The Label File lists the same pieces again and is
+ // not an extra order: both carry the same job, List ID and total piece count. Plain text.
+ const LIST_COLUMNS=['Reference','Part name','Length (mm)','Width (mm)','Thickness (mm)','Quantity','Labels','Material','Edging','Notes','Room','Wardrobe','Job','List ID','List total pieces'];
+ const LABEL_COLUMNS=['Scan number','Reference','Piece','Part name','Length (mm)','Width (mm)','Thickness (mm)','Material','Edging','Notes','Room','Wardrobe','Job','List ID','List total pieces','Note'];
  const edging=pt=>{const l=Math.max(0,Math.floor(Number(pt.edgeLong)||0)),s=Math.max(0,Math.floor(Number(pt.edgeShort)||0));return l||s?[l?l+' long':'',s?s+' short':''].filter(Boolean).join(', '):'None'};
  function ready(pt){
   const missing=typeof window.fiqPanelMissingFields==='function'?window.fiqPanelMissingFields(pt):[];
   const reviewed=typeof window.panelIsReviewed==='function'?window.panelIsReviewed(pt):true;
   return !missing.length&&reviewed;
  }
- function jobSheet(pr){
-  pr=pr||project();if(!pr)return {rows:[],left:[]};
-  ensureScanRefs(pr);
-  const rows=[],left=[];
-  orderedCabinets(pr).forEach(c=>{const room=(pr.rooms||[]).find(r=>r.id===c.roomId);
-   (c.parts||[]).forEach(pt=>{
-    if(!ready(pt)){left.push(pt.code);return}
-    const n=Math.max(1,Math.min(500,Math.floor(Number(pt.qty)||1))),mat=String(pt.material||pr.defaultMaterial||c.lastMaterial||'').trim();
-    for(let k=1;k<=n;k++)rows.push({num:refNumber(pt.code),piece:k,cells:[pt.code+(n>1?'-'+k:''),String(pt.name||''),pt.length,pt.width,pt.thickness,1,mat,edging(pt),String(pt.notes||''),String(room&&room.name||''),String(c.name||'')]});
-   })});
-  rows.sort((a,b)=>a.num-b.num||a.piece-b.piece);
-  return {columns:SHEET_COLUMNS,rows:rows.map(r=>r.cells),left};
+ // The labels of one panel: MB2-1 to MB2-5, or the actual list when a piece was made unique.
+ function labelsOf(pt,n){
+  const all=Array.from({length:n},(_,i)=>typeof window.fiqLabelNumberText==='function'?window.fiqLabelNumberText(pt,i+1):pt.code);
+  if(n===1)return all[0];
+  const nos=all.map(x=>Number(String(x).split('-').pop()));
+  const run=nos.every((v,i)=>i===0||v===nos[i-1]+1);
+  return run?all[0]+' to '+all[n-1]:all.join(', ');
  }
+ // Same content, same List ID: both files of one export match, and a later export of unchanged
+ // panels gives the same ID; any change to a panel gives a new one.
+ function listId(rows){let h=5381;const t=JSON.stringify(rows);for(let i=0;i<t.length;i++)h=((h*33)^t.charCodeAt(i))>>>0;return 'L-'+h.toString(36).toUpperCase().padStart(6,'0').slice(-6)}
+ function jobLists(pr){
+  pr=pr||project();if(!pr)return null;
+  ensureScanRefs(pr);
+  const panels=[],left=[];
+  orderedCabinets(pr).forEach(c=>{const room=(pr.rooms||[]).find(r=>r.id===c.roomId);
+   (c.parts||[]).forEach(pt=>{if(!ready(pt)){left.push(pt.code);return}
+    const n=Math.max(1,Math.min(500,Math.floor(Number(pt.qty)||1)));
+    panels.push({pt,n,num:refNumber(pt.code),mat:String(pt.material||pr.defaultMaterial||c.lastMaterial||'').trim(),room:String(room&&room.name||''),unit:String(c.name||'')})})});
+  panels.sort((a,b)=>a.num-b.num);
+  const total=panels.reduce((x,p)=>x+p.n,0),job=String(pr.name||'');
+  const base=panels.map(p=>[p.pt.code,String(p.pt.name||''),p.pt.length,p.pt.width,p.pt.thickness,p.n,labelsOf(p.pt,p.n),p.mat,edging(p.pt),String(p.pt.notes||''),p.room,p.unit]);
+  const id=listId([job,base]);
+  const list=base.map(r=>r.concat([job,id,total]));
+  const labels=[];
+  panels.forEach(p=>{for(let k=1;k<=p.n;k++)labels.push([typeof window.fiqLabelNumberText==='function'?window.fiqLabelNumberText(p.pt,k):p.pt.code,p.pt.code,k+' of '+p.n,String(p.pt.name||''),p.pt.length,p.pt.width,p.pt.thickness,p.mat,edging(p.pt),String(p.pt.notes||''),p.room,p.unit,job,id,total,'Label only: same pieces as Cutting List '+id+', not an extra order'])});
+  return {id,total,left,list:{columns:LIST_COLUMNS,rows:list},labels:{columns:LABEL_COLUMNS,rows:labels}};
+ }
+ function jobSheet(pr){const l=jobLists(pr);return l?{columns:l.list.columns,rows:l.list.rows,left:l.left,id:l.id,total:l.total}:{rows:[],left:[]}}
+ function labelSheet(pr){const l=jobLists(pr);return l?{columns:l.labels.columns,rows:l.labels.rows,left:l.left,id:l.id,total:l.total}:{rows:[],left:[]}}
  function sheetCsv(sheet){
   const q=v=>{const t=v==null?'':String(v);return /[",\r\n]/.test(t)||/^\s|\s$/.test(t)?'"'+t.replace(/"/g,'""')+'"':t};
   return '﻿'+[sheet.columns,...sheet.rows].map(r=>r.map(q).join(',')).join('\r\n')+'\r\n';
  }
- function downloadJobSheet(pr){
+ function fileName(pr,kind,id){return ((pr.customer?pr.customer+' - ':'')+(pr.name||'Job')+' - '+kind+' '+id).replace(/[\\/:*?"<>|\x00-\x1F]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150)+'.csv'}
+ function download(pr,which){
   pr=pr||project();const msg=document.getElementById('supplierActionStatus'),say=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle('error',!!err)}};
   if(!pr){say('Open a job first.',true);return null}
-  const sheet=jobSheet(pr);
-  if(!sheet.rows.length){say('No panels are ready for the supplier yet in this job.',true);return null}
+  const lists=jobLists(pr);
+  if(!lists||!lists.list.rows.length){say('No panels are ready for the supplier yet in this job.',true);return null}
   save();
-  const name=((pr.customer?pr.customer+' - ':'')+(pr.name||'Job')+' - cutting list').replace(/[\\/:*?"<>|\x00-\x1F]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150)+'.csv';
+  const sheet=which==='labels'?lists.labels:lists.list,name=fileName(pr,which==='labels'?'label file (same pieces, not an extra order)':'cutting list',lists.id);
   const text=sheetCsv(sheet),url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');
   a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
-  say('Downloaded '+name+' — '+sheet.rows.length+' sticker row'+(sheet.rows.length===1?'':'s')+' for the whole job.'+(sheet.left.length?' Not ready yet, left out: '+sheet.left.join(', ')+'.':''),!!sheet.left.length);
-  return {name,text,rows:sheet.rows.length,left:sheet.left};
+  say('Downloaded '+name+' — '+(which==='labels'?lists.labels.rows.length+' labels':lists.list.rows.length+' row'+(lists.list.rows.length===1?'':'s'))+', '+lists.total+' pieces in total, List '+lists.id+'.'+(lists.left.length?' Not ready yet, left out: '+lists.left.join(', ')+'.':''),!!lists.left.length);
+  return {name,text,rows:sheet.rows.length,total:lists.total,id:lists.id,left:lists.left};
  }
- Object.assign(window,{fiqJobSheet:jobSheet,fiqJobSheetCsv:sheetCsv,fiqDownloadJobSheet:downloadJobSheet});
+ const downloadJobSheet=pr=>download(pr,'list'),downloadLabelFile=pr=>download(pr,'labels');
+ // The label range under a grouped panel's reference in the on-screen Cutting List.
+ window.fiqLabelRangeFor=id=>{const pr=project();const pt=pr&&(pr.cabinets||[]).flatMap(c=>c.parts||[]).find(x=>x.id===id);if(!pt)return '';const n=Math.max(1,Math.floor(Number(pt.qty)||1));if(n<2&&!Array.isArray(pt.pieceNos))return '';return '<small class="fiq-cut-labels" style="display:block;font-size:11px;color:#4a5a73;font-weight:700;white-space:nowrap">Labels '+safe(labelsOf(pt,n))+'</small>'};
+ Object.assign(window,{fiqJobLists:jobLists,fiqJobSheet:jobSheet,fiqLabelSheet:labelSheet,fiqJobSheetCsv:sheetCsv,fiqDownloadJobSheet:downloadJobSheet,fiqDownloadLabelFile:downloadLabelFile});
  function sheetButton(){
   const bar=document.querySelector('#screen-cutting .supplier-actions-simple')||document.querySelector('.supplier-actions-simple');if(!bar)return;
-  let b=document.getElementById('fiqJobSheetBtn');
+  let b=document.getElementById('fiqJobSheetBtn'),l=document.getElementById('fiqLabelFileBtn');
   if(!b){b=document.createElement('button');b.type='button';b.id='fiqJobSheetBtn';b.className='supplier-action export';
-   b.innerHTML='<span class="supplier-action-icon">⇩</span><strong>Download Job Spreadsheet</strong><small id="fiqJobSheetSub">All rooms and wardrobes</small>';
+   b.innerHTML='<span class="supplier-action-icon">⇩</span><strong>Download Cutting List</strong><small id="fiqJobSheetSub">All rooms and wardrobes</small>';
    b.addEventListener('click',e=>{e.preventDefault();downloadJobSheet()});bar.insertBefore(b,bar.firstChild)}
-  const sub=document.getElementById('fiqJobSheetSub'),pr=project();
-  if(sub&&pr){let n=0;try{n=jobSheet(pr).rows.length}catch(e){}sub.textContent='All rooms and wardrobes · '+n+' sticker row'+(n===1?'':'s')}
+  if(!l){l=document.createElement('button');l.type='button';l.id='fiqLabelFileBtn';l.className='supplier-action export';
+   l.innerHTML='<span class="supplier-action-icon">⇩</span><strong>Download Label File</strong><small id="fiqLabelFileSub">Same pieces, one row per label</small>';
+   l.addEventListener('click',e=>{e.preventDefault();downloadLabelFile()});b.after(l)}
+  const sub=document.getElementById('fiqJobSheetSub'),lsub=document.getElementById('fiqLabelFileSub'),pr=project();
+  if(pr){let x=null;try{x=jobLists(pr)}catch(e){}
+   if(sub)sub.textContent='All rooms and wardrobes · '+(x?x.list.rows.length:0)+' rows · '+(x?x.total:0)+' pieces';
+   if(lsub)lsub.textContent='Same '+(x?x.total:0)+' pieces, one row per label · not an extra order'}
  }
 
  // Room code: shown and edited in the room's own window, beside its full name.
@@ -7244,7 +7304,7 @@ body.guide-only .a131-back-studio{display:block}
   '.fiq-job-dialog{align-items:center;padding:16px;box-sizing:border-box}.fiq-job-dialog .fiq-job-sheet{border-radius:20px;max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box}'+
   '.customer-job-status[data-chip-open-list]{cursor:pointer;text-decoration:underline;text-underline-offset:2px}.customer-job-status[data-chip-open-list]:hover{filter:brightness(.95)}'+
   '.customer-job-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 2px 6px;font-weight:900;color:#23364e}.customer-job-head:first-child{margin-top:4px}'+
-  '.customer-job-sheet-btn{height:30px;padding:0 12px;border:1px solid #6bbf3a;background:#e6f5dc;color:#1f5d12;border-radius:8px;font:800 12px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap}.customer-job-sheet-btn:hover{background:#d5eec5}'+
+  '.customer-job-sheet-btns{display:flex;gap:6px}.customer-job-sheet-btn{height:30px;padding:0 12px;border:1px solid #6bbf3a;background:#e6f5dc;color:#1f5d12;border-radius:8px;font:800 12px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap}.customer-job-sheet-btn:hover{background:#d5eec5}'+
   '.fiq-sticker.fiq-sticker-ref{display:flex;flex-direction:column;gap:4px}'+
   '.fiq-sticker-ref .fs-ref{align-self:flex-start;font:900 calc(var(--fs-qr)*.36)/1 Arial,Helvetica,sans-serif;letter-spacing:.03em;white-space:nowrap;color:#000;padding-bottom:4px;margin-bottom:calc(var(--fs-qr)*.12)}'+
   '.fiq-sticker-ref .fs-ref.fs-ref-long{font-size:calc(var(--fs-qr)*.28)}';
@@ -7377,6 +7437,168 @@ body.guide-only .a131-back-studio{display:block}
   };
   try{openEditCustomerDialog=window.openEditCustomerDialog}catch(e){}
  }
+})();
+</script>
+<script id="fiq-shared-references">
+// Grouped panels with fixed piece labels. Identical, interchangeable pieces of one wardrobe
+// are one panel (MB2, quantity 5, a circle per position), and every physical piece keeps its
+// own printed label MB2-1 ... MB2-5, counted once by Panel Check. Make unique moves one
+// piece to its own panel; Group identical pieces (previewed, unsent wardrobes only) merges
+// separate identical panels. Neither renames a label already printed: pt.pieceNos keeps each
+// remaining piece's label number, and pt.labelAliases lets old labels open the piece they now
+// are. Existing jobs are never changed by themselves.
+(function(){
+ const css=document.createElement('style');css.textContent=
+  '.fiq-group-bar{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:10px 12px;border:1px solid #bfe3a8;background:#f2faec;border-radius:12px;font-weight:700;color:#1f5d12}'+
+  '.fiq-group-bar .btn{margin-left:auto;height:34px;font-weight:800}'+
+  '.fiq-group-dialog,.fiq-unique-dialog{align-items:center;padding:16px;box-sizing:border-box}'+
+  '.fiq-group-dialog .a100-edit-sheet,.fiq-unique-dialog .a100-edit-sheet{max-width:600px;border-radius:20px;max-height:calc(100vh - 32px);overflow:auto}'+
+  '.fiq-group-list{display:grid;gap:8px}.fiq-group-item{border:1px solid #e3e8f1;border-radius:12px;padding:10px 12px;background:#fafbfd}.fiq-group-item b{display:block}.fiq-group-item span{display:block;font-size:13px;color:#4a5a73}'+
+  '.fiq-group-note{font-size:13px;color:#4a5a73;line-height:1.45}';
+ document.head.appendChild(css);
+ const sig=p=>typeof window.panelReviewSignature==='function'?window.panelReviewSignature(p):'';
+ const reviewed=p=>!!p.reviewSignature&&p.reviewSignature===sig(p);
+ const num=v=>Math.max(0,Math.floor(Number(v)||0));
+ const qtyOf=p=>Math.max(1,Math.floor(Number(p.qty)||1));
+ // Label numbers of a panel's pieces, in piece order (1..qty unless a piece was moved out).
+ const labelNos=p=>Array.isArray(p.pieceNos)?p.pieceNos.slice(0,qtyOf(p)):Array.from({length:qtyOf(p)},(_,i)=>i+1);
+ const labelNoOf=(p,cur)=>{const n=labelNos(p)[cur-1];return n==null?cur:n};
+ const curOfLabelNo=(p,no)=>{const i=labelNos(p).indexOf(Number(no));return i<0?null:i+1};
+ // Quantity changed in the form: new pieces get the next label numbers, removed ones drop off the end.
+ function normalisePieceNos(p){
+  if(!Array.isArray(p.pieceNos))return false;let ch=false;const q=qtyOf(p);
+  while(p.pieceNos.length<q){p.pieceNos.push(Math.max(0,...p.pieceNos)+1);ch=true}
+  if(p.pieceNos.length>q){p.pieceNos=p.pieceNos.slice(0,q);ch=true}
+  return ch;
+ }
+ Object.assign(window,{fiqLabelNoOf:labelNoOf,fiqCurOfLabelNo:curOfLabelNo});
+ function dialog(cls,html){const o=document.createElement('div');o.className='a100-edit-dialog '+cls;o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true">'+html+'</div>';document.body.appendChild(o);return o}
+ // Progress keyed by piece order: remove piece cur, later pieces move up one.
+ function rekey(p,cur){if(!p.pieceStates)return;const ns={};Object.keys(p.pieceStates).forEach(k=>{const n=Number(k);if(n===cur)return;ns[String(n>cur?n-1:n)]=p.pieceStates[k]});p.pieceStates=ns}
+ // Deleting one dot of a grouped panel removes that piece: the other pieces keep their labels.
+ window.fiqForgetPiece=function(p,cur){
+  const q=qtyOf(p);if(q<2||!cur)return;
+  const ps=p.pieceStates&&p.pieceStates[String(cur)];
+  p.pieceNos=labelNos(p);p.pieceNos.splice(cur-1,1);
+  if(ps&&ps.checkedAt)p.scannedQty=Math.max(0,num(p.scannedQty)-1);
+  if(ps&&ps.status==='installed')p.installedQty=Math.max(0,num(p.installedQty)-1);
+  if(ps&&ps.status==='damaged')p.damagedQty=Math.max(0,num(p.damagedQty)-1);
+  rekey(p,cur);p.piecesRenumberedAt=new Date().toISOString();
+ };
+ // A received count can only be placed exactly when every received piece was checked by its own
+ // label. Pieces counted by an old whole-panel sticker leave it open: then the user is asked.
+ function askReceived(p,label,rec,q){
+  return new Promise(resolve=>{
+   const o=dialog('fiq-unique-dialog','<h2>Was this piece received?</h2><p class="fiq-group-note">'+safe(p.code)+' has '+rec+' of '+q+' received, but not every one was scanned by its own label, so it is not known whether '+safe(p.code)+'-'+label+' was one of them.</p>'+
+    '<div class="a100-edit-actions"><button type="button" class="btn" data-u="cancel">Cancel</button><button type="button" class="btn" data-u="no">No, not received</button><button type="button" class="btn primary" data-u="yes">Yes, received</button></div>');
+   o.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{o.remove();resolve(b.dataset.u==='yes'?1:b.dataset.u==='no'?0:null)});
+  });
+ }
+ async function makeUnique(c,p,i){
+  if(!c||!p||!(p.copies||[])[i])return null;
+  const q=qtyOf(p),cur=i+2,label=labelNoOf(p,cur),rec=Math.min(q,num(p.scannedQty));
+  const ps=p.pieceStates&&p.pieceStates[String(cur)];
+  const checked=Object.keys(p.pieceStates||{}).filter(k=>Number(k)<=q&&p.pieceStates[k]&&p.pieceStates[k].checkedAt).length;
+  let moveRec;
+  if(ps&&ps.checkedAt)moveRec=1;else if(rec<=checked)moveRec=0;else if(rec>=q)moveRec=1;
+  else{moveRec=await askReceived(p,label,rec,q);if(moveRec===null)return null}
+  const wasReviewed=reviewed(p);
+  const nos=labelNos(p);nos.splice(cur-1,1);
+  const pos=p.copies.splice(i,1)[0];
+  const copy=JSON.parse(JSON.stringify(p));
+  ['labelNo','legacyCode','pieceStates','scannedQty','installedQty','damagedQty','lastScannedAt','lastScannedByFitterId','damageNote','installNote','panelPhotos','unplacedCopies','pieceNos','labelAliases','piecesRenumberedAt'].forEach(k=>delete copy[k]);
+  copy.id=uid();copy.code=nextCode(c);copy.scanRefFixed=true;copy.qty=1;copy.x=pos.x;copy.y=pos.y;copy.copies=[];copy.status='ready';
+  copy.scannedQty=moveRec;
+  // The label already printed for this piece (and its QR) now opens the new panel.
+  copy.labelAliases=[{panelId:p.id,code:p.code,labelNo:label,legacyNo:p.labelNo??null,toLabel:1}];
+  if(ps){copy.pieceStates={'1':JSON.parse(JSON.stringify(ps))};if(ps.status==='installed')copy.installedQty=1;if(ps.status==='damaged')copy.damagedQty=1;if(ps.status)copy.status=ps.status}
+  rekey(p,cur);
+  if(ps&&ps.status==='installed')p.installedQty=Math.max(0,num(p.installedQty)-1);
+  if(ps&&ps.status==='damaged')p.damagedQty=Math.max(0,num(p.damagedQty)-1);
+  p.qty=q-1;p.scannedQty=rec-moveRec;p.pieceNos=nos;p.piecesRenumberedAt=new Date().toISOString();
+  if(wasReviewed){p.reviewSignature=sig(p);copy.reviewSignature=sig(copy)}
+  c.parts.push(copy);
+  if(typeof toast==='function')toast(p.code+'-'+label+' is now '+copy.code+'. A label already printed as '+p.code+'-'+label+' opens '+copy.code+'; the other '+p.code+' labels are unchanged. Print a '+copy.code+' label for it.');
+  return copy;
+ }
+ window.fiqMakeUnique=makeUnique;
+
+ // Group identical pieces: a wardrobe whose room has no sent Cutting List, panels with no Panel
+ // Check progress whose every piece has its circle, matching on everything they are made by.
+ const groupKey=(pr,c,pt)=>[String(pt.name||'').trim().toLowerCase(),Number(pt.length),Number(pt.width),Number(pt.thickness),String(pt.material||pr.defaultMaterial||c.lastMaterial||'').trim().toLowerCase(),num(pt.edgeLong),num(pt.edgeShort),String(pt.notes||'').trim().toLowerCase()].join('|');
+ const noProgress=pt=>!num(pt.scannedQty)&&!num(pt.installedQty)&&!num(pt.damagedQty)&&!Object.keys(pt.pieceStates||{}).length&&(!pt.status||pt.status==='ready');
+ const placedAll=pt=>{const dots=[pt,...(pt.copies||[])].filter(d=>d&&d.x!=null&&d.x!==''&&Number.isFinite(Number(d.x))).length;return dots===qtyOf(pt)};
+ const refNo=code=>{const m=String(code||'').match(/(\d+)$/);return m?Number(m[1]):0};
+ function wardrobeUnsent(pr,c){
+  const key=typeof window.fiqJobKeyFor==='function'?window.fiqJobKeyFor(c.roomId||'',c.id):null;
+  return !(key&&typeof window.fiqSentCuttingLists==='function'&&window.fiqSentCuttingLists(pr,key).length);
+ }
+ function findGroups(pr,c){
+  if(!pr||!c||!wardrobeUnsent(pr,c))return [];
+  const buckets={};
+  (c.parts||[]).forEach(pt=>{if(!(typeof fiqPanelFinished==='function'&&fiqPanelFinished(pt))||!noProgress(pt)||!placedAll(pt))return;const k=groupKey(pr,c,pt);(buckets[k]=buckets[k]||[]).push(pt)});
+  return Object.values(buckets).filter(b=>b.length>1).map(b=>b.slice().sort((a,z)=>refNo(a.code)-refNo(z.code)));
+ }
+ // What each existing label becomes: [{from:'MB3', to:'MB2-2'}, ...].
+ function planGroup(g){
+  const keep=g[0],out=[];let nos=labelNos(keep),next=Math.max(0,...nos)+1;
+  if(qtyOf(keep)===1&&!Array.isArray(keep.pieceNos))out.push({from:keep.code,to:keep.code+'-1',panel:keep,labelNo:null,toLabel:1});
+  else nos.forEach(n=>out.push({from:keep.code+'-'+n,to:keep.code+'-'+n,panel:keep,same:true}));
+  g.slice(1).forEach(o=>{const oq=qtyOf(o),onos=labelNos(o);
+   onos.forEach(n=>{const to=next++;out.push({from:oq===1&&!Array.isArray(o.pieceNos)?o.code:o.code+'-'+n,to:keep.code+'-'+to,panel:o,labelNo:oq===1&&!Array.isArray(o.pieceNos)?null:n,toLabel:to})})});
+  return out;
+ }
+ function applyGroup(c,g){
+  const keep=g[0],allReviewed=g.every(reviewed),plan=planGroup(g);
+  keep.copies=keep.copies||[];keep.labelAliases=keep.labelAliases||[];
+  const wasSingle=qtyOf(keep)===1&&!Array.isArray(keep.pieceNos);
+  if(wasSingle)keep.labelAliases.push({panelId:keep.id,code:keep.code,labelNo:null,legacyNo:keep.labelNo??null,toLabel:1});
+  const nos=labelNos(keep);
+  g.slice(1).forEach(o=>{
+   [o,...(o.copies||[])].forEach(d=>{if(d!==keep)keep.copies.push({x:d.x,y:d.y})});
+   plan.filter(x=>x.panel===o).forEach(x=>{nos.push(x.toLabel);keep.labelAliases.push({panelId:o.id,code:o.code,labelNo:x.labelNo,legacyNo:o.labelNo??null,toLabel:x.toLabel})});
+   keep.qty=qtyOf(keep)+qtyOf(o);
+   c.parts=c.parts.filter(x=>x.id!==o.id);
+   c.deletedPartIds=[...new Set([...(c.deletedPartIds||[]),o.id])];
+  });
+  // Keep pieceNos only when the numbering is not simply 1..qty.
+  if(nos.some((v,i)=>v!==i+1))keep.pieceNos=nos;else delete keep.pieceNos;
+  if(allReviewed)keep.reviewSignature=sig(keep);
+ }
+ function openGroupPreview(){
+  const pr=project(),c=cabinet(),groups=findGroups(pr,c);
+  if(!groups.length){alert('No identical pieces to group in this wardrobe.');return}
+  const o=dialog('fiq-group-dialog','<h2>Group identical pieces</h2><p class="fiq-group-note">Identical pieces in '+safe(c.name||'this wardrobe')+' become one row with a quantity. Every piece keeps its own label, and Panel Check still counts each piece once. Nothing changes until you press Group.</p>'+
+   '<div class="fiq-group-list">'+groups.map(g=>{const plan=planGroup(g),p=g[0],q=g.reduce((n,x)=>n+qtyOf(x),0),changes=plan.filter(x=>!x.same);
+    return '<div class="fiq-group-item"><b>'+safe(p.code)+', quantity '+q+': '+safe(p.name||'')+' · '+safe(p.length)+' × '+safe(p.width)+' × '+safe(p.thickness)+' mm</b>'+changes.map(x=>'<span>'+safe(x.from)+' becomes '+safe(x.to)+'</span>').join('')+'</div>'}).join('')+'</div>'+
+   '<p class="fiq-group-note">Labels already printed with the old references still scan: each old label opens the piece it becomes. The old references are not used for new panels. Only possible before this room’s Cutting List is sent and before any Panel Check progress.</p>'+
+   '<div class="a100-edit-actions"><button type="button" class="btn" data-g-cancel>Cancel</button><button type="button" class="btn primary" data-g-go>Group</button></div>');
+  o.querySelector('[data-g-cancel]').onclick=()=>o.remove();
+  o.onclick=e=>{if(e.target===o)o.remove()};
+  o.querySelector('[data-g-go]').onclick=()=>{
+   const fresh=findGroups(pr,c);// recheck: nothing grouped that changed meanwhile
+   fresh.forEach(g=>applyGroup(c,g));pr.updatedAt=Date.now();state.currentPart=null;state.selectedCopy=-1;
+   o.remove();save();renderAll();
+   if(typeof toast==='function')toast(fresh.length+' group'+(fresh.length===1?'':'s')+' made in '+(c.name||'this wardrobe')+'. Every piece keeps its own label.');
+  };
+ }
+ Object.assign(window,{fiqFindIdenticalGroups:findGroups,fiqPlanGroup:planGroup,fiqOpenGroupPreview:openGroupPreview});
+ function groupBar(){
+  // Above the Cutting List cards the user reads (Supplier screen).
+  const host=document.getElementById('supplierPanelCards');if(!host)return;
+  let bar=document.getElementById('fiqGroupBar');
+  const pr=project(),c=cabinet(),groups=pr&&c?findGroups(pr,c):[];
+  if(!groups.length){if(bar)bar.remove();return}
+  if(!bar){bar=document.createElement('div');bar.id='fiqGroupBar';bar.className='fiq-group-bar';host.parentNode.insertBefore(bar,host)}
+  const n=groups.reduce((x,g)=>x+g.length,0);
+  bar.innerHTML='<span>'+n+' identical panels in '+safe(c.name||'this wardrobe')+' could be grouped into '+groups.length+' row'+(groups.length===1?'':'s')+'.</span><button type="button" class="btn" id="fiqGroupBtn">Preview grouping</button>';
+  bar.querySelector('#fiqGroupBtn').onclick=openGroupPreview;
+ }
+ const base=window.renderAll;
+ window.renderAll=function(){
+  try{(state.projects||[]).forEach(pr=>(pr.cabinets||[]).forEach(c=>(c.parts||[]).forEach(normalisePieceNos)))}catch(e){}
+  const r=typeof base==='function'?base.apply(this,arguments):undefined;try{groupBar()}catch(e){console.error('Group bar failed',e)}return r};
+ try{renderAll=window.renderAll}catch(e){}
 })();
 </script>
 <script id="fiq-next-wardrobe">
@@ -11890,7 +12112,7 @@ body.fiq-locked .app{display:none!important}
   if(pc&&pc.number)return String(pc.number);
   const pt=(p&&p.cabinets||[]).flatMap(c=>c.parts||[]).find(x=>String(x.id)===String(r.panelId));if(!pt)return '';
   if(!Number.isInteger(Number(pt.labelNo))&&typeof fiqEnsureLabelNumbers==='function')fiqEnsureLabelNumbers(p);
-  return pt.scanRefFixed?String(pt.code||'')+(r.quantity>1?'-'+pc.piece:''):String(pt.labelNo??'')+(r.quantity>1?'-'+pc.piece:'');
+  return pt.scanRefFixed?fiqLabelNumberText(pt,pc.piece):String(pt.labelNo??'')+(r.quantity>1?'-'+pc.piece:'');
  }
  function savedStickerHtml(p,snap,r,pc,mode,qrImg){
   const v=x=>x==null||x===''?'—':String(x),n=pieceNumber(p,r,pc);
