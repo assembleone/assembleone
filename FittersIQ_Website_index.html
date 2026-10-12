@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FittersIQ — Turn Your Phone Into a Fitting Tool</title>
+<title>FittersIQ — Cutting Lists, Panel Scanning &amp; Fitting</title>
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icon_32.png?v=4">
 <link rel="apple-touch-icon" href="assets/icon_180.png?v=4">
 <link rel="manifest" href="manifest-website.json?v=4">
-<meta name="description" content="FittersIQ works alongside your existing CAD software and turns your phone into a fitting tool. Plan it. Scan it. Fit it.">
+<meta name="description" content="From site measurements to fitting: organise cutting lists, check delivered pieces and find panel positions with Panel Number or QR scanning.">
 <style>
 :root{
   --navy:#0b2545;
@@ -615,6 +615,21 @@ footer{background:#fff;border-top:1px solid var(--line);padding:26px 0}
   .cad-benefits{grid-template-columns:1fr !important}
 }
 
+
+/* Clear workflow and panel-number messaging */
+.hero h1{font-size:clamp(38px,4.3vw,58px);line-height:1.08}
+.workflow-section{padding:60px 0;background:#f6f8fa}
+.workflow-section h2{font-size:38px;line-height:1.15;margin:0 0 30px;color:var(--navy)}
+.workflow-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.workflow-grid article{background:white;border:1px solid #dce5ed;border-radius:18px;padding:24px}
+.step-number{font-weight:800;font-size:15px;color:var(--green-dark)}
+.workflow-grid h3{font-size:23px;margin:12px 0;color:var(--navy)}
+.workflow-grid p,.scan-explanation p{color:#4e6075;font-size:17px;line-height:1.6}
+.workflow-note{color:#536578;font-size:14px;line-height:1.5;margin:24px 0 0}
+.scan-explanation h2{font-size:42px;line-height:1.12;margin:16px 0 22px}
+.scan-explanation p{margin:0 0 18px}
+@media(max-width:900px){.workflow-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.workflow-grid{grid-template-columns:1fr}.workflow-section h2,.scan-explanation h2{font-size:32px}.hero h1{font-size:38px}}
 </style>
 </head>
 <body>
@@ -637,14 +652,14 @@ footer{background:#fff;border-top:1px solid var(--line);padding:26px 0}
   <section class="hero">
     <div class="shell hero-grid">
       <div>
-        <div class="kicker"><i></i> Built for fitters</div>
-        <h1>Turn your phone into a <span class="green">fitting tool.</span></h1>
-        <p>Scan the panel. See where it goes. Fit it right.</p>
+        <div class="kicker"><i></i> Built for carpenters and fitted-furniture teams</div>
+        <h1>From site measurements to <span class="green">the right panel in the right place.</span></h1>
+        <p>Prepare cutting lists, check delivered pieces and find where each panel belongs. All connected to the job you are fitting.</p>
 
         <div class="not-cad">
           <div>
-            <strong>Not another CAD or drawing program.</strong>
-            <span>Keep using SketchUp or the design software you already know. FittersIQ works alongside it and takes the job from drawing to installation.</span>
+            <strong>Keep using your existing drawings.</strong>
+            <span>Bring in a drawing or a photo of a paper plan. Use your phone to scan a printed panel number or QR code and see where the piece belongs.</span>
           </div>
         </div>
 
@@ -662,12 +677,12 @@ footer{background:#fff;border-top:1px solid var(--line);padding:26px 0}
         </div>
         <div class="demo-copy">
           <h2>See FittersIQ in action.</h2>
-          <p>Keep the explanation visual. A short video can show the whole idea faster than a page full of text.</p>
+          <p>Follow the job from your drawing to the panels on site. See how a scan connects a physical piece to its place in the job.</p>
           <div class="demo-list">
-            <div><b>1</b> Plan the job</div>
-            <div><b>2</b> Scan the panel</div>
-            <div><b>3</b> Fit with confidence</div>
-            <div><b>✓</b> Fewer mistakes and less wasted time</div>
+            <div><b>1</b> Prepare the cutting list</div>
+            <div><b>2</b> Check delivered pieces</div>
+            <div><b>3</b> Find each panel on the drawing</div>
+            <div><b>✓</b> Panel Number and QR scanning</div>
           </div>
         </div>
       </div>
@@ -679,34 +694,47 @@ footer{background:#fff;border-top:1px solid var(--line);padding:26px 0}
   <section class="cad-note">
     <div class="shell cad-box">
       <div class="cad-copy">
-        <h2>Keep the CAD software you already use. <span class="cad-green">FittersIQ works beside it.</span></h2>
-        <p class="cad-lead"><strong>Not another drawing program.</strong> Keep using SketchUp or the CAD software you already know. FittersIQ takes the job information from the office and makes it clear for the fitter on site.</p>
+        <h2>You plan it. Your supplier cuts it. <span class="cad-green">FittersIQ helps you fit it.</span></h2>
+        <p class="cad-lead"><strong>Made for independent carpenters and small fitted-furniture businesses.</strong> If you design the job, have panels cut by a supplier and fit them on site, FittersIQ keeps the information together from measurement to installation.</p>
         <div class="cad-tags cad-benefits">
-          <span><b>✓</b> Works with SketchUp, CAD and other design software</span>
-          <span><b>✓</b> Use any drawing, even a photo of a paper drawing</span>
-          <span><b>✓</b> Keep your workflow. Speed up the job from design to fitting.</span>
+          <span><b>✓</b> Use images of your existing drawings</span>
+          <span><b>✓</b> Keep panel details linked to the job</span>
+          <span><b>✓</b> Share clear cutting lists with your supplier</span>
         </div>
       </div>
       </div>
   </section>
 
+
+  <section class="workflow-section" aria-labelledby="workflow-title">
+    <div class="shell">
+      <h2 id="workflow-title">One job, from measuring to fitting.</h2>
+      <div class="workflow-grid">
+        <article><span class="step-number">01</span><h3>Measure</h3><p>Keep site photos and measurements together. Reopen the job to check details or make a correction.</p></article>
+        <article><span class="step-number">02</span><h3>Prepare</h3><p>Use your drawing to organise panels and prepare cutting lists and labels for your supplier.</p></article>
+        <article><span class="step-number">03</span><h3>Check</h3><p>Scan delivered pieces, count each one once and see which pieces remain unchecked.</p></article>
+        <article><span class="step-number">04</span><h3>Fit</h3><p>Scan a piece reference to see its position and the matching group on the drawing.</p></article>
+      </div>
+      <p class="workflow-note">Panel Check tracks scanned pieces. Dimensions, finish and condition still need a physical check.</p>
+    </div>
+  </section>
   <section class="demo" id="demo">
     <div class="shell demo-grid">
-      <div class="phone-tool" style="grid-column:1/-1;max-width:340px;margin:0 auto">
-        <h2>Your phone becomes part of the fitting kit.</h2>
-        <p>One scan tells the fitter exactly what panel is in their hand.</p>
+      <div class="scan-explanation"><div class="kicker"><i></i> Panel Number or QR</div><h2>Scan the number already printed on the label.</h2><p>Your supplier can print the assigned FittersIQ piece reference on each panel label. Scan it with your phone to check the piece or see where it belongs.</p><p>A reference such as <strong>MB1-2</strong> identifies one piece. In Find It, the matching group positions light up on the drawing, with the scanned piece marked.</p><p>The grouped Cutting List keeps quantities easy to read. The separate Label File carries a unique reference for every piece. Both describe the same order.</p><p><strong>QR labels remain available too.</strong> Agree the file format and label setup with your supplier before the first order.</p></div><div class="phone-tool" style="max-width:340px;margin:0 auto">
+        <h2>One label. A clear place on the drawing.</h2>
+        <p>Check the reference and find the matching piece.</p>
         <div class="phone-stage">
           <div class="phone-shell">
             <div class="phone-screen">
               <div class="phone-brand">Fitters<span>IQ</span></div>
               <div class="scan-found">✓ PANEL FOUND</div>
-              <div class="panel-pic">P-023</div>
+              <div class="panel-pic">MB1-2</div>
               <div class="panel-info">
                 <strong>Right Side Panel</strong>
                 <small>Master Bedroom Wardrobe</small>
                 <small>2340 × 580 mm</small>
               </div>
-              <div class="correct">✓ Correct panel</div>
+              <div class="correct">✓ Piece identified</div>
             </div>
           </div>
         </div>
@@ -728,9 +756,9 @@ footer{background:#fff;border-top:1px solid var(--line);padding:26px 0}
     </div>
     
       <div>
-        <h2><span>SAVE TIME.</span> MAKE MORE PROFIT.</h2>
-        <p>Less time finding panels, checking drawings and fixing avoidable mistakes means more time fitting.</p>
-        <strong>Save even one working day and FittersIQ can pay for itself for months.</strong>
+        <h2><span>LESS TIME SORTING.</span> MORE TIME FITTING.</h2>
+        <p>Keep measurements, panel references and fitting information together, so your team spends less time searching and rechecking.</p>
+        <strong>A clearer handover from site visit to supplier to fitter.</strong>
       </div>
     </div>
   </div>
@@ -789,7 +817,7 @@ footer{background:#fff;border-top:1px solid var(--line);padding:26px 0}
           <li>1 FittersIQ Studio computer</li>
           <li>1 FittersIQ Mobile phone</li>
           <li>Full FittersIQ workflow</li>
-          <li>QR panel scanning</li>
+          <li>Panel Number and QR scanning</li>
         </ul>
         <a class="secondary" href="signup.html?plan=Professional">Get Professional</a>
       </article>
@@ -802,7 +830,7 @@ footer{background:#fff;border-top:1px solid var(--line);padding:26px 0}
           <li>1 FittersIQ Studio computer</li>
           <li>2 FittersIQ Mobile phones</li>
           <li>Full FittersIQ workflow</li>
-          <li>QR panel scanning</li>
+          <li>Panel Number and QR scanning</li>
         </ul>
         <a class="primary" href="signup.html?plan=Business">Get Business</a>
       </article>
