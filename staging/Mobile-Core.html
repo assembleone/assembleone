@@ -3632,10 +3632,11 @@ function renderInstall(){
   mark.status=mark.status||"ready";
   const panelPositions=[{x:pt.x,y:pt.y,status:pt.status,copyIndex:-1},...(pt.copies||[]).map((m,i)=>({x:m.x,y:m.y,status:m.status||"ready",copyIndex:i}))];
   const multi=panelPositions.length>1;
+  const placedMulti=panelPositions.filter(m=>m.x!=null&&m.y!=null&&m.x!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y))).length>1;
   // Studio can remove a dot (x/y null) while keeping the panel; draw only placed dots.
   const panelHighlights=panelPositions.map((m,i)=>{if(!(m.x!=null&&m.y!=null&&m.x!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y))))return'';
    const active=m.copyIndex===Number(state.selectedCopy);
-   return `<div class="panel-highlight status-${m.status}${active?' active':''}" data-copy="${m.copyIndex}" style="left:${Number(m.x)||50}%;top:${Number(m.y)||50}%">${multi?`<span class="panel-highlight-num">${i+1}</span>`:''}</div>`;
+   return `<div class="panel-highlight status-${m.status}${active?' active':''}${placedMulti?' fiq-group':''}" data-copy="${m.copyIndex}" style="left:${Number(m.x)||50}%;top:${Number(m.y)||50}%">${placedMulti?`<span class="fiq-hl-code">${safe(pt.code)}</span>`:''}${multi?`<span class="panel-highlight-num">${i+1}</span>`:''}</div>`;
   }).join('');
   const drawing=c.drawing&&c.drawingType!=="pdf"?`<div class="panel-drawing"><img src="${c.drawing}" alt="${t('msg.highlightedDrawingAlt',[pt.code])}">${panelHighlights}</div>`:`<div class="panel-drawing"><div class="muted">${t('install.noDrawing')}</div></div>`;
   const edgeInfo=`${Number(pt.edgeLong||0)} ${Number(pt.edgeLong||0)===1?t('install.longEdge'):t('install.longEdges')} · ${Number(pt.edgeShort||0)} ${Number(pt.edgeShort||0)===1?t('install.shortEdge'):t('install.shortEdges')}`;
@@ -4352,7 +4353,7 @@ function renderFindPanelResult(){
   // The exact saved Studio Drawing coordinate of this panel / piece -- never estimated.
   const td=dots.find(d=>d.ci===target);
   const exactDot=`<div class="fp-exact-dot" data-exact-x="${Number(td.x)}" data-exact-y="${Number(td.y)}" style="left:${Number(td.x)}%;top:${Number(td.y)}%"></div>`;
-  drawingHtml=`<div class="panel-drawing"><div class="fp-drawing-frame"><img src="${c.drawing}" alt="Drawing">${dots.map((d,i)=>`<div class="panel-highlight status-${safe(dotStatus(d))}${d.ci===target?' active':''}" style="left:${Number(d.x)}%;top:${Number(d.y)}%">${multi?`<span class="panel-highlight-num">${d.ci<0?1:d.ci+2}</span>`:''}</div>`).join('')}${exactDot}</div></div>`
+  drawingHtml=`<div class="panel-drawing"><div class="fp-drawing-frame"><img src="${c.drawing}" alt="Drawing">${dots.map((d,i)=>`<div class="panel-highlight status-${safe(dotStatus(d))}${d.ci===target?' active':''}${multi?' fiq-group':''}" style="left:${Number(d.x)}%;top:${Number(d.y)}%">${multi?`<span class="fiq-hl-code">${safe(pt.code)}</span><span class="panel-highlight-num">${d.ci<0?1:d.ci+2}</span>`:''}</div>`).join('')}${exactDot}</div></div>`
    +(n>1&&dots.length===1?`<div class="fp-shared-spot">All ${n} pieces of ${safe(pt.code)} go at the marked spot.</div>`:'');
  }
  const pieces=n>1?`<div class="fp-pieces">${Array.from({length:n},(_,i)=>i+1).map(k=>`<button type="button" class="bomp-chip fp-piece${k===piece?' active':''}" data-fp-piece="${k}">Piece ${k}${PIECE_MARKS[pieceStatusOf(pt,k)]}</button>`).join('')}</div>`:'';
@@ -7315,8 +7316,14 @@ function fiqRouteThroughLabels(q){
 }
 </script>
 <style id="fiq-piece-highlight">
-/* A scanned piece: its own position is strong, the other positions of the same panel are lighter. */
-.panel-drawing .panel-highlight.active{background:rgba(23,78,152,.22);box-shadow:0 0 0 4px #fff,0 0 0 10px #174E98,0 4px 14px rgba(0,0,0,.30)!important;z-index:3}
-.panel-drawing:has(.panel-highlight.active) .panel-highlight:not(.active){opacity:.42;border-width:4px}
+/* Every placed position of the scanned panel shows its reference at the same size and all of
+   them pulse gently together. The scanned piece is still named in the piece buttons, the
+   status line and its number badge. */
+.panel-drawing .panel-highlight.fiq-group,.panel-drawing .panel-highlight.fiq-group.active{width:60px!important;height:60px!important;border-width:6px!important;opacity:1!important;background:rgba(255,255,255,.82);z-index:3;animation:fiqGroupPulse 1.8s ease-in-out infinite!important}
+.panel-highlight.fiq-group .fiq-hl-code{font-weight:900;font-size:13px;line-height:1;color:#174E98;letter-spacing:.01em}
+.fp-drawing-frame .panel-highlight.fiq-group .fiq-hl-code{transform:translateY(-12px)}
+.panel-highlight.fiq-group .panel-highlight-num{position:absolute;top:-12px;right:-12px}
+.panel-highlight.fiq-group.active .panel-highlight-num{background:#e0102f}
+@keyframes fiqGroupPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 6px rgba(23,78,152,.30)}50%{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 16px rgba(23,78,152,.04)}}
 </style>
 </body></html>

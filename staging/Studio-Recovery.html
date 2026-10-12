@@ -3010,7 +3010,8 @@ function renderRooms(){
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
    const marks=[{x:p.x,y:p.y,index:-1},...(p.copies||[]).map((m,index)=>({...m,index}))].filter(hasMarkPosition);
-   marks.forEach(m=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":p.id===state.currentPart?" same-panel":""}`;d.textContent=isSelected?p.code.replace("P-",""):"";if(isSelected&&/[A-Z]/.test(d.textContent))d.style.fontSize=([0,20,20,15,13,11][d.textContent.length]||10)+"px";d.title=`${p.code}${p.name?" — "+p.name:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll();openPinMenu(p.id,m.index)};canvas.appendChild(d)})
+   const group=p.id===state.currentPart&&marks.length>1;
+   marks.forEach(m=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":p.id===state.currentPart?" same-panel":""}${group?" fiq-group-pin":""}`;d.textContent=isSelected||group?p.code.replace("P-",""):"";if((isSelected||group)&&/[A-Z]/.test(d.textContent))d.style.fontSize=([0,20,20,15,13,11][d.textContent.length]||10)+"px";d.title=`${p.code}${p.name?" — "+p.name:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll();openPinMenu(p.id,m.index)};canvas.appendChild(d)})
  })
  if(state.currentPart&&state.focusMarker){requestAnimationFrame(()=>{const selected=stage.querySelector('.pin.selected');if(selected){const left=selected.offsetLeft-stage.clientWidth/2;const top=selected.offsetTop-stage.clientHeight/2;stage.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:'smooth'})}state.focusMarker=false})}
  else if(c?.viewState){requestAnimationFrame(()=>stage.scrollTo({left:Number(c.viewState.scrollLeft||0),top:Number(c.viewState.scrollTop||0)}))}
@@ -13506,8 +13507,11 @@ document.addEventListener('mousedown',function(e){
 </script>
 
 <style id="fiq-panel-positions-names">
-/* Every position of the selected panel lights up, not only the chosen dot. */
-#drawingCanvas .pin.same-panel,#drawingStage.expanded #drawingCanvas .pin.same-panel{opacity:1!important;width:30px!important;height:30px!important;min-width:30px!important;background:#63a43e;border:3px solid #fff!important;box-shadow:0 0 0 5px rgba(69,164,62,.30),0 2px 8px rgba(0,0,0,.28)!important;z-index:7}
+/* Every placed position of the selected panel shows its reference, at the same size, and
+   all of them pulse gently together. Other panels stay quiet. */
+#drawingCanvas .pin.fiq-group-pin,#drawingStage.expanded #drawingCanvas .pin.fiq-group-pin{opacity:1!important;width:48px!important;height:48px!important;min-width:48px!important;background:#63a43e;color:#fff;border:4px solid #fff!important;box-shadow:0 0 0 8px rgba(69,164,62,.20),0 4px 13px rgba(0,0,0,.28);z-index:8;animation:fiqGroupPulse 1.8s ease-in-out infinite!important}
+#drawingCanvas .pin.fiq-group-pin::before{content:none!important}
+@keyframes fiqGroupPulse{0%,100%{box-shadow:0 0 0 6px rgba(69,164,62,.28),0 4px 13px rgba(0,0,0,.28)}50%{box-shadow:0 0 0 16px rgba(69,164,62,.06),0 4px 13px rgba(0,0,0,.28)}}
 /* All part names live in the Name dropdown, in a scrolling list. */
 #screen-mark .chosen-parts .fiq-name-list{max-height:300px;overflow-y:auto;padding:0 4px 4px;margin-top:8px;overscroll-behavior:contain}
 /* A chosen material reads darker and bolder; same size and layout. */
