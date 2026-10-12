@@ -7314,4 +7314,9 @@ function fiqRouteThroughLabels(q){
  return a?toCur(a.c,a.pt,a.toLabel):q;
 }
 </script>
+<style id="fiq-piece-highlight">
+/* A scanned piece: its own position is strong, the other positions of the same panel are lighter. */
+.panel-drawing .panel-highlight.active{background:rgba(23,78,152,.22);box-shadow:0 0 0 4px #fff,0 0 0 10px #174E98,0 4px 14px rgba(0,0,0,.30)!important;z-index:3}
+.panel-drawing:has(.panel-highlight.active) .panel-highlight:not(.active){opacity:.42;border-width:4px}
+</style>
 </body></html>

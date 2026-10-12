@@ -1564,12 +1564,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <datalist id="partNameChoices">
 <option value="Side"></option><option value="Side panel"></option><option value="Left-hand side"></option><option value="Right-hand side"></option><option value="Top"></option><option value="Bottom"></option><option value="Top and bottom"></option><option value="Top / Bottom"></option><option value="Back"></option><option value="Back panel"></option><option value="Divider"></option><option value="Centre divider"></option><option value="Middle divider"></option><option value="Vertical divider"></option><option value="Horizontal divider"></option><option value="Fixed shelf"></option><option value="Adjustable shelf"></option><option value="Shelf"></option><option value="Left shelf"></option><option value="Right shelf"></option><option value="Corner shelf"></option><option value="Hanging shelf"></option><option value="Top infill"></option><option value="Bottom infill"></option><option value="Infill"></option><option value="Left infill"></option><option value="Right infill"></option><option value="Plinth"></option><option value="Kickboard"></option><option value="Toe kick"></option><option value="Cover panel"></option><option value="End panel"></option><option value="Scribe panel"></option><option value="Filler panel"></option><option value="Door"></option><option value="Left door"></option><option value="Right door"></option><option value="Centre door"></option><option value="Pair of doors"></option><option value="Sliding door"></option><option value="Pocket door"></option><option value="Drawer front"></option><option value="Drawer side"></option><option value="Drawer left side"></option><option value="Drawer right side"></option><option value="Drawer back"></option><option value="Drawer bottom"></option><option value="Drawer divider"></option><option value="Drawer support"></option><option value="Base side"></option><option value="Wall cabinet side"></option><option value="Tall cabinet side"></option><option value="Base top"></option><option value="Base bottom"></option><option value="Wall cabinet top"></option><option value="Wall cabinet bottom"></option><option value="Base shelf"></option><option value="Wall shelf"></option><option value="Sink rail"></option><option value="Oven rail"></option><option value="Hob rail"></option><option value="Appliance panel"></option><option value="Fridge panel"></option><option value="Dishwasher panel"></option><option value="Worktop"></option><option value="Splashback"></option><option value="Desk top"></option><option value="Desk side"></option><option value="Modesty panel"></option><option value="Keyboard shelf"></option><option value="Printer shelf"></option><option value="Monitor shelf"></option><option value="TV panel"></option><option value="TV shelf"></option><option value="TV top"></option><option value="TV side"></option><option value="TV divider"></option><option value="Fireplace panel"></option><option value="Speaker shelf"></option><option value="Cable panel"></option><option value="Slatted panel"></option><option value="Bench top"></option><option value="Bench side"></option><option value="Seat top"></option><option value="Book shelf"></option><option value="Wine shelf"></option><option value="Bottle shelf"></option><option value="Washer shelf"></option><option value="Dryer shelf"></option><option value="Utility shelf"></option><option value="Hanging rail"></option><option value="LED profile"></option><option value="Light panel"></option><option value="Mirror panel"></option><option value="Glass shelf"></option><option value="Support"></option><option value="Cleat"></option><option value="Batten"></option><option value="Bracket"></option><option value="Handle"></option><option value="Clip"></option><option value="Custom panel"></option>
 </datalist>
-</div>
-</details>
-</div>
-<details class="common-part-library">
-<summary>More part names</summary>
-<div class="common-part-grid">
+<div class="common-part-grid fiq-name-list" role="listbox" aria-label="All part names">
 <div class="common-part-category">Wardrobes and cabinets</div>
 <button data-quick-name="Side" type="button">Side</button>
 <button data-quick-name="Side panel" type="button">Side panel</button>
@@ -1663,7 +1658,9 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <button data-quick-name="Clip" type="button">Clip</button>
 <button data-quick-name="Custom panel" type="button">Custom panel</button>
 </div>
+</div>
 </details>
+</div>
 
 <div class="toolbar panel-action-toolbar">
 <button class="btn primary" id="saveNextBtn" data-i18n="studio.drawing.saveNextBtn">Save &amp; next</button>
@@ -3013,7 +3010,7 @@ function renderRooms(){
  if(c.drawingType==="pdf"){pdf.src=c.drawing;pdf.style.display="block";sizeCanvas()}else{img.onload=()=>{sizeCanvas();renderSiteMeasurementOverlay(canvas,c)};img.src=c.drawing;img.style.display="block";if(img.complete){sizeCanvas();renderSiteMeasurementOverlay(canvas,c)}}
  c.parts.forEach(p=>{
    const marks=[{x:p.x,y:p.y,index:-1},...(p.copies||[]).map((m,index)=>({...m,index}))].filter(hasMarkPosition);
-   marks.forEach(m=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":""}`;d.textContent=isSelected?p.code.replace("P-",""):"";if(isSelected&&/[A-Z]/.test(d.textContent))d.style.fontSize=([0,20,20,15,13,11][d.textContent.length]||10)+"px";d.title=`${p.code}${p.name?" — "+p.name:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll();openPinMenu(p.id,m.index)};canvas.appendChild(d)})
+   marks.forEach(m=>{const d=document.createElement("div");const isSelected=p.id===state.currentPart&&Number(state.selectedCopy??-1)===m.index;d.className=`pin status-${p.status}${m.index>=0?" marker-copy":""}${isSelected?" selected":p.id===state.currentPart?" same-panel":""}`;d.textContent=isSelected?p.code.replace("P-",""):"";if(isSelected&&/[A-Z]/.test(d.textContent))d.style.fontSize=([0,20,20,15,13,11][d.textContent.length]||10)+"px";d.title=`${p.code}${p.name?" — "+p.name:""}`;d.setAttribute("aria-label",d.title);d.style.left=m.x+"%";d.style.top=m.y+"%";d.dataset.id=p.id;d.dataset.copy=m.index;d.onmousedown=e=>startDrag(e,p.id,m.index);d.onclick=e=>{e.stopPropagation();state.currentPart=p.id;state.selectedCopy=m.index;state.focusMarker=true;renderAll();openPinMenu(p.id,m.index)};canvas.appendChild(d)})
  })
  if(state.currentPart&&state.focusMarker){requestAnimationFrame(()=>{const selected=stage.querySelector('.pin.selected');if(selected){const left=selected.offsetLeft-stage.clientWidth/2;const top=selected.offsetTop-stage.clientHeight/2;stage.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:'smooth'})}state.focusMarker=false})}
  else if(c?.viewState){requestAnimationFrame(()=>stage.scrollTo({left:Number(c.viewState.scrollLeft||0),top:Number(c.viewState.scrollTop||0)}))}
@@ -3160,7 +3157,7 @@ function chooseMaterial(name){
  renderMaterialPicker();
  if(typeof window.fiqRefreshMissingBasics==='function')window.fiqRefreshMissingBasics();
  closeMaterialPicker();
- const summary=$("#materialSummary");if(summary)summary.textContent=`Material — ${name}`;
+ const summary=$("#materialSummary");if(summary){summary.textContent=`Material — ${name}`;summary.classList.toggle("fiq-has-material",!!name)}
  // Keep the selector closed even after other render work finishes.
  requestAnimationFrame(()=>{renderMaterialPicker();closeMaterialPicker()});
  setTimeout(()=>{renderMaterialPicker();closeMaterialPicker()},40);
@@ -3173,7 +3170,7 @@ function renderMaterialPicker(){
  const names=[];
  [...savedMaterials(),...defaults].forEach(x=>{if(x&&!names.some(n=>n.toLowerCase()===x.toLowerCase()))names.push(x)});
  const summary=$("#materialSummary"),grid=$("#materialLibraryGrid"),hidden=$("#fMaterial");
- if(summary)summary.textContent=current?t("studio.drawing.materialWithValue",[current]):t("studio.drawing.materialFallback");
+ if(summary){summary.textContent=current?t("studio.drawing.materialWithValue",[current]):t("studio.drawing.materialFallback");summary.classList.toggle("fiq-has-material",!!current)}
  if(hidden)hidden.value=current;
  if(grid){
    grid.innerHTML=names.map(n=>`<button type="button" class="material-choice ${current.toLowerCase()===n.toLowerCase()?"active":""}" data-material-name="${safe(n)}">${safe(n)}</button>`).join("");
@@ -8132,7 +8129,7 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     const options=document.querySelector('#screen-mark .panel-options');
     const del=document.getElementById('deletePartBtn');
     const list=document.getElementById('partList');
-    if(!form||!measure||!quick||!library||!meta||!save)return;
+    if(!form||!measure||!quick||!meta||!save)return;
     let saveRow=document.querySelector('#screen-mark .a93-save-row');
     if(!saveRow){saveRow=document.createElement('div');saveRow.className='a93-save-row';}
     saveRow.append(save);
@@ -8293,7 +8290,7 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     const more=document.querySelector('#screen-mark .common-part-library'); if(more)more.open=false;
   }
   document.addEventListener('click',function(e){
-    const option=e.target.closest&&e.target.closest('#screen-mark .quick-pop [data-quick-name], #screen-mark .common-part-library [data-quick-name], #screen-mark .quick-main-btn[data-quick-name]');
+    const option=e.target.closest&&e.target.closest('#screen-mark .quick-pop [data-quick-name], #screen-mark .common-part-library [data-quick-name], #screen-mark .chosen-parts [data-quick-name], #screen-mark .quick-main-btn[data-quick-name]');
     if(!option)return;
     e.preventDefault();e.stopImmediatePropagation();
     if(typeof setPartName==='function')setPartName(option.dataset.quickName);
@@ -13402,7 +13399,7 @@ document.addEventListener('mousedown',function(e){
     if(!String(p.name||'').trim())missing.push('name');
     return missing;
   };
-  function nameControls(){return [document.querySelector('#screen-mark .quick-main'),document.querySelector('#screen-mark .common-part-library')].filter(Boolean)}
+  function nameControls(){return [document.querySelector('#screen-mark .quick-main')].filter(Boolean)}
   function materialControl(){return document.getElementById('materialPickerDetails')}
   // Length, Width, Thickness and Quantity are required too; only an outline is added (the
   // measurement row itself is unchanged).
@@ -13508,5 +13505,13 @@ document.addEventListener('mousedown',function(e){
 })();
 </script>
 
+<style id="fiq-panel-positions-names">
+/* Every position of the selected panel lights up, not only the chosen dot. */
+#drawingCanvas .pin.same-panel,#drawingStage.expanded #drawingCanvas .pin.same-panel{opacity:1!important;width:30px!important;height:30px!important;min-width:30px!important;background:#63a43e;border:3px solid #fff!important;box-shadow:0 0 0 5px rgba(69,164,62,.30),0 2px 8px rgba(0,0,0,.28)!important;z-index:7}
+/* All part names live in the Name dropdown, in a scrolling list. */
+#screen-mark .chosen-parts .fiq-name-list{max-height:300px;overflow-y:auto;padding:0 4px 4px;margin-top:8px;overscroll-behavior:contain}
+/* A chosen material reads darker and bolder; same size and layout. */
+#screen-mark .material-picker>summary.fiq-has-material,.material-picker>summary.fiq-has-material{color:var(--ink)!important;font-weight:900!important}
+</style>
 </body>
 </html>
