@@ -181,7 +181,10 @@ async function runCopy(auto){
 async function settleIfVerified(now){
  if(!sched||sched.status(now).pendingSince==null)return false;
  try{const fp=await localFingerprint();const a=readJSON(K.attempt)||{};
-  if(fp&&a.verifiedSha256===fp){sched.started(now);sched.finished(Date.parse(a.verifiedAt)||now,{ok:true,coverage:a.counts&&a.counts.checked});saveSched();paint();return true}}catch(e){}
+  // Only this computer's own verified backup of exactly this data counts. The open-time check can
+  // also mark data "confirmed by the cloud" after a restore; that computer still has to run its
+  // first backup to take over as the backup computer, so it is not settled here.
+  if(fp&&a.verifiedSha256===fp&&a.sourceSha256===fp&&a.outcome==='verified'&&a.verifiedAt){sched.started(now);sched.finished(Date.parse(a.verifiedAt)||now,{ok:true,coverage:a.counts&&a.counts.checked});saveSched();paint();return true}}catch(e){}
  return false;
 }
 async function copyNow(){return runCopy(false)}
