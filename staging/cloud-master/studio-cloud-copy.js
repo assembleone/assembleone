@@ -124,6 +124,9 @@ function decide(fp){
 async function refresh(){
  if(!enabled()||!user()){state='off';paint();return}
  try{current=await localFingerprint();state=decide(current)}catch(e){state='failed'}
+ // Studio reports "saved" also when nothing changed. If the saved data is exactly the verified
+ // backup, nothing is waiting: settle the schedule so it agrees with "Backed up".
+ if(state==='verified'&&!busy&&sched&&sched.status(Date.now()).pendingSince!=null){const a=readJSON(K.attempt)||{};const now=Date.now();sched.started(now);sched.finished(Date.parse(a.verifiedAt)||now,{ok:true,coverage:a.counts&&a.counts.checked});saveSched()}
  paint();
 }
 function recordAttempt(r,extra){
@@ -168,7 +171,18 @@ async function runCopy(auto){
   if(r.ok){ls.set(K.prints,JSON.stringify(r.prints));if(fullCheck){ls.set(K.lastFull,String(Date.now()));fullNext=false}}
   if(sched){sched.finished(Date.now(),r.ok?{ok:true,coverage:r.verify&&r.verify.checked}:{ok:false,error:(r.error&&r.error.message)||((r.conflicts||[]).length?'needs review':'not verified')});saveSched()}
  }catch(e){recordAttempt(null,{id:'error-'+Date.now(),code:e.code||'error',message:String(e.message||e),offline:netError(e),sourceSha256:current});if(sched){sched.finished(Date.now(),{ok:false,error:String(e.message||e)});saveSched()}}
- busy=false;await refresh();writeHealth(true);
+ busy=false;await refresh();
+ // A save that lands while the run is going (also the save at its start) leaves the schedule
+ // "pending" although the backup holds exactly what is saved. Settle it now, so the status record
+ // never says "backed up" with a waiting time (a closed Studio would otherwise raise a false alert).
+ if(r&&r.ok)await settleIfVerified(Date.now());
+ writeHealth(true);
+}
+async function settleIfVerified(now){
+ if(!sched||sched.status(now).pendingSince==null)return false;
+ try{const fp=await localFingerprint();const a=readJSON(K.attempt)||{};
+  if(fp&&a.verifiedSha256===fp){sched.started(now);sched.finished(Date.parse(a.verifiedAt)||now,{ok:true,coverage:a.counts&&a.counts.checked});saveSched();paint();return true}}catch(e){}
+ return false;
 }
 async function copyNow(){return runCopy(false)}
 // The schedule is checked every few seconds; a run starts when it is due.
@@ -179,8 +193,7 @@ async function tick(){
  const now=Date.now();sched.online(navigator.onLine,now);saveSched();
  if(!sched.due(now))return;
  // Saved without a real change since the last verified backup: nothing to copy, no network.
- try{const fp=await localFingerprint();const a=readJSON(K.attempt)||{};
-  if(fp&&a.verifiedSha256===fp){sched.started(now);sched.finished(Date.parse(a.verifiedAt)||now,{ok:true,coverage:a.counts&&a.counts.checked});saveSched();paint();return}}catch(e){}
+ if(await settleIfVerified(now))return;
  if(companyOn===false)return;
  await runCopy(true);
 }
@@ -190,6 +203,9 @@ async function writeHealth(force){
  if(!enabled()||!user()||!connect())return;
  if(!force&&Date.now()-lastHealth<((T&&T.healthMs)||5*60*1000))return;
  lastHealth=Date.now();
+ // "Saved" was reported since the last look: check the saved data first, so the record says either
+ // backed up (nothing waiting) or pending (with its waiting time), never a mix of the two.
+ if(!busy&&state==='verified'&&sched&&sched.status(Date.now()).pendingSince!=null)await refresh();
  const u=user(),v=view(),a=readJSON(K.attempt)||{},s=sched?sched.status(Date.now()):{},saved=sched?sched.saved():{};
  const ch=a.counts&&a.counts.checked;
  try{await fsMod.setDoc(fsMod.doc(db,'companies/'+u.companyId+'/health/'+deviceId()),{uid:u.uid,kind:'studio',deviceName:deviceName(),state:v.kind,
