@@ -7580,7 +7580,38 @@ body.guide-only .a131-back-studio{display:block}
    if(typeof toast==='function')toast(fresh.length+' group'+(fresh.length===1?'':'s')+' made in '+(c.name||'this wardrobe')+'. Every piece keeps its own label.');
   };
  }
- Object.assign(window,{fiqFindIdenticalGroups:findGroups,fiqPlanGroup:planGroup,fiqOpenGroupPreview:openGroupPreview});
+ // A NEW panel that is identical to one already in the same wardrobe joins it when the user
+ // presses Save & next: one reference, one Cutting List row with the total quantity, every piece
+ // keeping its own label and its own circle. Only while the room's Cutting List is unsent and
+ // neither panel has Panel Check progress (the same rules as Preview grouping). Panels that already
+ // existed are never joined silently: those still go through Preview grouping.
+ const createdNow=new Set();
+ const baseCreate=window.createPartAt;
+ if(typeof baseCreate==='function'){
+  window.createPartAt=function(){
+   const c0=typeof cabinet==='function'?cabinet():null,before=new Set(((c0&&c0.parts)||[]).map(p=>p.id));
+   const r=baseCreate.apply(this,arguments);
+   try{const c1=cabinet();((c1&&c1.parts)||[]).forEach(p=>{if(!before.has(p.id))createdNow.add(p.id)})}catch(e){}
+   return r;
+  };
+ }
+ function autoJoin(id){
+  const pr=project(),c=cabinet();if(!pr||!c||!id||!createdNow.has(id))return;
+  const p=(c.parts||[]).find(x=>x.id===id);if(!p||!fiqPanelFinished(p))return;
+  const g=findGroups(pr,c).find(gr=>gr.some(x=>x.id===id));if(!g)return;
+  const keep=g.find(x=>x.id!==id);if(!keep)return;
+  const before=keep.code,added=qtyOf(p);
+  applyGroup(c,[keep,p]);createdNow.delete(id);
+  pr.updatedAt=Date.now();save();renderAll();
+  if(typeof toast==='function')toast('Identical '+(keep.name||'panel')+' joined '+before+': now '+qtyOf(keep)+' pieces on one Cutting List row. Every piece keeps its own label ('+keep.code+'-1 to '+keep.code+'-'+qtyOf(keep)+').');
+  return {joined:id,into:keep.id,added};
+ }
+ document.addEventListener('click',e=>{
+  if(!(e.target&&e.target.closest&&e.target.closest('#saveNextBtn')))return;
+  const id=state.currentPart;if(!id||!createdNow.has(id))return;
+  setTimeout(()=>{try{autoJoin(id)}catch(err){console.error('Auto grouping failed',err)}},150);
+ },true);
+ Object.assign(window,{fiqFindIdenticalGroups:findGroups,fiqPlanGroup:planGroup,fiqOpenGroupPreview:openGroupPreview,fiqAutoJoin:autoJoin});
  function groupBar(){
   // Above the Cutting List cards the user reads (Supplier screen).
   const host=document.getElementById('supplierPanelCards');if(!host)return;
