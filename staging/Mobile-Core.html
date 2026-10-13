@@ -7329,4 +7329,26 @@ function fiqRouteThroughLabels(q){
 .panel-highlight.fiq-group.active .panel-highlight-num{background:#e0102f}
 @keyframes fiqGroupPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 6px rgba(23,78,152,.30)}50%{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 16px rgba(23,78,152,.04)}}
 </style>
+<script id="fiq-phone-health">
+// Backup protection status for the alerts: how much of this phone's work is still waiting to
+// upload, and since when. One record per phone (companies/{c}/health/{device}); written once a
+// minute when it changes, every 5 minutes otherwise, and when the internet returns. A refused or
+// failed write changes nothing on the phone.
+(function(){
+ let last=null,lastAt=0;
+ function waiting(){let n=0,oldest=null;try{const a=pendingStudioSyncEntries();n=a.length;a.forEach(x=>{if(x.queuedAt&&(!oldest||x.queuedAt<oldest))oldest=x.queuedAt})}catch(e){}return {n,oldest}}
+ async function write(force){
+  const u=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;if(!u||!u.companyId||!fs||!fs.setDoc||!db||!navigator.onLine)return null;
+  const w=waiting(),key=w.n+"|"+w.oldest;if(!force&&key===last&&Date.now()-lastAt<5*60*1000)return null;
+  let id=null;try{id=localStorage.getItem("assembleone_device_id")}catch(e){}if(!id)return null;
+  const ua=navigator.userAgent||"";
+  const rec={uid:u.uid,kind:"phone",deviceName:"Phone · "+(/iPhone|iPad/.test(ua)?"iOS":/Android/.test(ua)?"Android":"browser"),state:w.n?"pending":"backed-up",lastChangeAt:null,pendingSince:w.oldest||null,lastVerifiedAt:null,coverage:null,waitingUploads:w.n,lastError:null,heartbeatAt:Date.now(),appVersion:"mobile-staging"};
+  try{await fs.setDoc(fs.doc(db,"companies",u.companyId,"health",id),rec);last=key;lastAt=Date.now();return rec}catch(e){return null}
+ }
+ setInterval(()=>{write(false)},60000);
+ window.addEventListener("online",()=>{write(true)});
+ setTimeout(()=>{write(true)},15000);
+ window.fiqPhoneHealth=write;
+})();
+</script>
 </body></html>
