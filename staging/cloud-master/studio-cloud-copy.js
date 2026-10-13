@@ -123,10 +123,18 @@ function decide(fp){
 }
 async function refresh(){
  if(!enabled()||!user()){state='off';paint();return}
+ const prev=current;
  try{current=await localFingerprint();state=decide(current)}catch(e){state='failed'}
- // Studio reports "saved" also when nothing changed. If the saved data is exactly the verified
- // backup, nothing is waiting: settle the schedule so it agrees with "Backed up".
- if(state==='verified'&&!busy&&sched&&sched.status(Date.now()).pendingSince!=null){const a=readJSON(K.attempt)||{};const now=Date.now();sched.started(now);sched.finished(Date.parse(a.verifiedAt)||now,{ok:true,coverage:a.counts&&a.counts.checked});saveSched()}
+ // Studio reports "saved" every few seconds, also when nothing changed. Only a real change of the
+ // saved data counts for the schedule (otherwise the quiet period would never be reached).
+ if(current&&sched&&ready){
+  if(prev&&prev!==current){sched.change(Date.now());saveSched()}
+  // Data that is not this computer's own verified backup is waiting (first turn-on, or a restored
+  // computer that still has to take over the backups).
+  else if(!ownVerified(current)&&sched.status(Date.now()).pendingSince==null){sched.change(Date.now());saveSched()}
+ }
+ // If the saved data is exactly this computer's own verified backup, nothing is waiting.
+ if(!busy&&ownVerified(current))settleSchedule(Date.now());
  paint();
 }
 function recordAttempt(r,extra){
@@ -178,13 +186,17 @@ async function runCopy(auto){
  if(r&&r.ok)await settleIfVerified(Date.now());
  writeHealth(true);
 }
+// Only this computer's own verified backup of exactly this data counts. The open-time check can
+// also mark data "confirmed by the cloud" after a restore; that computer still has to run its first
+// backup to take over as the backup computer, so that state never settles the schedule.
+function ownVerified(fp){const a=readJSON(K.attempt)||{};return !!(fp&&a.sourceSha256===fp&&a.verifiedSha256===fp&&a.outcome==='verified'&&a.verifiedAt)}
+function settleSchedule(now){
+ if(!sched||sched.status(now).pendingSince==null)return false;
+ const a=readJSON(K.attempt)||{};sched.started(now);sched.finished(Date.parse(a.verifiedAt)||now,{ok:true,coverage:a.counts&&a.counts.checked});saveSched();return true;
+}
 async function settleIfVerified(now){
  if(!sched||sched.status(now).pendingSince==null)return false;
- try{const fp=await localFingerprint();const a=readJSON(K.attempt)||{};
-  // Only this computer's own verified backup of exactly this data counts. The open-time check can
-  // also mark data "confirmed by the cloud" after a restore; that computer still has to run its
-  // first backup to take over as the backup computer, so it is not settled here.
-  if(fp&&a.verifiedSha256===fp&&a.sourceSha256===fp&&a.outcome==='verified'&&a.verifiedAt){sched.started(now);sched.finished(Date.parse(a.verifiedAt)||now,{ok:true,coverage:a.counts&&a.counts.checked});saveSched();paint();return true}}catch(e){}
+ try{const fp=await localFingerprint();if(ownVerified(fp)){settleSchedule(now);paint();return true}}catch(e){}
  return false;
 }
 async function copyNow(){return runCopy(false)}
@@ -208,7 +220,7 @@ async function writeHealth(force){
  lastHealth=Date.now();
  // "Saved" was reported since the last look: check the saved data first, so the record says either
  // backed up (nothing waiting) or pending (with its waiting time), never a mix of the two.
- if(!busy&&state==='verified'&&sched&&sched.status(Date.now()).pendingSince!=null)await refresh();
+ if(!busy&&sched&&sched.status(Date.now()).pendingSince!=null)await refresh();
  const u=user(),v=view(),a=readJSON(K.attempt)||{},s=sched?sched.status(Date.now()):{},saved=sched?sched.saved():{};
  const ch=a.counts&&a.counts.checked;
  try{await fsMod.setDoc(fsMod.doc(db,'companies/'+u.companyId+'/health/'+deviceId()),{uid:u.uid,kind:'studio',deviceName:deviceName(),state:v.kind,
@@ -365,7 +377,7 @@ new MutationObserver(()=>{if(document.querySelector('.fiq-safety-dialog .fiq-saf
 setInterval(()=>{if(document.querySelector('[data-cloud-section]'))paintSection()},1000);
 // After each save: recompute the local fingerprint (no network), a few seconds later.
 let saveTimer=null;
-new MutationObserver(()=>{const c=document.getElementById('fiqSaveChip');if(c&&c.dataset.saveStatus==='saved'&&enabled()){if(sched&&ready){sched.change(Date.now());saveSched()}if(!busy){clearTimeout(saveTimer);saveTimer=setTimeout(refresh,T&&T.saveDelayMs!=null?T.saveDelayMs:3000)}}}).observe(document.documentElement,{attributes:true,subtree:true,attributeFilter:['data-save-status']});
+new MutationObserver(()=>{const c=document.getElementById('fiqSaveChip');if(c&&c.dataset.saveStatus==='saved'&&enabled()){if(!busy){clearTimeout(saveTimer);saveTimer=setTimeout(refresh,T&&T.saveDelayMs!=null?T.saveDelayMs:3000)}}}).observe(document.documentElement,{attributes:true,subtree:true,attributeFilter:['data-save-status']});
 window.addEventListener('online',()=>{if(sched&&enabled()){sched.online(true,Date.now());saveSched()}if(enabled())refresh()});
 window.addEventListener('offline',()=>{if(sched&&enabled()){sched.online(false,Date.now());saveSched()}if(enabled())refresh()});
 setInterval(()=>{tick().catch(()=>{})},(T&&T.tickMs)||15000);
