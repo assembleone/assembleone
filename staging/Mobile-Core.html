@@ -6365,7 +6365,10 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       for(const packet of packets){
         try{
           if(packet.command&&packet.command.type==='reset-all-test-data'){
-            if(typeof window.fiqResetMobileTestData==='function')await window.fiqResetMobileTestData(packet.command.resetId,packet.command.resetAt);
+            // This phone never clears itself on a message from the cloud. The jobs on it stay.
+            console.warn('FittersIQ: a "clear all test data" request was ignored; nothing was removed from this phone.');
+            try{if(packet.command.resetId)localStorage.setItem('fittersiq_last_test_reset_v1',packet.command.resetId)}catch(e){}
+            try{const st=document.getElementById('scanResult');if(st)st.textContent='A request to clear all data was ignored. Nothing was removed from this phone.'}catch(e){}
             await window.removeMobilePacket(packet);
             continue;
           }

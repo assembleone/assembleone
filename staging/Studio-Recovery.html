@@ -13030,7 +13030,9 @@ document.addEventListener('mousedown',function(e){
     button.disabled=true;button.textContent='…';
     try{const count=await clearCompanyTestData();alert('All test data is cleared. '+count+' cloud transfer record'+(count===1?' was':'s were')+' removed. Open Mobile while online so it can clear its local jobs too.')}catch(e){console.error(e);alert(e&&e.message||'The test data could not be cleared. Nothing local was removed.')}finally{button.disabled=false;button.textContent='·'}
   };
-  setInterval(()=>{const owner=window.fittersiqUser&&window.fittersiqUser.role==='company_owner';button.style.display=owner?'':'none';checkCompanyReset()},3000);
+  // Customers never see this button: only a FittersIQ support sign-in. The cloud rules refuse the
+  // deletions and the phone wipe command for everyone else in any case.
+  setInterval(()=>{const u=window.fittersiqUser;const support=!!(u&&u.isAdmin===true&&u.role==='company_owner');button.style.display=support?'':'none';checkCompanyReset()},3000);
 })();
 </script>
 <style id="fiq-panel-check-compact-style">
