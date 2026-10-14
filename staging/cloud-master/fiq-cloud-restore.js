@@ -72,22 +72,31 @@ function createCloudRestore(o){
   return {ok:false,skipped};
  }
  const mediaCache=new Map();
- async function mediaBytes(sha){
-  if(mediaCache.has(sha))return mediaCache.get(sha);
-  const b=await st.getBytes(st.ref(storage,mediaPath(sha)));counts.downloads++;counts.bytes+=b.byteLength;
-  const got=await sha256Bytes(b);if(got!==sha)throw new RestoreError('media-damaged','A cloud photo or drawing is damaged (checksum '+sha.slice(0,12)+').');
-  mediaCache.set(sha,b);return b;
+ // The download itself is cached (not only its result), so jobs restored at the same time that share
+ // a drawing fetch it once.
+ function mediaBytes(sha){
+  if(!mediaCache.has(sha))mediaCache.set(sha,(async()=>{
+   const b=await st.getBytes(st.ref(storage,mediaPath(sha)));counts.downloads++;counts.bytes+=b.byteLength;
+   const got=await sha256Bytes(b);if(got!==sha)throw new RestoreError('media-damaged','A cloud photo or drawing is damaged (checksum '+sha.slice(0,12)+').');
+   return b;
+  })());
+  return mediaCache.get(sha);
  }
  async function mediaUrl(sha){await mediaBytes(sha);return st.getDownloadURL(st.ref(storage,mediaPath(sha)))}
 
+ // Runs fn over items, at most n at a time, and returns the results in the original order
+ // (the restore is the same as one-at-a-time, only faster for a company with many jobs).
+ async function pool(items,n,fn){const out=new Array(items.length);let next=0;
+  async function worker(){while(next<items.length){const i=next++;out[i]=await fn(items[i],i)}}
+  await Promise.all(Array.from({length:Math.min(n,items.length)},worker));return out}
  // Turn one checked package back into the job exactly as Studio stores it.
  async function jobFromPackage(g,report){
   let text=JSON.stringify(g.pkg.job);
   const relinked=[];
-  for(const [url,l] of Object.entries(g.pkg.links||{})){
-   let alive=false;
-   if(statLink){try{alive=!!(await statLink(url))}catch(e){alive=false}}
-   if(!alive){const fresh=await mediaUrl(l.sha256);text=text.split(JSON.stringify(url).slice(1,-1)).join(JSON.stringify(fresh).slice(1,-1));relinked.push(l.sha256.slice(0,12))}
+  const links=Object.entries(g.pkg.links||{});
+  const alive=await pool(links,8,async([url])=>{if(!statLink)return false;try{return !!(await statLink(url))}catch(e){return false}});
+  for(let i=0;i<links.length;i++){const [url,l]=links[i];
+   if(!alive[i]){const fresh=await mediaUrl(l.sha256);text=text.split(JSON.stringify(url).slice(1,-1)).join(JSON.stringify(fresh).slice(1,-1));relinked.push(l.sha256.slice(0,12))}
   }
   const job=JSON.parse(text);
   const drawings=[];
@@ -113,19 +122,22 @@ function createCloudRestore(o){
    adopt:{fromDevice:idx.switchRec&&idx.switchRec.primaryDevice||null,primaryRev:idx.switchRec?idx.switchRec.rev:0,jobs:{},customers:{},settings:idx.settings?idx.settings.rev:null}};
   const live=idx.jobs.filter(r=>r.deleted!==true),dead=idx.jobs.filter(r=>r.deleted===true);
   // Which jobs: read the current version's customerId when restoring one customer.
+  // One customer: the job records already name their customer, so only those jobs are read (a
+  // record without a customer is still read and checked, as before).
+  const wanted=live.filter(rec=>!(!all&&scope.jobIds&&!scope.jobIds.includes(rec.id))&&!(!all&&scope.customerId&&rec.customerId&&rec.customerId!==scope.customerId));
+  const checked=await pool(wanted,8,rec=>goodVersion(rec));
   const picked=[];
-  for(const rec of live){
-   if(!all&&scope.jobIds&&!scope.jobIds.includes(rec.id))continue;
-   const g=await goodVersion(rec);
-   if(!g.ok){report.problems.push('No undamaged version of job '+rec.id+': '+g.skipped.join('; '));continue}
-   if(!all&&scope.customerId&&g.pkg.job.customerId!==scope.customerId)continue;
+  wanted.forEach((rec,i)=>{const g=checked[i];
+   if(!g.ok){report.problems.push('No undamaged version of job '+rec.id+': '+g.skipped.join('; '));return}
+   if(!all&&scope.customerId&&g.pkg.job.customerId!==scope.customerId)return;
    picked.push({rec,g});
-  }
+  });
   const state=current?JSON.parse(JSON.stringify(current.savedState)):{customers:[],projects:[],deletedProjectIds:[],deletedProjects:[]};
   if(!Array.isArray(state.customers))state.customers=[];if(!Array.isArray(state.projects))state.projects=[];
   let drawings=current?current.drawings.slice():[];
-  for(const {rec,g} of picked){
-   const r=await jobFromPackage(g,report);
+  const built=await pool(picked,8,({g})=>jobFromPackage(g,report));
+  for(let k=0;k<picked.length;k++){const {rec,g}=picked[k];
+   const r=built[k];
    const i=state.projects.findIndex(p=>p&&p.id===r.job.id);
    if(i>=0)state.projects[i]=r.job;else state.projects.push(r.job);
    drawings=drawings.filter(d=>!String(d.key).startsWith(r.job.id+':')).concat(r.drawings);

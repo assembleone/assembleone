@@ -156,10 +156,13 @@ const SCH=window.FiqBackupSchedule;
 const sched=SCH?SCH.createBackupSchedule({...((T&&T.schedule)||{}),saved:readJSON(K.schedule)||undefined}):null;
 const saveSched=()=>{if(sched)ls.set(K.schedule,JSON.stringify(sched.saved()))};
 const FULL_EVERY=(T&&T.fullEveryMs)||24*3600*1000;
-let fullNext=true;// the first automatic run after Studio opens checks everything
+// A full check runs with no earlier verified run on this computer, after a restore, by hand, and once a
+// day (FULL_EVERY). Opening Studio alone no longer forces one: for a large company it took about 10
+// minutes (329 jobs, staging scale test), and the daily check already finds cloud-side damage.
+let fullNext=false;
 const runId=()=>'studio-'+new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)+'-'+Math.random().toString(36).slice(2,6);
-// One copy run, started by the schedule (auto) or by "Copy to cloud now". A manual run and the
-// first run after opening are full checks; otherwise only the changed jobs and customers are read.
+// One copy run, started by the schedule (auto) or by "Copy to cloud now". A manual run is a full
+// check (see fullNext for the others); otherwise only the changed jobs and customers are read.
 async function runCopy(auto){
  if(busy)return;
  const gate=window.fiqEditor;
