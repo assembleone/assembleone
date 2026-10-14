@@ -4451,6 +4451,9 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 // sending its work later) is kept with the deleted job and added back on restore.
 if((state.deletedProjectIds||[]).includes(incoming.id)){parkLatePhoneUpdate(incoming);return null}
 let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
+// Studio collects waiting site packets every 30 s; re-merging the same packet must not look like
+// a change (it would restart the cloud backup's quiet wait and re-upload the job each time).
+const unchangedSig=JSON.stringify({...base,updatedAt:0}),prevUpdatedAt=base.updatedAt;
 const packetAt=Date.parse(incoming._packetExportedAt||'');
 const isStalePacket=Number.isFinite(packetAt)&&packetAt<Math.max(Number(base._lastRoomsSyncAt)||0,Number(base._lastMobilePacketAt)||0);
 // A job already linked to a customer keeps that customer's name: an older or different
@@ -4500,7 +4503,7 @@ const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","meas
   Object.assign(br,clonedIr);
 });
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){if((base.deletedCabinetIds||[]).includes(ic.id))return;base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,fiqPhoneProgressFor(bp,ip),isStalePacket)})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){if((base.deletedCabinetIds||[]).includes(ic.id))return;base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,fiqPhoneProgressFor(bp,ip),isStalePacket)})});if(JSON.stringify({...base,updatedAt:0})===unchangedSig)base.updatedAt=prevUpdatedAt;return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);if(!merged){alert("This job was deleted from Studio and can't be restored from a backup file.");return}switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
