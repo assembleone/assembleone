@@ -7340,7 +7340,8 @@ function fiqRouteThroughLabels(q){
  async function write(force){
   const u=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;if(!u||!u.companyId||!fs||!fs.setDoc||!db||!navigator.onLine)return null;
   const w=waiting(),key=w.n+"|"+w.oldest;if(!force&&key===last&&Date.now()-lastAt<5*60*1000)return null;
-  let id=null;try{id=localStorage.getItem("assembleone_device_id")}catch(e){}if(!id)return null;
+  // The same device id Mobile uses for device approval; created here when the company has approval off.
+  let id=null;try{id=localStorage.getItem("assembleone_device_id");if(!id){id="dev_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2);localStorage.setItem("assembleone_device_id",id)}}catch(e){}if(!id)return null;
   const ua=navigator.userAgent||"";
   const rec={uid:u.uid,kind:"phone",deviceName:"Phone · "+(/iPhone|iPad/.test(ua)?"iOS":/Android/.test(ua)?"Android":"browser"),state:w.n?"pending":"backed-up",lastChangeAt:null,pendingSince:w.oldest||null,lastVerifiedAt:null,coverage:null,waitingUploads:w.n,lastError:null,heartbeatAt:Date.now(),appVersion:"mobile-staging"};
   try{await fs.setDoc(fs.doc(db,"companies",u.companyId,"health",id),rec);last=key;lastAt=Date.now();return rec}catch(e){return null}
