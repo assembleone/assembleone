@@ -60,9 +60,13 @@
       var hardening='<script src="studio-sync-hardening.js?build=90&beta=1&ts='+stamp+'"><\/script>';
       var banner='<div id="fiqBetaBanner" style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#b91c1c;color:#fff;font:800 11px/1.6 Inter,Arial,sans-serif;text-align:center;letter-spacing:.04em;pointer-events:none">BETA TEST COPY - NOT YOUR NORMAL FITTERSIQ STUDIO - USE THE TEST ACCOUNT ONLY<\/div>';
       var retitle='<script>document.title="BETA "+String(document.title).replace(/^BETA /,"")<\/script>';
+      // Step 6 rehearsal: automatic cloud backup (as on Staging), area "beta" of the company. It does
+      // nothing until support turns the company switch on AND this computer's switch is turned on.
+      var cm=function(n,mod){return '<script'+(mod?' type="module"':'')+' src="'+here+'cloud-master/'+n+'?beta=1&ts='+stamp+'"><\/script>'};
+      var cloud='<script>window.FIQ_CLOUD_ENV="beta"<\/script>'+cm('fiq-cloud-copy.js')+cm('backup-schedule.js')+cm('fiq-cloud-restore.js')+cm('studio-cloud-copy.js',true);
       // Find </body> again: removing the manifest and adding <base> above changed the length.
       var bodyClose=html.toLowerCase().lastIndexOf('</body>');
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+banner+retitle+html.slice(bodyClose);
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+banner+retitle+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
