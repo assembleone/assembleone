@@ -2108,7 +2108,7 @@ html.fiq-readonly body{padding-top:44px}
   const row=(a,b)=>'<tr><th>'+esc(a)+'</th><td>'+b+'</td></tr>';
   const c=r.counts,s=r.storage;
   return '<div class="fiq-doctor" data-doctor>'+
-   '<h3>Storage</h3><table>'+row('Saved Studio data',kb(s.savedStateBytes))+row('Browser local storage (this website, Studio + Beta)',kb(s.localStorageBytes)+' · Beta '+kb(s.localStorageBetaBytes)+' · other '+kb(s.localStorageOtherBytes))+
+   '<h3>Storage</h3><table>'+row('Saved Studio data',kb(s.savedStateBytes))+row('Browser local storage (this website, Studio + Beta)',kb(s.localStorageBytes)+' · Beta '+kb(s.localStorageBetaBytes)+' · other '+kb(s.localStorageOtherBytes))+row('Largest stored items',(s.largestKeys||[]).map(k=>esc(k[0])+' '+kb(k[1])).join('<br>'))+
    row('Photos stored inside saved data',r.media.dataUrlCount+' · '+kb(r.media.dataUrlBytes))+row('Drawings',r.drawings.storedDrawings+' stored ('+kb(r.drawings.storedBytes)+') for '+r.drawings.unitsWithDrawing+' units with a drawing')+
    row('Whole browser storage',kb(s.browserUsageBytes)+' used of '+kb(s.browserQuotaBytes)+(s.persistent?' · protected':' · may be cleared by the browser when space is short'))+'</table>'+
    '<h3>Records</h3><table>'+row('Customers',c.customers)+row('Jobs',c.jobs)+row('Rooms',c.rooms)+row('Units',c.units)+row('Panels',c.panels+' ('+c.physicalPieces+' physical pieces, '+c.unfinishedPanels+' unfinished)')+row('Saved Cutting List versions',c.savedCuttingListVersions)+row('Deleted jobs',c.deletedJobIds+' ids · '+c.deletedJobFullCopies+' full copies ('+kb(c.deletedJobCopiesBytes)+')')+row('Deleted panel ids',c.deletedPanelIds)+'</table>'+
@@ -3135,7 +3135,8 @@ function storeMaterialName(name){
  name=String(name||"").trim();if(!name)return;
  const list=savedMaterials().filter(x=>x.toLowerCase()!==name.toLowerCase());
  list.unshift(name);
- localStorage.setItem(MATERIAL_LIBRARY_KEY,JSON.stringify(list.slice(0,60)));
+ // A full browser storage must not stop Save & next half way (the save status shows the problem).
+ try{localStorage.setItem(MATERIAL_LIBRARY_KEY,JSON.stringify(list.slice(0,60)))}catch(e){console.warn('Material list not stored',e)}
 }
 function closeMaterialPicker(){
  const d=$("#materialPickerDetails");
@@ -4471,6 +4472,9 @@ function mergeMobileProject(incoming){if(!incoming?.id||!Array.isArray(incoming.
 // sending its work later) is kept with the deleted job and added back on restore.
 if((state.deletedProjectIds||[]).includes(incoming.id)){parkLatePhoneUpdate(incoming);return null}
 let base=state.projects.find(x=>x.id===incoming.id);if(!base){incoming.updatedAt=Date.now();incoming.isNewFromSite=true;ensureCustomerForProject(incoming);state.projects.unshift(incoming);return incoming}
+// Studio collects waiting site packets every 30 s; re-merging the same packet must not look like
+// a change (it would restart the cloud backup's quiet wait and re-upload the job each time).
+const unchangedSig=JSON.stringify({...base,updatedAt:0}),prevUpdatedAt=base.updatedAt;
 const packetAt=Date.parse(incoming._packetExportedAt||'');
 const isStalePacket=Number.isFinite(packetAt)&&packetAt<Math.max(Number(base._lastRoomsSyncAt)||0,Number(base._lastMobilePacketAt)||0);
 // A job already linked to a customer keeps that customer's name: an older or different
@@ -4520,7 +4524,7 @@ const SITE_RECORD_ARRAY_FIELDS=["sitePhotos","beforePhotos","designImages","meas
   Object.assign(br,clonedIr);
 });
 if(!isNaN(packetAt))base._lastRoomsSyncAt=Math.max(base._lastRoomsSyncAt||0,packetAt);
-incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){if((base.deletedCabinetIds||[]).includes(ic.id))return;base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,fiqPhoneProgressFor(bp,ip),isStalePacket)})});return base}
+incoming.cabinets.forEach(ic=>{let bc=base.cabinets.find(x=>x.id===ic.id);if(!bc){if((base.deletedCabinetIds||[]).includes(ic.id))return;base.cabinets.push(ic);return}ic.parts?.forEach(ip=>{let bp=bc.parts.find(x=>x.id===ip.id);if(!bp){if((bc.deletedPartIds||[]).includes(ip.id))return;bc.parts.push(ip);return}mergePanelFields(bp,fiqPhoneProgressFor(bp,ip),isStalePacket)})});if(JSON.stringify({...base,updatedAt:0})===unchangedSig)base.updatedAt=prevUpdatedAt;return base}
 async function importMobileUpdates(file){if(!file)return;try{const raw=jsonFromZip(await readZip(file)),incoming=ensureSharedProject(raw.project||raw);if(raw.exportedAt)incoming._packetExportedAt=raw.exportedAt;const merged=mergeMobileProject(incoming);if(!merged){alert("This job was deleted from Studio and can't be restored from a backup file.");return}switchToProject(merged.id,merged.cabinets[0]?.id||null);renderAll();save();show("jobs");alert("Site updates imported. Installation status, notes and photos are now back in Studio.")}catch(e){alert("This is not a valid FittersIQ site-update ZIP.")}}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 const DIRECT_SYNC_FALLBACK="assembleone_direct_sync_queue_v1";
@@ -6514,6 +6518,16 @@ body.guide-only .a131-back-studio{display:block}
 <button class="a131-back-studio" id="a131BackStudio" type="button">Back to Studio</button>
 <div id="a131RecoveryBar">Saved automatically</div>
 <div id="a131PrintOverlay" aria-hidden="true"><div id="a131PrintPanel"><div id="a131PrintHead"><strong>Supplier print preview</strong><button class="btn" id="a131PrintNow" type="button" data-i18n="studio.drawing.printBtn">Print</button><button class="btn primary" id="a131ClosePrint" type="button" data-i18n="studio.drawing.backToStudioBtn">Back to Studio</button></div><iframe id="a131PrintFrame" data-i18n-title="studio.drawing.printPreviewFallback" title="Print preview"></iframe></div></div>
+<script id="fiq-dead-storage-cleanup">
+// 15 Oct 2026: the old Studio-to-phone send queue (retired in August, nothing reads it any more)
+// still filled 4.4 MB of this website's shared browser storage, so saving failed with "Browser
+// storage is full". It is removed when the app opens (also its Beta / Staging copies); nothing in
+// use is touched. delete localStorage[k] reaches the real name inside the Beta / Staging pages too.
+(function(){try{const dead='assembleone_mobile_direct_queue_v1',key=Storage.prototype.key,found=[];
+ for(let i=0;i<localStorage.length;i++){const k=key.call(localStorage,i);if(k===dead||String(k).endsWith(':'+dead))found.push(k)}
+ found.forEach(k=>{delete localStorage[k]});
+ if(found.length)console.info('FittersIQ: removed an old unused send queue from browser storage');}catch(e){}})();
+</script>
 <script id="a131-stability-script">
 (function(){
   const DB_NAME='assembleone_stable_v1',DB_STORE='drawings',STATE_STORE='project_state';
@@ -13088,7 +13102,9 @@ document.addEventListener('mousedown',function(e){
     button.disabled=true;button.textContent='…';
     try{const count=await clearCompanyTestData();alert('All test data is cleared. '+count+' cloud transfer record'+(count===1?' was':'s were')+' removed. Open Mobile while online so it can clear its local jobs too.')}catch(e){console.error(e);alert(e&&e.message||'The test data could not be cleared. Nothing local was removed.')}finally{button.disabled=false;button.textContent='·'}
   };
-  setInterval(()=>{const owner=window.fittersiqUser&&window.fittersiqUser.role==='company_owner';button.style.display=owner?'':'none';checkCompanyReset()},3000);
+  // Customers never see this button: only a FittersIQ support sign-in. The cloud rules refuse the
+  // deletions and the phone wipe command for everyone else in any case.
+  setInterval(()=>{const u=window.fittersiqUser;const support=!!(u&&u.isAdmin===true&&u.role==='company_owner');button.style.display=support?'':'none';checkCompanyReset()},3000);
 })();
 </script>
 <style id="fiq-panel-check-compact-style">

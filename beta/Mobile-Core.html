@@ -1644,6 +1644,15 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <span data-i18n="nav.jobs">Jobs</span>
 </button>
 </nav>
+<script id="fiq-dead-storage-cleanup">
+// 15 Oct 2026: the old Studio-to-phone send queue (retired in August, nothing reads it any more)
+// still filled 4.4 MB of this website's shared browser storage. Removed when the app opens (also
+// its Beta / Staging copies); nothing in use is touched.
+(function(){try{const dead='assembleone_mobile_direct_queue_v1',key=Storage.prototype.key,found=[];
+ for(let i=0;i<localStorage.length;i++){const k=key.call(localStorage,i);if(k===dead||String(k).endsWith(':'+dead))found.push(k)}
+ found.forEach(k=>{delete localStorage[k]});
+ if(found.length)console.info('FittersIQ: removed an old unused send queue from browser storage');}catch(e){}})();
+</script>
 <script>
 const KEY="assembleone_mobile_v2";
 let state={projects:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,screen:"projects",activeCardKeys:[]};
@@ -6472,7 +6481,10 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       for(const packet of packets){
         try{
           if(packet.command&&packet.command.type==='reset-all-test-data'){
-            if(typeof window.fiqResetMobileTestData==='function')await window.fiqResetMobileTestData(packet.command.resetId,packet.command.resetAt);
+            // This phone never clears itself on a message from the cloud. The jobs on it stay.
+            console.warn('FittersIQ: a "clear all test data" request was ignored; nothing was removed from this phone.');
+            try{if(packet.command.resetId)localStorage.setItem('fittersiq_last_test_reset_v1',packet.command.resetId)}catch(e){}
+            try{const st=document.getElementById('scanResult');if(st)st.textContent='A request to clear all data was ignored. Nothing was removed from this phone.'}catch(e){}
             await window.removeMobilePacket(packet);
             continue;
           }
@@ -7437,4 +7449,27 @@ function fiqRouteThroughLabels(q){
 .panel-highlight.fiq-group.active .panel-highlight-num{background:#e0102f}
 @keyframes fiqGroupPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 6px rgba(23,78,152,.30)}50%{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 16px rgba(23,78,152,.04)}}
 </style>
+<script id="fiq-phone-health">
+// Backup protection status for the alerts: how much of this phone's work is still waiting to
+// upload, and since when. One record per phone (companies/{c}/health/{device}); written once a
+// minute when it changes, every 5 minutes otherwise, and when the internet returns. A refused or
+// failed write changes nothing on the phone.
+(function(){
+ let last=null,lastAt=0;
+ function waiting(){let n=0,oldest=null;try{const a=pendingStudioSyncEntries();n=a.length;a.forEach(x=>{if(x.queuedAt&&(!oldest||x.queuedAt<oldest))oldest=x.queuedAt})}catch(e){}return {n,oldest}}
+ async function write(force){
+  const u=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;if(!u||!u.companyId||!fs||!fs.setDoc||!db||!navigator.onLine)return null;
+  const w=waiting(),key=w.n+"|"+w.oldest;if(!force&&key===last&&Date.now()-lastAt<5*60*1000)return null;
+  // The same device id Mobile uses for device approval; created here when the company has approval off.
+  let id=null;try{id=localStorage.getItem("assembleone_device_id");if(!id){id="dev_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2);localStorage.setItem("assembleone_device_id",id)}}catch(e){}if(!id)return null;
+  const ua=navigator.userAgent||"";
+  const rec={uid:u.uid,kind:"phone",deviceName:"Phone · "+(/iPhone|iPad/.test(ua)?"iOS":/Android/.test(ua)?"Android":"browser"),state:w.n?"pending":"backed-up",lastChangeAt:null,pendingSince:w.oldest||null,lastVerifiedAt:null,coverage:null,waitingUploads:w.n,lastError:null,heartbeatAt:Date.now(),appVersion:"mobile-staging"};
+  try{await fs.setDoc(fs.doc(db,"companies",u.companyId,"health",id),rec);last=key;lastAt=Date.now();return rec}catch(e){return null}
+ }
+ setInterval(()=>{write(false)},60000);
+ window.addEventListener("online",()=>{write(true)});
+ setTimeout(()=>{write(true)},15000);
+ window.fiqPhoneHealth=write;
+})();
+</script>
 </body></html>
