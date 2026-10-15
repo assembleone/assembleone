@@ -1232,6 +1232,19 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .fp-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
 .fp-pieces{display:flex;flex-wrap:wrap;gap:6px}.fp-pieces .fp-piece{min-height:40px}.fp-pieces .fp-piece.active{background:#174E98;color:#fff;border-color:#174E98}
 .fp-piece-status{font-weight:800}
+/* Grouped panel counter (same P1 on every sticker) */
+.gc{border:2px solid #174E98;border-radius:14px;padding:12px;margin:10px 0;display:grid;gap:10px;background:#f5f8fd}
+.gc-head{display:flex;justify-content:space-between;align-items:baseline;font-weight:800}
+.gc-head span{font-weight:700;color:#334155}
+.gc-now{font-size:15px;font-weight:700}.gc-now b{font-size:28px}
+.gc-count-btn{min-height:64px;font-size:20px;font-weight:800;width:100%}
+.gc-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.gc-row{display:flex;align-items:center;justify-content:space-between;gap:6px;background:#fff;border:1px solid #d6dde6;border-radius:10px;padding:4px 6px 4px 10px;font-weight:700;min-height:44px}
+.gc-row .gc-btns{display:flex;gap:4px}.gc-row button{min-width:40px;min-height:36px;padding:0 8px}
+.gc-final{display:grid;grid-template-columns:1fr 1fr;gap:8px}.gc-final .btn{min-height:50px;font-weight:800}
+.gc-undo{min-height:44px;padding:0 14px}
+.gc-bar-row{display:grid;grid-template-columns:auto 1fr;gap:8px}.gc-damage-btn{min-height:44px;font-weight:800}
+.gc-summary{font-weight:800;color:#174E98}.gc-confirmed{color:#15803d;font-weight:700}
 .fp-drawing-frame{position:relative;width:100%;line-height:0}.fp-drawing-frame img{display:block;width:100%;height:auto}
 .fp-exact-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#e0102f;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(0,0,0,.6);z-index:4;pointer-events:none}
 .fp-drawing-frame .panel-highlight-num{position:absolute;top:-12px;right:-12px}.fp-shared-spot{font-size:13px;color:var(--muted);font-weight:700}
@@ -2034,7 +2047,12 @@ function isStudioJob(p){return !!(p&&(p.studioOrigin||isInstallationJob(p)))}
 // read straight from the persisted project, not any session-only flag.
 function updateInstallNewBadge(){
  const badge=document.getElementById('installNewBadge');if(!badge)return;
- const count=state.projects.filter(p=>isStudioJob(p)&&!p.mobileArchived&&p.mobileSeen===false&&(typeof canSeeJob!=='function'||canSeeJob(p))).length;
+ // Counts exactly the NEW cards the Jobs list shows (renderProjects): same room cards, same
+ // assignment check, nothing archived or moved to the Library. A badge for a card the list
+ // hides read as "1 new job" over an empty list.
+ const count=state.projects.filter(isStudioJob).flatMap(cardsForProject)
+  .filter(c=>(typeof canSeeJob!=='function'||canSeeJob(c.project,c.room==='__general__'?null:c.room))&&!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
+  .filter(c=>{const rm=(c.room&&c.room!=='__general__')?c.room:null;return (rm?rm.mobileSeen:c.project.mobileSeen)===false}).length;
  badge.textContent=String(count);
  badge.classList.toggle('hidden',count<=0);
 }
@@ -3713,8 +3731,51 @@ function mergePieceStates(base,inc){
   if(v.statusAt&&(!b.statusAt||Number(v.statusAt)>Number(b.statusAt))){b.status=v.status||null;b.statusAt=v.statusAt;b.statusBy=v.statusBy||null;b.note=v.note||''}});
 }
 function pieceIssueCount(pt,status){const s=pt&&pt.pieceStates;if(!s||typeof s!=='object')return 0;return Object.keys(s).filter(k=>s[k]&&s[k].status===status).length}
-function pieceIssueStatus(pt){return pieceIssueCount(pt,'damaged')?'damaged':pieceIssueCount(pt,'missing')?'missing':null}
-function pieceSummaryText(pt){const s=pt&&pt.pieceStates;if(!s||typeof s!=='object'||!Object.keys(s).length)return '';const n=panelPieceCount(pt),out=[];
+function pieceIssueStatus(pt){if(isGroupPanel(pt)){const g=groupCountOf(pt);return g.damaged?'damaged':g.missing?'missing':null}return pieceIssueCount(pt,'damaged')?'damaged':pieceIssueCount(pt,'missing')?'missing':null}
+// ---- Grouped panels (Qty > 1): one counter per panel ----
+// Every sticker of a grouped panel carries the same identity (P1), so Panel Check counts the
+// pieces instead of telling them apart: pt.groupCount = {good, damaged, missing, updatedAt,
+// by, confirmedAt, confirmedBy, hist}. good + damaged + missing never exceeds the quantity;
+// the rest is unchecked. Scanning P1 or opening its card only opens this counter, it never
+// adds to it. The newest saved counter wins when Studio and phones merge (so Undo and
+// corrections are kept); scannedQty (good + damaged) and damagedQty are kept in step so
+// everything that reads them, and older Studio/Mobile, keeps working.
+function isGroupPanel(pt){return panelPieceCount(pt)>1}
+function groupCountOf(pt){
+ const q=panelPieceCount(pt),g=pt&&pt.groupCount&&typeof pt.groupCount==='object'?pt.groupCount:null,c=v=>Math.max(0,Math.floor(Number(v)||0));
+ let damaged,missing,good;
+ if(g){damaged=Math.min(q,c(g.damaged));missing=Math.min(q-damaged,c(g.missing));good=Math.min(q-damaged-missing,c(g.good))}
+ else{damaged=Math.min(q,c(pt&&pt.damagedQty));missing=Math.min(q-damaged,pieceIssueCount(pt,'missing'));good=Math.min(q-damaged-missing,Math.max(0,c(pt&&pt.scannedQty)-damaged))}
+ return {qty:q,good,damaged,missing,unchecked:q-good-damaged-missing,confirmedAt:g&&g.confirmedAt||null,saved:!!g};
+}
+function groupCountText(pt){const g=groupCountOf(pt);return (pt.code||'')+' · '+g.good+' good · '+g.damaged+' damaged · '+g.missing+' missing'+(g.unchecked?' · '+g.unchecked+' unchecked':'')}
+// One change to the counter: kind good|damaged|missing, by +n or -n. Saved on this phone at once.
+function changeGroupCount(pr,pt,kind,by,opts){
+ const g=groupCountOf(pt),next={good:g.good,damaged:g.damaged,missing:g.missing};
+ if(by>0)by=Math.min(by,g.unchecked);else by=-Math.min(-by,next[kind]);
+ if(!by&&!(opts&&opts.confirm))return false;
+ next[kind]+=by;
+ const prev=pt.groupCount&&typeof pt.groupCount==='object'?pt.groupCount:{};
+ const hist=(Array.isArray(prev.hist)?prev.hist:[]).slice(-19);if(by&&!(opts&&opts.undo))hist.push({k:kind,n:by});
+ const now=Date.now(),who=currentActorFitterId();
+ pt.groupCount={...next,updatedAt:now,by:who,confirmedAt:opts&&opts.confirm?new Date(now).toISOString():(by?null:prev.confirmedAt||null),confirmedBy:opts&&opts.confirm?who:(by?null:prev.confirmedBy||null),hist};
+ pt.scannedQty=next.good+next.damaged;pt.damagedQty=next.damaged;
+ pt.lastScannedAt=new Date(now).toISOString();pt.lastScannedByFitterId=who;
+ save();if(pr&&typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
+ return true;
+}
+function undoGroupCount(pr,pt){
+ const h=pt.groupCount&&Array.isArray(pt.groupCount.hist)?pt.groupCount.hist:[];const last=h[h.length-1];
+ if(last){pt.groupCount.hist=h.slice(0,-1);return changeGroupCount(pr,pt,last.k,-last.n,{undo:true})}
+ return changeGroupCount(pr,pt,'good',-1,{undo:true});
+}
+// Merge: the newer saved counter wins; the legacy counters follow it.
+function mergeGroupCount(base,inc){
+ if(!base)return;const a=base.groupCount,b=inc&&inc.groupCount;
+ if(b&&typeof b==='object'&&(!a||Number(b.updatedAt)>Number(a.updatedAt)))base.groupCount=JSON.parse(JSON.stringify(b));
+ if(base.groupCount&&typeof base.groupCount==='object'){const g=groupCountOf(base);base.scannedQty=g.good+g.damaged;base.damagedQty=g.damaged}
+}
+function pieceSummaryText(pt){if(isGroupPanel(pt)&&(pt.groupCount||pt.scannedQty||pt.damagedQty||pieceIssueCount(pt,'missing'))){const g=groupCountOf(pt);return ' · '+g.good+' good · '+g.damaged+' damaged · '+g.missing+' missing'+(g.unchecked?' · '+g.unchecked+' unchecked':'')}const s=pt&&pt.pieceStates;if(!s||typeof s!=='object'||!Object.keys(s).length)return '';const n=panelPieceCount(pt),out=[];
  for(let i=1;i<=n;i++){const v=s[String(i)]||{};out.push(i+(v.status==='installed'?' ▦':v.status==='damaged'?' ⚠':v.status==='missing'?' ❔':v.checkedAt?' ✓':' —'))}return ' · Pieces: '+out.join('  ')}
 function mergeStudioProject(incoming){
  if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
@@ -3777,6 +3838,7 @@ function mergeStudioProject(incoming){
     if(ip.piecesRenumberedAt&&ip.piecesRenumberedAt!==op.piecesRenumberedAt){["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});return}
     ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(op[k]!==undefined)ip[k]=Math.max(Number(ip[k])||0,Number(op[k])||0)});
     mergePieceStates(ip,op.pieceStates);
+    mergeGroupCount(ip,op);
     ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});
     mergePanelStatus(ip,op);
   })});
@@ -4264,7 +4326,7 @@ function partStatusCategory(pt){
  const q=Math.max(1,Number(pt.qty)||1);
  if(pt.status==='installed'||(Number(pt.installedQty)||0)>=q)return 'installed';
  if(pt.status==='damaged'||(Number(pt.damagedQty)||0)>0)return 'damaged';
- if(pt.status==='missing'||pieceIssueCount(pt,'missing')>0)return 'missing';
+ if(pt.status==='missing'||pieceIssueCount(pt,'missing')>0||(isGroupPanel(pt)&&pt.groupCount&&groupCountOf(pt).missing>0))return 'missing';
  if((Number(pt.scannedQty)||0)>=q)return 'checked';
  return 'remaining';
 }
@@ -4356,10 +4418,39 @@ function renderFindPanelResult(){
   drawingHtml=`<div class="panel-drawing"><div class="fp-drawing-frame"><img src="${c.drawing}" alt="Drawing">${dots.map((d,i)=>`<div class="panel-highlight status-${safe(dotStatus(d))}${d.ci===target?' active':''}${multi?' fiq-group':''}" style="left:${Number(d.x)}%;top:${Number(d.y)}%">${multi?`<span class="fiq-hl-code">${safe(pt.code)}</span><span class="panel-highlight-num">${d.ci<0?1:d.ci+2}</span>`:''}</div>`).join('')}${exactDot}</div></div>`
    +(n>1&&dots.length===1?`<div class="fp-shared-spot">All ${n} pieces of ${safe(pt.code)} go at the marked spot.</div>`:'');
  }
- const pieces=n>1?`<div class="fp-pieces">${Array.from({length:n},(_,i)=>i+1).map(k=>`<button type="button" class="bomp-chip fp-piece${k===piece?' active':''}" data-fp-piece="${k}">Piece ${k}${PIECE_MARKS[pieceStatusOf(pt,k)]}</button>`).join('')}</div>`:'';
- const status=piece?`<div class="fp-piece-status">${n>1?'Piece '+piece+' of '+n+' · ':''}${PIECE_WORDS[pieceStatusOf(pt,piece)]}</div>`
+ // Grouped panel: one counter instead of telling identical pieces apart. Piece buttons stay only
+ // where the drawing really has separate positions to fit.
+ const group=isGroupPanel(pt),g=group?groupCountOf(pt):null;
+ // Mads 15 Oct 2026: Count panel sits right under the drawing (count without scrolling), with Undo
+ // and Damaged beside it; Damaged opens the damage form, so a photo and note go to Studio.
+ const counter=group?`<div class="gc" data-gc><div class="gc-head"><span class="gc-now"><b>${g.good}</b> good counted · ${g.unchecked} still to count</span><span>Expected ${g.qty}</span></div>`
+  +`<button type="button" class="btn primary gc-count-btn" data-gc-add${g.unchecked?'':' disabled'}>Count panel</button>`
+  +`<div class="gc-bar-row"><button type="button" class="btn gc-undo" data-gc-undo>Undo</button><button type="button" class="btn warn gc-damage-btn" data-gc-damage${g.unchecked?'':' disabled'}>⚠ Damaged: photo + note</button></div></div>`
+  +`<div class="gc gc-more">`
+  +`<div class="gc-rows"><div class="gc-row">Good ${g.good}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="good" aria-label="One less good"${g.good?'':' disabled'}>−</button></span></div>`
+  +`<div class="gc-row">Damaged ${g.damaged}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="damaged" aria-label="One less damaged"${g.damaged?'':' disabled'}>−</button></span></div>`
+  +`<div class="gc-row">Missing ${g.missing}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="missing" aria-label="One less missing"${g.missing?'':' disabled'}>−</button></span></div>`
+  +`<div class="gc-row">Unchecked ${g.unchecked}</div></div>`
+  +`<div class="gc-final"><button type="button" class="btn primary" data-gc-confirm>Confirm</button><button type="button" class="btn warn" data-gc-missing${g.unchecked?'':' disabled'}>Mark missing${g.unchecked?' ('+g.unchecked+')':''}</button></div>`
+  +`<div class="gc-summary" data-gc-summary>${safe(groupCountText(pt))}</div>`
+  +(g.confirmedAt?`<div class="gc-confirmed">✓ Confirmed ${safe(new Date(g.confirmedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}))}</div>`:'')+`</div>`:'';
+ const pieces=n>1&&(!group||dots.length>1)?`<div class="fp-pieces">${Array.from({length:n},(_,i)=>i+1).map(k=>`<button type="button" class="bomp-chip fp-piece${k===piece?' active':''}" data-fp-piece="${k}">Piece ${k}${PIECE_MARKS[pieceStatusOf(pt,k)]}</button>`).join('')}</div>`:'';
+ const status=group?'':piece?`<div class="fp-piece-status">${n>1?'Piece '+piece+' of '+n+' · ':''}${PIECE_WORDS[pieceStatusOf(pt,piece)]}</div>`
   :`<div class="fp-piece-status">${n>1?'Old sticker without a piece number — tap a piece above to choose it':safe(statusLabel(pt.status||'ready'))}</div>`;
- body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${pieces}${status}${drawingHtml}`;
+ body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${pieces}${status}${drawingHtml}${counter}`;
+ // Grouped panel: the counter has its own Missing and Damaged; Fitted stays.
+ ['#fpMarkMissing','#fpMarkDamaged'].forEach(id=>{const b=$(id);if(b)b.classList.toggle('hidden',group)});
+ const acts=document.querySelector('#findPanelOverlay .fp-actions');if(acts)acts.style.gridTemplateColumns=group?'1fr':'';
+ if(group){
+  const act=fn=>()=>{fn();renderFindPanelResult();if(typeof renderInstall==='function')renderInstall();if(typeof renderScanDashboard==='function')renderScanDashboard()};
+  const q=sel=>body.querySelector(sel);
+  q('[data-gc-add]').onclick=act(()=>changeGroupCount(p,pt,'good',1));
+  body.querySelectorAll('[data-gc-minus]').forEach(b=>b.onclick=act(()=>changeGroupCount(p,pt,b.dataset.gcMinus,-1)));
+  q('[data-gc-damage]').onclick=()=>{setDamagePanelTarget(p,c,pt,null);$('#damagePanelOverlay').classList.remove('hidden');$('#damagePanelCode').value=pt.code||'';$('#damageNote').focus()};
+  q('[data-gc-undo]').onclick=act(()=>undoGroupCount(p,pt));
+  q('[data-gc-missing]').onclick=act(()=>{const left=groupCountOf(pt).unchecked;if(left&&changeGroupCount(p,pt,'missing',left))addJobLogEntry(p,'🔍 Missing: '+pt.code+' ('+left+' of '+panelPieceCount(pt)+')'+(pt.name?' — '+pt.name:''),[],state.currentRoom||null);save()});
+  q('[data-gc-confirm]').onclick=()=>{changeGroupCount(p,pt,'good',0,{confirm:true});if(typeof renderInstall==='function')renderInstall();if(typeof renderScanDashboard==='function')renderScanDashboard();const fromCard=fpOpenedFromCard;closeFindPanelResult();if(!fromCard&&state.scanMode==='check')startCamera()};
+ }
  body.querySelectorAll('[data-fp-piece]').forEach(el=>el.onclick=()=>{const k=Number(el.dataset.fpPiece);state.scannedPiece=k;state.selectedCopy=pieceDotIndex(pt,k);save();renderFindPanelResult()});
 }
 // Tapping a Panel Check card identifies the panel exactly like scanning its sticker: it
@@ -4367,6 +4458,8 @@ function renderFindPanelResult(){
 // the same openPanelRoute into the same panel view. It opens the first piece not yet fitted.
 function openPanelFromCard(pr,cab,pt){
  if(!pr||!cab||!pt)return;
+ // A grouped panel on one spot is counted, not told apart: open it without a piece.
+ if(isGroupPanel(pt)&&!(pt.copies||[]).length){if(!openPanelRoute({projectId:pr.id,cabinetId:cab.id,panelId:pt.id}))return;openFindPanelResult(true);return}
  const n=panelPieceCount(pt);let piece=1;for(let k=1;k<=n;k++){if(pieceStatusOf(pt,k)!=='installed'){piece=k;break}}
  if(!openPanelRoute({projectId:pr.id,cabinetId:cab.id,panelId:pt.id,copyIndex:piece===1?-1:piece-2}))return;
  openFindPanelResult(true);
@@ -4792,6 +4885,8 @@ function resolveScanRef(word,projects){
  // Same piece rule as the stickers: Qty 1 prints KB12, Qty > 1 prints KB12-1, KB12-2 ...
  // (after Make unique, the label numbers in pt.pieceNos).
  if(q>1||split){
+  // A grouped panel prints the same reference on every sticker (KB12): it opens the panel's counter.
+  if(piece==null&&q>1)return {kind:'match',token:pt.code,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id}};
   if(piece==null)return byAlias()||{kind:'unclear'};
   if(typeof fiqCurOfLabelNo==='function'?fiqCurOfLabelNo(pt,piece)==null:(piece<1||piece>q))return byAlias()||{kind:'nomatch',token:pt.code+'-'+piece};
  }
@@ -4814,7 +4909,7 @@ function resolvePanelNumber(token,projects){
  if(hits.length>1)return {kind:'duplicate',token};
  const {pr,c,pt}=hits[0],q=Math.max(1,Math.floor(Number(pt.qty)||1));
  // Same piece rule as the stickers: Qty 1 prints the bare number, Qty > 1 number-piece.
- if(q>1){if(piece==null)return {kind:'unclear'};if(piece<1||piece>q)return {kind:'nomatch',token}}
+ if(q>1){if(piece==null)return {kind:'match',token,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id}};if(piece<1||piece>q)return {kind:'nomatch',token}}
  else if(piece!=null)return {kind:'unclear'};
  const k=q>1?piece:1;
  return {kind:'match',token,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
@@ -4852,7 +4947,7 @@ function showNumberDiag(text,r){
  const raw=String(numberRawText!=null?numberRawText:text||'').replace(/\s+/g,' ').trim().slice(0,40)||'(nothing)',toks=panelNumberTokens(text);
  let what;
  if(r&&r.kind==='match'){const pr=state.projects.find(x=>x.id===r.route.projectId),c=pr&&(pr.cabinets||[]).find(x=>x.id===r.route.cabinetId),pt=c&&(c.parts||[]).find(x=>x.id===r.route.panelId),q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1)),k=r.route.copyIndex===-1?1:r.route.copyIndex+2;
-  what=r.token+' = '+(pt?pt.code+' '+(pt.name||''):'?')+(q>1?', piece '+k+' of '+q:'')}
+  what=r.token+' = '+(pt?pt.code+' '+(pt.name||''):'?')+(q>1?(r.route.copyIndex==null?', its counter ('+q+' pieces)':', piece '+k+' of '+q):'')}
  else if(r&&r.kind==='nomatch')what=r.token+' = not in this job';
  else if(r&&r.kind==='duplicate')what=r.token+' = in more than one open job';
  else what=toks.length?'unclear: '+toks.join(', '):'no panel number';
@@ -5032,6 +5127,14 @@ function resolveLastPanelCheckHit(){
 function handlePanelCheckScan(){
  const pr=project(),pt=part(),cab=cabinet();
  if(!pr||!pt)return;
+ // A grouped panel (same P1 on every sticker): open its saved counter; a scan never adds.
+ if(isGroupPanel(pt)){
+  lastPanelCheckHit={prId:pr.id,cabId:cab?cab.id:null,ptId:pt.id,piece:null};
+  state.scannedPiece=null;pt.lastScannedAt=new Date().toISOString();pt.lastScannedByFitterId=currentActorFitterId();save();
+  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
+  if(getScanMethod()!=='number')stopCamera();
+  openFindPanelResult(false);return;
+ }
  const piece=state.scannedPiece||null;
  lastPanelCheckHit={prId:pr.id,cabId:cab?cab.id:null,ptId:pt.id,piece};
  const q=Math.max(1,Number(pt.qty)||1);
@@ -5082,6 +5185,7 @@ function currentActorDisplayName(){
 // Shared by the Problem Panel menu (Find Panel) and Panel Check's own Missing button so
 // both ways of flagging a panel missing behave identically and stay in sync.
 function applyMissingStatus(pr,pt,piece){
+ if(isGroupPanel(pt)){changeGroupCount(pr,pt,'missing',1);addJobLogEntry(pr,"🔍 Missing: "+pt.code+" (1 of "+panelPieceCount(pt)+")"+(pt.name?" — "+pt.name:""),[],state.currentRoom||null);save();if(typeof exportJob==="function")exportJob(pr.id);return}
  if(piece){const ps=pieceState(pt,piece,true);ps.status="missing";ps.statusAt=Date.now();ps.statusBy=currentActorFitterId()}
  else{const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=currentActorFitterId()}
  addJobLogEntry(pr,"🔍 Missing: "+pt.code+(piece?" piece "+piece+"/"+panelPieceCount(pt):"")+(pt.name?" — "+pt.name:""),[],state.currentRoom||null);
@@ -5242,6 +5346,7 @@ $("#markPanelCheckChoice").onclick=()=>{
  if(!found)return;
  const{pr,cab,pt}=found;
  state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+ if(isGroupPanel(pt)){state.scannedPiece=null;save();openFindPanelResult(true);return}
  const q=Math.max(1,Number(pt.qty)||1);
  pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
  pt.lastScannedAt=new Date().toISOString();
@@ -5369,7 +5474,9 @@ $("#saveDamage").onclick=async()=>{
  if(!found){alert(t('msg.panelNotFoundCheckNumber'));return}
  state.currentProject=found.pr.id;state.currentCabinet=found.cab.id;state.currentPart=found.pt.id;state.currentRoom=found.cab.roomId||null;
  const q=Math.max(1,Number(found.pt.qty)||1),piece=found.piece||null;
- if(piece){
+ // A grouped panel: one more damaged piece in its counter (no piece identity is invented).
+ if(isGroupPanel(found.pt))changeGroupCount(found.pr,found.pt,'damaged',1);
+ else if(piece){
   // One physical piece: only that piece becomes damaged; the others keep their own state.
   const ps=pieceState(found.pt,piece,true);
   if(ps.status!=="damaged")found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
