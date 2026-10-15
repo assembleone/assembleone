@@ -60,7 +60,8 @@
     var banner='<div id="fiqBetaBanner" style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#b91c1c;color:#fff;font:800 11px/1.6 Inter,Arial,sans-serif;text-align:center;letter-spacing:.04em;pointer-events:none;padding-top:env(safe-area-inset-top)">BETA TEST COPY - NOT YOUR NORMAL FITTERSIQ APP<\/div>';
     var retitle='<script>document.title="BETA "+String(document.title).replace(/^BETA /,"")<\/script>';
     var inject=cleanup+patch+scanFix+jobsCleanup+banner+retitle;
-    var bodyClose=lower.lastIndexOf('</body>');
+    // Find </body> again: removing the manifest and adding <base> above changed the length (as Staging).
+    var bodyClose=html.toLowerCase().lastIndexOf('</body>');
     html=html.slice(0,bodyClose)+inject+html.slice(bodyClose);
     document.open();document.write(html);document.close();
   }catch(e){
