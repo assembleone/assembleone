@@ -6562,6 +6562,8 @@ body.guide-only .a131-back-studio{display:block}
     });
   }
   async function getProjectState(){try{const d=await db();return await new Promise((res,rej)=>{const r=d.transaction(STATE_STORE,'readonly').objectStore(STATE_STORE).get('active');r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}catch(e){return null}}
+  // Time of the last complete write of the browser storage copy (compared on opening with the database copy).
+  function markStoredNow(){try{localStorage.setItem(STORE+'_savedAt',String(Date.now()))}catch(e){}}
   function cloneLight(){
     // Omit drawings before serialization instead of cloning and then discarding them.
     return {...state,projects:(state.projects||[]).map(pr=>({...pr,cabinets:(pr.cabinets||[]).map(c=>c.drawing?{...c,hasStoredDrawing:true,drawing:null}:c)}))};
@@ -6633,6 +6635,7 @@ body.guide-only .a131-back-studio{display:block}
       if(lightJson!==lastSavedLight||drawingChanged){
         await putProjectState();
         localStorage.setItem(STORE,lightJson);
+        markStoredNow();
         sessionStorage.setItem(STORE+'_draft',lightJson);
         lastSavedLight=lightJson;
       }
@@ -6652,7 +6655,7 @@ body.guide-only .a131-back-studio{display:block}
   document.addEventListener('change',e=>{if(e.target&&e.target.matches('input,textarea,select'))stableSave(false)},true);
   document.addEventListener('click',e=>{if(e.target.closest('.nav-btn,[data-step-screen],#saveNextBtn,#checkAllPanelsBtn,#newCabinetBtn,[data-open-job],[data-open-cabinet]'))stableSave(false)},true);
   window.addEventListener('pagehide',()=>stableSave(false));
-  window.addEventListener('beforeunload',()=>{if(window.fiqEditor&&!window.fiqEditor.canWrite())return;commitVisible();try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}});
+  window.addEventListener('beforeunload',()=>{if(window.fiqEditor&&!window.fiqEditor.canWrite())return;commitVisible();try{localStorage.setItem(STORE,JSON.stringify(cloneLight()));markStoredNow()}catch(e){}});
   // Another tab still running an older Studio (opened before this protection) can still
   // write. Show it plainly instead of hiding it; nothing is changed automatically.
   window.addEventListener('storage',e=>{
@@ -6665,9 +6668,16 @@ body.guide-only .a131-back-studio{display:block}
   setInterval(()=>stableSave(false),4000);
   async function restoreProjectState(){
     const currentHasJobs=Array.isArray(state.projects)&&state.projects.length>0;
-    if(currentHasJobs)return false;
     const rec=await getProjectState();
+    // Mads 15 Oct 2026: with the browser storage full, the database copy (written first on every save)
+    // can be newer than the storage copy Studio opens with; a refresh used to lose that work. Use the
+    // database copy when it is known to be newer (the storage copy's save time is recorded since this
+    // version; without that time nothing changes).
+    const storedAt=Number(localStorage.getItem(STORE+'_savedAt')||0);
+    const databaseNewer=!!(currentHasJobs&&storedAt&&rec&&Number(rec.savedAt)>storedAt);
+    if(currentHasJobs&&!databaseNewer)return false;
     if(!rec?.state||!Array.isArray(rec.state.projects)||!rec.state.projects.length)return false;
+    if(databaseNewer)console.warn('FittersIQ: opened the newer copy from the browser database (the browser storage copy was older).');
     // This IndexedDB snapshot can be older than the last thing this tab knew about --
     // same tombstone rule as stableSave's own rescue step, so a job deleted after this
     // particular backup was written can't come back through this fallback path either.
