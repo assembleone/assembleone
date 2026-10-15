@@ -1242,7 +1242,8 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .gc-row{display:flex;align-items:center;justify-content:space-between;gap:6px;background:#fff;border:1px solid #d6dde6;border-radius:10px;padding:4px 6px 4px 10px;font-weight:700;min-height:44px}
 .gc-row .gc-btns{display:flex;gap:4px}.gc-row button{min-width:40px;min-height:36px;padding:0 8px}
 .gc-final{display:grid;grid-template-columns:1fr 1fr;gap:8px}.gc-final .btn{min-height:50px;font-weight:800}
-.gc-undo{justify-self:start;min-height:36px;padding:0 14px}
+.gc-undo{min-height:44px;padding:0 14px}
+.gc-bar-row{display:grid;grid-template-columns:auto 1fr;gap:8px}.gc-damage-btn{min-height:44px;font-weight:800}
 .gc-summary{font-weight:800;color:#174E98}.gc-confirmed{color:#15803d;font-weight:700}
 .fp-drawing-frame{position:relative;width:100%;line-height:0}.fp-drawing-frame img{display:block;width:100%;height:auto}
 .fp-exact-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#e0102f;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(0,0,0,.6);z-index:4;pointer-events:none}
@@ -2046,7 +2047,12 @@ function isStudioJob(p){return !!(p&&(p.studioOrigin||isInstallationJob(p)))}
 // read straight from the persisted project, not any session-only flag.
 function updateInstallNewBadge(){
  const badge=document.getElementById('installNewBadge');if(!badge)return;
- const count=state.projects.filter(p=>isStudioJob(p)&&!p.mobileArchived&&p.mobileSeen===false&&(typeof canSeeJob!=='function'||canSeeJob(p))).length;
+ // Counts exactly the NEW cards the Jobs list shows (renderProjects): same room cards, same
+ // assignment check, nothing archived or moved to the Library. A badge for a card the list
+ // hides read as "1 new job" over an empty list.
+ const count=state.projects.filter(isStudioJob).flatMap(cardsForProject)
+  .filter(c=>(typeof canSeeJob!=='function'||canSeeJob(c.project,c.room==='__general__'?null:c.room))&&!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
+  .filter(c=>{const rm=(c.room&&c.room!=='__general__')?c.room:null;return (rm?rm.mobileSeen:c.project.mobileSeen)===false}).length;
  badge.textContent=String(count);
  badge.classList.toggle('hidden',count<=0);
 }
@@ -4415,21 +4421,23 @@ function renderFindPanelResult(){
  // Grouped panel: one counter instead of telling identical pieces apart. Piece buttons stay only
  // where the drawing really has separate positions to fit.
  const group=isGroupPanel(pt),g=group?groupCountOf(pt):null;
- const counter=group?`<div class="gc" data-gc><div class="gc-head"><span>Panel Check</span><span>Expected ${g.qty}</span></div>`
-  +`<div class="gc-now"><b>${g.good}</b> good counted · ${g.unchecked} still to count</div>`
+ // Mads 15 Oct 2026: Count panel sits right under the drawing (count without scrolling), with Undo
+ // and Damaged beside it; Damaged opens the damage form, so a photo and note go to Studio.
+ const counter=group?`<div class="gc" data-gc><div class="gc-head"><span class="gc-now"><b>${g.good}</b> good counted · ${g.unchecked} still to count</span><span>Expected ${g.qty}</span></div>`
   +`<button type="button" class="btn primary gc-count-btn" data-gc-add${g.unchecked?'':' disabled'}>Count panel</button>`
+  +`<div class="gc-bar-row"><button type="button" class="btn gc-undo" data-gc-undo>Undo</button><button type="button" class="btn warn gc-damage-btn" data-gc-damage${g.unchecked?'':' disabled'}>⚠ Damaged: photo + note</button></div></div>`
+  +`<div class="gc gc-more">`
   +`<div class="gc-rows"><div class="gc-row">Good ${g.good}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="good" aria-label="One less good"${g.good?'':' disabled'}>−</button></span></div>`
-  +`<div class="gc-row">Damaged ${g.damaged}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="damaged" aria-label="One less damaged"${g.damaged?'':' disabled'}>−</button><button type="button" class="btn" data-gc-plus="damaged" aria-label="One more damaged"${g.unchecked?'':' disabled'}>+</button></span></div>`
+  +`<div class="gc-row">Damaged ${g.damaged}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="damaged" aria-label="One less damaged"${g.damaged?'':' disabled'}>−</button></span></div>`
   +`<div class="gc-row">Missing ${g.missing}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="missing" aria-label="One less missing"${g.missing?'':' disabled'}>−</button></span></div>`
   +`<div class="gc-row">Unchecked ${g.unchecked}</div></div>`
-  +`<button type="button" class="btn gc-undo" data-gc-undo>Undo</button>`
   +`<div class="gc-final"><button type="button" class="btn primary" data-gc-confirm>Confirm</button><button type="button" class="btn warn" data-gc-missing${g.unchecked?'':' disabled'}>Mark missing${g.unchecked?' ('+g.unchecked+')':''}</button></div>`
   +`<div class="gc-summary" data-gc-summary>${safe(groupCountText(pt))}</div>`
   +(g.confirmedAt?`<div class="gc-confirmed">✓ Confirmed ${safe(new Date(g.confirmedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}))}</div>`:'')+`</div>`:'';
  const pieces=n>1&&(!group||dots.length>1)?`<div class="fp-pieces">${Array.from({length:n},(_,i)=>i+1).map(k=>`<button type="button" class="bomp-chip fp-piece${k===piece?' active':''}" data-fp-piece="${k}">Piece ${k}${PIECE_MARKS[pieceStatusOf(pt,k)]}</button>`).join('')}</div>`:'';
  const status=group?'':piece?`<div class="fp-piece-status">${n>1?'Piece '+piece+' of '+n+' · ':''}${PIECE_WORDS[pieceStatusOf(pt,piece)]}</div>`
   :`<div class="fp-piece-status">${n>1?'Old sticker without a piece number — tap a piece above to choose it':safe(statusLabel(pt.status||'ready'))}</div>`;
- body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${counter}${pieces}${status}${drawingHtml}`;
+ body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${pieces}${status}${drawingHtml}${counter}`;
  // Grouped panel: the counter has its own Missing and Damaged; Fitted stays.
  ['#fpMarkMissing','#fpMarkDamaged'].forEach(id=>{const b=$(id);if(b)b.classList.toggle('hidden',group)});
  const acts=document.querySelector('#findPanelOverlay .fp-actions');if(acts)acts.style.gridTemplateColumns=group?'1fr':'';
@@ -4438,7 +4446,7 @@ function renderFindPanelResult(){
   const q=sel=>body.querySelector(sel);
   q('[data-gc-add]').onclick=act(()=>changeGroupCount(p,pt,'good',1));
   body.querySelectorAll('[data-gc-minus]').forEach(b=>b.onclick=act(()=>changeGroupCount(p,pt,b.dataset.gcMinus,-1)));
-  body.querySelectorAll('[data-gc-plus]').forEach(b=>b.onclick=act(()=>changeGroupCount(p,pt,b.dataset.gcPlus,1)));
+  q('[data-gc-damage]').onclick=()=>{setDamagePanelTarget(p,c,pt,null);$('#damagePanelOverlay').classList.remove('hidden');$('#damagePanelCode').value=pt.code||'';$('#damageNote').focus()};
   q('[data-gc-undo]').onclick=act(()=>undoGroupCount(p,pt));
   q('[data-gc-missing]').onclick=act(()=>{const left=groupCountOf(pt).unchecked;if(left&&changeGroupCount(p,pt,'missing',left))addJobLogEntry(p,'🔍 Missing: '+pt.code+' ('+left+' of '+panelPieceCount(pt)+')'+(pt.name?' — '+pt.name:''),[],state.currentRoom||null);save()});
   q('[data-gc-confirm]').onclick=()=>{changeGroupCount(p,pt,'good',0,{confirm:true});if(typeof renderInstall==='function')renderInstall();if(typeof renderScanDashboard==='function')renderScanDashboard();const fromCard=fpOpenedFromCard;closeFindPanelResult();if(!fromCard&&state.scanMode==='check')startCamera()};
