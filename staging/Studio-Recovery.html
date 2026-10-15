@@ -2108,7 +2108,7 @@ html.fiq-readonly body{padding-top:44px}
   const row=(a,b)=>'<tr><th>'+esc(a)+'</th><td>'+b+'</td></tr>';
   const c=r.counts,s=r.storage;
   return '<div class="fiq-doctor" data-doctor>'+
-   '<h3>Storage</h3><table>'+row('Saved Studio data',kb(s.savedStateBytes))+row('Browser local storage (this website, Studio + Beta)',kb(s.localStorageBytes)+' · Beta '+kb(s.localStorageBetaBytes)+' · other '+kb(s.localStorageOtherBytes))+
+   '<h3>Storage</h3><table>'+row('Saved Studio data',kb(s.savedStateBytes))+row('Browser local storage (this website, Studio + Beta)',kb(s.localStorageBytes)+' · Beta '+kb(s.localStorageBetaBytes)+' · other '+kb(s.localStorageOtherBytes))+row('Largest stored items',(s.largestKeys||[]).map(k=>esc(k[0])+' '+kb(k[1])).join('<br>'))+
    row('Photos stored inside saved data',r.media.dataUrlCount+' · '+kb(r.media.dataUrlBytes))+row('Drawings',r.drawings.storedDrawings+' stored ('+kb(r.drawings.storedBytes)+') for '+r.drawings.unitsWithDrawing+' units with a drawing')+
    row('Whole browser storage',kb(s.browserUsageBytes)+' used of '+kb(s.browserQuotaBytes)+(s.persistent?' · protected':' · may be cleared by the browser when space is short'))+'</table>'+
    '<h3>Records</h3><table>'+row('Customers',c.customers)+row('Jobs',c.jobs)+row('Rooms',c.rooms)+row('Units',c.units)+row('Panels',c.panels+' ('+c.physicalPieces+' physical pieces, '+c.unfinishedPanels+' unfinished)')+row('Saved Cutting List versions',c.savedCuttingListVersions)+row('Deleted jobs',c.deletedJobIds+' ids · '+c.deletedJobFullCopies+' full copies ('+kb(c.deletedJobCopiesBytes)+')')+row('Deleted panel ids',c.deletedPanelIds)+'</table>'+
@@ -3135,7 +3135,8 @@ function storeMaterialName(name){
  name=String(name||"").trim();if(!name)return;
  const list=savedMaterials().filter(x=>x.toLowerCase()!==name.toLowerCase());
  list.unshift(name);
- localStorage.setItem(MATERIAL_LIBRARY_KEY,JSON.stringify(list.slice(0,60)));
+ // A full browser storage must not stop Save & next half way (the save status shows the problem).
+ try{localStorage.setItem(MATERIAL_LIBRARY_KEY,JSON.stringify(list.slice(0,60)))}catch(e){console.warn('Material list not stored',e)}
 }
 function closeMaterialPicker(){
  const d=$("#materialPickerDetails");
@@ -6517,6 +6518,16 @@ body.guide-only .a131-back-studio{display:block}
 <button class="a131-back-studio" id="a131BackStudio" type="button">Back to Studio</button>
 <div id="a131RecoveryBar">Saved automatically</div>
 <div id="a131PrintOverlay" aria-hidden="true"><div id="a131PrintPanel"><div id="a131PrintHead"><strong>Supplier print preview</strong><button class="btn" id="a131PrintNow" type="button" data-i18n="studio.drawing.printBtn">Print</button><button class="btn primary" id="a131ClosePrint" type="button" data-i18n="studio.drawing.backToStudioBtn">Back to Studio</button></div><iframe id="a131PrintFrame" data-i18n-title="studio.drawing.printPreviewFallback" title="Print preview"></iframe></div></div>
+<script id="fiq-dead-storage-cleanup">
+// 15 Oct 2026: the old Studio-to-phone send queue (retired in August, nothing reads it any more)
+// still filled 4.4 MB of this website's shared browser storage, so saving failed with "Browser
+// storage is full". It is removed when the app opens (also its Beta / Staging copies); nothing in
+// use is touched. delete localStorage[k] reaches the real name inside the Beta / Staging pages too.
+(function(){try{const dead='assembleone_mobile_direct_queue_v1',key=Storage.prototype.key,found=[];
+ for(let i=0;i<localStorage.length;i++){const k=key.call(localStorage,i);if(k===dead||String(k).endsWith(':'+dead))found.push(k)}
+ found.forEach(k=>{delete localStorage[k]});
+ if(found.length)console.info('FittersIQ: removed an old unused send queue from browser storage');}catch(e){}})();
+</script>
 <script id="a131-stability-script">
 (function(){
   const DB_NAME='assembleone_stable_v1',DB_STORE='drawings',STATE_STORE='project_state';

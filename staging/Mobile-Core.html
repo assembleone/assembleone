@@ -1644,6 +1644,15 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <span data-i18n="nav.jobs">Jobs</span>
 </button>
 </nav>
+<script id="fiq-dead-storage-cleanup">
+// 15 Oct 2026: the old Studio-to-phone send queue (retired in August, nothing reads it any more)
+// still filled 4.4 MB of this website's shared browser storage. Removed when the app opens (also
+// its Beta / Staging copies); nothing in use is touched.
+(function(){try{const dead='assembleone_mobile_direct_queue_v1',key=Storage.prototype.key,found=[];
+ for(let i=0;i<localStorage.length;i++){const k=key.call(localStorage,i);if(k===dead||String(k).endsWith(':'+dead))found.push(k)}
+ found.forEach(k=>{delete localStorage[k]});
+ if(found.length)console.info('FittersIQ: removed an old unused send queue from browser storage');}catch(e){}})();
+</script>
 <script>
 const KEY="assembleone_mobile_v2";
 let state={projects:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,screen:"projects",activeCardKeys:[]};
