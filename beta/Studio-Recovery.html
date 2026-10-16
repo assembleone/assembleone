@@ -2056,7 +2056,7 @@ html.fiq-readonly body{padding-top:44px}
   keys.sort((a,b)=>b[1]-a[1]);
   r.storage.localStorageBytes=lsTotal;r.storage.localStorageBetaBytes=lsBeta;r.storage.localStorageOtherBytes=lsOther;
   r.storage.savedStateBytes=raw.length*2;r.storage.largestKeys=keys.slice(0,6);
-  r.storage.note='Browser local storage for this website is shared by normal Studio and Beta and is usually limited to about 5 MB (10 MB in some browsers).';
+  r.storage.note='Browser local storage for this website is shared by normal Studio, Beta and Staging. Sizes here count 2 bytes per character; saving stopped at about 10 MB on this measure (Edge and Chrome, 15 Oct 2026).';
   // Counts
   const P=saved.projects||[],C=saved.customers||[];
   let rooms=0,units=0,panels=0,pieces=0,versions=0,deletedPanels=0,unfinished=0;
@@ -2104,7 +2104,9 @@ html.fiq-readonly body{padding-top:44px}
   if(missingDrawings.length)warn('problem','Units whose drawing is missing from browser storage',missingDrawings);
   if(r.fallbackCopy&&!r.fallbackCopy.matchesSavedJobs)warn('check','The browser fallback copy differs from the main saved data (normal right after a failed save)',[]);
   if(deletedCopies.length)warn('info','Deleted jobs are kept as full copies in browser storage',[deletedCopies.length+' copies, '+Math.round(r.counts.deletedJobCopiesBytes/1024)+' KB']);
-  const quota=5*1024*1024;if(lsTotal>quota*0.7)warn('problem','Browser local storage is nearly full',[Math.round(lsTotal/1024)+' KB used of about '+Math.round(quota/1024)+' KB']);
+  // The real limit on this measure (2 bytes per character) is about 10 MB: saving failed at 10,240 KB on 15 Oct 2026.
+  const quota=10*1024*1024,used=Math.round(lsTotal/1024)+' KB used of about '+Math.round(quota/1024)+' KB ('+Math.round(lsTotal/quota*100)+'%)';
+  if(lsTotal>quota*0.85)warn('problem','Browser local storage is nearly full',[used]);else if(lsTotal>quota*0.6)warn('check','Browser local storage is more than half full',[used]);
   if(status==='failed')warn('problem','The last save failed',[detail]);
   return r;
  }
