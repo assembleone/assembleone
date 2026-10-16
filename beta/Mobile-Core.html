@@ -911,6 +911,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <button class="fiq-auth-link" id="fiqNoCompanySignOutBtn" type="button">Sign out</button>
     </div>
 
+    <div class="fiq-auth-state" id="fiqStateOtherCompany" hidden>
+      <h1>Another company's jobs are here</h1>
+      <p class="fiq-auth-lead">This phone holds FittersIQ jobs of a different company. They stay safely on this phone and are not shown to this account. Sign in with that company to use them, or use another phone for this company.</p>
+      <button class="fiq-auth-link" id="fiqOtherCompanySignOutBtn" type="button">Sign out</button>
+    </div>
+
     <div class="fiq-auth-state" id="fiqStateSuspended" hidden>
       <h1>Account suspended</h1>
       <p class="fiq-auth-lead">This account no longer has access. Contact your company owner or FittersIQ support.</p>
@@ -4607,6 +4613,14 @@ function openScannedText(text){
   // right message on failure (access denied, or panel not on this phone), so don't fall
   // through to the legacy-format check and generic message below, which would silently
   // overwrite it with the wrong explanation.
+  // Panel Check counts only the job(s) being checked (Mads 16 Oct 2026): a QR label of another job on this
+  // phone used to be counted there silently and switch the screen to that job. Number labels already refuse.
+  if(state.scanMode==='check'){
+   const keys=Array.isArray(state.activeCardKeys)&&state.activeCardKeys.length?state.activeCardKeys:(state.currentProject?[state.currentProject]:[]);
+   const open=keys.map(k=>typeof parseCardKey==='function'?parseCardKey(k).projectId:k);
+   const other=open.length&&!open.includes(q.projectId)?state.projects.find(x=>x.id===q.projectId):null;
+   if(other){const box=document.querySelector('#scanResult');if(box)box.textContent='This label is from another job ('+(other.name||other.customer||'job')+'). Open that job to check it.';if(typeof playScanErrorFeedback==='function')playScanErrorFeedback();return true}
+  }
   if(openPanelRoute(q)){handlePanelIdentified();restorePointerIfCombined();return true}
   return false;
  }
@@ -6877,7 +6891,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   function initFiqAuthGate(){
   function $(id){return document.getElementById(id)}
   function showState(id){
-    ['fiqStateChecking','fiqStateSignIn','fiqStateJoin','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended','fiqStateDeviceWaiting'].forEach(function(s){
+    ['fiqStateChecking','fiqStateSignIn','fiqStateJoin','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended','fiqStateOtherCompany','fiqStateDeviceWaiting'].forEach(function(s){
       var el=$(s); if(el) el.hidden = (s!==id);
     });
   }
@@ -7081,6 +7095,27 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       }
     }
     if(deviceWaitPoll){ clearInterval(deviceWaitPoll); deviceWaitPoll = null; }
+    // Mads 16 Oct 2026: jobs saved in this phone belong to the company that first signed in here. Another
+    // company never sees, sends or backs them up: it gets a plain stop screen (nothing is deleted). Support
+    // sign-ins are exempt. Without saved jobs the phone simply moves to the company now signing in.
+    if(claims.companyId && !claims.fittersiq_admin){
+      var DATA_OWNER='fiq_data_company_v1',owner=null,hasJobs=false;
+      try{owner=localStorage.getItem(DATA_OWNER)}catch(e){}
+      try{hasJobs=typeof state!=='undefined'&&state&&Array.isArray(state.projects)&&state.projects.length>0}catch(e){}
+      if(owner&&owner!==claims.companyId&&hasJobs){ showState('fiqStateOtherCompany'); return; }
+      if(owner!==claims.companyId){ try{localStorage.setItem(DATA_OWNER,claims.companyId)}catch(e){} }
+    }
+    // A join link (?join=123456) opened on a phone that is already signed in used to be ignored silently.
+    try{
+      var pendingJoin=new URLSearchParams(location.search).get('join');
+      if(pendingJoin&&/^\d{6}$/.test(pendingJoin)){
+        var clean=location.pathname+location.search.replace(/([?&])join=\d{6}&?/,'$1').replace(/[?&]$/,'')+location.hash;
+        if(confirm('This phone is already signed in'+(user.email?' as '+user.email:'')+'. To join with code '+pendingJoin+', this phone must sign out first. Jobs saved on this phone stay on it. Sign out now?')){
+          joinPrefillTried=false;await authFns.signOut(auth);return;
+        }
+        try{history.replaceState(null,'',clean)}catch(e){}
+      }
+    }catch(e){}
     unlockApp(user, claims);
   }
 
@@ -7168,7 +7203,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     var t=setInterval(function(){ s--; if(s<=0){clearInterval(t); btn.disabled=false; btn.textContent='Resend verification email'; resendCooling=false;} else btn.textContent='Resend verification email ('+s+'s)'; },1000);
   });
 
-  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn','fiqDeviceWaitingSignOutBtn'].forEach(function(id){
+  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn','fiqOtherCompanySignOutBtn','fiqDeviceWaitingSignOutBtn'].forEach(function(id){
     var el=$(id); if(el) el.addEventListener('click', function(){ authFns.signOut(auth); });
   });
   } // end initFiqAuthGate

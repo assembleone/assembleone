@@ -1447,6 +1447,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <button class="fiq-auth-link" id="fiqNoCompanySignOutBtn" type="button">Sign out</button>
     </div>
 
+    <div class="fiq-auth-state" id="fiqStateOtherCompany" hidden>
+      <h1>Another company's jobs are here</h1>
+      <p class="fiq-auth-lead">This browser holds FittersIQ jobs of a different company. They stay safely on this browser and are not shown to this account. Sign in with that company to use them, or use another browser for this company.</p>
+      <button class="fiq-auth-link" id="fiqOtherCompanySignOutBtn" type="button">Sign out</button>
+    </div>
+
     <div class="fiq-auth-state" id="fiqStateSuspended" hidden>
       <h1>Account suspended</h1>
       <p class="fiq-auth-lead">This account no longer has access. Contact your company owner or FittersIQ support.</p>
@@ -3951,6 +3957,11 @@ function renderCutting(){
 }
 function localGuideUrl(p){return location.href.split("#")[0]+`#guide=${encodeURIComponent(state.currentProject)}:${encodeURIComponent(state.currentCabinet)}:${encodeURIComponent(p.id)}`}
 function mobileAppBase(){return (localStorage.getItem("assembleone_mobile_app_url")||"").trim().replace(/#.*$/,'')}
+// The phone app next to this Studio page (Mads 16 Oct 2026): Staging Studio -> Staging Mobile, Beta -> Beta,
+// the normal Studio -> the normal Mobile, and after a hosting move the new address. A join code made here only
+// works in the app of the same project, so a fixed Production address broke Staging pairing links.
+function fiqDefaultMobileUrl(){try{return new URL('Mobile.html',location.href.split('#')[0].split('?')[0]).href}catch(e){return 'https://assembleone.github.io/assembleone/Mobile.html'}}
+window.fiqDefaultMobileUrl=fiqDefaultMobileUrl;
 // piece (1..n) names one physical piece and is written with the existing copyIndex field
 // Mobile has read since the per-marker build of 16 Aug 2026: piece 1 = -1 (the primary
 // instance), piece k = k-2 (copies[k-2], shown on the drawing as marker k). Without a
@@ -9192,7 +9203,7 @@ body.fiq-locked .app{display:none!important}
   if(window.fiqAuthDiag)window.fiqAuthDiag('4 Sign-in check started');
   function $(id){return document.getElementById(id)}
   function showState(id){
-    ['fiqStateChecking','fiqStateSignIn','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended'].forEach(function(s){
+    ['fiqStateChecking','fiqStateSignIn','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended','fiqStateOtherCompany'].forEach(function(s){
       var el=$(s); if(el) el.hidden = (s!==id);
     });
   }
@@ -9263,6 +9274,16 @@ body.fiq-locked .app{display:none!important}
         return;
       }
     }
+    // Mads 16 Oct 2026: jobs saved in this browser belong to the company that first signed in here. Another
+    // company never sees, sends or backs them up: it gets a plain stop screen (nothing is deleted). Support
+    // sign-ins are exempt. Without saved jobs the browser simply moves to the company now signing in.
+    if(claims.companyId && !claims.fittersiq_admin){
+      var DATA_OWNER='fiq_data_company_v1',owner=null,hasJobs=false;
+      try{owner=localStorage.getItem(DATA_OWNER)}catch(e){}
+      try{hasJobs=typeof state!=='undefined'&&state&&Array.isArray(state.projects)&&state.projects.length>0}catch(e){}
+      if(owner&&owner!==claims.companyId&&hasJobs){ showState('fiqStateOtherCompany'); return; }
+      if(owner!==claims.companyId){ try{localStorage.setItem(DATA_OWNER,claims.companyId)}catch(e){} }
+    }
     unlockApp(user, claims);
     if(window.fiqAuthDiag)window.fiqAuthDiag('10 Studio opened');
   }
@@ -9327,7 +9348,7 @@ body.fiq-locked .app{display:none!important}
     var t=setInterval(function(){ s--; if(s<=0){clearInterval(t); btn.disabled=false; btn.textContent='Resend verification email'; resendCooling=false;} else btn.textContent='Resend verification email ('+s+'s)'; },1000);
   });
 
-  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn'].forEach(function(id){
+  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn','fiqOtherCompanySignOutBtn'].forEach(function(id){
     var el=$(id); if(el) el.addEventListener('click', function(){ authFns.signOut(auth); });
   });
   } // end initFiqAuthGate
@@ -12649,7 +12670,7 @@ body.fiq-locked .app{display:none!important}
       // fittersiq.com serves the separate marketing site, not this app -- the
       // real deployed Studio/Mobile app is GitHub Pages' own project-site URL
       // for this repo. Confirmed live at this exact path before using it here.
-      const base=(typeof mobileAppBase==='function'&&mobileAppBase())||'https://assembleone.github.io/assembleone/Mobile.html';
+      const base=(typeof mobileAppBase==='function'&&mobileAppBase())||fiqDefaultMobileUrl();
       const joinUrl=base+(base.includes('?')?'&':'?')+'join='+code;
       body.innerHTML=
         '<p class="fiq-auth-lead">'+t("studio.fitters.openMobileEnterCodeTemplate",[safe(fitter.name)])+'</p>'+
