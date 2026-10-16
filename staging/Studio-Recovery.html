@@ -2022,12 +2022,15 @@ html.fiq-readonly body{padding-top:44px}
   const fb=(fallback.entries.find(e=>e.key==='active')||{}).value||null;
   let fbState=null;
   if(fb&&fb.state){fbState=clone(fb.state);(fbState.projects||[]).forEach(p=>(p.cabinets||[]).forEach(c=>{if(c.drawing){c.drawing=null;c.hasStoredDrawing=true}}))}
-  const saved=raw?JSON.parse(raw):null;
+  // Database mode (browser storage was full): the saved data is the database copy, not the small marker.
+  const dbMode=!!raw&&raw.length<200&&raw.indexOf('"fiqStoredIn"')>=0;
+  const mainRaw=dbMode?(fbState?JSON.stringify(fbState):null):raw;
+  const saved=mainRaw?JSON.parse(mainRaw):null;
   // Version 2 adds the Studio settings kept in their own browser keys (see SETTING_KEYS).
   return {kind:'fittersiq-studio-backup',backupVersion:2,app:'FittersIQ Studio',beta:isBeta,createdAt:new Date().toISOString(),
    settings:{values:collectSettings()},
    origin:location.origin,page:location.pathname,editorRole:role,saveStatus:status,storageKey:storeKey(),
-   savedStateSha256:raw?await sha256(raw):'',savedStateBytes:raw?bytes(raw):0,
+   savedStateSha256:mainRaw?await sha256(mainRaw):'',savedStateBytes:mainRaw?bytes(mainRaw):0,storedIn:dbMode?'browser database (browser storage was full)':'browser storage',
    summary:saved?{customers:(saved.customers||[]).length,jobs:(saved.projects||[]).length,deletedJobs:(saved.deletedProjectIds||[]).length}:null,
    savedState:saved,
    drawings:drawings.entries.map(e=>({key:e.key,drawingType:e.value&&e.value.drawingType||'',drawingName:e.value&&e.value.drawingName||'',drawing:e.value&&e.value.drawing||null})),
@@ -2044,9 +2047,11 @@ html.fiq-readonly body{padding-top:44px}
 
  // Data Doctor: storage use and consistency checks. Reads only.
  async function buildDoctor(){
-  const raw=localStorage.getItem(storeKey())||'';
+  let raw=localStorage.getItem(storeKey())||'';
+  const dbMode=raw.length<200&&raw.indexOf('"fiqStoredIn"')>=0;
+  if(dbMode){const st=(await readAll('assembleone_stable_v1','project_state')).entries.find(e=>e.key==='active');raw=st&&st.value&&st.value.state?JSON.stringify(st.value.state):''}
   const saved=raw?JSON.parse(raw):{projects:[],customers:[]};
-  const r={createdAt:new Date().toISOString(),beta:isBeta,editorRole:role,saveStatus:status,storage:{},counts:{},media:{},drawings:{},checks:[],largestJobs:[]};
+  const r={createdAt:new Date().toISOString(),beta:isBeta,editorRole:role,saveStatus:status,storedIn:dbMode?'browser database':'browser storage',storage:{},counts:{},media:{},drawings:{},checks:[],largestJobs:[]};
   // Storage
   try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();r.storage.browserUsageBytes=e.usage;r.storage.browserQuotaBytes=e.quota}}catch(e){}
   try{if(navigator.storage&&navigator.storage.persisted)r.storage.persistent=await navigator.storage.persisted()}catch(e){}
@@ -2116,7 +2121,7 @@ html.fiq-readonly body{padding-top:44px}
   const row=(a,b)=>'<tr><th>'+esc(a)+'</th><td>'+b+'</td></tr>';
   const c=r.counts,s=r.storage;
   return '<div class="fiq-doctor" data-doctor>'+
-   '<h3>Storage</h3><table>'+row('Saved Studio data',kb(s.savedStateBytes))+row('Browser local storage (this website, Studio + Beta)',kb(s.localStorageBytes)+' · Beta '+kb(s.localStorageBetaBytes)+' · other '+kb(s.localStorageOtherBytes))+row('Largest stored items',(s.largestKeys||[]).map(k=>esc(k[0])+' '+kb(k[1])).join('<br>'))+
+   '<h3>Storage</h3><table>'+row('Saved Studio data',kb(s.savedStateBytes)+(r.storedIn==='browser database'?' · kept in the browser database (browser storage was full)':''))+row('Browser local storage (this website, Studio + Beta)',kb(s.localStorageBytes)+' · Beta '+kb(s.localStorageBetaBytes)+' · other '+kb(s.localStorageOtherBytes))+row('Largest stored items',(s.largestKeys||[]).map(k=>esc(k[0])+' '+kb(k[1])).join('<br>'))+
    row('Photos stored inside saved data',r.media.dataUrlCount+' · '+kb(r.media.dataUrlBytes))+row('Drawings',r.drawings.storedDrawings+' stored ('+kb(r.drawings.storedBytes)+') for '+r.drawings.unitsWithDrawing+' units with a drawing')+
    row('Whole browser storage',kb(s.browserUsageBytes)+' used of '+kb(s.browserQuotaBytes)+(s.persistent?' · protected':' · may be cleared by the browser when space is short'))+'</table>'+
    '<h3>Records</h3><table>'+row('Customers',c.customers)+row('Jobs',c.jobs)+row('Rooms',c.rooms)+row('Units',c.units)+row('Panels',c.panels+' ('+c.physicalPieces+' physical pieces, '+c.unfinishedPanels+' unfinished)')+row('Saved Cutting List versions',c.savedCuttingListVersions)+row('Deleted jobs',c.deletedJobIds+' ids · '+c.deletedJobFullCopies+' full copies ('+kb(c.deletedJobCopiesBytes)+')')+row('Deleted panel ids',c.deletedPanelIds)+'</table>'+
@@ -2257,10 +2262,14 @@ html.fiq-readonly body{padding-top:44px}
   finally{d.close()}
   await hook('after-idb',target);
   if(b.settings&&b.settings.values)applySettings(b.settings.values);
-  localStorage.setItem(storeKey(),lightJson);
+  // A restore larger than browser storage goes to database mode (the database copy was written and is the saved data).
+  let dbMode=false;
+  try{localStorage.setItem(storeKey(),lightJson)}
+  catch(e){if(!(e&&(e.name==='QuotaExceededError'||e.code===22||/quota/i.test(String(e.message||'')))))throw e;localStorage.setItem(storeKey(),JSON.stringify({fiqStoredIn:'database'}));dbMode=true}
   try{sessionStorage.removeItem(storeKey()+'_draft')}catch(e){}
   await hook('after-storage',target);
-  if(localStorage.getItem(storeKey())!==lightJson)throw new Error('The restored data could not be read back.');
+  if(dbMode){const st=(await readAll('assembleone_stable_v1','project_state')).entries.find(e=>e.key==='active');if(!st||!st.value||JSON.stringify(st.value.state)!==lightJson)throw new Error('The restored data could not be read back.')}
+  else if(localStorage.getItem(storeKey())!==lightJson)throw new Error('The restored data could not be read back.');
   const back=await readAll('assembleone_stable_v1','drawings');
   if(back.entries.length!==drawings.length)throw new Error('The restored drawings could not be read back ('+back.entries.length+' of '+drawings.length+').');
  }
@@ -2567,7 +2576,9 @@ function save(){
  }
 }
 function load(){
- try{const s=JSON.parse(localStorage.getItem(STORE));if(s)state=s}catch(e){}
+ // A marker instead of the data means the saved data is in the browser database (storage was full); the a131
+ // stability script opens it from there before anything is saved.
+ try{const s=JSON.parse(localStorage.getItem(STORE));if(s&&!s.fiqStoredIn)state=s}catch(e){}
  migrateCustomers();
  const guide=parseGuideHash();
  if(guide){state.currentProject=guide.project;state.currentCabinet=guide.cabinet;state.currentPart=guide.part;document.body.classList.add("guide-only");state.screen="phone"}
@@ -6577,6 +6588,20 @@ body.guide-only .a131-back-studio{display:block}
   async function getProjectState(){try{const d=await db();return await new Promise((res,rej)=>{const r=d.transaction(STATE_STORE,'readonly').objectStore(STATE_STORE).get('active');r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}catch(e){return null}}
   // Time of the last complete write of the browser storage copy (compared on opening with the database copy).
   function markStoredNow(){try{localStorage.setItem(STORE+'_savedAt',String(Date.now()))}catch(e){}}
+  // Database mode (Mads 16 Oct 2026): browser storage holds the full copy while it fits. A busy company fills it
+  // after some 100+ jobs; then it holds only a marker and the browser database copy (written first on every save)
+  // is the saved data, so saving keeps working and says so truthfully. Once there, Studio stays in database mode
+  // (no repeated large writes that would fail again).
+  const DB_MARK=JSON.stringify({fiqStoredIn:'database'});
+  function inDatabaseMode(){try{const r=localStorage.getItem(STORE);return !!r&&r.length<200&&r.indexOf('"fiqStoredIn"')>=0}catch(e){return false}}
+  function writeStorageCopy(lightJson){
+    if(inDatabaseMode())return;
+    try{localStorage.setItem(STORE,lightJson)}
+    catch(e){const quota=e&&(e.name==='QuotaExceededError'||e.code===22||/quota/i.test(String(e.message||'')));if(!quota)throw e;
+      localStorage.setItem(STORE,DB_MARK);// replaces the old full copy; if even this does not fit, the save fails honestly
+      console.warn('FittersIQ: browser storage is full; the saved data is now kept in the browser database.')}
+  }
+  window.fiqInDatabaseMode=inDatabaseMode;
   function cloneLight(){
     // Omit drawings before serialization instead of cloning and then discarding them.
     return {...state,projects:(state.projects||[]).map(pr=>({...pr,cabinets:(pr.cabinets||[]).map(c=>c.drawing?{...c,hasStoredDrawing:true,drawing:null}:c)}))};
@@ -6599,6 +6624,9 @@ body.guide-only .a131-back-studio{display:block}
   }
   function showSaved(){const bar=document.getElementById('a131RecoveryBar');if(!bar)return;bar.style.display='block';clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>bar.style.display='none',850)}
   let saveInFlight=null,saveRequested=false,wantsNotice=false,lastSavedLight=null;
+  // No save before the opening restore check has finished: in database mode Studio opens with nothing loaded until
+  // the database copy is read, and an early autosave must never write that empty start over it.
+  let restoreReady=null,restoreFinished=false;
   function stableSave(showNotice){
     const gate=window.fiqEditor;
     if(gate&&gate.role!=='editor'){
@@ -6616,6 +6644,7 @@ body.guide-only .a131-back-studio{display:block}
     return saveInFlight;
   }
   async function writeStableState(){
+    if(!restoreFinished&&restoreReady)await restoreReady;
     try{
       // Every open tab/session holds its own full in-memory `state` and this
       // function overwrites localStorage/IndexedDB wholesale, with no
@@ -6647,9 +6676,9 @@ body.guide-only .a131-back-studio{display:block}
       for(const pr of state.projects||[])for(const c of pr.cabinets||[])if(c.drawing){if(await putDrawing(pr,c))drawingChanged=true}
       if(lightJson!==lastSavedLight||drawingChanged){
         await putProjectState();
-        localStorage.setItem(STORE,lightJson);
+        writeStorageCopy(lightJson);
         markStoredNow();
-        sessionStorage.setItem(STORE+'_draft',lightJson);
+        try{sessionStorage.setItem(STORE+'_draft',lightJson)}catch(e){}// a convenience copy only
         lastSavedLight=lightJson;
       }
       if(status&&window.fiqEditor.status!=='external')status('saved');
@@ -6668,7 +6697,7 @@ body.guide-only .a131-back-studio{display:block}
   document.addEventListener('change',e=>{if(e.target&&e.target.matches('input,textarea,select'))stableSave(false)},true);
   document.addEventListener('click',e=>{if(e.target.closest('.nav-btn,[data-step-screen],#saveNextBtn,#checkAllPanelsBtn,#newCabinetBtn,[data-open-job],[data-open-cabinet]'))stableSave(false)},true);
   window.addEventListener('pagehide',()=>stableSave(false));
-  window.addEventListener('beforeunload',()=>{if(window.fiqEditor&&!window.fiqEditor.canWrite())return;commitVisible();try{localStorage.setItem(STORE,JSON.stringify(cloneLight()));markStoredNow()}catch(e){}});
+  window.addEventListener('beforeunload',()=>{if(window.fiqEditor&&!window.fiqEditor.canWrite())return;if(inDatabaseMode())return;commitVisible();try{localStorage.setItem(STORE,JSON.stringify(cloneLight()));markStoredNow()}catch(e){}});
   // Another tab still running an older Studio (opened before this protection) can still
   // write. Show it plainly instead of hiding it; nothing is changed automatically.
   window.addEventListener('storage',e=>{
@@ -6699,7 +6728,7 @@ body.guide-only .a131-back-studio{display:block}
     rec.state.deletedProjectIds=[...deletedIds];
     state=rec.state;
     if(typeof migrateCustomers==='function')migrateCustomers();
-    if(!window.fiqEditor||(await window.fiqEditor.ready==='editor'&&window.fiqEditor.canWrite())){try{localStorage.setItem(STORE,JSON.stringify(cloneLight()))}catch(e){}}
+    if(!window.fiqEditor||(await window.fiqEditor.ready==='editor'&&window.fiqEditor.canWrite())){try{writeStorageCopy(JSON.stringify(cloneLight()))}catch(e){}}
     renderAll();show(state.screen||'jobs');showSaved();
     return true;
   }
@@ -6708,7 +6737,8 @@ body.guide-only .a131-back-studio{display:block}
     for(const pr of state.projects||[])for(const c of pr.cabinets||[])if(!c.drawing&&c.hasStoredDrawing){const rec=await getDrawing(pr,c);if(rec){c.drawing=rec.drawing;c.drawingType=rec.drawingType;c.drawingName=rec.drawingName;changed=true}}
     if(changed){renderAll();show(state.screen||'jobs')}
   }
-  (async()=>{await restoreProjectState();await hydrateDrawings()})();
+  restoreReady=(async()=>{try{await restoreProjectState()}catch(e){console.error('Opening the saved data failed',e)}finally{restoreFinished=true}})();
+  restoreReady.then(()=>hydrateDrawings());
   const back=document.getElementById('a131BackStudio');if(back)back.onclick=()=>{document.body.classList.remove('guide-only');location.hash='';show('qr')};
   const overlay=document.getElementById('a131PrintOverlay'),frame=document.getElementById('a131PrintFrame');
   window.a131OpenPrintPreview=function(title,bodyHtml){
