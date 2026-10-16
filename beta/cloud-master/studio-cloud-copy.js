@@ -41,6 +41,9 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 
 let db=null,storage=null,ready=false,disabledReason='';
 let state='off',companyOn=null,busy=false,current=null,lastCheck=null;
+// Progress of the backup running now (from the copier), shown instead of the previous result while it runs.
+let live=null,liveAt=0;
+function onProgress(p){live=p;if(Date.now()-liveAt>700||p.stage==='checking'){liveAt=Date.now();try{paint()}catch(e){}}}
 
 function connect(){
  if(db)return true;
@@ -92,7 +95,7 @@ async function fetchLink(url){
 }
 function copier(sessionId){
  const u=user();
- return window.FiqCloudCopy.createCloudCopy({fb,st,db,storage,companyId:u.companyId,env:ENV,uid:u.uid,sessionId:sessionId||('s-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)),deviceId:deviceId(),deviceName:deviceName(),fetchLink,statLink,foreignLink,foreignWord:'photo from another project',isAllowedLink,mode:'incremental',hooks:T&&T.hooks?T.hooks:undefined,adopt:readJSON(K.adopt)||undefined});
+ return window.FiqCloudCopy.createCloudCopy({fb,st,db,storage,companyId:u.companyId,env:ENV,uid:u.uid,sessionId:sessionId||('s-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)),deviceId:deviceId(),deviceName:deviceName(),onProgress,fetchLink,statLink,foreignLink,foreignWord:'photo from another project',isAllowedLink,mode:'incremental',hooks:T&&T.hooks?T.hooks:undefined,adopt:readJSON(K.adopt)||undefined});
 }
 async function input(){
  const b=await window.fiqBuildBackup();// read-only (Stage 2.0)
@@ -190,7 +193,7 @@ async function runCopy(auto){
   if(r.ok){ls.set(K.prints,JSON.stringify(r.prints));if(fullCheck){ls.set(K.lastFull,String(Date.now()));fullNext=false}}
   if(sched){sched.finished(Date.now(),r.ok?{ok:true,coverage:r.verify&&r.verify.checked}:{ok:false,error:(r.error&&r.error.message)||((r.conflicts||[]).length?'needs review':'not verified')});saveSched()}
  }catch(e){recordAttempt(null,{id:'error-'+Date.now(),code:e.code||'error',message:String(e.message||e),offline:netError(e),sourceSha256:current});if(sched){sched.finished(Date.now(),{ok:false,error:String(e.message||e)});saveSched()}}
- busy=false;await refresh();
+ busy=false;live=null;await refresh();
  // A save that lands while the run is going (also the save at its start) leaves the schedule
  // "pending" although the backup holds exactly what is saved. Settle it now, so the status record
  // never says "backed up" with a waiting time (a closed Studio would otherwise raise a false alert).
@@ -248,7 +251,7 @@ async function checkNow(){
   const [v,m]=await Promise.all([c.verifyOnly(inp),c.checkVerified(inp)]);
   lastCheck={at:new Date().toISOString(),ok:v.ok,markerMatches:m.verified,problems:v.problems.slice(0,50),extra:v.extraInCloud.slice(0,20)};
  }catch(e){lastCheck={at:new Date().toISOString(),ok:false,problems:[String(e.message||e)],offline:netError(e)}}
- busy=false;await refresh();
+ busy=false;live=null;await refresh();
 }
 async function turnOn(){
  if(!user())return note('Sign in as the company owner first.');
@@ -295,7 +298,7 @@ function view(){
  }
  const since=s&&s.pendingSince?' since '+hhmm(new Date(s.pendingSince)):'';
  const off=state==='offline'||!navigator.onLine;
- const why=off?' (offline)':state==='copying'?' (backing up now)':state==='waiting'?' (another computer is backing up)':state==='pending'?' (photos pending)':'';
+ const why=off?' (offline)':state==='copying'?(busy&&live?(live.stage==='checking'?' (backing up now: checking the copy)':' (backing up now: '+live.done+' of '+live.total+' jobs)'):' (backing up now)'):state==='waiting'?' (another computer is backing up)':state==='pending'?' (photos pending)':'';
  return {kind:'pending',text:'☁ Backup pending'+why,help:'Changes saved on this computer are not in the cloud backup yet'+since+'. They are backed up automatically'+(off?' when the internet returns.':' within a few minutes.')+last,covers:covers(a)};
 }
 function stats(a){if(!a||!a.counts)return '';const c=a.counts,ch=c.checked||{};return 'Customers '+(ch.customers??'—')+' · jobs '+(ch.jobs??'—')+' · deleted jobs '+(ch.deletedJobs??'—')+' · drawings '+(ch.drawings??'—')+' · settings '+(ch.settings??'—')+' · orphan drawings '+(ch.orphanDrawings??'—')+' · files uploaded '+((c.media&&c.media.uploaded)||0)+', reused '+(((c.media&&c.media.reused)||0)+(c.filesReused||0))}
@@ -315,7 +318,7 @@ function paintSection(){
   if(vw.covers)h+='<p class="muted" data-cloud-covers>'+esc(vw.covers)+'.</p>';
   if(companyOn===false)h+='<p class="fiq-doc-warn">Cloud copy is not enabled for this company.</p>';
   if(a&&a.verifiedAt)h+='<p class="muted">Last verified: '+esc(a.verifiedAt.replace('T',' ').slice(0,19))+' (run '+esc(a.verifiedRun||'')+')</p>';
-  if(a)h+='<p class="muted" data-cloud-attempt="'+esc(a.outcome)+'">Last attempt: '+esc((a.at||'').replace('T',' ').slice(0,19))+' · '+esc(a.outcome)+(a.message?' · '+esc(a.message):'')+'</p><p class="muted">'+esc(stats(a))+'</p>';
+  if(a)h+='<p class="muted" data-cloud-attempt="'+esc(a.outcome)+'">'+(busy?'Previous attempt: ':'Last attempt: ')+esc((a.at||'').replace('T',' ').slice(0,19))+' · '+esc(a.outcome)+(a.message?' · '+esc(a.message):'')+'</p><p class="muted">'+esc(stats(a))+'</p>';
   const list=(t,items,attr)=>items&&items.length?'<p><b>'+esc(t)+'</b></p><ul '+attr+'>'+items.slice(0,20).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'';
   if(a){h+=list('Needs review',a.conflicts,'data-cloud-conflicts');h+=list('Photos not owned yet',(a.pending||[]).map(p=>p.id+': '+p.photos+' photo(s)'),'data-cloud-pending');h+=list('Problems',a.otherProblems,'data-cloud-problems')}
   if(lastCheck)h+='<p class="muted" data-cloud-check="'+(lastCheck.ok?'ok':'problems')+'">Last check: '+esc(lastCheck.at.replace('T',' ').slice(0,19))+' · '+(lastCheck.ok?'cloud copy matches':'differences found')+'</p>'+list('Check found',lastCheck.problems,'data-cloud-check-problems');

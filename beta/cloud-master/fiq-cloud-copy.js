@@ -93,6 +93,9 @@ function createCloudCopy(o){
  const foreignLink=o.foreignLink||(url=>PRODUCTION_LINK.test(url)),foreignWord=o.foreignWord||'Production photo';
  // statLink(url) -> {md5Hash,size,generation,contentType} | null when the file is gone. Metadata only.
  const statLink=o.statLink||null;
+ // Live progress for the status line while a backup runs (16 Oct 2026): {stage:'jobs'|'checking', done, total, media}.
+ const onProgress=typeof o.onProgress==='function'?o.onProgress:null;
+ const progress=p=>{if(onProgress)try{onProgress(p)}catch(e){}};
  // Handover after a restore: {fromDevice, primaryRev, jobs:{id:rev}, customers:{id:rev}, settings:rev}
  // from the restore report. A record last written by another computer may be continued only
  // when this computer restored exactly that version (same rev), never a newer one.
@@ -755,9 +758,12 @@ function createCloudCopy(o){
   cs.forEach(d=>run.customers.set(d.id,d.data()));js.forEach(d=>run.jobs.set(d.id,d.data()));ps.forEach(d=>run.proofs.set(d.id,d.data()));
   }
   for(const c of src.customers){await keepLease();await copyCustomerInc(c,run)}
-  for(const j of src.jobs)await copyLiveJobInc(j,run);
-  for(const j of src.deleted)await copyDeletedJobInc(j,run);
+  const total=src.jobs.length+src.deleted.length,media=()=>(run.report&&run.report.media?run.report.media.uploaded+run.report.media.reused:0);let done=0;
+  progress({stage:'jobs',done,total,media:media()});
+  for(const j of src.jobs){await copyLiveJobInc(j,run);progress({stage:'jobs',done:++done,total,media:media()})}
+  for(const j of src.deleted){await copyDeletedJobInc(j,run);progress({stage:'jobs',done:++done,total,media:media()})}
   await copySettingsInc(src,run);
+  progress({stage:'checking',done,total,media:media()});
   await hook('beforeVerify');
   const v=await checkRun(src,run);
   v.counts=run.counts;

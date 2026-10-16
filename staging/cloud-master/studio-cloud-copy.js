@@ -1,5 +1,8 @@
 /*
- * FittersIQ Studio: manual cloud copy (Stage 2.3b). Loaded ONLY by the staging Studio page.
+ * FittersIQ Studio: cloud copy (Stage 2.3b, automatic since S3). Loaded by the staging page and, for
+ * the step 6 release, by the Beta and normal Studio pages. It works only with the Firebase project the
+ * page is connected to (fittersiq-staging or assembleone-fabac) and never fetches another project's photos.
+ * The page names its backup area: window.FIQ_CLOUD_ENV 'production' on the normal Studio, otherwise 'beta'.
  *
  * The browser stays the master. Nothing here changes Studio's saved data, drawings or
  * settings, and no frozen workflow is touched: data comes from the existing read-only
@@ -21,9 +24,10 @@ import * as fsMod from "https://www.gstatic.com/firebasejs/12.2.1/firebase-fires
 import * as stMod from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 import {initializeApp} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 
-const ENV='beta';
-const STAGING_PROJECT='fittersiq-staging';
-const STAGING_LINK='https://firebasestorage.googleapis.com/v0/b/fittersiq-staging.firebasestorage.app/';
+const ENV=window.FIQ_CLOUD_ENV==='production'?'production':'beta';
+const KNOWN_PROJECTS=['fittersiq-staging','assembleone-fabac'];
+const linkFor=pid=>'https://firebasestorage.googleapis.com/v0/b/'+pid+'.firebasestorage.app/';
+let OWN_LINK=null;// photo links of the connected project (set by connect())
 // Automatic backup (S3) keys: schedule state, per-item fingerprints of the last verified run,
 // time of the last full check, and the handover note written after a restore from the cloud.
 const K={device:'fiq_device_id_v1',enabled:'fiq_cloud_copy_enabled_v1',attempt:'fiq_cloud_last_attempt_v1',schedule:'fiq_cloud_schedule_v1',prints:'fiq_cloud_prints_v1',lastFull:'fiq_cloud_last_full_v1',adopt:'fiq_cloud_adopt_v1',adoptPending:'fiq_cloud_adopt_pending_v1'};
@@ -37,6 +41,9 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 
 let db=null,storage=null,ready=false,disabledReason='';
 let state='off',companyOn=null,busy=false,current=null,lastCheck=null;
+// Progress of the backup running now (from the copier), shown instead of the previous result while it runs.
+let live=null,liveAt=0;
+function onProgress(p){live=p;if(Date.now()-liveAt>700||p.stage==='checking'){liveAt=Date.now();try{paint()}catch(e){}}}
 
 function connect(){
  if(db)return true;
@@ -48,8 +55,10 @@ function connect(){
  }
  const f=window.fiqFirestore,s=window.fiqStorage;
  if(!f||!s)return false;
- // Never anything but the staging project.
- if(f.app.options.projectId!==STAGING_PROJECT){disabledReason='This page is not connected to the staging project.';return false}
+ // Only a FittersIQ project, and only its own photos.
+ const pid=f.app.options.projectId;
+ if(!KNOWN_PROJECTS.includes(pid)){disabledReason='This page is not connected to a FittersIQ project.';return false}
+ OWN_LINK=linkFor(pid);
  db=f;storage=s;return true;
 }
 function user(){
@@ -66,12 +75,14 @@ function deviceId(){
 function deviceName(){const ua=navigator.userAgent||'';return 'Studio · '+(/Windows/.test(ua)?'Windows':/Mac/.test(ua)?'Mac':/Android/.test(ua)?'Android':/iPhone|iPad/.test(ua)?'iOS':'computer')+' · '+(/Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'browser')}
 const fb={doc:fsMod.doc,getDoc:fsMod.getDoc,getDocs:fsMod.getDocs,collection:fsMod.collection,setDoc:fsMod.setDoc,runTransaction:fsMod.runTransaction,serverTimestamp:fsMod.serverTimestamp,Timestamp:fsMod.Timestamp};
 const st={ref:stMod.ref,uploadString:stMod.uploadString,uploadBytes:stMod.uploadBytes,getBytes:stMod.getBytes,getMetadata:stMod.getMetadata,listAll:stMod.listAll,getDownloadURL:stMod.getDownloadURL};
-const isAllowedLink=url=>url.startsWith(STAGING_LINK)||(!!T&&url.startsWith('http://'+T.host+':'+T.storagePort+'/'));
+const isAllowedLink=url=>(!!OWN_LINK&&url.startsWith(OWN_LINK))||(!!T&&url.startsWith('http://'+T.host+':'+T.storagePort+'/'));
+// A Firebase photo link of any other project: never fetched, reported as not owned.
+const foreignLink=url=>String(url).startsWith('https://firebasestorage.googleapis.com/v0/b/')&&!isAllowedLink(url);
 // The photo's own file in the staging bucket (the emulator in test mode), read with the
 // owner's sign-in. statLink reads metadata only (server md5Hash, size, generation).
 function linkRef(url){
- if(/assembleone-fabac/i.test(url))throw new Error('Production is never fetched');
- if(url.startsWith(STAGING_LINK))return stMod.ref(storage,url);
+ if(foreignLink(url))throw new Error('Another project is never fetched');
+ if(OWN_LINK&&url.startsWith(OWN_LINK))return stMod.ref(storage,url);
  return stMod.ref(storage,decodeURIComponent(url.split('/o/')[1].split('?')[0]));
 }
 async function statLink(url){
@@ -84,7 +95,7 @@ async function fetchLink(url){
 }
 function copier(sessionId){
  const u=user();
- return window.FiqCloudCopy.createCloudCopy({fb,st,db,storage,companyId:u.companyId,env:ENV,uid:u.uid,sessionId:sessionId||('s-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)),deviceId:deviceId(),deviceName:deviceName(),fetchLink,statLink,isAllowedLink,mode:'incremental',hooks:T&&T.hooks?T.hooks:undefined,adopt:readJSON(K.adopt)||undefined});
+ return window.FiqCloudCopy.createCloudCopy({fb,st,db,storage,companyId:u.companyId,env:ENV,uid:u.uid,sessionId:sessionId||('s-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)),deviceId:deviceId(),deviceName:deviceName(),onProgress,fetchLink,statLink,foreignLink,foreignWord:'photo from another project',isAllowedLink,mode:'incremental',hooks:T&&T.hooks?T.hooks:undefined,adopt:readJSON(K.adopt)||undefined});
 }
 async function input(){
  const b=await window.fiqBuildBackup();// read-only (Stage 2.0)
@@ -182,7 +193,7 @@ async function runCopy(auto){
   if(r.ok){ls.set(K.prints,JSON.stringify(r.prints));if(fullCheck){ls.set(K.lastFull,String(Date.now()));fullNext=false}}
   if(sched){sched.finished(Date.now(),r.ok?{ok:true,coverage:r.verify&&r.verify.checked}:{ok:false,error:(r.error&&r.error.message)||((r.conflicts||[]).length?'needs review':'not verified')});saveSched()}
  }catch(e){recordAttempt(null,{id:'error-'+Date.now(),code:e.code||'error',message:String(e.message||e),offline:netError(e),sourceSha256:current});if(sched){sched.finished(Date.now(),{ok:false,error:String(e.message||e)});saveSched()}}
- busy=false;await refresh();
+ busy=false;live=null;await refresh();
  // A save that lands while the run is going (also the save at its start) leaves the schedule
  // "pending" although the backup holds exactly what is saved. Settle it now, so the status record
  // never says "backed up" with a waiting time (a closed Studio would otherwise raise a false alert).
@@ -229,7 +240,7 @@ async function writeHealth(force){
  try{await fsMod.setDoc(fsMod.doc(db,'companies/'+u.companyId+'/health/'+deviceId()),{uid:u.uid,kind:'studio',deviceName:deviceName(),state:v.kind,
   lastChangeAt:saved.lastChangeAt||null,pendingSince:s.pendingSince||null,lastVerifiedAt:a.verifiedAt?Date.parse(a.verifiedAt):null,
   coverage:ch?{customers:ch.customers||0,jobs:ch.jobs||0,deletedJobs:ch.deletedJobs||0,drawings:ch.drawings||0}:null,waitingUploads:0,
-  lastError:v.kind==='failed'?String(a.message||a.outcome||'').slice(0,300):null,heartbeatAt:Date.now(),appVersion:'studio-staging'})}catch(e){}
+  lastError:v.kind==='failed'?String(a.message||a.outcome||'').slice(0,300):null,heartbeatAt:Date.now(),appVersion:'studio-'+(OWN_LINK&&OWN_LINK.indexOf('fittersiq-staging')>=0?'staging':ENV)})}catch(e){}
 }
 async function checkNow(){
  if(busy||!enabled())return;
@@ -240,7 +251,7 @@ async function checkNow(){
   const [v,m]=await Promise.all([c.verifyOnly(inp),c.checkVerified(inp)]);
   lastCheck={at:new Date().toISOString(),ok:v.ok,markerMatches:m.verified,problems:v.problems.slice(0,50),extra:v.extraInCloud.slice(0,20)};
  }catch(e){lastCheck={at:new Date().toISOString(),ok:false,problems:[String(e.message||e)],offline:netError(e)}}
- busy=false;await refresh();
+ busy=false;live=null;await refresh();
 }
 async function turnOn(){
  if(!user())return note('Sign in as the company owner first.');
@@ -287,7 +298,7 @@ function view(){
  }
  const since=s&&s.pendingSince?' since '+hhmm(new Date(s.pendingSince)):'';
  const off=state==='offline'||!navigator.onLine;
- const why=off?' (offline)':state==='copying'?' (backing up now)':state==='waiting'?' (another computer is backing up)':state==='pending'?' (photos pending)':'';
+ const why=off?' (offline)':state==='copying'?(busy&&live?(live.stage==='checking'?' (backing up now: checking the copy)':' (backing up now: '+live.done+' of '+live.total+' jobs)'):' (backing up now)'):state==='waiting'?' (another computer is backing up)':state==='pending'?' (photos pending)':'';
  return {kind:'pending',text:'☁ Backup pending'+why,help:'Changes saved on this computer are not in the cloud backup yet'+since+'. They are backed up automatically'+(off?' when the internet returns.':' within a few minutes.')+last,covers:covers(a)};
 }
 function stats(a){if(!a||!a.counts)return '';const c=a.counts,ch=c.checked||{};return 'Customers '+(ch.customers??'—')+' · jobs '+(ch.jobs??'—')+' · deleted jobs '+(ch.deletedJobs??'—')+' · drawings '+(ch.drawings??'—')+' · settings '+(ch.settings??'—')+' · orphan drawings '+(ch.orphanDrawings??'—')+' · files uploaded '+((c.media&&c.media.uploaded)||0)+', reused '+(((c.media&&c.media.reused)||0)+(c.filesReused||0))}
@@ -297,7 +308,7 @@ function paintSection(){
  if(!s){s=document.createElement('div');s.dataset.cloudSection='1';s.className='fiq-cloud-section';const before=sheet.querySelector('.a100-edit-actions');sheet.insertBefore(s,before||null)}
  const gate=window.fiqEditor,canCopy=!!gate&&gate.canWrite()&&!gate.restoring&&!busy;
  const a=readJSON(K.attempt);
- let h='<h3>Cloud copy (staging)</h3>';
+ let h='<h3>Cloud copy</h3>';
  if(disabledReason)h+='<p class="muted">'+esc(disabledReason)+'</p>';
  else if(!user())h+='<p class="muted">Sign in as the company owner to use cloud copy.</p>';
  else if(!enabled())h+='<p class="muted">Cloud copy is off for this browser. Saved data stays in this browser as before.</p>'+(noteText?'<p class="fiq-doc-warn" data-cloud-note>'+esc(noteText)+'</p>':'')+'<div class="fiq-safety-actions"><button type="button" class="btn" data-cloud-on>Turn on cloud copy for this browser</button></div>';
@@ -307,7 +318,7 @@ function paintSection(){
   if(vw.covers)h+='<p class="muted" data-cloud-covers>'+esc(vw.covers)+'.</p>';
   if(companyOn===false)h+='<p class="fiq-doc-warn">Cloud copy is not enabled for this company.</p>';
   if(a&&a.verifiedAt)h+='<p class="muted">Last verified: '+esc(a.verifiedAt.replace('T',' ').slice(0,19))+' (run '+esc(a.verifiedRun||'')+')</p>';
-  if(a)h+='<p class="muted" data-cloud-attempt="'+esc(a.outcome)+'">Last attempt: '+esc((a.at||'').replace('T',' ').slice(0,19))+' · '+esc(a.outcome)+(a.message?' · '+esc(a.message):'')+'</p><p class="muted">'+esc(stats(a))+'</p>';
+  if(a)h+='<p class="muted" data-cloud-attempt="'+esc(a.outcome)+'">'+(busy?'Previous attempt: ':'Last attempt: ')+esc((a.at||'').replace('T',' ').slice(0,19))+' · '+esc(a.outcome)+(a.message?' · '+esc(a.message):'')+'</p><p class="muted">'+esc(stats(a))+'</p>';
   const list=(t,items,attr)=>items&&items.length?'<p><b>'+esc(t)+'</b></p><ul '+attr+'>'+items.slice(0,20).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'';
   if(a){h+=list('Needs review',a.conflicts,'data-cloud-conflicts');h+=list('Photos not owned yet',(a.pending||[]).map(p=>p.id+': '+p.photos+' photo(s)'),'data-cloud-pending');h+=list('Problems',a.otherProblems,'data-cloud-problems')}
   if(lastCheck)h+='<p class="muted" data-cloud-check="'+(lastCheck.ok?'ok':'problems')+'">Last check: '+esc(lastCheck.at.replace('T',' ').slice(0,19))+' · '+(lastCheck.ok?'cloud copy matches':'differences found')+'</p>'+list('Check found',lastCheck.problems,'data-cloud-check-problems');

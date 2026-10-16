@@ -88,8 +88,14 @@ function createCloudCopy(o){
  const {fb,st,db,storage,companyId,env,uid,sessionId,deviceId}=o;
  const deviceName=o.deviceName||'Studio';
  const fetchLink=o.fetchLink||null,isAllowedLink=o.isAllowedLink||(()=>false);
+ // A photo of another Firebase project is never fetched. Default (staging pages and tests): Production
+ // photos. A page connected to Production passes its own rule (any project but its own).
+ const foreignLink=o.foreignLink||(url=>PRODUCTION_LINK.test(url)),foreignWord=o.foreignWord||'Production photo';
  // statLink(url) -> {md5Hash,size,generation,contentType} | null when the file is gone. Metadata only.
  const statLink=o.statLink||null;
+ // Live progress for the status line while a backup runs (16 Oct 2026): {stage:'jobs'|'checking', done, total, media}.
+ const onProgress=typeof o.onProgress==='function'?o.onProgress:null;
+ const progress=p=>{if(onProgress)try{onProgress(p)}catch(e){}};
  // Handover after a restore: {fromDevice, primaryRev, jobs:{id:rev}, customers:{id:rev}, settings:rev}
  // from the restore report. A record last written by another computer may be continued only
  // when this computer restored exactly that version (same rev), never a newer one.
@@ -198,7 +204,7 @@ function createCloudCopy(o){
  async function ownLink(url,report){
   if(linkCache.has(url))return linkCache.get(url);
   let res;
-  if(PRODUCTION_LINK.test(url))res={notOwned:'Production photo; not copied in this phase'};
+  if(foreignLink(url))res={notOwned:foreignWord+'; not copied'};
   else if(!fetchLink||!isAllowedLink(url))res={notOwned:'link host not allowed for copying'};
   else{
    const got=await fetchLink(url);
@@ -356,7 +362,7 @@ function createCloudCopy(o){
    if(!pkg||pkg.fiqPackage!==2){problems.push('Job in the cloud is a different version than the browser: '+j.id);return null}
    if(JSON.stringify(pkg.job)!==j.text){problems.push('Job in the cloud is a different version than the browser: '+j.id);return null}
    for(const [unitId,dr] of Object.entries(j.drawings)){const m=pkg.drawings&&pkg.drawings[unitId];if(!m||m.sha256!==dr.sha256){problems.push('Drawing missing or different in the cloud: '+j.id+' / '+unitId);continue}await checkMedia(dr.sha256,'drawing '+j.id+' / '+unitId)}
-   for(const url of j.links){const m=pkg.links&&pkg.links[url];if(!m){problems.push('Photo not owned by the cloud master yet: '+j.id+' ('+(PRODUCTION_LINK.test(url)?'Production photo':'link')+')');continue}await checkMedia(m.sha256,'photo in '+j.id)}
+   for(const url of j.links){const m=pkg.links&&pkg.links[url];if(!m){problems.push('Photo not owned by the cloud master yet: '+j.id+' ('+(foreignLink(url)?foreignWord:'link')+')');continue}await checkMedia(m.sha256,'photo in '+j.id)}
    for(const e of j.lifecycle)if(!(pkg.lifecycle||[]).some(x=>x.event===e.event&&x.localAt===e.localAt))problems.push('Delete / restore history missing in the cloud: '+j.id);
    return {d,pkg};
   };
@@ -466,7 +472,7 @@ function createCloudCopy(o){
   return {bytes,sha:await sha256Bytes(bytes),md5,contentType:(got.contentType||'').toLowerCase(),generation:got.generation!=null?String(got.generation):null};
  }
  async function planLink(url,recLinks,recMedia,run){
-  if(PRODUCTION_LINK.test(url))return {notOwned:'Production photo; not copied in this phase'};
+  if(foreignLink(url))return {notOwned:foreignWord+'; not copied'};
   if(!fetchLink||!isAllowedLink(url))return {notOwned:'link host not allowed for copying'};
   const key=await linkKey(url);const rec=recLinks&&recLinks[key];
   if(rec&&statLink){
@@ -574,7 +580,7 @@ function createCloudCopy(o){
   if(await hook('skipJob',j.id)===true)return;
   const proof=run.proofs.get('job-'+j.id)||null;
   const g=await planJobMedia(j,proof,run);
-  if(g.notOwned.length){report.mediaNotOwned.push({id:j.id,links:g.notOwned});g.notOwned.forEach(url=>run.problems.push('Photo not owned by the cloud master yet: '+j.id+' ('+(PRODUCTION_LINK.test(url)?'Production photo':'link')+')'))}
+  if(g.notOwned.length){report.mediaNotOwned.push({id:j.id,links:g.notOwned});g.notOwned.forEach(url=>run.problems.push('Photo not owned by the cloud master yet: '+j.id+' ('+(foreignLink(url)?foreignWord:'link')+')'))}
   if(g.problems.length){g.problems.forEach(p=>run.problems.push(p+' ('+j.id+')'));return}
   let lc=cur?lifecycleFor(j,cur,proof,false):{lifecycle:mergeLifecycle(null,j.lifecycle,null)};
   if(!lc){const prev=await previousChecked(cur,run);if(!prev)return;lc={lifecycle:mergeLifecycle(prev.pkg,j.lifecycle,null)}}
@@ -752,9 +758,12 @@ function createCloudCopy(o){
   cs.forEach(d=>run.customers.set(d.id,d.data()));js.forEach(d=>run.jobs.set(d.id,d.data()));ps.forEach(d=>run.proofs.set(d.id,d.data()));
   }
   for(const c of src.customers){await keepLease();await copyCustomerInc(c,run)}
-  for(const j of src.jobs)await copyLiveJobInc(j,run);
-  for(const j of src.deleted)await copyDeletedJobInc(j,run);
+  const total=src.jobs.length+src.deleted.length,media=()=>(run.report&&run.report.media?run.report.media.uploaded+run.report.media.reused:0);let done=0;
+  progress({stage:'jobs',done,total,media:media()});
+  for(const j of src.jobs){await copyLiveJobInc(j,run);progress({stage:'jobs',done:++done,total,media:media()})}
+  for(const j of src.deleted){await copyDeletedJobInc(j,run);progress({stage:'jobs',done:++done,total,media:media()})}
   await copySettingsInc(src,run);
+  progress({stage:'checking',done,total,media:media()});
   await hook('beforeVerify');
   const v=await checkRun(src,run);
   v.counts=run.counts;
