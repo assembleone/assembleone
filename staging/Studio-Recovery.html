@@ -5407,7 +5407,8 @@ function openGuidePreview(url){const modal=$("#guidePreviewModal"),frame=$("#gui
 function closeGuidePreview(returnToQr=true){const modal=$("#guidePreviewModal"),frame=$("#guidePreviewFrame");if(modal){modal.classList.remove("open");modal.setAttribute("aria-hidden","true")}if(frame){frame.srcdoc="";frame.src="about:blank"}if(returnToQr){show("qr");requestAnimationFrame(()=>window.scrollTo({top:qrReturnScroll,behavior:"auto"}))}}
 window.addEventListener("message",e=>{if(e.data==="assembleone-close-test")closeGuidePreview(true)});
 document.addEventListener("click",e=>{const back=e.target.closest("#closeGuidePreview");if(back){e.preventDefault();e.stopPropagation();closeGuidePreview(true);return}if(e.target.id==="guidePreviewModal")closeGuidePreview(false)});
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeGuidePreview()});
+// Escape only closes the guide preview when it is open (it used to jump to the QR screen from anywhere, e.g. Drawing).
+document.addEventListener("keydown",e=>{if(e.key!=="Escape")return;const m=$("#guidePreviewModal");if(m&&m.classList.contains("open"))closeGuidePreview()});
 
 // Version 5.0: panel options behaves like a normal dropdown.
 // Version 5.5: incomplete panels remain drawing drafts and are hidden from Panel Status and Cutting Lists.
