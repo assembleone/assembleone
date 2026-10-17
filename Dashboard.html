@@ -1296,6 +1296,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <button data-page="licences"><span class="icon svg-icon"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="16.5" cy="9" r="2.5"/><path d="M3 19c.5-3.8 2.5-5.6 5-5.6 2.7 0 4.7 1.8 5.2 5.6M14 15.2c3 .1 4.9 1.5 5.5 3.8"/><path d="M18 4.5v4M16 6.5h4"/></svg></span><span>Users &amp; Licences</span></button>
       <button data-page="support"><span class="icon svg-icon"><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 0 1 14 0v5a2 2 0 0 1-2 2h-2"/><rect x="3" y="12" width="4" height="6" rx="2"/><rect x="17" y="12" width="4" height="6" rx="2"/><path d="M12 20h3"/></svg></span><span>Support Access</span></button>
       <button data-page="reports"><span class="icon svg-icon"><svg viewBox="0 0 24 24"><path d="M5 19V11M10 19V7M15 19v-5M20 19V4"/></svg></span><span>Reports</span></button>
+      <button data-page="backups"><span class="icon svg-icon"><svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z"/><path d="M12 10v5M9.5 12.5 12 15l2.5-2.5"/></svg></span><span>Backups</span></button>
       <button data-page="settings"><span class="icon svg-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.4 3h-4.8l-.3 3.1a8 8 0 0 0-1.8 1l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.8 1l.3 3.1h4.8l.3-3.1a8 8 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg></span><span>Settings</span></button>
       <button data-page="howItWorks"><span class="icon svg-icon"><svg viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6z"/><path d="M15 4v3h3M9 11h6M9 14h6M9 17h4"/></svg></span><span>How It Works</span></button>
     </nav>
@@ -1474,6 +1475,16 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       </section>
     </section>
 
+    <section class="page admin-section" id="backupsPage">
+      <div class="section-head"><div><h2>Backups</h2><p>Live from each customer's devices: is their work safely in the cloud? Alerts are also emailed to hello@danishcarpenter.com.</p></div><button class="secondary" id="refreshBackups" type="button">Refresh</button></div>
+      <div class="launch-grid three">
+        <article class="launch-card"><span class="launch-icon green">✓</span><div><small>Backed up</small><strong id="bkOk">–</strong><p>Companies whose devices are all backed up.</p></div></article>
+        <article class="launch-card"><span class="launch-icon purple">◷</span><div><small>Needs attention</small><strong id="bkWarn">–</strong><p>Work waiting too long, a failed backup, or a computer gone quiet.</p></div></article>
+        <article class="launch-card"><span class="launch-icon blue">☁</span><div><small>Backup switched on</small><strong id="bkOn">–</strong><p>Companies with cloud backup turned on.</p></div></article>
+      </div>
+      <div class="admin-table" id="backupsList"><div class="empty-state">Sign in as FittersIQ support to see backup status.</div></div>
+    </section>
+
     <section class="page admin-section" id="reportsPage">
       <div class="section-head"><div><h2>Reports</h2><p>Revenue, renewals and customer activity in one place.</p></div><button class="secondary" id="exportReport">Export summary</button></div>
       <div class="launch-grid three">
@@ -1609,6 +1620,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <div><small>RENEWAL</small><strong id="dRenewal"></strong></div>
       <div><small>LAST ACTIVE</small><strong id="dLast"></strong></div>
     </div>
+    <div id="dAccount"></div>
     <button class="support">♙ Open Support Access</button>
     <button class="secondary wide">View Contract</button>
     <button class="secondary wide">View Payments</button>
@@ -1638,10 +1650,11 @@ contracts:["Contracts","Keep customer agreements together."],
 licences:["Users & Licences","Control users and device allowances."],
 support:["Support Access","Temporary access when a customer needs help."],
 reports:["Reports","Revenue, renewals and business performance."],
+backups:["Backups","Each customer's cloud backup and its alerts."],
 settings:["Settings","FittersIQ Admin settings."],
 howItWorks:["How FittersIQ Works","The permanent owner and staff guide for running FittersIQ."]
 };
-const pageMap={dashboard:"dashboardPage",customers:"customersPage",subscriptions:"subscriptionsPage",payments:"paymentsPage",contracts:"contractsPage",licences:"licencesPage",support:"supportPage",reports:"reportsPage",settings:"settingsPage",howItWorks:"howItWorksPage"};
+const pageMap={dashboard:"dashboardPage",customers:"customersPage",subscriptions:"subscriptionsPage",payments:"paymentsPage",contracts:"contractsPage",licences:"licencesPage",support:"supportPage",reports:"reportsPage",backups:"backupsPage",settings:"settingsPage",howItWorks:"howItWorksPage"};
 function go(page){
   if(!info[page]) return;
   document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
@@ -1675,10 +1688,10 @@ function renderCustomers(){
     <span>${c.users}</span>
     <span class="${c.status==="Payment Due"?"due-red":c.status==="Trial"?"trial-purple":""}">${c.renewal}</span>
     <span>${c.last}</span>
-    <button class="more" type="button" data-open="${c.id}" aria-label="Open ${c.company}">•••</button>
+    <button class="more" type="button" data-open="${String(c.id)}" aria-label="Open ${c.company}">•••</button>
   </div>`).join("")||'<div class="empty-state">No customers match this search.</div>';
   if($("showing")) $("showing").textContent=`Showing ${list.length} of ${customers.length} customers`;
-  document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openCustomer(+b.dataset.open)));
+  document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openCustomer(b.dataset.open)));
   updateMetrics();
 }
 if($("statusFilter")) $("statusFilter").addEventListener("change",renderCustomers);
@@ -1694,9 +1707,10 @@ if($("addForm")) $("addForm").addEventListener("submit",e=>{
   save();e.target.reset();$("addDialog").close();renderCustomers();go("customers");
 });
 function openCustomer(id){
-  const c=customers.find(x=>x.id===id);if(!c)return;
+  const c=customers.find(x=>String(x.id)===String(id));if(!c)return;
   $("dCompany").textContent=c.company;$("dEmail").textContent=c.email;$("dStatus").innerHTML=`<span class="status ${statClass(c.status)}">${c.status}</span>`;
   $("dPlan").textContent=c.plan;$("dUsers").textContent=c.users;$("dRenewal").textContent=c.renewal;$("dLast").textContent=c.last;
+  if($("dAccount"))$("dAccount").innerHTML="";if(c.real&&typeof window.fiqAccountPanel==="function")window.fiqAccountPanel(c);
   if($("detailDialog")?.showModal)$("detailDialog").showModal();
 }
 function populateSupportCustomers(){
@@ -1704,7 +1718,7 @@ function populateSupportCustomers(){
   $("supportCustomer").innerHTML=customers.map(c=>`<option value="${c.id}">${c.company}</option>`).join("");
 }
 if($("startSupport")) $("startSupport").addEventListener("click",()=>{
-  const customer=customers.find(c=>c.id===+$("supportCustomer").value);const time=$("supportTime").value;
+  const customer=customers.find(c=>String(c.id)===$("supportCustomer").value);const time=$("supportTime").value;
   $("supportState").textContent=customer?`Temporary support access open for ${customer.company} for ${time}.`:"Choose a customer first.";
 });
 if($("saveSettings")) $("saveSettings").addEventListener("click",()=>{const btn=$("saveSettings"),old=btn.textContent;btn.textContent="✓ Saved";setTimeout(()=>btn.textContent=old,1400)});
@@ -1760,7 +1774,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     if(company.status === 'suspended') return 'Suspended';
     if(company.status === 'cancelled') return 'Cancelled';
     var s = company.subscriptionStatus;
-    if(s === 'active') return 'Active';
+    if(s === 'active' || s === 'active_manual_invoice') return 'Active';
     if(s === 'past_due') return 'Payment Due';
     return 'Trial';
   }
@@ -1783,7 +1797,8 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
           plan: c.plan || 'Trial',
           status: statusWord(c),
           users: '1 / ' + (c.maxUsers || 1),
-          renewal: c.subscriptionStatus === 'trialing' ? ('Trial ends ' + formatDate(c.trialEndsAt)) : formatDate(c.trialEndsAt),
+          renewal: c.status === 'suspended' ? 'Suspended' : c.paidUntil ? ('Paid until ' + formatDate(c.paidUntil)) : c.subscriptionStatus === 'trialing' ? ('Trial ends ' + formatDate(c.trialEndsAt)) : formatDate(c.trialEndsAt),
+          real: true, rawStatus: c.status || '', trialEndsAt: c.trialEndsAt || null, paidUntil: c.paidUntil || null, cloudBackup: c.fiqCloudCopy === 'on',
           last: '–',
         });
       });
@@ -1797,6 +1812,74 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     }
   }
 
+  // Customer account (Mads 17 Oct 2026, invoicing by hand): record a payment, set the trial end, suspend or resume.
+  // Runs the support-only server function supportSetCompanyAccount; every change goes to the audit log.
+  window.fiqAccountPanel = function(c){
+    var box = document.getElementById('dAccount'); if(!box) return;
+    var iso = function(ts){ try{ return ts && ts.toDate ? ts.toDate().toISOString().slice(0,10) : ''; }catch(e){ return ''; } };
+    var trialEnd = iso(c.trialEndsAt), paid = iso(c.paidUntil);
+    var days = c.trialEndsAt && c.trialEndsAt.toDate ? Math.round((c.trialEndsAt.toDate() - new Date())/86400000) : null;
+    box.innerHTML = '<div class="detail-grid fiq-account">'
+      + '<div><small>TRIAL ENDS</small><strong>' + (trialEnd || '–') + (days != null && !paid ? ' (' + (days < 0 ? Math.abs(days) + ' days ago' : days + ' days left') + ')' : '') + '</strong></div>'
+      + '<div><small>PAID UNTIL</small><strong>' + (paid || '–') + '</strong></div>'
+      + '<div><small>CLOUD BACKUP</small><strong>' + (c.cloudBackup ? 'On' : 'Off') + '</strong></div></div>'
+      + '<label class="fiq-account-date"><small>Date</small><input type="date" id="dAccountDate" value="' + (paid || trialEnd || '') + '"></label>'
+      + '<button class="secondary wide" type="button" data-account="paid">Record payment: paid until this date</button>'
+      + (c.rawStatus === 'trial' ? '<button class="secondary wide" type="button" data-account="trial">Set trial end to this date</button>' : '')
+      + (c.rawStatus === 'suspended' ? '<button class="secondary wide" type="button" data-account="resume">Resume access</button>' : '<button class="secondary wide" type="button" data-account="suspend">Suspend (unpaid; data is kept)</button>')
+      + '<p class="fiq-account-msg" id="dAccountMsg"></p>';
+    box.querySelectorAll('[data-account]').forEach(function(btn){ btn.onclick = async function(){
+      var action = btn.dataset.account, date = (document.getElementById('dAccountDate') || {}).value || '', msg = document.getElementById('dAccountMsg');
+      var payload = { companyId: c.id, action: action };
+      if(action === 'paid') payload.paidUntil = date;
+      if(action === 'trial') payload.trialEndsAt = date;
+      if(action === 'suspend'){ var reason = prompt('Suspend ' + c.company + '? Everyone in the company loses access until you resume. Reason (for the audit log):', 'Unpaid invoice'); if(reason === null) return; payload.reason = reason; }
+      if((action === 'paid' || action === 'trial') && !/^\d{4}-\d{2}-\d{2}$/.test(date)){ msg.textContent = 'Choose a date first.'; return; }
+      btn.disabled = true; msg.textContent = 'Saving…';
+      try{
+        var r = await authFns.httpsCallable(window.fiqFunctions, 'supportSetCompanyAccount')(payload);
+        msg.textContent = 'Saved: ' + r.data.status + (r.data.paidUntil ? ', paid until ' + r.data.paidUntil.slice(0,10) : '') + (r.data.members ? ', ' + r.data.members + ' people changed' : '') + '.';
+        await loadRealCustomers();
+      }catch(e){ msg.textContent = 'Not saved: ' + (e && e.message || e); }
+      btn.disabled = false;
+    }; });
+  };
+
+  // Backups page: every company's device status records (what the alert check reads too).
+  window.fiqLoadBackups = async function(){
+    var list = document.getElementById('backupsList'); if(!list) return;
+    list.innerHTML = '<div class="empty-state">Loading…</div>';
+    var now = Date.now(), ok = 0, warn = 0, on = 0, rows = [];
+    var esc = function(x){ return String(x == null ? '' : x).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); };
+    var ago = function(t){ if(!t) return 'never'; var m = Math.round((now - t)/60000); return m < 60 ? m + ' min ago' : m < 2880 ? Math.round(m/60) + ' h ago' : Math.round(m/1440) + ' days ago'; };
+    var ms = function(v){ return v && v.toMillis ? v.toMillis() : Number(v) || 0; };
+    try{
+      var companies = await authFns.getDocs(authFns.collection(db,'companies'));
+      for(const cd of companies.docs){
+        var c = cd.data(); if(c.fiqCloudCopy === 'on') on++;
+        var hs = await authFns.getDocs(authFns.collection(db,'companies',cd.id,'health'));
+        var devices = [], problems = [];
+        hs.forEach(function(h){ var d = h.data(); if(d.retiredAt || d.test) return;
+          var last = ms(d.heartbeatAt), since = ms(d.pendingSince), quiet = now - last > 15*60000;
+          if(d.kind === 'studio' && d.state === 'failed') problems.push((d.deviceName||'Studio') + ': backup failing' + (d.lastError ? ' (' + d.lastError + ')' : ''));
+          else if(d.kind === 'studio' && d.state === 'pending' && since && now - since > 20*60000) problems.push((d.deviceName||'Studio') + ': work not backed up for ' + ago(since).replace(' ago',''));
+          if(d.kind === 'phone' && (d.waitingUploads||0) > 0 && since && now - since > 30*60000) problems.push((d.deviceName||'Phone') + ': ' + d.waitingUploads + ' waiting to upload for ' + ago(since).replace(' ago',''));
+          devices.push((d.kind === 'phone' ? 'Phone ' : 'Studio ') + esc(d.deviceName || d.kind) + ': ' + esc(d.state || '?') + ', last report ' + ago(last) + (quiet && d.state === 'pending' ? ' (quiet)' : ''));
+        });
+        if(problems.length) warn++; else if(devices.length) ok++;
+        rows.push('<div class="customer-row" data-backup-company="' + esc(cd.id) + '"><div class="company"><div><strong>' + esc(c.name || cd.id) + '</strong><small>Cloud backup ' + (c.fiqCloudCopy === 'on' ? 'on' : 'off') + '</small></div></div>'
+          + '<span>' + (problems.length ? '<b class="status due">' + problems.length + ' alert' + (problems.length > 1 ? 's' : '') + '</b>' : devices.length ? '<b class="status active">OK</b>' : '<b class="status">No devices yet</b>') + '</span>'
+          + '<span style="grid-column:span 4">' + (problems.map(esc).join('<br>') || devices.join('<br>') || '–') + '</span></div>');
+      }
+      list.innerHTML = rows.join('') || '<div class="empty-state">No companies yet.</div>';
+    }catch(e){ list.innerHTML = '<div class="empty-state">Could not load backup status: ' + esc(e && e.message || e) + '</div>'; }
+    var set = function(id, v){ var el = document.getElementById(id); if(el) el.textContent = v; };
+    set('bkOk', ok); set('bkWarn', warn); set('bkOn', on);
+  };
+  document.getElementById('refreshBackups')?.addEventListener('click', function(){ window.fiqLoadBackups(); });
+  document.querySelector('.nav button[data-page="backups"]')?.addEventListener('click', function(){ window.fiqLoadBackups(); });
+
+  window.fiqLoadRealCustomers=function(){return loadRealCustomers()};
   async function loadUsageStats(){
     var setText=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
     try{
