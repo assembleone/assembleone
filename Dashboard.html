@@ -1278,7 +1278,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         
         <label class="search">⌕ <input id="globalSearch" placeholder="Search customers..."></label>
         <div class="notify" aria-label="Backup alerts" data-page="backups" style="cursor:pointer">♧<b id="notifyCount" hidden></b></div>
-        <label class="language-control"><span>Language</span><select aria-label="Language"><option>🇬🇧 English</option><option>🇪🇸 Español</option><option>🇩🇰 Dansk</option></select></label>
+        <label class="language-control"><span>Language</span><select aria-label="Language"><option>🇬🇧 English</option></select></label>
       
       </div>
     </div>
@@ -1309,7 +1309,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 
     <div class="help">
       <strong>Customer needs help?</strong>
-      <p>Open temporary access to help inside their FittersIQ account.</p>
+      <p>See their questions and bug reports in the Support Inbox.</p>
       <button data-page="support">♙ OPEN SUPPORT</button>
     </div>
     <div class="logout" id="fiqSignOutBtn" role="button" tabindex="0">⇱ &nbsp; LOG OUT</div>
@@ -1324,7 +1324,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
           <h2>Dashboard Overview</h2>
           <p>Track your business performance at a glance.</p>
         </div>
-        <button class="date-chip" id="dateChip" type="button" aria-label="Dashboard date">▣ &nbsp; Today, 22 Aug 2026 &nbsp;⌄</button>
+        <button class="date-chip" id="dateChip" type="button" aria-label="Dashboard date">▣ &nbsp; Today</button>
       </div>
 
       <div class="overview-stats">
@@ -1392,7 +1392,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         <button data-page="backups"><span class="summary-icon purple">☁</span><div><small>Cloud Backup</small><strong id="sumBackupOn">–</strong><em>Customers with backup on</em></div><b>›</b></button>
       </div>
 
-      <footer class="dashboard-footer"><span>© 2026 FittersIQ. All rights reserved.</span><span><a href="#">Privacy Policy</a><i>•</i><a href="#">Terms &amp; Conditions</a><i>•</i><a href="#">Support</a></span></footer>
+      <footer class="dashboard-footer"><span>© 2026 FittersIQ. All rights reserved.</span><span><a href="https://fittersiq.com/" target="_blank" rel="noopener">Website</a><i>•</i><a href="mailto:hello@danishcarpenter.com">Email support</a></span></footer>
     </section>
 
     <section class="page admin-section" id="customersPage">
@@ -1422,7 +1422,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         <article class="launch-card"><span class="launch-icon purple">◷</span><div><small>Free trials</small><strong id="subTrials">0</strong><p>Trials still in progress.</p></div></article>
         <article class="launch-card"><span class="launch-icon orange">!</span><div><small>Renewal attention</small><strong id="subDue">0</strong><p>Payment due or suspended accounts.</p></div></article>
       </div>
-      <section class="admin-card launch-list"><h3>Subscription checklist</h3><div><span>Plan name and price</span><b>Ready</b></div><div><span>Renewal date</span><b>Ready</b></div><div><span>User allowance</span><b>Ready</b></div><div><span>Trial to paid conversion</span><b>Ready</b></div></section>
+      <section class="admin-card launch-list"><h3>Subscription checklist</h3><div><span>Free trial with end date</span><b>Ready</b></div><div><span>User seats per plan</span><b>Ready</b></div><div><span>Paid by invoice (record payment, suspend, resume)</span><b>Ready</b></div><div><span>Plan prices in euro, pounds or dollars</span><b class="needs">With Stripe</b></div><div><span>Card payment and automatic renewal</span><b class="needs">With Stripe</b></div></section>
     </section>
 
     <section class="page admin-section" id="paymentsPage">
@@ -1432,15 +1432,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         <article class="launch-card"><span class="launch-icon orange">!</span><div><small>Payments due</small><strong id="payDue">0</strong><p>Accounts requiring attention.</p></div></article>
         <article class="launch-card"><span class="launch-icon green">✓</span><div><small>Payment tracking</small><strong>On</strong><p>Record payments against customer accounts.</p></div></article>
       </div>
-      <section class="admin-card launch-list"><h3>Before live payments</h3><div><span>Payment provider connection</span><b class="needs">Connect</b></div><div><span>Invoice / receipt email</span><b class="needs">Connect</b></div><div><span>Tax and VAT settings</span><b class="needs">Set up</b></div></section>
+      <section class="admin-card launch-list"><h3>Before card payments</h3><div><span>Stripe account connected</span><b class="needs">Connect</b></div><div><span>Customer chooses euro, pounds or dollars</span><b class="needs">With Stripe</b></div><div><span>VAT per country</span><b class="needs">With Stripe</b></div><div><span>Invoice and receipt emails</span><b class="needs">With Stripe</b></div></section>
     </section>
 
     <section class="page admin-section" id="contractsPage">
       <div class="section-head"><div><h2>Contracts</h2><p>Keep customer agreements and subscription terms together.</p></div></div>
-      <div class="launch-grid two-col">
-        <section class="admin-card launch-list"><h3>Contract controls</h3><div><span>Customer linked contract</span><b>Ready</b></div><div><span>Start and renewal date</span><b>Ready</b></div><div><span>Status tracking</span><b>Ready</b></div><div><span>Signed document upload</span><b class="needs">Connect storage</b></div></section>
-        <section class="admin-card note-card"><span class="launch-icon purple">▤</span><h3>Launch note</h3><p>For a live release, contracts should be stored in your real database or document storage rather than only in the browser.</p></section>
-      </div>
+      <section class="admin-card note-card"><span class="launch-icon purple">▤</span><h3>Not in use yet</h3><p>Customers accept the FittersIQ terms when they sign up. Separate contracts come later, together with Stripe.</p></section>
     </section>
 
     <section class="page admin-section" id="licencesPage">
@@ -1448,7 +1445,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <div class="launch-grid three">
         <article class="launch-card"><span class="launch-icon blue">👥</span><div><small>Active users</small><strong id="licUsers">–</strong><p>Across all customer accounts.</p></div></article>
         <article class="launch-card"><span class="launch-icon green">▣</span><div><small>User seats</small><strong id="licSeats">–</strong><p>Seats allowed by each customer plan.</p></div></article>
-        <article class="launch-card"><span class="launch-icon purple">＋</span><div><small>Seat control</small><strong>On</strong><p>Adjust customer user allowance.</p></div></article>
+        <article class="launch-card"><span class="launch-icon purple">＋</span><div><small>Customers at seat limit</small><strong id="licFull">–</strong><p>Cannot add more users without a bigger plan.</p></div></article>
       </div>
     </section>
 
@@ -1457,13 +1454,9 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <div class="support-layout">
         <section class="admin-card support-access-card">
           <span class="launch-icon blue">◉</span><h3>Temporary support access</h3>
-          <p>Select a customer, choose a time limit and open a support session. The customer should be able to see when support access is active.</p>
-          <label>Customer<select id="supportCustomer"></select></label>
-          <label>Access time<select id="supportTime"><option>15 minutes</option><option>30 minutes</option><option>1 hour</option></select></label>
-          <button class="primary" id="startSupport">Open Temporary Access</button>
-          <p class="support-state" id="supportState">No support session is active.</p>
+          <p>Coming later. You will be able to open a customer's account for a limited time, with the customer able to see it. Until then, help customers by phone or email and use the Support Inbox below.</p>
         </section>
-        <section class="admin-card launch-list"><h3>Launch safety</h3><div><span>Customer consent / visible notice</span><b class="needs">Required</b></div><div><span>Automatic expiry</span><b>Included</b></div><div><span>Admin audit log</span><b class="needs">Connect backend</b></div><div><span>No password sharing</span><b>Included</b></div></section>
+        <section class="admin-card launch-list"><h3>Support access, when it comes</h3><div><span>Customer can see when support is inside</span><b class="needs">To do</b></div><div><span>Access ends by itself</span><b class="needs">To do</b></div><div><span>Every support action logged</span><b>Ready</b></div><div><span>No password sharing</span><b>Ready</b></div></section>
       </div>
       <section class="admin-card note-card fiq-support-inbox">
         <h3>Support Inbox</h3>
@@ -1516,10 +1509,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     </section>
 
     <section class="page admin-section" id="settingsPage">
-      <div class="section-head"><div><h2>Settings</h2><p>FittersIQ Admin account and launch settings.</p></div><button class="primary" id="saveSettings">Save Settings</button></div>
+      <div class="section-head"><div><h2>Settings</h2><p>FittersIQ Admin account and launch settings.</p></div></div>
       <div class="settings-grid">
-        <section class="admin-card settings-card"><h3>Owner</h3><label>Display name<input id="ownerName" value="Owner"></label><label>Admin email<input id="ownerEmail" type="email" placeholder="admin@fittersiq.com"></label></section>
-        <section class="admin-card settings-card"><h3>Defaults</h3><label>Language<select><option>English</option><option>Español</option><option>Dansk</option></select></label><label>Currency<select><option>EUR €</option><option>GBP £</option><option>USD $</option></select></label></section>
+        <section class="admin-card settings-card"><h3>Owner</h3><label>Signed in as<input id="ownerEmail" readonly></label><label>Alert emails go to<input value="hello@danishcarpenter.com" readonly></label></section>
+        <section class="admin-card settings-card"><h3>Defaults</h3><label>Language<input value="English" readonly></label><label>Prices set in<input value="Euro (EUR €)" readonly></label></section>
         <section class="admin-card launch-list"><h3>Launch connections</h3><div><span>Real database</span><b>Ready</b></div><div><span>Login / authentication</span><b>Ready</b></div><div><span>Sign-up and password emails</span><b>Ready</b></div><div><span>Backup alert emails</span><b>Ready</b></div><div><span>Payment provider (Stripe)</span><b class="needs">Connect</b></div><div><span>Tax / VAT per country</span><b class="needs">With Stripe</b></div></section>
       </div>
     </section>
@@ -1618,9 +1611,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <div><small>LAST ACTIVE</small><strong id="dLast"></strong></div>
     </div>
     <div id="dAccount"></div>
-    <button class="support">♙ Open Support Access</button>
-    <button class="secondary wide">View Contract</button>
-    <button class="secondary wide">View Payments</button>
   </div>
 </dialog>
 
@@ -1706,11 +1696,6 @@ function populateSupportCustomers(){
   if(!$("supportCustomer"))return;
   $("supportCustomer").innerHTML=customers.map(c=>`<option value="${c.id}">${c.company}</option>`).join("");
 }
-if($("startSupport")) $("startSupport").addEventListener("click",()=>{
-  const customer=customers.find(c=>String(c.id)===$("supportCustomer").value);const time=$("supportTime").value;
-  $("supportState").textContent=customer?`Temporary support access open for ${customer.company} for ${time}.`:"Choose a customer first.";
-});
-if($("saveSettings")) $("saveSettings").addEventListener("click",()=>{const btn=$("saveSettings"),old=btn.textContent;btn.textContent="✓ Saved";setTimeout(()=>btn.textContent=old,1400)});
 document.querySelectorAll('[data-hint="payment"]').forEach(b=>b.addEventListener("click",()=>{const f=$("showing");if(f)f.textContent="To record a payment, open the customer (•••) and use Record payment."}));
 // Export: the live customer list as a spreadsheet file (CSV).
 if($("exportReport")) $("exportReport").addEventListener("click",()=>{
@@ -1719,7 +1704,7 @@ if($("exportReport")) $("exportReport").addEventListener("click",()=>{
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(q).join(",")).join("\r\n")],{type:"text/csv"}));
   a.download="FittersIQ customers "+new Date().toISOString().slice(0,10)+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 if($("globalSearch")) $("globalSearch").addEventListener("input",e=>{const q=e.target.value.trim();if(q){go("customers");$("customerSearch").value=q;renderCustomers()}});
-function setToday(){const el=$("dateChip");if(!el)return;const d=new Date();const txt=new Intl.DateTimeFormat("en-GB",{day:"2-digit",month:"short",year:"numeric"}).format(d);el.textContent=`▣   Today, ${txt}   ⌄`}
+function setToday(){const el=$("dateChip");if(!el)return;const d=new Date();const txt=new Intl.DateTimeFormat("en-GB",{day:"2-digit",month:"short",year:"numeric"}).format(d);el.textContent=`▣   Today, ${txt}`}
 setToday();renderCustomers();populateSupportCustomers();updateMetrics();
 </script>
 <style id="fiq-auth-gate-style">
@@ -1847,9 +1832,9 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     var names = {}; companySnap.forEach(function(d){ names[d.id] = d.data().name || 'Unnamed company'; });
     // Active users: active members of every company.
     try{
-      var users = 0;
-      for(const d of companySnap.docs){ var m = await authFns.getDocs(authFns.collection(db,'companies',d.id,'members')); m.forEach(function(x){ if((x.data().status || 'active') === 'active') users++; }); }
-      set('snapUsers', users); set('licUsers', users);
+      var users = 0, full = 0;
+      for(const d of companySnap.docs){ var m = await authFns.getDocs(authFns.collection(db,'companies',d.id,'members')), n = 0; m.forEach(function(x){ if((x.data().status || 'active') === 'active') n++; }); users += n; if(n && n >= (d.data().maxUsers || 1)) full++; }
+      set('snapUsers', users); set('licUsers', users); set('licFull', full);
     }catch(e){ console.error('Could not count users', e); }
     // Recent activity.
     var list = document.getElementById('activityList');
@@ -2047,6 +2032,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     $('fiqAuthGate').style.display='none';
     var emailEl = $('fiqAccountEmail');
     if(emailEl) emailEl.textContent = user.email;
+    if($('ownerEmail')) $('ownerEmail').value = user.email || '';
     loadRealCustomers();
     loadSupportTickets();
     loadUsageStats();
