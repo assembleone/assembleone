@@ -1450,7 +1450,8 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <div class="fiq-auth-state" id="fiqStateOtherCompany" hidden>
       <h1>Another company's jobs are here</h1>
       <p class="fiq-auth-lead">This browser holds FittersIQ jobs of a different company. They stay safely on this browser and are not shown to this account. Sign in with that company to use them, or use another browser for this company.</p>
-      <button class="fiq-auth-link" id="fiqOtherCompanySignOutBtn" type="button">Sign out</button>
+      <p class="fiq-auth-lead" id="fiqOtherCompanyWho"></p>
+      <button class="fiq-auth-submit" id="fiqOtherCompanySignOutBtn" type="button">Sign out and use the other account</button>
     </div>
 
     <div class="fiq-auth-state" id="fiqStateSuspended" hidden>
@@ -9338,7 +9339,7 @@ body.fiq-locked .app{display:none!important}
       var DATA_OWNER='fiq_data_company_v1',owner=null,hasJobs=false;
       try{owner=localStorage.getItem(DATA_OWNER)}catch(e){}
       try{hasJobs=typeof state!=='undefined'&&state&&Array.isArray(state.projects)&&state.projects.length>0}catch(e){}
-      if(owner&&owner!==claims.companyId&&hasJobs){ showState('fiqStateOtherCompany'); return; }
+      if(owner&&owner!==claims.companyId&&hasJobs){ var who=$('fiqOtherCompanyWho'); if(who) who.textContent='You are signed in as '+(user.email||'a different account')+'. Beta and the normal app share the sign-in, so signing in on one also signs in the other.'; showState('fiqStateOtherCompany'); return; }
       if(owner!==claims.companyId){ try{localStorage.setItem(DATA_OWNER,claims.companyId)}catch(e){} }
     }
     unlockApp(user, claims);
@@ -13683,5 +13684,27 @@ document.addEventListener('mousedown',function(e){
 /* A chosen material reads darker and bolder; same size and layout. */
 #screen-mark .material-picker>summary.fiq-has-material,.material-picker>summary.fiq-has-material{color:var(--ink)!important;font-weight:900!important}
 </style>
+<script id="fiq-error-report">
+// App errors to the Dashboard Support Inbox (Mads 18 Oct 2026: problems should show on the Dashboard).
+// Only when signed in to a company; the same error at most once a day per device, at most 5 a day; known
+// harmless browser noise and offline/network failures are skipped. Never blocks or changes the app.
+(function(){
+ var KEY='fiq_error_reports_v1',SKIP=/^Script error\.?$|ResizeObserver|Failed to fetch|NetworkError|Load failed|network-request-failed|unavailable|Cannot set properties of null \(setting 'innerHTML'\)/i;
+ function send(msg,where){
+  try{
+   msg=String(msg||'').slice(0,300);if(!msg||SKIP.test(msg)||!navigator.onLine)return;
+   var u=window.fittersiqUser,fns=window.fiqAuthFns,a=window.fiqAuth;if(!u||!u.companyId||!fns||!fns.addDoc||!window.fiqFirestore||!a||!a.currentUser)return;
+   var day=new Date().toISOString().slice(0,10),seen={};try{seen=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+   if(seen.day!==day)seen={day:day,n:0,m:{}};if(seen.n>=5||seen.m[msg])return;seen.n++;seen.m[msg]=1;try{localStorage.setItem(KEY,JSON.stringify(seen))}catch(e){}
+   var screen='';try{screen=(0,eval)('typeof state!=="undefined"&&state&&state.screen')||''}catch(e){}
+   fns.addDoc(fns.collection(window.fiqFirestore,'supportTickets'),{type:'error',question:msg+(where?' ('+String(where).slice(0,120)+')':''),screenLabel:'Studio'+(screen?' · '+screen:''),app:'studio',
+    uid:a.currentUser.uid,companyId:u.companyId,email:a.currentUser.email||null,userAgent:String(navigator.userAgent||'').slice(0,160),createdAt:fns.serverTimestamp?fns.serverTimestamp():new Date(),status:'open'}).catch(function(){});
+  }catch(e){}
+ }
+ window.addEventListener('error',function(e){send(e&&e.message,e&&e.filename?(e.filename.split('/').pop()+':'+e.lineno):'')});
+ window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;send(r&&(r.message||r.code)||r,'promise')});
+ window.fiqReportError=send;
+})();
+</script>
 </body>
 </html>
