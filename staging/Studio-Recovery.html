@@ -1882,7 +1882,7 @@ html.fiq-readonly body{padding-top:44px}
 // (when the daily server check pauses an unpaid account), a plain bar says so. Closing it hides it for the day.
 window.fiqTrialBanner=function(c){
  try{
-  if(!c||c.paidUntil||c.status!=='trial'||!c.trialEndsAt||!c.trialEndsAt.toDate)return;
+  if(!c||c.internal===true||c.paidUntil||c.status!=='trial'||!c.trialEndsAt||!c.trialEndsAt.toDate)return;
   var end=c.trialEndsAt.toDate(),days=Math.ceil((end-Date.now())/864e5);if(days>3)return;
   var key='fiq_trial_banner_closed',today=new Date().toISOString().slice(0,10);try{if(localStorage.getItem(key)===today)return}catch(e){}
   var fmt=function(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'long'})},stop=new Date(end.getTime()+7*864e5);
