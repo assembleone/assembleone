@@ -1277,7 +1277,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <div class="header-right">
         
         <label class="search">⌕ <input id="globalSearch" placeholder="Search customers..."></label>
-        <div class="notify" aria-label="Notifications">♧<b>3</b></div>
+        <div class="notify" aria-label="Backup alerts" data-page="backups" style="cursor:pointer">♧<b id="notifyCount" hidden></b></div>
         <label class="language-control"><span>Language</span><select aria-label="Language"><option>🇬🇧 English</option><option>🇪🇸 Español</option><option>🇩🇰 Dansk</option></select></label>
       
       </div>
@@ -1332,7 +1332,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
           <span class="hero-icon hero-customers" aria-hidden="true">
             <svg viewBox="0 0 96 96"><defs><linearGradient id="cg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#43a6ff"/><stop offset="1" stop-color="#0754d6"/></linearGradient><filter id="cs"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-opacity=".22"/></filter></defs><g filter="url(#cs)" fill="url(#cg)"><circle cx="36" cy="32" r="15"/><circle cx="62" cy="35" r="13"/><path d="M13 74c0-15 10-27 23-27s23 12 23 27v5H13z"/><path d="M48 76c0-12 7-22 18-22s18 10 18 22v3H48z"/></g></svg>
           </span>
-          <span class="metric-copy"><small>Customers</small><strong id="metricCustomers">24</strong><em class="up">↑ 12.5% <b>vs last month</b></em></span>
+          <span class="metric-copy"><small>Customers</small><strong id="metricCustomers">–</strong><em class="up" id="metricCustomersSub"><b>Loading</b></em></span>
           <span class="metric-link">View all customers <b>→</b></span>
         </button>
 
@@ -1340,7 +1340,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
           <span class="hero-icon hero-subscription" aria-hidden="true">
             <svg viewBox="0 0 96 96"><defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#75dc42"/><stop offset="1" stop-color="#238b22"/></linearGradient><filter id="ss"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-opacity=".22"/></filter></defs><g filter="url(#ss)"><rect x="10" y="20" width="76" height="58" rx="12" fill="url(#sg)"/><rect x="20" y="31" width="56" height="9" rx="4" fill="white" opacity=".95"/><circle cx="30" cy="56" r="9" fill="white" opacity=".95"/><path d="M45 51h26M45 59h20M20 69h51" stroke="white" stroke-width="6" stroke-linecap="round" opacity=".95"/></g></svg>
           </span>
-          <span class="metric-copy"><small>Active Subscriptions</small><strong id="metricSubscriptions">18</strong><em class="up">↑ 8.3% <b>vs last month</b></em></span>
+          <span class="metric-copy"><small>Active Subscriptions</small><strong id="metricSubscriptions">–</strong><em class="up"><b>Paying customers</b></em></span>
           <span class="metric-link">View all subscriptions <b>→</b></span>
         </button>
 
@@ -1348,7 +1348,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
           <span class="hero-icon hero-payment" aria-hidden="true">
             <svg viewBox="0 0 96 96"><defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffad32"/><stop offset="1" stop-color="#ef5b00"/></linearGradient><filter id="ps"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-opacity=".22"/></filter></defs><g filter="url(#ps)"><path d="M20 12h42l16 16v53H20z" rx="10" fill="url(#pg)"/><path d="M62 12v18h16" fill="#ffcf7c"/><path d="M31 37h30M31 49h25M31 61h18" stroke="white" stroke-width="7" stroke-linecap="round"/><circle cx="68" cy="66" r="18" fill="#fff3df" stroke="#f47700" stroke-width="4"/><text x="68" y="73" text-anchor="middle" font-size="24" font-weight="900" fill="#e76800">€</text></g></svg>
           </span>
-          <span class="metric-copy"><small>Payments Due</small><strong id="metricPaymentsDue">3</strong><em class="danger">↑ 20.0% <b>vs last month</b></em></span>
+          <span class="metric-copy"><small>Payments Due</small><strong id="metricPaymentsDue">–</strong><em class="danger"><b>Unpaid accounts</b></em></span>
           <span class="metric-link">View all payments <b>→</b></span>
         </button>
 
@@ -1356,43 +1356,40 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
           <span class="hero-icon hero-trials" aria-hidden="true">
             <svg viewBox="0 0 96 96"><defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9b63ff"/><stop offset="1" stop-color="#5d24c7"/></linearGradient><filter id="ts"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-opacity=".22"/></filter></defs><g filter="url(#ts)"><rect x="18" y="24" width="60" height="58" rx="12" fill="url(#tg)"/><rect x="18" y="34" width="60" height="11" fill="#c9a9ff"/><path d="M31 16v16M65 16v16" stroke="#6c2bd6" stroke-width="8" stroke-linecap="round"/><text x="47" y="68" text-anchor="middle" font-size="31" font-weight="900" fill="white">14</text><circle cx="72" cy="72" r="14" fill="#fff"/><path d="M72 64v9l6 4" fill="none" stroke="#6830c9" stroke-width="4" stroke-linecap="round"/></g></svg>
           </span>
-          <span class="metric-copy"><small>Free Trials</small><strong id="metricTrials">3</strong><em class="trial-days">14 days <b>average left</b></em></span>
+          <span class="metric-copy"><small>Free Trials</small><strong id="metricTrials">–</strong><em class="trial-days" id="metricTrialsSub"><b>No trials</b></em></span>
           <span class="metric-link">View all trials <b>→</b></span>
         </button>
       </div>
 
       <div class="dashboard-main-grid">
         <section class="dash-card activity-card">
-          <div class="dash-card-title"><h3>Recent Activity</h3><button type="button">View all activity →</button></div>
-          <div class="activity-line"><span class="mini-ico blue">＋</span><div><strong>New customer added</strong><small>DC Installations</small></div><time>10:24</time></div>
-          <div class="activity-line"><span class="mini-ico green">✓</span><div><strong>Subscription renewed</strong><small>Build & Fit Ltd</small></div><time>09:31</time></div>
-          <div class="activity-line"><span class="mini-ico orange">€</span><div><strong>Payment received</strong><small>€1,250.00 from Pro Build</small></div><time>Yesterday</time></div>
-          <div class="activity-line"><span class="mini-ico purple">＋</span><div><strong>New user added</strong><small>John Smith</small></div><time>Yesterday</time></div>
+          <div class="dash-card-title"><h3>Recent Activity</h3><button type="button" id="activityMore">View all activity →</button></div>
+          <div id="activityList"><p class="muted">Sign in to see recent activity.</p></div>
         </section>
 
         <section class="dash-card quick-card">
           <div class="dash-card-title"><h3>Quick Actions</h3></div>
           <button id="quickAdd" type="button"><span class="mini-ico blue">＋</span><span>Add New Customer</span><b>›</b></button>
-          <button data-page="subscriptions" type="button"><span class="mini-ico green">▤</span><span>Create Subscription</span><b>›</b></button>
-          <button data-page="payments" type="button"><span class="mini-ico orange">€</span><span>Record Payment</span><b>›</b></button>
+          <button data-page="backups" type="button"><span class="mini-ico green">☁</span><span>Check Backups</span><b>›</b></button>
+          <button data-page="customers" data-hint="payment" type="button"><span class="mini-ico orange">€</span><span>Record Payment</span><b>›</b></button>
           <button data-page="reports" type="button"><span class="mini-ico purple">▥</span><span>View Reports</span><b>›</b></button>
         </section>
 
         <section class="dash-card snapshot-card">
           <div class="dash-card-title"><h3>Business Snapshot</h3></div>
-          <div class="snapshot-revenue"><div><small>Monthly Revenue</small><strong>€8,450</strong></div><span class="snapshot-up">↑ 12.5%<small>vs last month</small></span><svg viewBox="0 0 160 60" aria-label="Revenue trend"><polyline points="4,50 28,42 52,42 78,20 104,34 132,8" fill="none" stroke="#35a928" stroke-width="3"/><g fill="#fff" stroke="#35a928" stroke-width="3"><circle cx="4" cy="50" r="4"/><circle cx="28" cy="42" r="4"/><circle cx="52" cy="42" r="4"/><circle cx="78" cy="20" r="4"/><circle cx="104" cy="34" r="4"/><circle cx="132" cy="8" r="4"/></g></svg></div>
+          <div class="snapshot-revenue"><div><small>Monthly Revenue</small><strong id="snapRevenue">€ –</strong></div><span class="snapshot-up" id="snapRevenueNote">Connect Stripe<small>to see revenue</small></span></div>
           <div class="snapshot-bottom">
-            <div><small>Active Users</small><strong>32</strong><span>Across all accounts</span></div>
-            <div><small>System Status</small><strong class="status-good">All Systems Operational</strong><span class="checkmark">✓</span></div>
+            <div><small>Active Users</small><strong id="snapUsers">–</strong><span>Across all accounts</span></div>
+            <div data-page="backups" style="cursor:pointer"><small>Backup Status</small><strong class="status-good" id="snapBackup">Checking…</strong><span class="checkmark" id="snapBackupMark">✓</span></div>
           </div>
         </section>
       </div>
 
       <div class="dashboard-summary-row">
-        <button data-page="customers"><span class="summary-icon blue">👥</span><div><small>Customers</small><strong>24</strong><em>Total customer accounts</em></div><b>›</b></button>
-        <button data-page="licences"><span class="summary-icon green">▣</span><div><small>Licences</small><strong>21</strong><em>Active user licences</em></div><b>›</b></button>
-        <button data-page="payments"><span class="summary-icon orange">€</span><div><small>Payments</small><strong>€3,750</strong><em>Outstanding payments</em></div><b>›</b></button>
-        <button data-page="contracts"><span class="summary-icon purple">▤</span><div><small>Contracts</small><strong>17</strong><em>Active contracts</em></div><b>›</b></button>
+        <button data-page="customers"><span class="summary-icon blue">👥</span><div><small>Customers</small><strong id="sumCustomers">–</strong><em>Total customer accounts</em></div><b>›</b></button>
+        <button data-page="licences"><span class="summary-icon green">▣</span><div><small>Licences</small><strong id="sumSeats">–</strong><em>User seats across all accounts</em></div><b>›</b></button>
+        <button data-page="payments"><span class="summary-icon orange">€</span><div><small>Payments</small><strong>€ –</strong><em>Connect Stripe to see payments</em></div><b>›</b></button>
+        <button data-page="backups"><span class="summary-icon purple">☁</span><div><small>Cloud Backup</small><strong id="sumBackupOn">–</strong><em>Customers with backup on</em></div><b>›</b></button>
       </div>
 
       <footer class="dashboard-footer"><span>© 2026 FittersIQ. All rights reserved.</span><span><a href="#">Privacy Policy</a><i>•</i><a href="#">Terms &amp; Conditions</a><i>•</i><a href="#">Support</a></span></footer>
@@ -1414,12 +1411,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
           <div class="customer-table-head"><span>Customer</span><span>Plan</span><span>Status</span><span>Users</span><span>Renewal</span><span>Last active</span><span></span></div>
           <div id="rows"></div>
         </div>
-        <div class="admin-foot"><span id="showing"></span><span>Customer data is stored locally in this prototype.</span></div>
+        <div class="admin-foot"><span id="showing"></span><span>Sign in to see live customers.</span></div>
       </section>
     </section>
 
     <section class="page admin-section" id="subscriptionsPage">
-      <div class="section-head"><div><h2>Subscriptions</h2><p>Plans, renewals and active subscriptions.</p></div><button class="primary" id="newSubscription">＋ New Subscription</button></div>
+      <div class="section-head"><div><h2>Subscriptions</h2><p>Plans, renewals and active subscriptions.</p></div></div>
       <div class="launch-grid three">
         <article class="launch-card"><span class="launch-icon green">▣</span><div><small>Active subscriptions</small><strong id="subActive">0</strong><p>Accounts currently on a paid plan.</p></div></article>
         <article class="launch-card"><span class="launch-icon purple">◷</span><div><small>Free trials</small><strong id="subTrials">0</strong><p>Trials still in progress.</p></div></article>
@@ -1429,9 +1426,9 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     </section>
 
     <section class="page admin-section" id="paymentsPage">
-      <div class="section-head"><div><h2>Payments</h2><p>See paid, due and overdue customer accounts.</p></div><button class="primary" id="recordPayment">＋ Record Payment</button></div>
+      <div class="section-head"><div><h2>Payments</h2><p>See paid, due and overdue customer accounts.</p></div><button class="primary" id="recordPayment" data-page="customers" data-hint="payment">＋ Record Payment</button></div>
       <div class="launch-grid three">
-        <article class="launch-card"><span class="launch-icon blue">€</span><div><small>Monthly revenue</small><strong>€8,450</strong><p>Current dashboard month.</p></div></article>
+        <article class="launch-card"><span class="launch-icon blue">€</span><div><small>Monthly revenue</small><strong>€ –</strong><p>Shows here once Stripe is connected.</p></div></article>
         <article class="launch-card"><span class="launch-icon orange">!</span><div><small>Payments due</small><strong id="payDue">0</strong><p>Accounts requiring attention.</p></div></article>
         <article class="launch-card"><span class="launch-icon green">✓</span><div><small>Payment tracking</small><strong>On</strong><p>Record payments against customer accounts.</p></div></article>
       </div>
@@ -1439,7 +1436,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     </section>
 
     <section class="page admin-section" id="contractsPage">
-      <div class="section-head"><div><h2>Contracts</h2><p>Keep customer agreements and subscription terms together.</p></div><button class="primary" id="newContract">＋ Add Contract</button></div>
+      <div class="section-head"><div><h2>Contracts</h2><p>Keep customer agreements and subscription terms together.</p></div></div>
       <div class="launch-grid two-col">
         <section class="admin-card launch-list"><h3>Contract controls</h3><div><span>Customer linked contract</span><b>Ready</b></div><div><span>Start and renewal date</span><b>Ready</b></div><div><span>Status tracking</span><b>Ready</b></div><div><span>Signed document upload</span><b class="needs">Connect storage</b></div></section>
         <section class="admin-card note-card"><span class="launch-icon purple">▤</span><h3>Launch note</h3><p>For a live release, contracts should be stored in your real database or document storage rather than only in the browser.</p></section>
@@ -1447,10 +1444,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     </section>
 
     <section class="page admin-section" id="licencesPage">
-      <div class="section-head"><div><h2>Users &amp; Licences</h2><p>Control user seats and device allowances for each customer.</p></div><button class="primary" id="addLicence">＋ Add Licence</button></div>
+      <div class="section-head"><div><h2>Users &amp; Licences</h2><p>Control user seats and device allowances for each customer.</p></div></div>
       <div class="launch-grid three">
-        <article class="launch-card"><span class="launch-icon blue">👥</span><div><small>Active users</small><strong>32</strong><p>Across all customer accounts.</p></div></article>
-        <article class="launch-card"><span class="launch-icon green">▣</span><div><small>Active licences</small><strong>21</strong><p>Current licence allocation.</p></div></article>
+        <article class="launch-card"><span class="launch-icon blue">👥</span><div><small>Active users</small><strong id="licUsers">–</strong><p>Across all customer accounts.</p></div></article>
+        <article class="launch-card"><span class="launch-icon green">▣</span><div><small>User seats</small><strong id="licSeats">–</strong><p>Seats allowed by each customer plan.</p></div></article>
         <article class="launch-card"><span class="launch-icon purple">＋</span><div><small>Seat control</small><strong>On</strong><p>Adjust customer user allowance.</p></div></article>
       </div>
     </section>
@@ -1488,8 +1485,8 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <section class="page admin-section" id="reportsPage">
       <div class="section-head"><div><h2>Reports</h2><p>Revenue, renewals and customer activity in one place.</p></div><button class="secondary" id="exportReport">Export summary</button></div>
       <div class="launch-grid three">
-        <article class="launch-card"><span class="launch-icon green">↗</span><div><small>Monthly revenue</small><strong>€8,450</strong><p>Up 12.5% versus last month.</p></div></article>
-        <article class="launch-card"><span class="launch-icon blue">👥</span><div><small>Customers</small><strong id="reportCustomers">0</strong><p>Accounts in this prototype.</p></div></article>
+        <article class="launch-card"><span class="launch-icon green">↗</span><div><small>Monthly revenue</small><strong>€ –</strong><p>Shows here once Stripe is connected.</p></div></article>
+        <article class="launch-card"><span class="launch-icon blue">👥</span><div><small>Customers</small><strong id="reportCustomers">0</strong><p>Live customer accounts.</p></div></article>
         <article class="launch-card"><span class="launch-icon purple">◷</span><div><small>Trials</small><strong id="reportTrials">0</strong><p>Potential conversions.</p></div></article>
       </div>
 
@@ -1522,8 +1519,8 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <div class="section-head"><div><h2>Settings</h2><p>FittersIQ Admin account and launch settings.</p></div><button class="primary" id="saveSettings">Save Settings</button></div>
       <div class="settings-grid">
         <section class="admin-card settings-card"><h3>Owner</h3><label>Display name<input id="ownerName" value="Owner"></label><label>Admin email<input id="ownerEmail" type="email" placeholder="admin@fittersiq.com"></label></section>
-        <section class="admin-card settings-card"><h3>Defaults</h3><label>Language<select><option>English</option><option>Español</option><option>Dansk</option></select></label><label>Currency<select><option>EUR €</option><option>GBP £</option><option>DKK kr</option></select></label></section>
-        <section class="admin-card launch-list"><h3>Launch connections</h3><div><span>Real database</span><b class="needs">Connect</b></div><div><span>Login / authentication</span><b class="needs">Connect</b></div><div><span>Email service</span><b class="needs">Connect</b></div><div><span>Payment provider</span><b class="needs">Connect</b></div></section>
+        <section class="admin-card settings-card"><h3>Defaults</h3><label>Language<select><option>English</option><option>Español</option><option>Dansk</option></select></label><label>Currency<select><option>EUR €</option><option>GBP £</option><option>USD $</option></select></label></section>
+        <section class="admin-card launch-list"><h3>Launch connections</h3><div><span>Real database</span><b>Ready</b></div><div><span>Login / authentication</span><b>Ready</b></div><div><span>Sign-up and password emails</span><b>Ready</b></div><div><span>Backup alert emails</span><b>Ready</b></div><div><span>Payment provider (Stripe)</span><b class="needs">Connect</b></div><div><span>Tax / VAT per country</span><b class="needs">With Stripe</b></div></section>
       </div>
     </section>
 
@@ -1538,7 +1535,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <section class="admin-card note-card">
         <h3>How the system connects</h3>
         <p>The FittersIQ website, Dashboard, Studio and Mobile are all published through GitHub Pages. Firebase is used only for sign in and customer data.</p>
-        <p>The current Firebase project is <strong>assembleone-fabac</strong>. The Dashboard address is <strong>fittersiq.com/Dashboard.html</strong>.</p>
+        <p>The current Firebase project is <strong>assembleone-fabac</strong>. The Dashboard address is <strong>assembleone.github.io/assembleone/Dashboard.html</strong>. The website is <strong>fittersiq.com</strong>.</p>
       </section>
 
       <section class="admin-card note-card">
@@ -1573,11 +1570,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         </section>
         <section class="admin-card launch-list">
           <h3>Still to finish</h3>
-          <div><span>Live customer database values</span><b class="needs">To do</b></div>
-          <div><span>Subscriptions and licences connection</span><b class="needs">To do</b></div>
-          <div><span>Payment provider and payment status</span><b class="needs">To do</b></div>
+          <div><span>Live customer database values</span><b>Ready</b></div>
+          <div><span>Trials, payments by invoice, suspend and resume</span><b>Ready</b></div>
+          <div><span>Stripe card payments, currency and VAT</span><b class="needs">To do</b></div>
           <div><span>Secure document storage</span><b class="needs">To do</b></div>
-          <div><span>Support audit log</span><b class="needs">To do</b></div>
+          <div><span>Support audit log</span><b>Ready</b></div>
         </section>
       </div>
 
@@ -1628,19 +1625,9 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 </dialog>
 
 <script>
-const seed=[
-{id:1,company:"Robinson Joinery",email:"rob@robinsonjoinery.co.uk",plan:"Professional",status:"Active",users:"4 / 4",renewal:"12 Sep 2026",last:"Today"},
-{id:2,company:"MW Carpentry",email:"info@mwcarpentry.ie",plan:"Professional",status:"Active",users:"3 / 4",renewal:"02 Sep 2026",last:"Yesterday"},
-{id:3,company:"BuiltRight Interiors",email:"hello@builtright.co.uk",plan:"Standard",status:"Payment Due",users:"2 / 2",renewal:"18 Aug 2026",last:"3 days ago"},
-{id:4,company:"Northwood Fitouts",email:"admin@northwoodfitouts.com",plan:"Professional",status:"Active",users:"5 / 6",renewal:"30 Oct 2026",last:"Today"},
-{id:5,company:"DC Installations",email:"dan@dcinstallations.co.uk",plan:"Standard",status:"Trial",users:"1 / 2",renewal:"Trial ends soon",last:"Today"},
-{id:6,company:"Precision Joinery",email:"office@precisionjoinery.ie",plan:"Professional",status:"Suspended",users:"0 / 4",renewal:"Suspended",last:"–"},
-{id:7,company:"H&B Carpentry",email:"hb@handbcarpentry.com",plan:"Standard",status:"Cancelled",users:"0 / 2",renewal:"Cancelled",last:"–"}
-];
 const $=id=>document.getElementById(id);
 let customers=[];
-try{customers=JSON.parse(localStorage.getItem("fittersiq_admin_launch")||"null")||seed}catch(e){customers=seed.slice()}
-const save=()=>{try{localStorage.setItem("fittersiq_admin_launch",JSON.stringify(customers))}catch(e){}};
+try{localStorage.removeItem("fittersiq_admin_launch")}catch(e){} // old demo customers
 const info={
 dashboard:["Dashboard","Your FittersIQ business at a glance."],
 customers:["Customers","Manage all customer accounts."],
@@ -1674,7 +1661,12 @@ function updateMetrics(){
   const active=customers.filter(c=>c.status==="Active").length;
   const trials=customers.filter(c=>c.status==="Trial").length;
   const due=customers.filter(c=>c.status==="Payment Due"||c.status==="Suspended").length;
-  [["metricCustomers",customers.length],["metricSubscriptions",active],["metricPaymentsDue",due],["metricTrials",trials],["subActive",active],["subTrials",trials],["subDue",due],["payDue",due],["reportCustomers",customers.length],["reportTrials",trials]].forEach(([id,val])=>{const el=$(id);if(el)el.textContent=val});
+  const seats=customers.reduce((n,c)=>n+(+c.maxUsers||0),0),backupOn=customers.filter(c=>c.cloudBackup).length;
+  const monthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1),newMonth=customers.filter(c=>c.createdAt&&c.createdAt.toDate&&c.createdAt.toDate()>=monthStart).length;
+  const left=customers.filter(c=>c.status==="Trial"&&c.trialEndsAt&&c.trialEndsAt.toDate).map(c=>(c.trialEndsAt.toDate()-Date.now())/864e5);
+  if($("metricCustomersSub"))$("metricCustomersSub").innerHTML=newMonth?`+${newMonth} <b>new this month</b>`:"<b>None new this month</b>";
+  if($("metricTrialsSub"))$("metricTrialsSub").innerHTML=left.length?`${Math.max(0,Math.round(left.reduce((a,b)=>a+b,0)/left.length))} days <b>average left</b>`:"<b>No trials</b>";
+  [["sumCustomers",customers.length],["sumSeats",seats],["licSeats",seats],["sumBackupOn",backupOn],["metricCustomers",customers.length],["metricSubscriptions",active],["metricPaymentsDue",due],["metricTrials",trials],["subActive",active],["subTrials",trials],["subDue",due],["payDue",due],["reportCustomers",customers.length],["reportTrials",trials]].forEach(([id,val])=>{const el=$(id);if(el)el.textContent=val});
 }
 function renderCustomers(){
   const filter=$("statusFilter")?$("statusFilter").value:"all";
@@ -1686,7 +1678,7 @@ function renderCustomers(){
     <span class="${c.plan==="Professional"?"plan-pro":"plan-standard"}">${c.plan}</span>
     <span><b class="status ${statClass(c.status)}">${c.status}</b></span>
     <span>${c.users}</span>
-    <span class="${c.status==="Payment Due"?"due-red":c.status==="Trial"?"trial-purple":""}">${c.renewal}</span>
+    <span class="${c.status==="Payment Due"||c.status==="Suspended"?"due-red":c.status==="Trial"?"trial-purple":""}">${c.renewal}</span>
     <span>${c.last}</span>
     <button class="more" type="button" data-open="${String(c.id)}" aria-label="Open ${c.company}">•••</button>
   </div>`).join("")||'<div class="empty-state">No customers match this search.</div>';
@@ -1696,16 +1688,13 @@ function renderCustomers(){
 }
 if($("statusFilter")) $("statusFilter").addEventListener("change",renderCustomers);
 if($("customerSearch")) $("customerSearch").addEventListener("input",renderCustomers);
-function openAdd(){if($("addDialog")?.showModal)$("addDialog").showModal()}
+// New customers sign up themselves on the website (trial starts there); this opens that page to send them.
+function openAdd(){window.open("signup.html","_blank","noopener")}
 if($("addCustomer")) $("addCustomer").addEventListener("click",openAdd);
 if($("quickAdd")) $("quickAdd").addEventListener("click",openAdd);
 if($("closeAdd")) $("closeAdd").addEventListener("click",()=>$("addDialog").close());
 if($("cancelAdd")) $("cancelAdd").addEventListener("click",()=>$("addDialog").close());
-if($("addForm")) $("addForm").addEventListener("submit",e=>{
-  e.preventDefault();
-  customers.unshift({id:Date.now(),company:$("company").value.trim(),email:$("email").value.trim(),plan:$("plan").value,status:$("status").value,users:`1 / ${Math.max(1,+$("users").value||1)}`,renewal:"Not set",last:"New"});
-  save();e.target.reset();$("addDialog").close();renderCustomers();go("customers");
-});
+
 function openCustomer(id){
   const c=customers.find(x=>String(x.id)===String(id));if(!c)return;
   $("dCompany").textContent=c.company;$("dEmail").textContent=c.email;$("dStatus").innerHTML=`<span class="status ${statClass(c.status)}">${c.status}</span>`;
@@ -1722,8 +1711,13 @@ if($("startSupport")) $("startSupport").addEventListener("click",()=>{
   $("supportState").textContent=customer?`Temporary support access open for ${customer.company} for ${time}.`:"Choose a customer first.";
 });
 if($("saveSettings")) $("saveSettings").addEventListener("click",()=>{const btn=$("saveSettings"),old=btn.textContent;btn.textContent="✓ Saved";setTimeout(()=>btn.textContent=old,1400)});
-["newSubscription","recordPayment","newContract","addLicence"].forEach(id=>{const el=$(id);if(el)el.addEventListener("click",()=>alert("This control is ready to connect to your live backend."))});
-if($("exportReport")) $("exportReport").addEventListener("click",()=>alert("Report export is ready to connect to your live data source."));
+document.querySelectorAll('[data-hint="payment"]').forEach(b=>b.addEventListener("click",()=>{const f=$("showing");if(f)f.textContent="To record a payment, open the customer (•••) and use Record payment."}));
+// Export: the live customer list as a spreadsheet file (CSV).
+if($("exportReport")) $("exportReport").addEventListener("click",()=>{
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const rows=[["Company","Email","Plan","Status","Users","Renewal","Cloud backup"]].concat(customers.map(c=>[c.company,c.email,c.plan,c.status,c.users,c.renewal,c.cloudBackup?"On":"Off"]));
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(q).join(",")).join("\r\n")],{type:"text/csv"}));
+  a.download="FittersIQ customers "+new Date().toISOString().slice(0,10)+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 if($("globalSearch")) $("globalSearch").addEventListener("input",e=>{const q=e.target.value.trim();if(q){go("customers");$("customerSearch").value=q;renderCustomers()}});
 function setToday(){const el=$("dateChip");if(!el)return;const d=new Date();const txt=new Intl.DateTimeFormat("en-GB",{day:"2-digit",month:"short",year:"numeric"}).format(d);el.textContent=`▣   Today, ${txt}   ⌄`}
 setToday();renderCustomers();populateSupportCustomers();updateMetrics();
@@ -1798,7 +1792,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
           status: statusWord(c),
           users: '1 / ' + (c.maxUsers || 1),
           renewal: c.status === 'suspended' ? 'Suspended' : c.paidUntil ? ('Paid until ' + formatDate(c.paidUntil)) : c.subscriptionStatus === 'trialing' ? ('Trial ends ' + formatDate(c.trialEndsAt)) : formatDate(c.trialEndsAt),
-          real: true, rawStatus: c.status || '', trialEndsAt: c.trialEndsAt || null, paidUntil: c.paidUntil || null, cloudBackup: c.fiqCloudCopy === 'on',
+          real: true, createdAt: c.createdAt || null, maxUsers: c.maxUsers || 0, rawStatus: c.status || '', trialEndsAt: c.trialEndsAt || null, paidUntil: c.paidUntil || null, cloudBackup: c.fiqCloudCopy === 'on',
           last: '–',
         });
       });
@@ -1807,6 +1801,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       if(typeof renderCustomers === 'function') renderCustomers();
       var foot = document.querySelector('#customersPage .admin-foot span:last-child');
       if(foot) foot.textContent = 'Live FittersIQ customer data.';
+      if(typeof window.fiqLoadOverview === 'function') window.fiqLoadOverview(snap);
     }catch(e){
       console.error('Could not load live customer data', e);
     }
@@ -1843,6 +1838,55 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       }catch(e){ msg.textContent = 'Not saved: ' + (e && e.message || e); }
       btn.disabled = false;
     }; });
+  };
+
+  // Overview (Mads 17 Oct 2026): real recent activity from the audit log, active users, and backup status.
+  window.fiqLoadOverview = async function(companySnap){
+    var esc = function(x){ return String(x == null ? '' : x).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); };
+    var set = function(id, v){ var el = document.getElementById(id); if(el) el.textContent = v; };
+    var names = {}; companySnap.forEach(function(d){ names[d.id] = d.data().name || 'Unnamed company'; });
+    // Active users: active members of every company.
+    try{
+      var users = 0;
+      for(const d of companySnap.docs){ var m = await authFns.getDocs(authFns.collection(db,'companies',d.id,'members')); m.forEach(function(x){ if((x.data().status || 'active') === 'active') users++; }); }
+      set('snapUsers', users); set('licUsers', users);
+    }catch(e){ console.error('Could not count users', e); }
+    // Recent activity.
+    var list = document.getElementById('activityList');
+    if(list){
+      var kinds = {
+        company_created: ['blue','＋','New customer signed up'],
+        invitation_accepted: ['purple','＋','New user joined'],
+        member_status_changed: ['purple','◉','User access changed'],
+        fitter_device_paired: ['blue','▣','Phone connected'],
+        support_session_created: ['purple','♙','Support access opened'],
+        company_account_paid: ['orange','€','Payment recorded'],
+        company_account_trial: ['purple','◷','Trial end changed'],
+        company_account_suspend: ['orange','!','Account suspended'],
+        company_account_resume: ['green','✓','Access resumed']
+      };
+      var when = function(t){ var d = new Date(t), now = new Date(); if(d.toDateString() === now.toDateString()) return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+        var y = new Date(now); y.setDate(now.getDate()-1); if(d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}); };
+      try{
+        var snap = await authFns.getDocs(authFns.query(authFns.collection(db,'auditLogs'), authFns.orderBy('at','desc'), authFns.limit(40)));
+        var items = [];
+        snap.forEach(function(d){ var e = d.data(), k = kinds[e.type]; if(!k || !e.at || !e.at.toDate) return;
+          var extra = e.type === 'company_account_paid' && e.after && e.after.paidUntil ? ' · paid until ' + String(e.after.paidUntil).slice(0,10) : '';
+          items.push('<div class="activity-line"><span class="mini-ico ' + k[0] + '">' + k[1] + '</span><div><strong>' + k[2] + '</strong><small>' + esc((names[e.companyId] || e.companyId || '') + extra) + '</small></div><time>' + when(e.at.toDate()) + '</time></div>'); });
+        var shown = 4, draw = function(){ list.innerHTML = items.slice(0, shown).join('') || '<p class="muted">No activity yet.</p>'; };
+        draw();
+        var more = document.getElementById('activityMore');
+        if(more){ more.hidden = items.length <= 4; more.onclick = function(){ shown = shown === 4 ? items.length : 4; more.textContent = shown === 4 ? 'View all activity →' : 'Show less ↑'; draw(); }; }
+      }catch(e){ list.innerHTML = '<p class="muted">Could not load activity.</p>'; console.error('Could not load activity', e); }
+    }
+    // Backup status (same rules as the Backups page).
+    try{
+      await window.fiqLoadBackups();
+      var warn = +((document.getElementById('bkWarn') || {}).textContent || 0), mark = document.getElementById('snapBackupMark'), el = document.getElementById('snapBackup');
+      if(el){ el.textContent = warn ? warn + ' need' + (warn > 1 ? '' : 's') + ' attention' : 'All backups OK'; el.className = 'status-good'; el.style.color = warn ? '#d14a00' : ''; }
+      var bell = document.getElementById('notifyCount'); if(bell){ bell.textContent = warn; bell.hidden = !warn; }
+      if(mark){ mark.textContent = warn ? '!' : '✓'; mark.style.background = warn ? '#ef5b00' : ''; }
+    }catch(e){ console.error('Could not check backups', e); }
   };
 
   // Backups page: every company's device status records (what the alert check reads too).
