@@ -3,6 +3,7 @@
 
   function goHome(){
     try{
+      if(typeof window.fiqCloseOpenJob==='function')window.fiqCloseOpenJob();
       if(typeof window.show==='function'){
         window.show('jobs');
         if(typeof window.renderAll==='function')window.renderAll();
@@ -20,98 +21,9 @@
     logo.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();goHome()}});
   }
 
-  function removeDocumentsTab(){
-    document.querySelectorAll('.customer-tab[data-tab="documents"]').forEach(function(el){el.remove()});
-    document.querySelectorAll('.customer-tab-panel[data-tab-panel="documents"]').forEach(function(el){el.remove()});
-  }
-
   function projectById(id){
     try{if(typeof state!=='undefined'&&state&&Array.isArray(state.projects))return state.projects.find(function(p){return String(p.id)===String(id)})||null}catch(e){}
     return null;
-  }
-
-  function currentCustomerProjects(){
-    try{
-      var customerId=state.currentCustomerCard;
-      if(!customerId)return [];
-      return (state.projects||[]).filter(function(p){return String(p.customerId||'')===String(customerId)}).sort(function(a,b){return (b.updatedAt||0)-(a.updatedAt||0)});
-    }catch(e){return []}
-  }
-
-  function panelQtyForCabinets(cabinets){
-    return (cabinets||[]).reduce(function(total,c){
-      return total+(c.parts||[]).reduce(function(sum,pt){return sum+Math.max(1,Number(pt.qty)||1)},0);
-    },0);
-  }
-
-  function cuttingListRows(){
-    var rows=[];
-    currentCustomerProjects().forEach(function(p){
-      var rooms=(p.rooms||[]).filter(function(r){return r&&r.id});
-      rooms.forEach(function(room){
-        var cabinets=(p.cabinets||[]).filter(function(c){return String(c.roomId||'')===String(room.id)});
-        if(!cabinets.length)return;
-        var qty=panelQtyForCabinets(cabinets);
-        if(!qty)return;
-        rows.push({project:p,room:room,qty:qty,label:room.name||cabinets[0].name||p.name||'Job'});
-      });
-      var unroomed=(p.cabinets||[]).filter(function(c){return !c.roomId});
-      if(unroomed.length){
-        var qty=panelQtyForCabinets(unroomed);
-        if(qty)rows.push({project:p,room:null,qty:qty,label:p.name||unroomed[0].name||'Job'});
-      }
-    });
-    return rows;
-  }
-
-  function openCutting(projectId,roomId){
-    try{
-      if(typeof openCuttingListForRoom==='function'){
-        openCuttingListForRoom(projectId,roomId||'');
-        return;
-      }
-    }catch(e){console.error('Could not open Cutting List',e)}
-  }
-
-  function addCustomerCuttingListTab(){
-    var tabs=document.querySelector('.customer-card-tabs');
-    if(!tabs||tabs.querySelector('.fiq-cutting-tab'))return;
-    var photos=tabs.querySelector('.customer-tab[data-tab="photos"]');
-    var btn=document.createElement('button');
-    btn.type='button';
-    btn.className='customer-tab fiq-cutting-tab';
-    btn.setAttribute('role','tab');
-    btn.setAttribute('aria-selected','false');
-    btn.textContent='Cutting List';
-    if(photos&&photos.nextSibling)tabs.insertBefore(btn,photos.nextSibling);else tabs.appendChild(btn);
-
-    var panel=document.createElement('div');
-    panel.className='customer-tab-panel fiq-cutting-panel';
-    panel.hidden=true;
-    var existingPanels=document.querySelectorAll('.customer-tab-panel');
-    var anchor=existingPanels.length?existingPanels[existingPanels.length-1]:null;
-    if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(panel,anchor.nextSibling);
-    else tabs.parentNode.appendChild(panel);
-
-    function renderPanel(){
-      var rows=cuttingListRows();
-      if(!rows.length){panel.innerHTML='<div class="empty">No cutting lists saved for this customer yet.</div>';return}
-      panel.innerHTML='<div class="fiq-cutting-intro"><strong>Cutting Lists</strong><span>Open a job to see every panel measurement and its QR labels.</span></div>'+rows.map(function(item){
-        return '<button type="button" class="fiq-cutting-row" data-fiq-cut-project="'+String(item.project.id)+'" data-fiq-cut-room="'+String(item.room?item.room.id:'')+'">'+
-          '<span class="fiq-cut-icon">📋</span><span class="fiq-cut-main"><strong>'+escapeHtml(item.label)+'</strong><small>'+item.qty+' panel'+(item.qty===1?'':'s')+' · measurements · QR labels</small></span><span class="fiq-cut-open">Open ›</span></button>';
-      }).join('');
-      panel.querySelectorAll('[data-fiq-cut-project]').forEach(function(row){
-        row.addEventListener('click',function(){openCutting(row.getAttribute('data-fiq-cut-project'),row.getAttribute('data-fiq-cut-room'))});
-      });
-    }
-
-    function activate(){
-      renderPanel();
-      tabs.querySelectorAll('.customer-tab').forEach(function(x){x.classList.remove('active');x.setAttribute('aria-selected','false')});
-      document.querySelectorAll('.customer-tab-panel').forEach(function(x){x.hidden=true});
-      btn.classList.add('active');btn.setAttribute('aria-selected','true');panel.hidden=false;
-    }
-    btn.addEventListener('click',activate);
   }
 
   function escapeHtml(value){
@@ -155,18 +67,19 @@
     return raw;
   }
 
-  function updateCountFor(projectId,roomId){
+  function updateCountFor(projectId,roomId,cardRoom){
     var p=projectById(projectId);if(!p)return 0;
+    try{if(typeof window.fiqSiteUpdatesForCard==='function')return window.fiqSiteUpdatesForCard(p,cardRoom||null).length}catch(e){}
     try{if(typeof jobLogEntriesForRoom==='function')return jobLogEntriesForRoom(p,roomId).length}catch(e){}
     var log=Array.isArray(p.jobLog)?p.jobLog:[];
     if(roomId)return log.filter(function(en){return String(en.roomId||'')===String(roomId)}).length;
     return log.filter(function(en){return !en.roomId}).length;
   }
 
-  function openSiteUpdates(projectId,roomId){
+  function openSiteUpdates(projectId,roomId,cardRoom){
     try{
       if(typeof openJobNotesDialog==='function'){
-        openJobNotesDialog(projectId,roomId||null);
+        openJobNotesDialog(projectId,roomId||null,{card:cardRoom||null});
         var sheet=document.querySelector('.job-notes-dialog-sheet');
         if(sheet){var h=sheet.querySelector('h2');if(h)h.textContent='Site Updates'}
       }
@@ -176,7 +89,8 @@
   function polishOverviewCards(){
     document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function(row){
       var projectId=String(row.getAttribute('data-open-job-card')||'');if(!projectId)return;
-      var roomId=roomIdForOverviewRow(row),count=updateCountFor(projectId,roomId);
+      var cardRoom=String(row.getAttribute('data-card-room-id')||'');
+      var roomId=roomIdForOverviewRow(row),count=updateCountFor(projectId,roomId,cardRoom);
       row.querySelectorAll('.fiq-site-updates-btn').forEach(function(x){x.remove()});
       var main=row.querySelector('.jor-main'),room=row.querySelector('.jor-room'),name=row.querySelector('.jor-name'),summary=row.querySelector('.jor-summary-line');
       if(main&&room&&name&&room.previousElementSibling!==null){main.insertBefore(room,name)}
@@ -187,7 +101,7 @@
         completion.setAttribute('role','button');completion.setAttribute('tabindex','0');completion.setAttribute('title','Open Site Updates');
         completion.innerHTML='<div class="jor-stat-label">Site Updates</div><div class="jor-stat-value">'+count+'</div>';
         if(count)completion.classList.add('has-updates');
-        var open=function(e){e.preventDefault();e.stopPropagation();openSiteUpdates(projectId,roomId)};
+        var open=function(e){e.preventDefault();e.stopPropagation();openSiteUpdates(projectId,roomId,cardRoom)};
         completion.onclick=open;completion.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){open(e)}};
       }
     });
@@ -310,10 +224,6 @@
       .fiq-customer-search-option{display:block;width:100%;border:0;border-radius:7px;background:#fff;color:#10233f;text-align:left;padding:9px 10px;font-size:14px;font-weight:750}
       .fiq-customer-search-option:hover,.fiq-customer-search-option:focus{background:#edf4ff;outline:none}
       .fiq-customer-search-empty{padding:10px;color:#66778b;font-size:12px;font-weight:700}
-      .fiq-cutting-tab{font-weight:900!important}
-      .fiq-cutting-intro{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;padding:11px 13px;border:1px solid #b8dba4;border-radius:12px;background:#f5fbf1}.fiq-cutting-intro strong{font-size:16px;color:#0B2545}.fiq-cutting-intro span{font-size:12px;color:#5B6B7C;font-weight:700}
-      .fiq-cutting-row{width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left;border:1px solid #d6e3ef;border-radius:12px;background:#fff;padding:11px 12px;margin-bottom:8px;color:#0B2545}
-      .fiq-cutting-row:hover{border-color:#69b949;background:#f8fff5}.fiq-cut-icon{font-size:23px;text-align:center}.fiq-cut-main{display:flex;flex-direction:column;gap:3px;min-width:0}.fiq-cut-main strong{font-size:15px}.fiq-cut-main small{font-size:11px;color:#5B6B7C;font-weight:700}.fiq-cut-open{font-size:12px;font-weight:900;color:#347d18;white-space:nowrap}
       .supplier-action.export{background:#eef3ff!important;border-color:#8fa9df!important;color:#23364e!important}
       .supplier-action.export:hover{border-color:#496fbf!important;box-shadow:0 0 0 4px rgba(73,111,191,.12)!important}
       @media(max-width:900px){
@@ -368,7 +278,7 @@
   var applying=false;
   function apply(){
     if(applying)return;applying=true;
-    try{addStyles();wireLogoHome();removeDocumentsTab();addCompactCustomerSearch();addCustomerCuttingListTab();mirrorSiteNotesIntoNotesTab();polishOverviewCards()}finally{applying=false}
+    try{addStyles();wireLogoHome();addCompactCustomerSearch();mirrorSiteNotesIntoNotesTab();polishOverviewCards()}finally{applying=false}
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();

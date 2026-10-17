@@ -200,6 +200,22 @@ nav{background:#174E98}.nav{color:#DCD9E8}.nav.active{color:#174E98;background:#
 .svs-room-info{flex:1;min-width:0}
 .svs-room-info b{display:block;font-size:15px;font-weight:900;color:var(--ink)}
 .svs-room-info small{display:block;font-size:12px;color:var(--muted);font-weight:700}
+.svs-room-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.svs-room-card .svs-room-row{border:0;border-radius:0}
+.svs-thumbs{display:flex;gap:8px;overflow-x:auto;padding:0 14px 10px}
+.svs-thumb{position:relative;flex:none;width:84px;height:64px;padding:0;border:2px solid #bcdcf7;border-radius:10px;overflow:hidden;background:#eef3f8}
+.svs-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.svs-thumb-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:22px}
+.svs-thumb-no{position:absolute;left:4px;top:4px;min-width:18px;height:18px;border-radius:9px;background:rgba(17,24,39,.75);color:#fff;font-size:11px;font-weight:900;line-height:18px;text-align:center;padding:0 4px}
+.svs-thumb-count{position:absolute;left:0;right:0;bottom:0;background:rgba(17,24,39,.7);color:#fff;font-size:10px;font-weight:800;text-align:center;padding:1px 0}
+.svs-sizes{list-style:none;margin:0;padding:0 14px 12px;display:grid;gap:3px}
+.svs-sizes li{display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--ink)}
+.svs-sizes li span{flex:1;min-width:0;color:var(--muted);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svs-sizes li b{font-weight:900;white-space:nowrap}
+.svs-sizes li small{font-size:11px;color:var(--muted);white-space:nowrap}
+.svs-sizes-more{color:var(--muted);font-weight:800}
+.svs-room-details{display:block;width:calc(100% - 28px);margin:0 14px 12px;min-height:38px;border:1px solid var(--line);border-radius:10px;background:#f8fafc;color:var(--ink);font-weight:800;font-size:13px}
+.svs-sizes-none{padding:0 14px 12px;font-size:12px;color:var(--muted);font-weight:700}
 .svs-room-check{flex:none;width:24px;height:24px;border-radius:50%;background:#2ea043;color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center}
 .svs-room-chev{flex:none;color:var(--muted);font-size:18px}
 .svs-add-room-btn{display:block;width:calc(100% - 24px);margin:2px 12px 8px;min-height:48px;border-radius:12px;font-weight:900;border-style:dashed}
@@ -309,6 +325,10 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .mobile-projects-title{font-size:30px;font-weight:900;color:#174E98;margin:8px 0 6px}.lang-switch{display:flex;justify-content:flex-end;padding:8px 4px;gap:8px}.lang-current-btn{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:900;line-height:1;background:#fff;border:2px solid #e2dfec;border-radius:14px;padding:9px 16px;color:#174E98}.lang-current-flag{width:28px;height:18px;border-radius:3px;overflow:hidden;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.lang-current-flag svg{width:100%;height:100%;display:block}.lang-picker-item{width:100%;display:flex;align-items:center;gap:14px;font-size:19px;font-weight:800;padding:14px 18px;border:2px solid #e2dfec;border-radius:14px;background:#fff;margin-bottom:10px;color:#174E98}.lang-picker-item.active{border-color:#FFC600;background:#fffbea}.lang-picker-flag{width:36px;height:24px;border-radius:4px;overflow:hidden;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.12)}.lang-picker-flag svg{width:100%;height:100%;display:block}.lang-picker-name{flex:1;text-align:left}.lang-btn.active{opacity:1;border-color:#FFC600;background:#fffbea}
 .mobile-projects-help{color:#69657b;font-size:15px;margin-bottom:10px}
 .mobile-archived-jobs{margin:14px 0}
+.mobile-sent-jobs{border-top:2px solid #bbf7d0;padding-top:4px}
+.site-unsent-overlay{position:fixed;inset:0;z-index:1200;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px}
+.site-unsent-sheet{background:#fff;border-radius:18px;padding:18px;width:min(420px,100%);display:grid;gap:10px}.site-unsent-sheet h3{margin:0;font-size:19px}.site-unsent-sheet p{margin:0;font-size:15px;line-height:1.45}.site-unsent-sheet .btn{width:100%;min-height:48px;font-weight:900}.site-unsent-sheet .btn.danger{color:#b42318;border-color:#f3b4ae}
+.site-received-banner{position:fixed;left:12px;right:12px;top:calc(56px + env(safe-area-inset-top));z-index:2147483647;background:#16a34a;color:#fff;font-weight:900;font-size:16px;padding:14px 16px;border-radius:14px;box-shadow:0 8px 24px #0004;transform:translateY(-150%);transition:transform .25s}.site-received-banner.show{transform:none}
 .mobile-archived-jobs summary{cursor:pointer;font-size:17px;font-weight:900;color:#16a34a;padding:12px 4px;list-style:none}
 .mobile-archived-jobs summary::-webkit-details-marker{display:none}
 .mobile-archived-jobs[open] summary{margin-bottom:6px}
@@ -797,6 +817,19 @@ input:focus,textarea:focus,select:focus{outline:3px solid rgba(107,191,58,.20)!i
 @media(max-width:430px){.fitters-header{min-height:76px!important}.fitters-tagline{font-size:10px}.fitters-logo-mark{width:48px;height:48px}}
 </style>
 <script src="sync-protocol.js?build=90"></script>
+<style id="fiq-site-receipt-style">
+.send-bar-sync-detail,.job-sync-detail{display:block;font-size:12px;font-weight:700;color:#16794a;margin-top:2px}
+.measure-send-bar{flex-wrap:wrap}
+.send-bar-state{flex:1 0 100%;box-sizing:border-box;border-radius:14px;padding:12px 14px;margin-top:2px}
+.send-bar-state b{display:block;font-size:19px;font-weight:950;letter-spacing:.02em;text-transform:uppercase;line-height:1.15}
+.send-bar-state small{display:block;font-size:15px;font-weight:800;margin-top:3px}
+.send-bar-state.state-synced{background:#15803d;color:#fff;box-shadow:0 0 0 3px #bbf7d0}
+.send-bar-state.state-synced b{font-size:22px}
+.send-bar-state.state-pending{background:#fff7e0;color:#7a4b00;border:2px solid #f0b429}
+.send-bar-state.state-blocked{background:#fde8e8;color:#9b1c1c;border:2px solid #e05252}
+.send-bar-state.state-unsent{background:#eef3ff;color:#174E98;border:2px solid #8fa8df}.measure-send-bar .send-bar-delete-photos{flex:1 0 100%;margin-top:2px}
+.send-bar-delete-photos,.job-delete-photos{display:block;margin-top:8px;min-height:40px;padding:8px 12px;font-size:14px;font-weight:800;border:2px solid #d8dde6;background:#fff;color:#1f2d3d;border-radius:12px}
+</style>
 </head>
 <body class="fiq-locked">
 <!-- TEMPORARY build marker, kept through the Mobile front-end rebuild so it's obvious on the phone which build loaded -- remove once the rebuild is fully confirmed -->
@@ -808,10 +841,12 @@ import {
   sendEmailVerification, sendPasswordResetEmail, reload
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
 
-const firebaseConfig = {
+// A staging page may provide its own Firebase project (window.FIQ_FIREBASE_CONFIG, set by the
+// staging loader before this core runs). Without it, the settings below are used exactly as before.
+const firebaseConfig = window.FIQ_FIREBASE_CONFIG || {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
   authDomain: "assembleone-fabac.firebaseapp.com",
   databaseURL: "https://assembleone-fabac-default-rtdb.firebaseio.com",
@@ -826,7 +861,7 @@ window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
 window.fiqStorage = getStorage(fiqApp);
 window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL };
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc };
+window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <div id="fiqAuthGate" class="fiq-auth-gate">
@@ -874,6 +909,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <h1>Almost there</h1>
       <p class="fiq-auth-lead">This sign in isn't linked to a FittersIQ company yet. Finish creating your account on the FittersIQ website, or ask your company owner for an invitation.</p>
       <button class="fiq-auth-link" id="fiqNoCompanySignOutBtn" type="button">Sign out</button>
+    </div>
+
+    <div class="fiq-auth-state" id="fiqStateOtherCompany" hidden>
+      <h1>Another company's jobs are here</h1>
+      <p class="fiq-auth-lead">This phone holds FittersIQ jobs of a different company. They stay safely on this phone and are not shown to this account. Sign in with that company to use them, or use another phone for this company.</p>
+      <button class="fiq-auth-link" id="fiqOtherCompanySignOutBtn" type="button">Sign out</button>
     </div>
 
     <div class="fiq-auth-state" id="fiqStateSuspended" hidden>
@@ -929,9 +970,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
    <button type="button" id="measureHomeBtn" class="mini-btn measure61-home" aria-label="Back to Site Visit Summary">🏠</button>
    <button type="button" id="measureCurrentRoomLabel" class="mini-btn measure61-roomsel"></button>
    <button class="mini-btn measure61-picture" id="chooseMeasurePhoto" type="button"><span class="measure61-top-icon">📷</span><span data-i18n="measure.addPicture">Add Picture</span></button>
+   <button class="mini-btn measure61-note" id="openRoomNote" type="button" aria-label="Room Note"><span class="measure61-top-icon">📝</span><span>Room Note</span><span class="room-note-count" id="roomNoteCount"></span></button>
    <input id="markupCameraPhoto" class="js-file-input" type="file" accept="image/*" capture="environment">
    <span id="measurePhotoStatus" class="measure-photo-status" aria-live="polite"></span>
-   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b></span></button>
+   <button class="mini-btn primary measure-room-save measure61-room" id="saveMeasureToRoom" type="button"><span class="measure61-top-icon">✓</span><span class="measure-room-save-text"><b>DONE</b><small>Back to rooms</small></span></button>
   </div>
   <div id="markupStage" class="markup-stage">
    <div id="markupWorld" class="markup-world">
@@ -1041,7 +1083,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
  </div>
  <div id="svsRoomList" class="svs-room-list"></div>
  <button type="button" id="svsAddRoomBtn" class="btn primary svs-add-room-btn">＋ Add Room</button>
- <button type="button" id="measureNotesRow" class="measure-notes-row">📋 <span>Notes</span> <span id="measureNotesCount" class="notes-count">(0)</span> <span class="notes-chev">›</span></button>
+ <button type="button" id="measureNotesRow" class="measure-notes-row whole-site-note-row"><span class="wsn-icon">📋</span><span class="wsn-text"><b>Whole Site Note</b><small>For the complete Site Measure, not one room</small></span> <span id="measureNotesCount" class="notes-count">(0)</span> <span class="notes-chev">›</span></button>
  <div id="measureSendBar" class="measure-send-bar"></div>
 </section>
 
@@ -1071,12 +1113,24 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 
 <div class="site-room-modal" id="notesBoardModal" aria-hidden="true">
  <div class="site-room-dialog notes-board-dialog" role="dialog" aria-modal="true" aria-labelledby="notesBoardTitle">
-  <div class="site-room-head"><div class="room-badge">📋</div><div><h2 id="notesBoardTitle">Notes</h2><p>For the whole site visit</p></div><button class="site-room-close" id="notesBoardClose" type="button" aria-label="Close">×</button></div>
+  <div class="site-room-head"><div class="room-badge">📋</div><div><h2 id="notesBoardTitle">Whole Site Note</h2><p>For the complete Site Measure, not one room</p></div><button class="site-room-close" id="notesBoardClose" type="button" aria-label="Close">×</button></div>
   <div class="notes-board-body">
    <textarea id="notesBoardText" placeholder="Anything the customer wants noted..."></textarea>
    <div class="notes-photo-grid" id="notesPhotoGrid"></div>
    <button type="button" class="btn" id="addNotePhotoBtn2">📷 Add Photo</button>
    <input id="notesPhotoInput" type="file" accept="image/*" multiple hidden>
+  </div>
+ </div>
+</div>
+
+<div class="site-room-modal" id="roomNoteModal" aria-hidden="true">
+ <div class="site-room-dialog notes-board-dialog" role="dialog" aria-modal="true" aria-labelledby="roomNoteTitle">
+  <div class="site-room-head"><div class="room-badge" id="roomNoteIcon">📝</div><div><h2 id="roomNoteTitle">Room Note</h2><p>Only for this room</p></div><button class="site-room-close" id="roomNoteClose" type="button" aria-label="Close">×</button></div>
+  <div class="notes-board-body">
+   <textarea id="roomNoteText" placeholder="Anything to note about this room..."></textarea>
+   <div class="notes-photo-grid" id="roomNotePhotoGrid"></div>
+   <button type="button" class="btn" id="addRoomNotePhotoBtn">📷 Add Photo</button>
+   <input id="roomNotePhotoInput" type="file" accept="image/*" multiple hidden>
   </div>
  </div>
 </div>
@@ -1136,6 +1190,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .pc-summary-stat.missing b{color:#e0982a}
 .pc-summary-stat.damaged b{color:#d92f38}
 .pc-drawing-sheet{max-height:92vh}
+/* Find Panel: sized to the VISIBLE screen (iPhone Safari counts vh under its own toolbar) and
+   Fitted / Missing / Damaged pinned to the bottom of the sheet, so they are never cut off. */
+.pc-drawing-sheet{max-height:92dvh}
+.pc-drawing-sheet .fp-actions{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom));z-index:2;margin:0 -16px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:#fff;box-shadow:0 -6px 12px rgba(11,37,69,.06)}
 .pc-drawing-body{position:relative;min-height:260px;background:#eceef3;border-radius:14px;overflow:hidden}
 .pc-drawing-body img{width:100%;display:block}
 .pc-drawing-empty{padding:40px 20px;text-align:center;color:#6d6a7e;font-weight:700}
@@ -1177,8 +1235,46 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .scan-mode-opt .scan-mode-lock{font-size:14px}
 #scan .scan-tool{padding-bottom:calc(80px + 92px + env(safe-area-inset-bottom))}
 .scan-tool.scanning .scan55-current,.scan-tool.scanning .scan55-recent-head,.scan-tool.scanning #recentScans,.scan-tool.scanning .scan-tools-more,.scan-tool.scanning .quick-help-pill{display:none}
-.fp-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.fp-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.fp-pieces{display:flex;flex-wrap:wrap;gap:6px}.fp-pieces .fp-piece{min-height:40px}.fp-pieces .fp-piece.active{background:#174E98;color:#fff;border-color:#174E98}
+.fp-piece-status{font-weight:800}
+/* Grouped panel counter (same P1 on every sticker) */
+.gc{border:2px solid #174E98;border-radius:14px;padding:12px;margin:10px 0;display:grid;gap:10px;background:#f5f8fd}
+.gc-head{display:flex;justify-content:space-between;align-items:baseline;font-weight:800}
+.gc-head span{font-weight:700;color:#334155}
+.gc-now{font-size:15px;font-weight:700}.gc-now b{font-size:28px}
+.gc-count-btn{min-height:64px;font-size:20px;font-weight:800;width:100%}
+.gc-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.gc-row{display:flex;align-items:center;justify-content:space-between;gap:6px;background:#fff;border:1px solid #d6dde6;border-radius:10px;padding:4px 6px 4px 10px;font-weight:700;min-height:44px}
+.gc-row .gc-btns{display:flex;gap:4px}.gc-row button{min-width:40px;min-height:36px;padding:0 8px}
+.gc-final{display:grid;grid-template-columns:1fr 1fr;gap:8px}.gc-final .btn{min-height:50px;font-weight:800}
+.gc-undo{min-height:44px;padding:0 14px}
+.gc-bar-row{display:grid;grid-template-columns:auto 1fr;gap:8px}.gc-damage-btn{min-height:44px;font-weight:800}
+.gc-summary{font-weight:800;color:#174E98}.gc-confirmed{color:#15803d;font-weight:700}
+.fp-drawing-frame{position:relative;width:100%;line-height:0}.fp-drawing-frame img{display:block;width:100%;height:auto}
+.fp-exact-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#e0102f;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(0,0,0,.6);z-index:4;pointer-events:none}
+.fp-drawing-frame .panel-highlight-num{position:absolute;top:-12px;right:-12px}.fp-shared-spot{font-size:13px;color:var(--muted);font-weight:700}
+.panel-check-row[data-open-panel]{cursor:pointer}.panel-check-row[data-open-panel]:active{background:#f3f6fb}
+#damagePanelOverlay{z-index:5300!important}
 .fp-actions .btn{min-height:54px}
+/* Scan method (QR Code / Panel Number), shown on the live camera. In Panel Number mode the
+   guide box turns into a wide strip; only what is inside it is read. */
+.scan-method-switch{position:absolute;top:calc(env(safe-area-inset-top) + 44px);left:50%;transform:translateX(-50%);z-index:3;display:flex;border-radius:14px;overflow:hidden;border:2px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.scan-method-opt{min-height:46px;min-width:128px;white-space:nowrap;border:0;background:rgba(255,255,255,.92);color:#174E98;font-weight:900;font-size:15px;padding:0 14px}
+.scan-method-opt.active{background:#174E98;color:#fff}
+.scan-frame.number-mode:after{inset:40% 8%}
+.number-scan-hint,.number-scan-status{display:none;position:absolute;left:8%;right:8%;z-index:2;text-align:center;color:#fff;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none}
+.scan-frame.number-mode .number-scan-hint{display:block;bottom:calc(60% + 10px);font-size:15px}
+.scan-frame.number-mode .number-scan-status{display:block;top:calc(60% + 10px);font-size:16px}
+.number-scan-status.warn{color:#ffd166}
+/* Staging test readout: what the camera reads in every frame and what it matches. */
+.number-scan-read{display:none;position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 98px);z-index:2;padding:6px 8px;border-radius:10px;background:rgba(0,0,0,.72);color:#fff;font:700 11px/1.35 ui-monospace,Menlo,Consolas,monospace;pointer-events:none;white-space:pre-wrap;word-break:break-all}
+.scan-frame.number-mode.fiq-number-diag .number-scan-read{display:block}
+.number-scan-read .nsr-label{font-size:11px;opacity:.85}
+.number-scan-read .nsr-pic{display:block;width:100%;height:auto;margin:3px 0 6px;border:2px solid #ffd166;background:#fff}
+/* Panel Number: the camera picture fills the whole screen, so the guide sits in it (a
+   general video{max-height:480px} rule otherwise left the guide at the picture's edge). */
+.scan-frame.number-mode video{max-height:none;border-radius:0}
 </style>
 
 <style id="a-build2-mobile-compact">
@@ -1283,7 +1379,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <section id="scan" class="screen">
  <div class="scan-tool scan55-tool">
   <div class="pc-header"><strong id="scanHeaderTitle">Panel Check</strong><div id="panelCheckCounter" class="pc-counter">0 / 0 checked</div><button type="button" id="scanSoundBtn" class="pc-sound-btn" aria-label="Scan sound settings">🔊</button></div>
-  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
+  <div id="cameraWrap" class="scan-frame hidden"><video id="camera" playsinline muted autoplay></video><div id="scanMethodSwitch" class="scan-method-switch" role="radiogroup" aria-label="Scan method"><button type="button" class="scan-method-opt" role="radio" data-method="qr">QR Code</button><button type="button" class="scan-method-opt" role="radio" data-method="number">Panel Number</button></div><div id="numberScanHint" class="number-scan-hint">Point the box at the panel number</div><div id="numberScanStatus" class="number-scan-status" aria-live="polite"></div><div id="numberScanRead" class="number-scan-read"></div><button class="btn" id="stopScanner" data-i18n="scan.closeScanner">✕ Close scanner</button></div>
   <div class="scan-actions scan55-actions" id="scanStartRow" style="grid-template-columns:1fr">
    <button class="scan-action main" id="startScanner"><b class="scan55-icon scan55-icon-scan"><svg viewBox="0 0 48 48" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V6h10"/><path d="M32 6h10v10"/><path d="M42 32v10H32"/><path d="M16 42H6V32"/></svg></b><span data-i18n="scan.title">Scan QR</span><small data-i18n="scan.openCamera">Open camera</small></button>
   </div>
@@ -1452,6 +1548,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <div class="pc-sheet-head"><strong>Find Panel</strong><button type="button" id="findPanelResultClose">×</button></div>
   <div id="findPanelResultBody" class="panel-detail"></div>
   <div class="fp-actions">
+   <button type="button" id="fpMarkFitted" class="btn primary">Fitted</button>
    <button type="button" id="fpMarkMissing" class="btn warn">Missing</button>
    <button type="button" id="fpMarkDamaged" class="btn danger">Damaged</button>
   </div>
@@ -1553,6 +1650,15 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
   <span data-i18n="nav.jobs">Jobs</span>
 </button>
 </nav>
+<script id="fiq-dead-storage-cleanup">
+// 15 Oct 2026: the old Studio-to-phone send queue (retired in August, nothing reads it any more)
+// still filled 4.4 MB of this website's shared browser storage. Removed when the app opens (also
+// its Beta / Staging copies); nothing in use is touched.
+(function(){try{const dead='assembleone_mobile_direct_queue_v1',key=Storage.prototype.key,found=[];
+ for(let i=0;i<localStorage.length;i++){const k=key.call(localStorage,i);if(k===dead||String(k).endsWith(':'+dead))found.push(k)}
+ found.forEach(k=>{delete localStorage[k]});
+ if(found.length)console.info('FittersIQ: removed an old unused send queue from browser storage');}catch(e){}})();
+</script>
 <script>
 const KEY="assembleone_mobile_v2";
 let state={projects:[],currentProject:null,currentCabinet:null,currentPart:null,currentRoom:null,screen:"projects",activeCardKeys:[]};
@@ -1569,6 +1675,12 @@ let mobileSelectedCardKeys=new Set();
 // only work actually received from Studio. In-memory only (not persisted) -- a reload
 // lands back on 'jobs', the more permanent of the two lists. See renderProjects().
 let projectsListMode='jobs';
+// Site Measure is its own section: leaving any Site Measure screen for the shared list
+// screen always shows the Site Measure list. Only an explicit tap on Jobs in the bottom
+// navigation picks the Jobs list (listChoiceByNav). The choice is saved with the state.
+const SITE_MEASURE_SCREENS=['measure','newSiteJob','siteVisitSummary','sentToStudio'];
+let listChoiceByNav=false;
+function isOpenSiteJob(){const p=state.projects&&state.projects.find(x=>x.id===state.currentProject);return !!(p&&!isStudioJob(p))}
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const safe=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -1766,7 +1878,7 @@ function save(){
  if(pendingPhotoWrites.length)schedulePhotoPersist();
  return ok;
 }
-function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}:null}
+function parsePanelHash(){const m=location.hash.match(/^#panel=([^:]+):([^:]+):([^:]+)(?::(-?\d+))?$/);return m?{projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}:null}
 // Re-enabled now that the real cause of that sync bug (an empty packet being
 // silently discarded, fixed separately) is known -- this filter was never it.
 // Checked by permanent fitterId first (set once a phone pairs, see a214/a215
@@ -1870,7 +1982,7 @@ function jobAccessDeniedMessage(p){
  const names=[p&&p.assignedFitter,...((p&&p.otherFitters)||[])].filter(Boolean);
  return names.length?('This job is assigned to '+names.join(' and ')+'.'):'Job not assigned to you. Contact the office.';
 }
-function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){
+function openPanelRoute(q){if(typeof fiqRouteThroughLabels==="function")q=fiqRouteThroughLabels(q);const p=state.projects.find(x=>x.id===q.projectId),c=p?.cabinets?.find(x=>x.id===q.cabinetId||x.parts?.some(y=>y.id===q.panelId)),pt=c?.parts?.find(x=>x.id===q.panelId);if(p&&c&&pt){
  // The QR/manual identification only ever tells you the exact panel once you're already
  // allowed to see the job it belongs to -- a scan hitting someone else's job must not leak
  // the drawing, customer name or anything else about it, just the same generic message
@@ -1883,7 +1995,7 @@ function openPanelRoute(q){const p=state.projects.find(x=>x.id===q.projectId),c=
  // resolves a scan to a panel without ever leaving the Panel Check screen, so this must
  // not silently overwrite state.screen out from under it. Callers that do want to
  // navigate (Find Panel, applyPanelRoute) already call show("install") themselves.
- state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;const ci=q.copyIndex;state.selectedCopy=(ci!=null&&pt.copies&&pt.copies[ci])?ci:-1;save();return true}return false}
+ state.currentProject=p.id;state.currentCabinet=c.id;state.currentPart=pt.id;state.currentRoom=c.roomId||null;const ci=q.copyIndex;state.selectedCopy=(ci!=null&&pt.copies&&pt.copies[ci])?ci:-1;state.scannedPiece=pieceFromCopyIndex(pt,ci);save();return true}return false}
 function applyPanelRoute(route){
  if(!route)return;
  if(openPanelRoute(route)){
@@ -1899,8 +2011,23 @@ function applyPanelRoute(route){
 // load. Without this, load() below only ever runs once at startup and the new
 // #panel=... in the URL would be silently ignored.
 window.addEventListener("hashchange",()=>{const route=parsePanelHash();if(route)applyPanelRoute(route)});
-async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};if(!Array.isArray(state.activeCardKeys))state.activeCardKeys=state.currentProject?[state.currentProject]:[];try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{renderAll();applyI18n();paintLangButtons()}if(typeof applyScanModeUI==='function')applyScanModeUI()}
+async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};if(!Array.isArray(state.activeCardKeys))state.activeCardKeys=state.currentProject?[state.currentProject]:[];try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{restoreScreenAfterLoad()}if(typeof applyScanModeUI==='function')applyScanModeUI()}
+function restoreScreenAfterLoad(){
+ if(state.projectsListMode==='site')projectsListMode='site';
+ const s=state.screen,p=project(),siteJob=!!(p&&!isStudioJob(p));
+ if(s==='newSiteJob'&&siteJob&&p.nsjStep){show('newSiteJob');return}
+ if((s==='siteVisitSummary'||s==='measure')&&siteJob){show('siteVisitSummary');return}
+ if(s==='sentToStudio'||(s==='projects'&&projectsListMode==='site')){projectsListMode='site';show('projects');return}
+ if(projectsListMode==='site')projectsListMode='jobs';
+ state.screen='projects';state.projectsListMode=projectsListMode;
+ $$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen==='projects'));
+ renderAll();applyI18n();paintLangButtons();
+}
 function show(name){
+ if(name==='projects'){
+  if(!listChoiceByNav&&(SITE_MEASURE_SCREENS.includes(state.screen)||(state.screen==='drawings'&&isOpenSiteJob())))projectsListMode='site';
+  listChoiceByNav=false;state.projectsListMode=projectsListMode;
+ }
  if((name==='measure'||name==='drawings')&&!jobConfirmedThisSession&&state.currentProject){
   const rp=state.projects.find(x=>x.id===state.currentProject);
   if(rp){
@@ -1909,8 +2036,8 @@ function show(name){
    jobConfirmedThisSession=true;
   }
  }
- if(name!=='scan'&&typeof scanRunning!=='undefined'&&scanRunning&&typeof stopCamera==='function')stopCamera();state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=(name==='measure'||name==='newSiteJob'||name==='siteVisitSummary'||name==='sentToStudio')?'siteMeasureFlow':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons();if(typeof applyScanModeUI==='function')applyScanModeUI()}
-$$(".nav").forEach(b=>b.onclick=()=>{if(b.dataset.screen==='siteMeasureFlow'){startSiteMeasureFlow();return}if(b.dataset.screen==='projects')projectsListMode='jobs';show(b.dataset.screen)});
+ if(name!=='scan'&&typeof scanRunning!=='undefined'&&scanRunning&&typeof stopCamera==='function')stopCamera();state.screen=name;$$(".screen").forEach(x=>x.classList.toggle("active",x.id===name));const navName=(SITE_MEASURE_SCREENS.includes(name)||(name==='projects'&&projectsListMode==='site')||(name==='drawings'&&isOpenSiteJob()))?'siteMeasureFlow':name;$$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen===navName));save();renderAll();applyI18n();paintLangButtons();if(typeof applyScanModeUI==='function')applyScanModeUI()}
+$$(".nav").forEach(b=>b.onclick=()=>{if(b.dataset.screen==='siteMeasureFlow'){startSiteMeasureFlow();return}if(b.dataset.screen==='projects'){projectsListMode='jobs';listChoiceByNav=true}show(b.dataset.screen)});
 function ensureExtras(p){
  (p.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(!Array.isArray(pt.panelPhotos))pt.panelPhotos=[];if(pt.locationNote==null)pt.locationNote="";if(pt.scannedQty==null)pt.scannedQty=0;if(pt.damagedQty==null)pt.damagedQty=0;if(pt.damageNote==null)pt.damageNote=""}));p.cabinets=p.cabinets||[];p.siteMeasurements=p.siteMeasurements||[];p.sitePhotos=p.sitePhotos||[];p.rooms=p.rooms||[];p.address=p.address||"";p.phone=p.phone||"";p.notes=p.notes||"";p.measureCaptures=p.measureCaptures||[];p.cabinets.forEach(c=>{c.parts=c.parts||[];if(c.roomId==null)c.roomId=""});p.rooms.forEach(r=>{r.icon=r.icon||roomIconFromName(r.name,r.type);r.beforePhotos=r.beforePhotos||[];r.designImages=r.designImages||[];r.notes=r.notes||"";r.location=r.location||"";r.siteMarkup=r.siteMarkup||{image:null,w:0,h:0,marks:[]};r.measureCaptures=r.measureCaptures||[]})}
 // A job counts as a Studio installation project once Studio has actually added
@@ -1935,7 +2062,12 @@ function isStudioJob(p){return !!(p&&(p.studioOrigin||isInstallationJob(p)))}
 // read straight from the persisted project, not any session-only flag.
 function updateInstallNewBadge(){
  const badge=document.getElementById('installNewBadge');if(!badge)return;
- const count=state.projects.filter(p=>isStudioJob(p)&&!p.mobileArchived&&p.mobileSeen===false&&(typeof canSeeJob!=='function'||canSeeJob(p))).length;
+ // Counts exactly the NEW cards the Jobs list shows (renderProjects): same room cards, same
+ // assignment check, nothing archived or moved to the Library. A badge for a card the list
+ // hides read as "1 new job" over an empty list.
+ const count=state.projects.filter(isStudioJob).flatMap(cardsForProject)
+  .filter(c=>(typeof canSeeJob!=='function'||canSeeJob(c.project,c.room==='__general__'?null:c.room))&&!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
+  .filter(c=>{const rm=(c.room&&c.room!=='__general__')?c.room:null;return (rm?rm.mobileSeen:c.project.mobileSeen)===false}).length;
  badge.textContent=String(count);
  badge.classList.toggle('hidden',count<=0);
 }
@@ -2096,7 +2228,9 @@ function renderProjects(){
  if(blanks.length>1){const keep=blanks.some(b=>b.id===state.currentProject)?state.currentProject:blanks[0].id;state.projects=state.projects.filter(p=>p.id===keep||!blanks.some(b=>b.id===p.id));save()}
  const FLOOR_KEYS={'Basement':'intake.floorBasement','Ground':'intake.floorGround','1st floor':'intake.floor1st','2nd floor':'intake.floor2nd','3rd floor':'intake.floor3rd'};
  const floorLabel=f=>{const k=FLOOR_KEYS[f];return k?t(k):f};
- const allRoomsFinished=p=>(p.rooms||[]).length>0&&p.rooms.every(r=>r.finished);
+ // Complete Job (mobileJobCompleted) counts as finished here, as the older finished flag did.
+ const roomDone=r=>!!(r&&(r.finished||r.mobileJobCompleted));
+ const allRoomsFinished=p=>(p.rooms||[]).length>0&&p.rooms.every(roomDone);
  // Full per-room dispatch: card is {project,room} (see cardsForProject/cardKey above),
  // exactly Studio Build 1's own shape -- a real room, the '__general__' stray-cabinets
  // catch-all, or null for a no-rooms project's single implicit card. Only ever expanded
@@ -2118,10 +2252,10 @@ function renderProjects(){
   // room-card of one project, mirroring Studio's own Job Overview card grouping; only the
   // room subtitle and every stat/total below differ per card.
   const titleName=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||display.name);
-  const finished=realRoom?!!realRoom.finished:allRoomsFinished(p);
+  const finished=realRoom?roomDone(realRoom):allRoomsFinished(p);
   const badge=finished?`<span class="job-status-badge finished">✓ Finished</span>`:(ready?`<span class="job-status-badge ready">✓ ${t('proj.readyToInstall')}</span>`:`<span class="job-status-badge pending">✎ ${t('proj.stillDrawing')}</span>`);
   const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
-  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>`:'';
+  const syncBadge=sync?`<span class="job-sync-badge ${sync.cls}" ${p.studioSyncBlockedReason?`title="${safe(p.studioSyncBlockedReason)}"`:''}>${sync.label}</span>${sync.detail?`<span class="job-sync-detail">${safe(sync.detail)}</span>`:''}${sync.removable?`<button type="button" class="btn job-delete-photos" data-remove-site-measure="${safe(p.id)}">Remove from this phone</button>`:''}`:'';
   const locs=[...new Set((p.rooms||[]).map(r=>r.location).filter(Boolean))].map(floorLabel);
   const locLine=locs.length?`<div class="job-location">📍 ${safe(locs.join(' · '))}</div>`:'';
   // NEW badge reads the room's own mobileSeen where a real room exists (set the moment
@@ -2153,9 +2287,15 @@ function renderProjects(){
   // (icon | content | actions).
   const selectHtml=ready?`<label class="mobile-job-select" title="${safe(t('mobile.selectJobAria'))}"><input type="checkbox" class="mobile-job-select-checkbox" data-select-card="${safe(key)}" ${mobileSelectedCardKeys.has(key)?'checked':''}></label>`:'';
   const safetyCopy=!!card.safetyCopy;
-  const safetyBadge=safetyCopy?`<span class="job-status-badge finished">Protected for ${Math.max(1,Number(card.safetyHours)||1)} more hour${Number(card.safetyHours)===1?'':'s'}</span>`:'';
+  // A Site Measure card shows what was measured (rooms, photos, sizes) and only its send
+  // status; a received one also says when Studio received it.
+  const siteCard=!isStudioJob(p);
+  const siteCount=siteCard?siteMeasureCounts(p):null;
+  const receivedAt=siteCard&&p.mobileArchived?Date.parse(p.studioReceivedAt||p.mobileArchivedAt||''):NaN;
+  const safetyBadge=safetyCopy&&Number.isFinite(receivedAt)?`<span class="job-status-badge finished">Received ${safe(new Date(receivedAt).toLocaleDateString([],{day:'numeric',month:'short'}))}</span>`:'';
   const deleteHtml=safetyCopy?'':`<button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button>`;
-  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
+  const metaCounts=siteCard?`${siteCount.rooms} room${siteCount.rooms===1?'':'s'} · ${siteCount.photos} photo${siteCount.photos===1?'':'s'} · ${siteCount.sizes} size${siteCount.sizes===1?'':'s'}`:`${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}`;
+  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${siteCard?'':badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${metaCounts}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
  }
  // A job assigned to someone else's email never appears on this phone at all -- not
  // greyed out, not visible-but-locked, just not in the list, the same way it would look
@@ -2185,16 +2325,16 @@ function renderProjects(){
  // <details> section so they stop crowding the working list while staying one tap away.
  // Archiving itself is still a whole-project decision (archiveIfFinishedInstallation
  // requires every room finished), so every one of a project's cards moves together.
+ // A received Site Measure edited since its receipt goes back to the working list first.
+ unarchiveChangedSiteJobs();
  const siteJobs=visibleSiteProjects.filter(p=>!p.mobileArchived);
  const archivedSite=visibleSiteProjects.filter(p=>p.mobileArchived);
- // A Studio acceptance clears the active measuring queue immediately, but the complete
- // local record remains available as a protected safety copy for 24 hours. Older copies
- // stay in local storage for recovery but disappear from the working screen, so Mobile
- // remains a tool rather than a long-term storage list.
- const SITE_RECEIVED_SAFETY_MS=24*60*60*1000;
- const receivedSafetySite=archivedSite.map(p=>{const at=Date.parse(p.mobileArchivedAt||p.studioReceivedAt||'');const remaining=at?SITE_RECEIVED_SAFETY_MS-(Date.now()-at):0;return {project:p,remaining}}).filter(x=>x.remaining>0);
+ // Sent to Studio: every Site Measure Studio has received stays listed (newest first) and
+ // can be reopened, until it is removed from this phone by hand. Nothing is hidden or
+ // removed automatically.
+ const receivedSafetySite=archivedSite.map(p=>({project:p,at:Date.parse(p.studioReceivedAt||p.mobileArchivedAt||'')||0})).sort((a,b)=>b.at-a.at);
  const installCardsActive=installCards.filter(c=>!c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt))
-  .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?!!a.room.finished:allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?!!b.room.finished:allRoomsFinished(b.project))?1:0;return fa-fb});
+  .sort((a,b)=>{const fa=(a.room&&a.room!=='__general__'?roomDone(a.room):allRoomsFinished(a.project))?1:0,fb=(b.room&&b.room!=='__general__'?roomDone(b.room):allRoomsFinished(b.project))?1:0;return fa-fb});
  const archivedInstallCards=installCards.filter(c=>c.project.mobileArchived&&!c.project.mobileMovedToLibraryAt&&!(c.room&&c.room!=='__general__'&&c.room.mobileMovedToLibraryAt));
  const siteHtml=siteJobs.length?siteJobs.map(p=>jobCard({project:p,room:null})).join(""):`<div class="mobile-empty-projects">${t('proj.empty')}<br><b>${t('proj.emptyHint')}</b></div>`;
  const openProjectCount=new Set(installCardsActive.map(card=>card.project.id)).size;
@@ -2205,7 +2345,7 @@ function renderProjects(){
  // cards) -- installHtml already carries its own "Studio Installation Jobs" heading when
  // there's real content, so this never doubles up with it.
  const jobsEmptyHtml=installCards.length?"":`<div class="mobile-empty-projects">${t('proj.noStudioJobsYetEmpty')}</div>`;
- const archivedSiteHtml=receivedSafetySite.length?`<details class="mobile-archived-jobs"><summary>✓ Received by Studio · 24 hour safety copy (${receivedSafetySite.length}) ›</summary>${receivedSafetySite.map(x=>jobCard({project:x.project,room:null,safetyCopy:true,safetyHours:Math.ceil(x.remaining/3600000)})).join("")}</details>`:"";
+ const archivedSiteHtml=receivedSafetySite.length?`<details class="mobile-archived-jobs mobile-sent-jobs" open><summary>✓ Sent to Studio (${receivedSafetySite.length}) ›</summary>${receivedSafetySite.map(x=>jobCard({project:x.project,room:null,safetyCopy:true})).join("")}</details>`:"";
  const archivedInstallHtml=archivedInstallCards.length?`<details class="mobile-archived-jobs"><summary>✓ Finished Installations (${archivedInstallCards.length}) ›</summary>${archivedInstallCards.map(jobCard).join("")}</details>`:"";
  // Site Measure (Mobile-created) and Jobs (Studio-sent) never share a list -- only one
  // half is ever drawn into #jobList at a time, matching whichever half of the header/
@@ -2235,9 +2375,18 @@ function renderProjects(){
   p.mobileSeen=true;
   if(room)room.mobileSeen=true;
   save();
+  // A Site Measure opens on its Site Visit Summary: its rooms, photo thumbnails and sizes,
+  // each photo one tap from editing. Installation jobs open as before.
+  if(!isStudioJob(p)){state.currentRoom=null;save();show('siteVisitSummary');return}
   show(isInstallationJob(p)&&!(p.rooms&&p.rooms.length)?"install":"drawings");
  });
- $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);[...mobileSelectedCardKeys].forEach(k=>{if(parseCardKey(k).projectId===p.id)mobileSelectedCardKeys.delete(k)});if(Array.isArray(state.activeCardKeys))state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()});
+ $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;
+  // A Site Measure with work Studio has not received: Send to Studio first, or Delete anyway
+  // behind a second warning (siteUnsentDeleteDialog). Everything else as before.
+  if(siteHasUnsentWork(p)){siteUnsentDeleteDialog(p);return}
+  if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;deleteJobFromPhone(p)});
+ function deleteJobFromPhone(p){if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);[...mobileSelectedCardKeys].forEach(k=>{if(parseCardKey(k).projectId===p.id)mobileSelectedCardKeys.delete(k)});if(Array.isArray(state.activeCardKeys))state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()}
+ window.fiqDeleteJobFromPhone=deleteJobFromPhone;
  $$(".mobile-job-select-checkbox").forEach(cb=>cb.onchange=()=>{
   if(cb.checked)mobileSelectedCardKeys.add(cb.dataset.selectCard);else mobileSelectedCardKeys.delete(cb.dataset.selectCard);
   const cardEl=cb.closest('.job');if(cardEl)cardEl.classList.toggle('mobile-job-selected',cb.checked);
@@ -2603,7 +2752,133 @@ function buildSiteTransferManifest(p,transferId){
  const noteCount=[p.notes,p.siteNotes,p.siteRoomNotes,...rooms.map(r=>r.notes)].filter(x=>String(x||'').trim()).length+(p.notePhotos||[]).length+(p.siteNotePhotos||[]).length+rooms.reduce((n,r)=>n+(r.notePhotos||[]).length,0);
  return {version:1,transferId,projectId:p.id,roomCount:rooms.length,pictureCount:pictures.length,measurementCount,noteCount,pictures,createdAt:new Date().toISOString()};
 }
+// Which pictures a send contained, as a short fingerprint: a Site Measure changed after
+// its last send (a photo added, a room added) must never keep showing "Received".
+function siteManifestFingerprint(m){const t=[m.roomCount,m.pictureCount,m.measurementCount,m.noteCount,...(m.pictures||[]).map(x=>x.kind+'|'+(x.roomId||'')+'|'+x.id).sort()].join(';');let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return (h>>>0).toString(36)+'.'+t.length}
+// Studio writes a receipt into the Site Measure's cloud message once it has SAVED the job
+// (see Studio siteReceiptFor). Only a complete receipt for this phone's LATEST send counts.
+// An incomplete one is sent again automatically (at most 3 times), never shown as received.
+const SITE_RECEIPT_RETRIES=3;
+// The send whose message is in the cloud now. Its fingerprint says exactly what it held.
+function markSiteTransferWritten(p){const st=p.siteTransfer;st.writtenTransferId=st.transferId;st.writtenFingerprint=st.fingerprint;const rc=st.receipt;if(!(rc&&rc.complete&&rc.transferId===st.transferId))st.status='awaiting-studio'}
+function applySiteReceipt(p,rc){
+ const st=p&&p.siteTransfer;if(!st||!rc)return false;
+ const id=String(rc.transferId||'');
+ const fp=id===String(st.transferId)?st.fingerprint:id===String(st.writtenTransferId||'')?st.writtenFingerprint:null;
+ if(!fp)return false;
+ if(st.receipt&&st.receipt.transferId===id&&st.receipt.checkedAt===rc.checkedAt)return false;
+ st.receipt={transferId:id,fingerprint:fp,complete:rc.complete===true,photosExpected:Number(rc.photosExpected)||0,photosReceived:Number(rc.photosReceived)||0,missing:(rc.missing||[]).length,problem:rc.problem||'',checkedAt:rc.checkedAt||'',photoUrls:rc.complete===true?(rc.photoUrls||{}):{}};
+ if(st.receipt.complete){
+  st.status='received';st.receivedAt=new Date().toISOString();p.siteReceiptRetries=0;
+  // Studio holds exactly what is on this phone: a queued resend is no longer needed.
+  if(fp===siteManifestFingerprint(buildSiteTransferManifest(p,'check'))){
+   if(typeof clearPendingStudioSync==='function')clearPendingStudioSync(p.id);
+   // Studio holds exactly this Site Measure: it moves to Sent to Studio, and the fitter is
+   // told which job was received, whatever is open on the phone.
+   if(!isStudioJob(p)){const first=!p.mobileArchived;p.mobileArchived=true;p.mobileArchivedAt=p.mobileArchivedAt||st.receivedAt;p.studioReceivedAt=p.studioReceivedAt||st.receivedAt;if(first&&typeof showSiteReceivedBanner==='function')showSiteReceivedBanner(p)}
+  }
+ }else{st.status='incomplete';p.siteReceiptRetries=(Number(p.siteReceiptRetries)||0)+1;if(p.siteReceiptRetries<=SITE_RECEIPT_RETRIES)setTimeout(()=>{if(typeof exportJob==='function')exportJob(p.id,true)},1500)}
+ return true;
+}
+// Complete receipt for exactly what is on this phone now.
+function siteReceiptValid(p){const st=p&&p.siteTransfer,rc=st&&st.receipt;return !!(rc&&rc.complete&&rc.fingerprint&&rc.fingerprint===siteManifestFingerprint(buildSiteTransferManifest(p,'check')))}
+function refreshSiteStatusViews(){try{if(typeof renderSendBar==='function')renderSendBar();if(state.screen==='projects'&&typeof renderAll==='function')renderAll()}catch(e){console.error(e)}}
+// Photos of this Site Measure that are still stored on this phone (data or idb copies),
+// keyed exactly like the transfer manifest.
+function localSitePhotoItems(p){
+ const out=[];const add=(items,kind,roomId,field)=>(items||[]).forEach((it,i)=>{if(!it)return;const v=it[field];if(typeof v==='string'&&(v.startsWith('data:')||v.startsWith('idb:')))out.push({item:it,field,key:kind+'|'+(roomId||'')+'|'+String(it.id||kind+'-'+i)})});
+ add(p.sitePhotos,'site-photo',null,'data');add(p.notePhotos,'job-note-photo',null,'data');add(p.siteNotePhotos,'site-note-photo',null,'data');add(p.measureCaptures,'measure-photo',null,'image');
+ (p.rooms||[]).forEach(r=>{add(r.measureCaptures,'measure-photo',r.id,'image');add(r.notePhotos,'room-note-photo',r.id,'data');add(r.beforePhotos,'room-photo',r.id,'data')});
+ return out;
+}
+function siteTransferChanged(p){const st=p&&p.siteTransfer;return !!(st&&st.fingerprint&&st.fingerprint!==siteManifestFingerprint(buildSiteTransferManifest(p,'check')))}
+// Only a Site Measure Studio has confirmed as completely received -- for exactly what is on
+// this phone now, with nothing still sending -- can be removed. Removal is local only, the
+// same as the existing "delete job from phone": the Site Measure and its photos leave this
+// phone; Studio and the cloud message keep everything. The local note in deletedProjectIds
+// stops a later message from bringing it back onto this phone.
+// What a Site Measure holds, for its job card: rooms with photos, photos, sizes entered.
+function siteMeasureCounts(p){
+ const rooms=(p.rooms||[]).filter(r=>(r.measureCaptures||[]).length);
+ const caps=rooms.flatMap(r=>r.measureCaptures||[]).concat(p.measureCaptures||[]);
+ return {rooms:rooms.length,photos:caps.length,sizes:caps.reduce((n,c)=>n+(c.marks||[]).filter(m=>m&&m.type==='measure'&&String(m.value??'').trim()!=='').length,0)};
+}
+// A received Site Measure edited since Studio's receipt is unsent work again: it goes back
+// to the working list (Changed since last send) so it can never sit hidden under Sent.
+function unarchiveChangedSiteJobs(){
+ let changed=false;
+ (state.projects||[]).forEach(p=>{if(p&&!isStudioJob(p)&&p.mobileArchived&&p.siteTransfer&&siteTransferChanged(p)){p.mobileArchived=false;p.mobileArchivedAt=null;changed=true}});
+ if(changed)save();
+ return changed;
+}
+// Work on this phone that Studio has not confirmed: a Site Measure with photos, sizes or notes
+// and no receipt for exactly its current content.
+function siteHasUnsentWork(p){
+ if(!p||isStudioJob(p))return false;
+ const c=siteMeasureCounts(p),notes=(p.rooms||[]).some(r=>String(r.notes||'').trim()||(r.notePhotos||[]).length)||String(p.siteNotes||'').trim()||(p.siteNotePhotos||[]).length;
+ if(!c.photos&&!notes)return false;
+ return !siteReceiptValid(p);
+}
+function siteUnsentDeleteDialog(p){
+ document.getElementById('siteUnsentDelete')?.remove();
+ const name=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||'this Site Measure'),c=siteMeasureCounts(p);
+ const o=document.createElement('div');o.id='siteUnsentDelete';o.className='site-unsent-overlay';
+ o.innerHTML=`<div class="site-unsent-sheet" role="dialog" aria-modal="true"><h3>Not received by Studio yet</h3><p><b>${safe(name)}</b> has work Studio has not received: ${c.rooms} room${c.rooms===1?'':'s'}, ${c.photos} photo${c.photos===1?'':'s'}, ${c.sizes} size${c.sizes===1?'':'s'}.</p><button type="button" class="btn primary" data-unsent-send>🚀 Send to Studio first</button><button type="button" class="btn danger" data-unsent-delete>Delete anyway…</button><button type="button" class="btn" data-unsent-cancel>Cancel</button></div>`;
+ document.body.appendChild(o);
+ const close=()=>o.remove();
+ o.onclick=e=>{if(e.target===o)close()};
+ o.querySelector('[data-unsent-cancel]').onclick=close;
+ o.querySelector('[data-unsent-send]').onclick=()=>{close();state.currentProject=p.id;jobConfirmedThisSession=true;save();show('siteVisitSummary');if(typeof sendAllRoomsToStudio==='function')sendAllRoomsToStudio(p)};
+ o.querySelector('[data-unsent-delete]').onclick=()=>{
+  if(!confirm('Delete anyway?\n\n'+name+' has not been received by Studio. Its measurements and photos on this phone will be lost and cannot be recovered.'))return;
+  close();if(typeof window.fiqDeleteJobFromPhone==='function')window.fiqDeleteJobFromPhone(p);
+ };
+}
+// "Received in Studio" with the job name, whatever screen is open, when the receipt arrives.
+function showSiteReceivedBanner(p){
+ const name=(p.name&&p.name!=='New Site Job')?p.name:(p.customer||'Site Measure');
+ let el=document.getElementById('siteReceivedBanner');
+ if(!el){el=document.createElement('div');el.id='siteReceivedBanner';el.className='site-received-banner';el.setAttribute('role','status');document.body.appendChild(el)}
+ el.textContent='✓ Received in Studio: '+name;el.classList.add('show');
+ clearTimeout(el.__t);el.__t=setTimeout(()=>el.classList.remove('show'),6000);
+}
+function siteMeasureRemovable(p){return !!(p&&!isStudioJob(p)&&siteReceiptValid(p)&&!(typeof studioSendsInFlight!=='undefined'&&studioSendsInFlight.has(p.id)))}
+function removeConfirmedSiteMeasureFromDevice(p){
+ if(!siteMeasureRemovable(p))return false;
+ const photos=localSitePhotoItems(p).length;
+ if(!confirm('Remove this Site Measure from this phone'+(photos?', including '+photos+' photo'+(photos===1?'':'s'):'')+'? Studio has received it and keeps everything. Only the copy on this phone is removed.'))return false;
+ if(!siteMeasureRemovable(p))return false;
+ if(typeof clearPendingStudioSync==='function')clearPendingStudioSync(p.id);
+ deleteAllPhotosForProject(p);
+ state.projects=state.projects.filter(x=>x.id!==p.id);
+ state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);
+ if(Array.isArray(state.activeCardKeys)&&typeof parseCardKey==='function')state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);
+ const wasOpen=state.currentProject===p.id;
+ if(wasOpen){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}
+ save();
+ if(wasOpen)show('projects');else renderAll();
+ return true;
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-remove-site-measure]');if(!b)return;e.preventDefault();e.stopPropagation();const p=state.projects.find(x=>x.id===b.dataset.removeSiteMeasure);if(p)removeConfirmedSiteMeasureFromDevice(p)},true);
+// The Site Measure's real transfer state, for the send bar and the job list.
+function siteTransferStatus(p){
+ if(!p||isStudioJob(p)||!p.siteTransfer||p.studioSyncBlocked)return null;
+ const st=p.siteTransfer,rc=st.receipt||{};
+ if(typeof studioSendsInFlight!=='undefined'&&studioSendsInFlight.has(p.id))return{cls:'pending',label:'⏳ Sending…',detail:'Keep FittersIQ open until it says Received'};
+ if(siteReceiptValid(p)){
+  const detail=rc.photosExpected?rc.photosReceived+' of '+rc.photosExpected+' photos received':'';
+  return{cls:'synced',label:'✓ Received in Studio',detail,removable:siteMeasureRemovable(p)};
+ }
+ if(siteTransferChanged(p))return{cls:'unsent',label:'Changed since last send — tap Send to Studio'};
+ if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return{cls:'pending',label:'⏳ No signal — will send automatically'};
+ if(st.status==='incomplete')return (Number(p.siteReceiptRetries)||0)>SITE_RECEIPT_RETRIES?{cls:'blocked',label:'⚠ Studio did not receive everything — tap Send to Studio'}:{cls:'pending',label:'⚠ Studio did not receive everything — sending again'};
+ if(st.status==='studio-received')return{cls:'synced',label:'✓ Accepted in Studio'};
+ if(st.status==='awaiting-studio'||st.status==='received')return{cls:'pending',label:'⏳ Waiting for Studio to confirm…',detail:'Sent. Studio confirms once it has checked every photo'};
+ if(st.status==='sending'||st.status==='waiting-for-connection')return{cls:'pending',label:'⏳ No signal — will send automatically'};
+ return null;
+}
 function renderSendBar(){
+ unarchiveChangedSiteJobs();
  const p=project(),box=document.getElementById('measureSendBar');
  if(!box)return;
  if(!p){box.innerHTML='';return}
@@ -2612,19 +2887,24 @@ function renderSendBar(){
  const summary=buildSiteTransferManifest(p,'preview');
  const totalPhotos=summary.pictureCount;
  const sync=typeof studioSyncStatus==='function'?studioSyncStatus(p):null;
- const syncLine=sync&&sync.cls!=='unsent'?`<div class="send-bar-sync ${sync.cls}">${sync.label}</div>`:'';
- box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>`;
+ const syncLine='';
+ const stateBlock=sync&&sync.label!=='Not sent yet'?`<div class="send-bar-state state-${sync.cls}" role="status"><b>${safe(sync.label)}</b>${sync.detail?`<small>${safe(sync.detail)}</small>`:''}</div>`:'';
+ box.innerHTML=`<div class="send-bar-status"><span class="send-bar-tick">✓</span><div class="send-bar-text"><b>${rooms.length} ROOM${rooms.length===1?'':'S'} READY</b><small>${totalPhotos} photo${totalPhotos===1?'':'s'} · ${summary.measurementCount} measurement${summary.measurementCount===1?'':'s'} · ${summary.noteCount} note${summary.noteCount===1?'':'s'}</small>${syncLine}</div></div><button type="button" class="btn primary send-bar-btn" id="sendAllRoomsBtn"><span>🚀 SEND TO STUDIO</span><small>Send all rooms and notes</small></button>${stateBlock}${sync&&sync.removable?`<button type="button" class="btn send-bar-delete-photos" data-remove-site-measure="${safe(p.id)}">Remove from this phone</button>`:''}`;
  document.getElementById('sendAllRoomsBtn').onclick=()=>sendAllRoomsToStudio(p);
 }
 // Tapping a finished room's own tile edits ONLY that room -- its photos live
 // directly on it (measureCaptures), so this just points the canvas at that
 // room's first photo. Add Picture, the pager, and editing marks all operate
 // on this exact room object from here on and can never touch a different one.
-function loadRoomForEdit(p,roomId){
+// photoIndex opens that exact photo (Site Visit Summary thumbnails); otherwise the first.
+function loadRoomForEdit(p,roomId,photoIndex){
  const r=(p.rooms||[]).find(x=>x.id===roomId);
  if(!r)return;
+ // Already working in this job (its summary or its room strip): no "Continue working?" question.
+ if(state.currentProject===p.id)jobConfirmedThisSession=true;
  state.currentRoom=r.id;
- state.currentCaptureIndex=0;
+ const photos=(r.measureCaptures||[]).length;
+ state.currentCaptureIndex=Math.max(0,Math.min(photos-1,Math.floor(Number(photoIndex)||0)));
  p.startNewRoom=false;
  save();
  show('measure');
@@ -2688,6 +2968,7 @@ function renderMeasureCurrentRoomLabel(){
  if(r&&r.name){const floor=floorDisplayLabel(r.location);box.innerHTML=`<span class="measure-current-room-chip"><span class="measure-current-room-icon">${r.icon||'📍'}</span>${safe(r.name)}${floor?' · '+safe(floor):''}</span>`}
  else{box.innerHTML=`<span class="measure-current-room-chip measure-current-room-placeholder">🏠 Choose Room</span>`}
  box.onclick=chooseRoomForCurrentPhoto;
+ if(typeof renderRoomNoteButton==='function')renderRoomNoteButton();
 }
 // The "1 / 2" pager above the photo -- a room can have several photos, each
 // with its own independent marks. This just reflects which one is showing;
@@ -2898,6 +3179,48 @@ document.getElementById('notesPhotoInput')?.addEventListener('change',e=>{
  const p=project();if(!p)return;
  files.forEach(file=>{compressImage(file,data=>{p.siteNotePhotos=p.siteNotePhotos||[];p.siteNotePhotos.push({id:uid(),data,takenAt:new Date().toISOString()});save();renderNotesPhotoGrid(p);renderNotesRow()},()=>alert('Photo could not be loaded.'))});
 });
+// Room Note: text and photos for the room being measured right now. It is saved on that
+// room (r.notes, r.notePhotos), so the carpenter never has to choose which room it belongs to.
+function roomHasNote(r){return !!(r&&(String(r.notes||'').trim()||(r.notePhotos||[]).length))}
+function measureNoteRoom(){const p=project();if(!p)return null;return {p,r:ensureCurrentRoomExists(p)}}
+function renderRoomNoteButton(){
+ const btn=document.getElementById('openRoomNote'),count=document.getElementById('roomNoteCount');
+ if(!btn)return;
+ const p=project(),r=p&&(p.rooms||[]).find(x=>x.id===state.currentRoom);
+ const n=r?(String(r.notes||'').trim()?1:0)+(r.notePhotos||[]).length:0;
+ btn.classList.toggle('has-note',n>0);
+ if(count)count.textContent=n?` (${n})`:'';
+}
+function renderRoomNotePhotoGrid(r){
+ const grid=document.getElementById('roomNotePhotoGrid');
+ if(!grid)return;
+ grid.innerHTML=(r.notePhotos||[]).map(ph=>`<div class="notes-photo-tile"><img src="${ph.data}"><button type="button" class="notes-photo-delete" data-id="${ph.id}">✕</button></div>`).join('');
+ grid.querySelectorAll('.notes-photo-delete').forEach(b=>b.onclick=()=>{r.notePhotos=(r.notePhotos||[]).filter(x=>x.id!==b.dataset.id);r.updatedAt=Date.now();save();renderRoomNotePhotoGrid(r);renderRoomNoteButton()});
+}
+function openRoomNote(){
+ const ctx=measureNoteRoom();if(!ctx)return;const r=ctx.r;
+ document.getElementById('roomNoteTitle').textContent=`${String(r.name||'').trim()||'Room'} Note`;
+ document.getElementById('roomNoteIcon').textContent=r.icon||'📝';
+ document.getElementById('roomNoteText').value=r.notes||'';
+ renderRoomNotePhotoGrid(r);
+ const m=document.getElementById('roomNoteModal');
+ m.classList.add('open');m.setAttribute('aria-hidden','false');
+}
+function closeRoomNote(){
+ const m=document.getElementById('roomNoteModal');
+ m.classList.remove('open');m.setAttribute('aria-hidden','true');
+ renderRoomNoteButton();
+}
+document.getElementById('openRoomNote')?.addEventListener('click',openRoomNote);
+document.getElementById('roomNoteClose')?.addEventListener('click',closeRoomNote);
+document.getElementById('roomNoteModal')?.addEventListener('click',e=>{if(e.target.id==='roomNoteModal')closeRoomNote()});
+document.getElementById('roomNoteText')?.addEventListener('input',e=>{const ctx=measureNoteRoom();if(!ctx)return;ctx.r.notes=e.target.value;ctx.r.updatedAt=Date.now();save()});
+document.getElementById('addRoomNotePhotoBtn')?.addEventListener('click',()=>document.getElementById('roomNotePhotoInput').click());
+document.getElementById('roomNotePhotoInput')?.addEventListener('change',e=>{
+ const files=[...(e.target.files||[])];e.target.value='';
+ const ctx=measureNoteRoom();if(!ctx)return;const r=ctx.r;
+ files.forEach(file=>{compressImage(file,data=>{r.notePhotos=r.notePhotos||[];r.notePhotos.push({id:uid(),data,takenAt:new Date().toISOString()});r.updatedAt=Date.now();save();renderRoomNotePhotoGrid(r);renderRoomNoteButton()},()=>alert('Photo could not be loaded.'))});
+});
 // The room list on the Site Visit Summary -- icon, name, photo count, a tick
 // for "has photos", and a chevron. Tapping a row edits ONLY that room
 // (loadRoomForEdit), same guarantee as everywhere else in this rebuild.
@@ -2910,9 +3233,20 @@ function renderSiteVisitSummary(){
  list.innerHTML=rooms.map(r=>{
   const n=(r.measureCaptures||[]).length;
   const floorPrefix=floorDisplayLabel(r.location);
-  return `<button type="button" class="svs-room-row" data-svs-room="${r.id}"><span class="svs-room-icon">${r.icon||'📍'}</span><span class="svs-room-info"><b>${safe(r.name||'Unnamed')}</b><small>${floorPrefix?safe(floorPrefix)+' · ':''}${n} photo${n===1?'':'s'}</small></span><span class="svs-room-check">✓</span><span class="svs-room-chev">›</span></button>`;
+  // Each photo as a thumbnail (tap: that exact photo opens for editing) and the room's
+  // sizes as a short list, so measurements already taken can be checked without opening
+  // every photo. Read only from the room's own captures; nothing here changes them.
+  const sizes=[];
+  (r.measureCaptures||[]).forEach((cap,i)=>(cap.marks||[]).forEach(m=>{if(m&&m.type==='measure'&&String(m.value??'').trim()!=='')sizes.push({photo:i+1,name:m.name||m.kind||t('msg.measurementFallback'),value:m.value,unit:m.unit||'mm'})}));
+  const thumbs=(r.measureCaptures||[]).map((cap,i)=>{const k=(cap.marks||[]).filter(m=>m&&m.type==='measure').length;
+   return `<button type="button" class="svs-thumb" data-svs-photo="${r.id}" data-svs-photo-index="${i}" aria-label="Open photo ${i+1} of ${safe(r.name||'this room')}">${cap.image?`<img src="${cap.image}" alt="">`:'<span class="svs-thumb-empty">📷</span>'}<span class="svs-thumb-no">${i+1}</span>${k?`<span class="svs-thumb-count">${k} size${k===1?'':'s'}</span>`:''}</button>`}).join('');
+  const shown=sizes.slice(0,6),more=sizes.length-shown.length;
+  const sizeList=sizes.length?`<ul class="svs-sizes">${shown.map(x=>`<li><span>${safe(x.name)}</span><b>${safe(x.value)} ${safe(x.unit)}</b>${n>1?`<small>photo ${x.photo}</small>`:''}</li>`).join('')}${more?`<li class="svs-sizes-more">+ ${more} more</li>`:''}</ul>`:'<div class="svs-sizes-none">No sizes entered yet</div>';
+  return `<div class="svs-room-card"><button type="button" class="svs-room-row" data-svs-room="${r.id}"><span class="svs-room-icon">${r.icon||'📍'}</span><span class="svs-room-info"><b>${safe(r.name||'Unnamed')}</b><small>${floorPrefix?safe(floorPrefix)+' · ':''}${n} photo${n===1?'':'s'} · ${sizes.length} size${sizes.length===1?'':'s'}</small></span>${roomHasNote(r)?'<span class="svs-room-note" title="Room Note" aria-label="Has a Room Note">📝</span>':''}<span class="svs-room-check">✓</span><span class="svs-room-chev">›</span></button><div class="svs-thumbs">${thumbs}</div>${sizeList}<button type="button" class="svs-room-details" data-svs-details="${r.id}">Room details: name, floor, notes, delete</button></div>`;
  }).join('');
  list.querySelectorAll('[data-svs-room]').forEach(b=>b.onclick=()=>loadRoomForEdit(p,b.dataset.svsRoom));
+ list.querySelectorAll('[data-svs-details]').forEach(b=>b.onclick=()=>{state.currentRoom=b.dataset.svsDetails;jobConfirmedThisSession=true;save();show('drawings')});
+ list.querySelectorAll('[data-svs-photo]').forEach(b=>b.onclick=()=>loadRoomForEdit(p,b.dataset.svsPhoto,Number(b.dataset.svsPhotoIndex)));
  const custLine=document.getElementById('svsCustomerLine');
  if(custLine)custLine.textContent='Customer: '+(p.customer||'Not set');
  renderNotesRow();
@@ -2938,7 +3272,7 @@ async function sendAllRoomsToStudio(p){
  if(!rooms.length)return;
  const btn=document.getElementById('sendAllRoomsBtn');
  if(btn){btn.disabled=true;const span=btn.querySelector('span');if(span)span.textContent='Sending…'}
- const notesCount=(p.siteNotePhotos||[]).length+(p.siteNotes&&p.siteNotes.trim()?1:0);
+ const notesCount=(p.siteNotePhotos||[]).length+(p.siteNotes&&p.siteNotes.trim()?1:0)+(p.rooms||[]).reduce((n,r)=>n+(String(r.notes||'').trim()?1:0)+(r.notePhotos||[]).length,0);
  // exportJob queues transient (no-signal) failures for automatic background retry rather
  // than throwing, so success can only be told apart from "queued" or "too large" by its
  // return value -- studioSyncBlocked alone is never set for the transient/no-signal case.
@@ -3183,7 +3517,7 @@ function renderRoomDetail(r){
    <button type="button" id="panelsMenuFit"><span>▦</span><b>${t('mobile.fitPanelsBtn')}</b></button>
   </div>
  </div>
- <section class="room-section installer-check-section" id="panelCheckSection"><div class="panel-check-list">${filteredParts.length?filteredParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=pt.status||'ready';return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}</div></div><span class="panel-check-badge">${safe(statusLabel(pt.status))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div>${r.panelCheckFinished?`<div class="panel-check-complete-banner">✓ ${t('mobile.panelCheckComplete')}</div>`:(roomParts.length?`<button type="button" class="btn primary panel-check-finish-btn" id="finishPanelCheckBtn">✓ ${t('mobile.finishPanelCheckBtn')}</button>`:'')}</section>
+ <section class="room-section installer-check-section" id="panelCheckSection"><div class="panel-check-list">${filteredParts.length?filteredParts.map(pt=>{const rowQty=Math.max(1,Number(pt.qty)||1);const rowScanned=Math.min(rowQty,Math.max(0,Number(pt.scannedQty)||0));const fullyScanned=rowScanned>=rowQty;const st=(pt.status&&pt.status!=='ready')?pt.status:(pieceIssueStatus(pt)||pt.status||'ready');return `<div class="panel-check-row status-${st} ${rowScanned>0?'is-scanned':''}" data-open-panel="${safe(pt.id)}" role="button" tabindex="0"><span class="panel-check-mark">${fullyScanned?'✓':rowScanned>0?rowScanned+'/'+rowQty:'—'}</span><div><div class="panel-check-code">${safe(pt.code)} · ${safe(pt.name)||t('install.unnamedPanel')}</div><div class="panel-check-sub">${rowScanned>0?t('install.quantity')+' '+safe(pt.qty||1):t('detail.notScanned')}${safe(pieceSummaryText(pt))}</div></div><span class="panel-check-badge">${safe(statusLabel(st))}</span></div>`}).join(''):`<div class="room-empty">${t('detail.noPanelsToCheck')}</div>`}</div>${r.panelCheckFinished?`<div class="panel-check-complete-banner">✓ ${t('mobile.panelCheckComplete')}</div>`:(roomParts.length?`<button type="button" class="btn primary panel-check-finish-btn" id="finishPanelCheckBtn">✓ ${t('mobile.finishPanelCheckBtn')}</button>`:'')}</section>
  <div class="room-action-row">
   <button type="button" class="btn warn" id="roomReportMissing">❔ Missing Panel</button>
   <button type="button" class="btn danger" id="roomReportDamage">⚠ Damaged Panel</button>
@@ -3225,6 +3559,7 @@ function renderRoomDetail(r){
  $('#panelsMenu').addEventListener('click',e=>{if(e.target.id==='panelsMenu')$('#panelsMenu').classList.add('hidden')});
  $('#panelsMenuCheck').onclick=()=>{$('#panelsMenu').classList.add('hidden');roomPanelFilter='all';renderRoomDetail(r);$('#panelCheckSection').scrollIntoView({behavior:'smooth',block:'start'})};
  $('#panelsMenuFit').onclick=()=>{$('#panelsMenu').classList.add('hidden');const first=roomCabinets[0];if(first)state.currentCabinet=first.id;save();show('scan')};
+ $$('#panelCheckSection [data-open-panel]').forEach(el=>{const open=()=>{const cab=roomCabinets.find(c=>(c.parts||[]).some(x=>x.id===el.dataset.openPanel));const pt=cab&&cab.parts.find(x=>x.id===el.dataset.openPanel);if(cab&&pt)openPanelFromCard(p,cab,pt)};el.onclick=open;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}}});
  $$('[data-room-filter]').forEach(b=>b.onclick=()=>{const f=b.dataset.roomFilter;roomPanelFilter=(roomPanelFilter===f)?'all':f;renderRoomDetail(r);$('#panelCheckSection').scrollIntoView({behavior:'smooth',block:'start'})});
  // Folded in from the old Install screen (§8/§B) -- same overlays, same handlers
  // (#saveJobNote/#saveDamage etc., defined once at top level), just reachable from this
@@ -3330,10 +3665,11 @@ function renderInstall(){
   mark.status=mark.status||"ready";
   const panelPositions=[{x:pt.x,y:pt.y,status:pt.status,copyIndex:-1},...(pt.copies||[]).map((m,i)=>({x:m.x,y:m.y,status:m.status||"ready",copyIndex:i}))];
   const multi=panelPositions.length>1;
+  const placedMulti=panelPositions.filter(m=>m.x!=null&&m.y!=null&&m.x!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y))).length>1;
   // Studio can remove a dot (x/y null) while keeping the panel; draw only placed dots.
   const panelHighlights=panelPositions.map((m,i)=>{if(!(m.x!=null&&m.y!=null&&m.x!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y))))return'';
    const active=m.copyIndex===Number(state.selectedCopy);
-   return `<div class="panel-highlight status-${m.status}${active?' active':''}" data-copy="${m.copyIndex}" style="left:${Number(m.x)||50}%;top:${Number(m.y)||50}%">${multi?`<span class="panel-highlight-num">${i+1}</span>`:''}</div>`;
+   return `<div class="panel-highlight status-${m.status}${active?' active':''}${placedMulti?' fiq-group':''}" data-copy="${m.copyIndex}" style="left:${Number(m.x)||50}%;top:${Number(m.y)||50}%">${placedMulti?`<span class="fiq-hl-code">${safe(pt.code)}</span>`:''}${multi?`<span class="panel-highlight-num">${i+1}</span>`:''}</div>`;
   }).join('');
   const drawing=c.drawing&&c.drawingType!=="pdf"?`<div class="panel-drawing"><img src="${c.drawing}" alt="${t('msg.highlightedDrawingAlt',[pt.code])}">${panelHighlights}</div>`:`<div class="panel-drawing"><div class="muted">${t('install.noDrawing')}</div></div>`;
   const edgeInfo=`${Number(pt.edgeLong||0)} ${Number(pt.edgeLong||0)===1?t('install.longEdge'):t('install.longEdges')} · ${Number(pt.edgeShort||0)} ${Number(pt.edgeShort||0)===1?t('install.shortEdge'):t('install.shortEdges')}`;
@@ -3390,6 +3726,72 @@ function mergePanelStatus(basePt,updatePt){
   basePt.statusUpdatedAt=updatePt.statusUpdatedAt;
   basePt.updatedByFitterId=updatePt.updatedByFitterId||null;
 }
+// Individual physical pieces. A panel QR may carry copyIndex, the existing per-instance
+// field (build of 16 Aug 2026): -1 = the primary piece (piece 1), 0,1,.. = copies[0],
+// copies[1],.. (pieces 2,3,..) -- the same numbering the drawing already shows for
+// repeated markers. Pieces beyond the drawn markers (Qty higher than dots) continue the
+// same numbering. A QR WITHOUT copyIndex (every sticker printed before per-piece QRs) is
+// a whole-panel legacy QR and keeps the old counting exactly.
+// Per-piece Panel Check results live in pt.pieceStates {"<piece>":{checkedAt,checkedBy,
+// status,statusAt,statusBy,note}}; the existing scannedQty/damagedQty counters are still
+// kept, so everything that reads them (and older Studio/Mobile) keeps working.
+function panelPieceCount(pt){return Math.max(1,Number(pt?.qty)||1,1+((pt&&pt.copies)||[]).length)}
+function pieceFromCopyIndex(pt,ci){if(ci==null||!Number.isInteger(ci)||ci<-1)return null;const n=ci===-1?1:ci+2;return n<=panelPieceCount(pt)?n:null}
+function pieceState(pt,n,create){if(!pt)return null;if(!pt.pieceStates||typeof pt.pieceStates!=='object'){if(!create)return null;pt.pieceStates={}}const k=String(n);if(!pt.pieceStates[k]&&create)pt.pieceStates[k]={};return pt.pieceStates[k]||null}
+function mergePieceStates(base,inc){
+ if(!base||!inc||typeof inc!=='object')return;
+ if(!base.pieceStates||typeof base.pieceStates!=='object')base.pieceStates={};
+ Object.keys(inc).forEach(k=>{const v=inc[k];if(!v||typeof v!=='object')return;const b=base.pieceStates[k]||(base.pieceStates[k]={});
+  if(v.checkedAt&&(!b.checkedAt||Date.parse(v.checkedAt)<Date.parse(b.checkedAt))){b.checkedAt=v.checkedAt;b.checkedBy=v.checkedBy||null}
+  if(v.statusAt&&(!b.statusAt||Number(v.statusAt)>Number(b.statusAt))){b.status=v.status||null;b.statusAt=v.statusAt;b.statusBy=v.statusBy||null;b.note=v.note||''}});
+}
+function pieceIssueCount(pt,status){const s=pt&&pt.pieceStates;if(!s||typeof s!=='object')return 0;return Object.keys(s).filter(k=>s[k]&&s[k].status===status).length}
+function pieceIssueStatus(pt){if(isGroupPanel(pt)){const g=groupCountOf(pt);return g.damaged?'damaged':g.missing?'missing':null}return pieceIssueCount(pt,'damaged')?'damaged':pieceIssueCount(pt,'missing')?'missing':null}
+// ---- Grouped panels (Qty > 1): one counter per panel ----
+// Every sticker of a grouped panel carries the same identity (P1), so Panel Check counts the
+// pieces instead of telling them apart: pt.groupCount = {good, damaged, missing, updatedAt,
+// by, confirmedAt, confirmedBy, hist}. good + damaged + missing never exceeds the quantity;
+// the rest is unchecked. Scanning P1 or opening its card only opens this counter, it never
+// adds to it. The newest saved counter wins when Studio and phones merge (so Undo and
+// corrections are kept); scannedQty (good + damaged) and damagedQty are kept in step so
+// everything that reads them, and older Studio/Mobile, keeps working.
+function isGroupPanel(pt){return panelPieceCount(pt)>1}
+function groupCountOf(pt){
+ const q=panelPieceCount(pt),g=pt&&pt.groupCount&&typeof pt.groupCount==='object'?pt.groupCount:null,c=v=>Math.max(0,Math.floor(Number(v)||0));
+ let damaged,missing,good;
+ if(g){damaged=Math.min(q,c(g.damaged));missing=Math.min(q-damaged,c(g.missing));good=Math.min(q-damaged-missing,c(g.good))}
+ else{damaged=Math.min(q,c(pt&&pt.damagedQty));missing=Math.min(q-damaged,pieceIssueCount(pt,'missing'));good=Math.min(q-damaged-missing,Math.max(0,c(pt&&pt.scannedQty)-damaged))}
+ return {qty:q,good,damaged,missing,unchecked:q-good-damaged-missing,confirmedAt:g&&g.confirmedAt||null,saved:!!g};
+}
+function groupCountText(pt){const g=groupCountOf(pt);return (pt.code||'')+' · '+g.good+' good · '+g.damaged+' damaged · '+g.missing+' missing'+(g.unchecked?' · '+g.unchecked+' unchecked':'')}
+// One change to the counter: kind good|damaged|missing, by +n or -n. Saved on this phone at once.
+function changeGroupCount(pr,pt,kind,by,opts){
+ const g=groupCountOf(pt),next={good:g.good,damaged:g.damaged,missing:g.missing};
+ if(by>0)by=Math.min(by,g.unchecked);else by=-Math.min(-by,next[kind]);
+ if(!by&&!(opts&&opts.confirm))return false;
+ next[kind]+=by;
+ const prev=pt.groupCount&&typeof pt.groupCount==='object'?pt.groupCount:{};
+ const hist=(Array.isArray(prev.hist)?prev.hist:[]).slice(-19);if(by&&!(opts&&opts.undo))hist.push({k:kind,n:by});
+ const now=Date.now(),who=currentActorFitterId();
+ pt.groupCount={...next,updatedAt:now,by:who,confirmedAt:opts&&opts.confirm?new Date(now).toISOString():(by?null:prev.confirmedAt||null),confirmedBy:opts&&opts.confirm?who:(by?null:prev.confirmedBy||null),hist};
+ pt.scannedQty=next.good+next.damaged;pt.damagedQty=next.damaged;
+ pt.lastScannedAt=new Date(now).toISOString();pt.lastScannedByFitterId=who;
+ save();if(pr&&typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
+ return true;
+}
+function undoGroupCount(pr,pt){
+ const h=pt.groupCount&&Array.isArray(pt.groupCount.hist)?pt.groupCount.hist:[];const last=h[h.length-1];
+ if(last){pt.groupCount.hist=h.slice(0,-1);return changeGroupCount(pr,pt,last.k,-last.n,{undo:true})}
+ return changeGroupCount(pr,pt,'good',-1,{undo:true});
+}
+// Merge: the newer saved counter wins; the legacy counters follow it.
+function mergeGroupCount(base,inc){
+ if(!base)return;const a=base.groupCount,b=inc&&inc.groupCount;
+ if(b&&typeof b==='object'&&(!a||Number(b.updatedAt)>Number(a.updatedAt)))base.groupCount=JSON.parse(JSON.stringify(b));
+ if(base.groupCount&&typeof base.groupCount==='object'){const g=groupCountOf(base);base.scannedQty=g.good+g.damaged;base.damagedQty=g.damaged}
+}
+function pieceSummaryText(pt){if(isGroupPanel(pt)&&(pt.groupCount||pt.scannedQty||pt.damagedQty||pieceIssueCount(pt,'missing'))){const g=groupCountOf(pt);return ' · '+g.good+' good · '+g.damaged+' damaged · '+g.missing+' missing'+(g.unchecked?' · '+g.unchecked+' unchecked':'')}const s=pt&&pt.pieceStates;if(!s||typeof s!=='object'||!Object.keys(s).length)return '';const n=panelPieceCount(pt),out=[];
+ for(let i=1;i<=n;i++){const v=s[String(i)]||{};out.push(i+(v.status==='installed'?' ▦':v.status==='damaged'?' ⚠':v.status==='missing'?' ❔':v.checkedAt?' ✓':' —'))}return ' · Pieces: '+out.join('  ')}
 function mergeStudioProject(incoming){
  if(!incoming?.id||!Array.isArray(incoming.cabinets))throw new Error("Invalid project");
  const old=state.projects.find(x=>x.id===incoming.id);ensureExtras(incoming);
@@ -3446,7 +3848,12 @@ function mergeStudioProject(incoming){
   // job ever reached Studio at all.
   incoming.address=incoming.address||old.address||"";incoming.phone=incoming.phone||old.phone||"";incoming.notes=incoming.notes||old.notes||"";
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;
+    // Studio made a piece of this panel unique: progress this phone keyed by the old piece order
+    // is not merged back (it would put the moved piece back); Studio's progress is kept as sent.
+    if(ip.piecesRenumberedAt&&ip.piecesRenumberedAt!==op.piecesRenumberedAt){["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});return}
     ["damagedQty","installedQty","scannedQty"].forEach(k=>{if(op[k]!==undefined)ip[k]=Math.max(Number(ip[k])||0,Number(op[k])||0)});
+    mergePieceStates(ip,op.pieceStates);
+    mergeGroupCount(ip,op);
     ["installNote","locationNote","panelPhotos","damageNote"].forEach(k=>{if(op[k]!==undefined&&op[k]!==null&&(!(Array.isArray(op[k]))||op[k].length))ip[k]=op[k]});
     mergePanelStatus(ip,op);
   })});
@@ -3520,7 +3927,7 @@ $("#importStudio").onchange=e=>{importStudioFile(e.target.files[0]);e.target.val
 function download(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 const DIRECT_SYNC_DB="assembleone_direct_sync_v1";
 function syncDb(){return new Promise((resolve,reject)=>{const q=indexedDB.open(DIRECT_SYNC_DB,2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains("studioInbox"))db.createObjectStore("studioInbox",{keyPath:"syncId"});if(!db.objectStoreNames.contains("mobileInbox"))db.createObjectStore("mobileInbox",{keyPath:"syncId"})};q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
-const ASSEMBLEONE_FIREBASE_URL="https://assembleone-fabac-default-rtdb.firebaseio.com";
+const ASSEMBLEONE_FIREBASE_URL=(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.databaseURL)||"https://assembleone-fabac-default-rtdb.firebaseio.com";
 function firebaseSafeKey(value){return String(value||uid()).replace(/[.#$\[\]/]/g,"_")}
 async function firebasePut(path,value){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(value)});if(!r.ok)throw new Error(`Firebase write failed: ${r.status}`);return r.json()}
 async function firebaseGet(path){const r=await fetch(`${ASSEMBLEONE_FIREBASE_URL}/${path}.json`,{cache:"no-store"});if(!r.ok)throw new Error(`Firebase read failed: ${r.status}`);return r.json()}
@@ -3573,6 +3980,7 @@ window.retryPendingStudioSync=async function(){
   try{
     for(const entry of arr){
       if(!state.projects.some(x=>x.id===entry.projectId)){clearPendingStudioSync(entry.projectId);continue}
+      if(studioSendsInFlight.has(entry.projectId))continue;
       const result=await exportJob(entry.projectId,true);
       if(result!=='queued')continue;
       if(!entry.gaveUp&&Date.now()-entry.queuedAt>SYNC_GIVE_UP_MS){
@@ -3624,7 +4032,7 @@ function exportJob(id,silent){
  const current=studioSendsInFlight.get(id);
  if(current){if(!current.next)current.next=current.promise.catch(()=>{}).then(()=>exportJob(id,silent));return current.next}
  const flight={};
- flight.promise=exportJobOnce(id,silent).finally(()=>{if(studioSendsInFlight.get(id)===flight)studioSendsInFlight.delete(id)});
+ flight.promise=exportJobOnce(id,silent).finally(()=>{if(studioSendsInFlight.get(id)===flight)studioSendsInFlight.delete(id);if(typeof refreshSiteStatusViews==='function')refreshSiteStatusViews()});
  studioSendsInFlight.set(id,flight);
  return flight.promise;
 }
@@ -3643,7 +4051,9 @@ async function exportJobOnce(id,silent){
  // hydrate the real image bytes before constructing the outgoing packet. Older
  // sends built the packet first and could therefore deliver room names and text
  // measurements while leaving Studio with a permanently broken photo reference.
- await hydrateAllPhotos({projects:[p]});
+ // Reading the photos back from this phone's storage must never hang a send forever (seen on
+ // iPhone): after 45s any photo not yet loaded is reported below as still loading.
+ await Promise.race([hydrateAllPhotos({projects:[p]}),new Promise(r=>setTimeout(r,45000))]);
  const unresolvedLocalPhotos=JSON.stringify(p).includes('"idb:');
  if(unresolvedLocalPhotos){
    p.studioSyncBlocked=true;
@@ -3658,9 +4068,9 @@ async function exportJobOnce(id,silent){
  queuePendingStudioSync(p.id);
  const exportedAt=new Date().toISOString();
  const transferManifest=!isStudioJob(p)?buildSiteTransferManifest(p,'site-'+p.id+'-'+Date.now()):null;
- if(transferManifest){p.siteTransfer={transferId:transferManifest.transferId,status:'sending',counts:{rooms:transferManifest.roomCount,pictures:transferManifest.pictureCount,measurements:transferManifest.measurementCount,notes:transferManifest.noteCount},sentAt:exportedAt};save()}
+ if(transferManifest){const prevSt=p.siteTransfer||{};p.siteTransfer={writtenTransferId:prevSt.writtenTransferId||null,writtenFingerprint:prevSt.writtenFingerprint||null,receipt:prevSt.receipt||null,receivedAt:prevSt.receivedAt||null,photosRemoved:prevSt.photosRemoved||0,photosRemovedAt:prevSt.photosRemovedAt||null,transferId:transferManifest.transferId,status:'sending',counts:{rooms:transferManifest.roomCount,pictures:transferManifest.pictureCount,measurements:transferManifest.measurementCount,notes:transferManifest.noteCount},sentAt:exportedAt,fingerprint:siteManifestFingerprint(transferManifest)};save();if(typeof renderSendBar==='function')renderSendBar()}
  const pack={app:"AssembleOne",schema:"assembleone-project-v9",source:"mobile",exportedAt,transferManifest,project:JSON.parse(JSON.stringify(p))};
- try{const sendResult=await sendToStudioWithTimeout(pack);clearPendingStudioSync(p.id);lastFailedStudioPack.delete(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
+ try{const sendResult=await sendToStudioWithTimeout(pack);clearPendingStudioSync(p.id);lastFailedStudioPack.delete(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(sendResult&&sendResult.docId)p.pendingStudioReceiptDocId=sendResult.docId;if(p.siteTransfer)markSiteTransferWritten(p);save();renderAll();if(!silent)alert(t('msg.sentToStudioAutoAppear'));return'sent'}catch(e){console.error(e);const permanent=/too large/i.test(e&&e.message||"");if(!permanent){
   // A dropped signal on site used to fail this completely silently -- the update was
   // safely queued (see queuePendingStudioSync), but nothing on screen said so, so a fitter
   // pressing Send with no bars had no way to tell it worked from it doing nothing at all.
@@ -3684,7 +4094,7 @@ async function exportJobOnce(id,silent){
   const slimPack={...pack,project:stripHeavyMediaForSync(pack.project)};
   try{
     const slimResult=await sendToStudioWithTimeout(slimPack);
-    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.pendingStudioReceiptDocId=slimResult.docId;if(p.siteTransfer)p.siteTransfer.status='awaiting-studio';save();renderAll();
+    clearPendingStudioSync(p.id);p.lastStudioSync=pack.exportedAt;p.studioSyncBlocked=false;p.studioSyncBlockedReason='';if(slimResult&&slimResult.docId)p.pendingStudioReceiptDocId=slimResult.docId;if(p.siteTransfer)markSiteTransferWritten(p);save();renderAll();
     if(!silent)alert("Sent to Studio. This job's photos are too many to send in one go, so only the panel status, notes and drawings went through this time -- Studio already has the earlier photos from previous sends.");
     return'sent';
   }catch(e2){
@@ -3718,6 +4128,7 @@ async function exportJobOnce(id,silent){
 // nothing needs doing yet.
 function studioSyncStatus(p){
   if(!p||!(p.rooms||[]).length)return null;
+  const site=typeof siteTransferStatus==='function'?siteTransferStatus(p):null;if(site)return site;
   if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return{cls:'pending',label:'⏳ Waiting to send'};
   if(p.studioSyncBlocked)return{cls:'blocked',label:'⚠ Needs attention'};
   if(p.studioReceivedAt)return{cls:'synced',label:'✓ Received by Studio'};
@@ -3773,20 +4184,43 @@ try{const directChannel=new BroadcastChannel("assembleone-sync");directChannel.a
 // most one document per project still waiting on confirmation -- there is normally only
 // one such job at a time, so this is not a heavier retry loop, just one more cheap check
 // on an interval that already exists.
+// This phone's own messages still waiting for Studio, kept by one live listener. A message
+// in this set is known to be unconfirmed, so it is not fetched every 2.5s (a Site Measure can
+// wait days for acceptance). Only a message that leaves the set is read once, to confirm it.
+const ownWaitingMessages={key:null,ids:null,unsub:null};
+function watchOwnWaitingMessages(fs,db,user){
+ const key=user.companyId+'|'+user.uid;
+ if(ownWaitingMessages.key===key&&ownWaitingMessages.unsub)return;
+ try{if(ownWaitingMessages.unsub)ownWaitingMessages.unsub()}catch(e){}
+ ownWaitingMessages.key=key;ownWaitingMessages.ids=null;ownWaitingMessages.unsub=null;
+ if(!fs.onSnapshot)return;
+ const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','siteJobPacket'),fs.where('createdBy','==',user.uid),fs.where('status','==','waiting'));
+ ownWaitingMessages.unsub=fs.onSnapshot(q,function(snap){const ids=new Set();const data=new Map();snap.forEach(function(d){ids.add(d.id);data.set(d.id,d.data())});ownWaitingMessages.ids=ids;ownWaitingMessages.data=data;checkPendingStudioReceipts()},function(e){console.error('Own message listener failed',e);ownWaitingMessages.ids=null;ownWaitingMessages.unsub=null;ownWaitingMessages.key=null});
+}
+let checkingStudioReceipts=false;
 async function checkPendingStudioReceipts(){
- const pending=state.projects.filter(p=>p.pendingStudioReceiptDocId&&!p.mobileArchived);
+ if(checkingStudioReceipts)return;
+ checkingStudioReceipts=true;
+ try{await checkPendingStudioReceiptsOnce()}finally{checkingStudioReceipts=false}
+}
+async function checkPendingStudioReceiptsOnce(){
+ // A Site Measure already under Sent to Studio still hears Studio's acceptance.
+ const pending=state.projects.filter(p=>p.pendingStudioReceiptDocId&&(!p.mobileArchived||!isStudioJob(p)));
  if(!pending.length)return;
  const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
  if(!fs||!db||!user||!user.companyId)return;
+ watchOwnWaitingMessages(fs,db,user);
  let changed=false;
  for(const p of pending){
   try{
+   if(ownWaitingMessages.ids&&ownWaitingMessages.ids.has(p.pendingStudioReceiptDocId)){const w=ownWaitingMessages.data&&ownWaitingMessages.data.get(p.pendingStudioReceiptDocId);if(w&&w.receipt&&applySiteReceipt(p,w.receipt))changed=true;continue}
    const snap=await fs.getDoc(fs.doc(db,'companies',user.companyId,'jobs',p.pendingStudioReceiptDocId));
    const data=snap.exists()?snap.data():null;
+   if(data&&data.receipt&&applySiteReceipt(p,data.receipt))changed=true;
    if(data&&data.status==='received'){
     p.pendingStudioReceiptDocId=null;
     p.studioReceivedAt=new Date().toISOString();
-    if(p.siteTransfer)p.siteTransfer.status='studio-received';
+    if(p.siteTransfer&&p.siteTransfer.status!=='received')p.siteTransfer.status='studio-received';
     // Site Measures leave the active queue after confirmed receipt and keep their 24 hour
     // safety copy. Installation work stays visible until Studio presses Move to Library.
     if(!isStudioJob(p)){p.mobileArchived=true;p.mobileArchivedAt=p.studioReceivedAt}
@@ -3907,7 +4341,7 @@ function partStatusCategory(pt){
  const q=Math.max(1,Number(pt.qty)||1);
  if(pt.status==='installed'||(Number(pt.installedQty)||0)>=q)return 'installed';
  if(pt.status==='damaged'||(Number(pt.damagedQty)||0)>0)return 'damaged';
- if(pt.status==='missing')return 'missing';
+ if(pt.status==='missing'||pieceIssueCount(pt,'missing')>0||(isGroupPanel(pt)&&pt.groupCount&&groupCountOf(pt).missing>0))return 'missing';
  if((Number(pt.scannedQty)||0)>=q)return 'checked';
  return 'remaining';
 }
@@ -3947,7 +4381,7 @@ function handlePanelIdentified(){
   if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
   stopCamera();
   const pr=project(),cab=cabinet(),pt=part();
-  if(pr&&pt)setDamagePanelTarget(pr,cab,pt);
+  if(pr&&pt)setDamagePanelTarget(pr,cab,pt,state.scannedPiece||null);
   $('#damagePanelOverlay').classList.remove('hidden');
   $('#damagePanelCode').value=pt?.code||'';
   $('#damageNote').focus();
@@ -3956,7 +4390,8 @@ function handlePanelIdentified(){
  if(state.scanMode==='check'){handlePanelCheckScan();return}
  markCurrentPanelScanned();
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
- stopCamera();
+ // Panel Number keeps the camera running; reading pauses while the panel view is open.
+ if(getScanMethod()!=='number')stopCamera();
  openFindPanelResult();
 }
 // Find Panel's one job is "this is panel P-XX, this is where it goes" -- shown as an
@@ -3965,27 +4400,109 @@ function handlePanelIdentified(){
 // only ever appears when this exact panel (or scanned copy) genuinely has a placed x/y on
 // the drawing -- a missing position is reported as missing, never defaulted to the drawing
 // centre, since a wrong guess here would send a fitter to the wrong physical spot.
+// The piece this view is about: set by a piece QR (openPanelRoute), by tapping a Panel
+// Check card, or by the piece picker below. null = an old whole-panel QR (legacy counting).
+function identifiedPiece(pt){const n=Number(state.scannedPiece);return pt&&Number.isInteger(n)&&n>=1&&n<=panelPieceCount(pt)?n:null}
+// Piece k has its own drawn dot when the drawing has a repeated marker for it (copies[k-2]).
+function pieceDotIndex(pt,piece){return piece&&piece>=2&&pt.copies&&pt.copies[piece-2]?piece-2:-1}
+function pieceStatusOf(pt,piece){const v=pieceState(pt,piece,false)||{};return v.status==='installed'?'installed':v.status==='damaged'?'damaged':v.status==='missing'?'missing':v.checkedAt?'checked':'ready'}
+const PIECE_WORDS={installed:'Fitted',damaged:'Damaged',missing:'Missing',checked:'Checked',ready:'Not checked yet'};
+const PIECE_MARKS={installed:' ▦',damaged:' ⚠',missing:' ❔',checked:' ✓',ready:''};
+// Find Panel's one job is "this is panel P-XX, this is where it goes". A missing position is
+// reported as missing, never defaulted to the drawing centre.
 function renderFindPanelResult(){
  const body=$('#findPanelResultBody');if(!body)return;
  const p=project(),c=cabinet(),pt=part();
  if(!p||!c||!pt){body.innerHTML='<div class="muted">Panel not found on this phone.</div>';return}
  const room=(p.rooms||[]).find(r=>r.id===c.roomId);
+ const n=panelPieceCount(pt),piece=identifiedPiece(pt),usesPieces=!!(pt.pieceStates&&Object.keys(pt.pieceStates).length)||piece!=null;
  const ci=Number(state.selectedCopy);
- const activePos=(ci>=0&&pt.copies&&pt.copies[ci])?pt.copies[ci]:pt;
+ const activeDot=piece?pieceDotIndex(pt,piece):(ci>=0&&pt.copies&&pt.copies[ci]?ci:-1);
+ const placed=m=>m&&m.x!=null&&m.y!=null&&m.x!==''&&Number.isFinite(Number(m.x))&&Number.isFinite(Number(m.y));
+ const dots=[{x:pt.x,y:pt.y,ci:-1,status:pt.status},...(pt.copies||[]).map((m,i)=>({x:m.x,y:m.y,ci:i,status:m.status}))].filter(placed);
+ const dotStatus=d=>{if(usesPieces){const st=pieceStatusOf(pt,d.ci<0?1:d.ci+2);return st==='checked'?'ready':st}return d.status||'ready'};
  const hasDrawing=!!(c.drawing&&c.drawingType!=='pdf');
- const hasPosition=hasDrawing&&activePos&&activePos.x!=null&&activePos.y!=null;
  let drawingHtml;
- if(!hasDrawing){
-  drawingHtml='<div class="panel-drawing"><div class="muted">No drawing available for this panel yet.</div></div>';
- }else if(!hasPosition){
-  drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"></div><div class="muted" style="margin-top:6px">This panel has not been marked on the drawing yet. Check the panel manually or ask the office to place it.</div>`;
- }else{
-  drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"><div class="panel-highlight active status-${safe(activePos.status||'ready')}" style="left:${Number(activePos.x)}%;top:${Number(activePos.y)}%"></div></div>`;
+ if(!hasDrawing)drawingHtml='<div class="panel-drawing"><div class="muted">No drawing available for this panel yet.</div></div>';
+ else if(!dots.length)drawingHtml=`<div class="panel-drawing"><img src="${c.drawing}" alt="Drawing"></div><div class="muted" style="margin-top:6px">This panel has not been marked on the drawing yet. Check the panel manually or ask the office to place it.</div>`;
+ else{
+  const multi=dots.length>1,target=dots.some(d=>d.ci===activeDot)?activeDot:dots[0].ci;
+  // The exact saved Studio Drawing coordinate of this panel / piece -- never estimated.
+  const td=dots.find(d=>d.ci===target);
+  const exactDot=`<div class="fp-exact-dot" data-exact-x="${Number(td.x)}" data-exact-y="${Number(td.y)}" style="left:${Number(td.x)}%;top:${Number(td.y)}%"></div>`;
+  drawingHtml=`<div class="panel-drawing"><div class="fp-drawing-frame"><img src="${c.drawing}" alt="Drawing">${dots.map((d,i)=>`<div class="panel-highlight status-${safe(dotStatus(d))}${d.ci===target?' active':''}${multi?' fiq-group':''}" style="left:${Number(d.x)}%;top:${Number(d.y)}%">${multi?`<span class="fiq-hl-code">${safe(pt.code)}</span><span class="panel-highlight-num">${d.ci<0?1:d.ci+2}</span>`:''}</div>`).join('')}${exactDot}</div></div>`
+   +(n>1&&dots.length===1?`<div class="fp-shared-spot">All ${n} pieces of ${safe(pt.code)} go at the marked spot.</div>`:'');
  }
- body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${drawingHtml}`;
+ // Grouped panel: one counter instead of telling identical pieces apart. Piece buttons stay only
+ // where the drawing really has separate positions to fit.
+ const group=isGroupPanel(pt),g=group?groupCountOf(pt):null;
+ // Mads 15 Oct 2026: Count panel sits right under the drawing (count without scrolling), with Undo
+ // and Damaged beside it; Damaged opens the damage form, so a photo and note go to Studio.
+ const counter=group?`<div class="gc" data-gc><div class="gc-head"><span class="gc-now"><b>${g.good}</b> good counted · ${g.unchecked} still to count</span><span>Expected ${g.qty}</span></div>`
+  +`<button type="button" class="btn primary gc-count-btn" data-gc-add${g.unchecked?'':' disabled'}>Count panel</button>`
+  +`<div class="gc-bar-row"><button type="button" class="btn gc-undo" data-gc-undo>Undo</button><button type="button" class="btn warn gc-damage-btn" data-gc-damage${g.unchecked?'':' disabled'}>⚠ Damaged: photo + note</button></div></div>`
+  +`<div class="gc gc-more">`
+  +`<div class="gc-rows"><div class="gc-row">Good ${g.good}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="good" aria-label="One less good"${g.good?'':' disabled'}>−</button></span></div>`
+  +`<div class="gc-row">Damaged ${g.damaged}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="damaged" aria-label="One less damaged"${g.damaged?'':' disabled'}>−</button></span></div>`
+  +`<div class="gc-row">Missing ${g.missing}<span class="gc-btns"><button type="button" class="btn" data-gc-minus="missing" aria-label="One less missing"${g.missing?'':' disabled'}>−</button></span></div>`
+  +`<div class="gc-row">Unchecked ${g.unchecked}</div></div>`
+  +`<div class="gc-final"><button type="button" class="btn primary" data-gc-confirm>Confirm</button><button type="button" class="btn warn" data-gc-missing${g.unchecked?'':' disabled'}>Mark missing${g.unchecked?' ('+g.unchecked+')':''}</button></div>`
+  +`<div class="gc-summary" data-gc-summary>${safe(groupCountText(pt))}</div>`
+  +(g.confirmedAt?`<div class="gc-confirmed">✓ Confirmed ${safe(new Date(g.confirmedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}))}</div>`:'')+`</div>`:'';
+ const pieces=n>1&&(!group||dots.length>1)?`<div class="fp-pieces">${Array.from({length:n},(_,i)=>i+1).map(k=>`<button type="button" class="bomp-chip fp-piece${k===piece?' active':''}" data-fp-piece="${k}">Piece ${k}${PIECE_MARKS[pieceStatusOf(pt,k)]}</button>`).join('')}</div>`:'';
+ const status=group?'':piece?`<div class="fp-piece-status">${n>1?'Piece '+piece+' of '+n+' · ':''}${PIECE_WORDS[pieceStatusOf(pt,piece)]}</div>`
+  :`<div class="fp-piece-status">${n>1?'Old sticker without a piece number — tap a piece above to choose it':safe(statusLabel(pt.status||'ready'))}</div>`;
+ body.innerHTML=`<div class="panel-route">${safe(p.name)||'Job'} › ${safe(room?.name)||'Room'} › ${safe(c.name)||''}</div><div class="panel-big-code">${safe(pt.code||t('msg.panelFallback'))}</div><h2 style="margin:0">${safe(pt.name)||t('install.unnamedPanel')}</h2>${pieces}${status}${drawingHtml}${counter}`;
+ // Grouped panel: the counter has its own Missing and Damaged; Fitted stays.
+ ['#fpMarkMissing','#fpMarkDamaged'].forEach(id=>{const b=$(id);if(b)b.classList.toggle('hidden',group)});
+ const acts=document.querySelector('#findPanelOverlay .fp-actions');if(acts)acts.style.gridTemplateColumns=group?'1fr':'';
+ if(group){
+  const act=fn=>()=>{fn();renderFindPanelResult();if(typeof renderInstall==='function')renderInstall();if(typeof renderScanDashboard==='function')renderScanDashboard()};
+  const q=sel=>body.querySelector(sel);
+  q('[data-gc-add]').onclick=act(()=>changeGroupCount(p,pt,'good',1));
+  body.querySelectorAll('[data-gc-minus]').forEach(b=>b.onclick=act(()=>changeGroupCount(p,pt,b.dataset.gcMinus,-1)));
+  q('[data-gc-damage]').onclick=()=>{setDamagePanelTarget(p,c,pt,null);$('#damagePanelOverlay').classList.remove('hidden');$('#damagePanelCode').value=pt.code||'';$('#damageNote').focus()};
+  q('[data-gc-undo]').onclick=act(()=>undoGroupCount(p,pt));
+  q('[data-gc-missing]').onclick=act(()=>{const left=groupCountOf(pt).unchecked;if(left&&changeGroupCount(p,pt,'missing',left))addJobLogEntry(p,'🔍 Missing: '+pt.code+' ('+left+' of '+panelPieceCount(pt)+')'+(pt.name?' — '+pt.name:''),[],state.currentRoom||null);save()});
+  q('[data-gc-confirm]').onclick=()=>{changeGroupCount(p,pt,'good',0,{confirm:true});if(typeof renderInstall==='function')renderInstall();if(typeof renderScanDashboard==='function')renderScanDashboard();const fromCard=fpOpenedFromCard;closeFindPanelResult();if(!fromCard&&state.scanMode==='check')startCamera()};
+ }
+ body.querySelectorAll('[data-fp-piece]').forEach(el=>el.onclick=()=>{const k=Number(el.dataset.fpPiece);state.scannedPiece=k;state.selectedCopy=pieceDotIndex(pt,k);save();renderFindPanelResult()});
 }
-function openFindPanelResult(){renderFindPanelResult();$('#findPanelOverlay').classList.remove('hidden')}
-function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden')}
+// Tapping a Panel Check card identifies the panel exactly like scanning its sticker: it
+// builds the route a piece QR carries (project, unit, panel, copyIndex) and goes through
+// the same openPanelRoute into the same panel view. It opens the first piece not yet fitted.
+function openPanelFromCard(pr,cab,pt){
+ if(!pr||!cab||!pt)return;
+ // A grouped panel on one spot is counted, not told apart: open it without a piece.
+ if(isGroupPanel(pt)&&!(pt.copies||[]).length){if(!openPanelRoute({projectId:pr.id,cabinetId:cab.id,panelId:pt.id}))return;openFindPanelResult(true);return}
+ const n=panelPieceCount(pt);let piece=1;for(let k=1;k<=n;k++){if(pieceStatusOf(pt,k)!=='installed'){piece=k;break}}
+ if(!openPanelRoute({projectId:pr.id,cabinetId:cab.id,panelId:pt.id,copyIndex:piece===1?-1:piece-2}))return;
+ openFindPanelResult(true);
+}
+// After Fitted / Missing / Damaged: refresh the panel view and whatever list is behind it.
+function refreshAfterPanelAction(){
+ if(!$('#findPanelOverlay').classList.contains('hidden'))renderFindPanelResult();
+ if(typeof renderInstall==='function')renderInstall();
+ if(typeof renderScanDashboard==='function')renderScanDashboard();
+ if(state.screen==='drawings'&&typeof currentRoom==='function'){const cr=currentRoom();if(cr&&typeof renderRoomDetail==='function')renderRoomDetail(cr)}
+}
+// Fitted, per physical piece when a piece is identified; an old whole-panel QR keeps the
+// original counting (applyFittedLegacy).
+function applyFittedStatus(pr,pt,piece){
+ if(!piece){if(applyFittedLegacy(pt)===false)return;save();if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);return}
+ const total=panelPieceCount(pt),ps=pieceState(pt,piece,true),now=Date.now(),who=currentActorFitterId();
+ if(ps.status!=='installed')pt.installedQty=Math.min(total,(Number(pt.installedQty)||0)+1);
+ ps.status='installed';ps.statusAt=now;ps.statusBy=who;
+ const dot=pieceDotIndex(pt,piece);if(dot>=0){pt.copies[dot].status='installed';pt.copies[dot].statusUpdatedAt=now;pt.copies[dot].updatedByFitterId=who}
+ if((Number(pt.installedQty)||0)>=total){pt.status='installed';pt.statusUpdatedAt=now;pt.updatedByFitterId=who}
+ save();if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
+}
+let fpOpenedFromCard=false;
+function openFindPanelResult(fromCard){fpOpenedFromCard=!!fromCard;renderFindPanelResult();const next=$('#findPanelScanNextBtn');if(next)next.classList.toggle('hidden',fpOpenedFromCard);$('#findPanelOverlay').classList.remove('hidden')}
+// Panel Number: while the panel view is open reading is paused, so it never opens twice.
+// Closing it (X, Scan next, tap outside) makes the scanner ready again at once, so the same
+// panel can be found again straight away; Find It never counts anything.
+function closeFindPanelResult(){$('#findPanelOverlay').classList.add('hidden');try{resetNumberRepeat()}catch(e){}}
 $('#findPanelResultClose').onclick=closeFindPanelResult;
 $('#findPanelOverlay').addEventListener('click',e=>{if(e.target.id==='findPanelOverlay')closeFindPanelResult()});
 $('#findPanelScanNextBtn').onclick=()=>{closeFindPanelResult();startCamera()};
@@ -3995,13 +4512,17 @@ $('#findPanelScanNextBtn').onclick=()=>{closeFindPanelResult();startCamera()};
 // point into it so the fitter never has to leave the drawing they just landed on.
 $('#fpMarkMissing').onclick=()=>{
  const pr=project(),pt=part();if(!pr||!pt)return;
- applyMissingStatus(pr,pt);
- renderFindPanelResult();
- if(typeof renderInstall==='function')renderInstall();
+ applyMissingStatus(pr,pt,identifiedPiece(pt));
+ refreshAfterPanelAction();
+};
+$('#fpMarkFitted').onclick=()=>{
+ const pr=project(),pt=part();if(!pr||!pt)return;
+ applyFittedStatus(pr,pt,identifiedPiece(pt));
+ refreshAfterPanelAction();
 };
 $('#fpMarkDamaged').onclick=()=>{
  const pr=project(),cab=cabinet(),pt=part();if(!pr||!pt)return;
- setDamagePanelTarget(pr,cab,pt);
+ setDamagePanelTarget(pr,cab,pt,identifiedPiece(pt));
  $('#damagePanelOverlay').classList.remove('hidden');
  $('#damagePanelCode').value=pt.code||'';
  $('#damageNote').focus();
@@ -4010,7 +4531,11 @@ $('#fpMarkDamaged').onclick=()=>{
 // result card and Missing Panels/Summary links are all "checked" concepts that don't apply
 // while just looking up where a panel goes, so they're hidden rather than shown alongside
 // an unrelated Find Panel result.
+let lastAppliedScanMode=null;
 function applyScanModeUI(){
+ // Panel Number: a label already acted on in the other mode must open again in this one,
+ // even while it is still in view (Panel Check 7001, then Find It on the same 7001).
+ if(state.scanMode!==lastAppliedScanMode){lastAppliedScanMode=state.scanMode;try{resetNumberRepeat()}catch(e){}}
  const tool=document.querySelector('#scan .scan-tool');
  if(tool)tool.classList.toggle('find-mode',state.scanMode==='find');
  const title=$('#scanHeaderTitle');if(title)title.textContent=state.scanMode==='find'?'Find Panel':'Panel Check';
@@ -4042,6 +4567,10 @@ function positionScanModeSwitch(){
  sw.style.bottom=bottomPx+'px';
  const tool=document.querySelector('#scan .scan-tool');
  if(tool)tool.style.paddingBottom=(bottomPx+90)+'px';
+ // Close scanner sits just above this switch: at its old place the bottom nav covered it,
+ // so it could not be tapped and the only way out of the camera was the Jobs button.
+ const stop=document.getElementById('stopScanner');
+ if(stop)stop.style.bottom=(bottomPx+(sw.offsetHeight||58)+14)+'px';
 }
 window.addEventListener('resize',positionScanModeSwitch);
 window.addEventListener('orientationchange',function(){setTimeout(positionScanModeSwitch,150)});
@@ -4060,8 +4589,9 @@ positionScanModeSwitch();
  },{passive:true});
 })();
 function openScannedText(text){
+ state.scannedPiece=null;
  let q=null;try{const obj=JSON.parse(text);if(obj.projectId&&obj.panelId)q={...obj,copyIndex:obj.copyIndex!=null?Number(obj.copyIndex):null}}catch(e){}
- if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
+ if(!q){const m=String(text).match(/#panel=([^:]+):([^:]+):([^:]+)(?::(-?\d+))?$/);if(m)q={projectId:decodeURIComponent(m[1]),cabinetId:decodeURIComponent(m[2]),panelId:decodeURIComponent(m[3]),copyIndex:m[4]!=null?Number(m[4]):null}}
  // Build 2 (§E) -- extended for per-room dispatch: a combined Panel Check session (2+
  // cards in state.activeCardKeys) must never let a scan silently swap which job/room the
  // fitter is looking at -- only Find Panel needs that switch, and it keeps doing so
@@ -4083,6 +4613,14 @@ function openScannedText(text){
   // right message on failure (access denied, or panel not on this phone), so don't fall
   // through to the legacy-format check and generic message below, which would silently
   // overwrite it with the wrong explanation.
+  // Panel Check counts only the job(s) being checked (Mads 16 Oct 2026): a QR label of another job on this
+  // phone used to be counted there silently and switch the screen to that job. Number labels already refuse.
+  if(state.scanMode==='check'){
+   const keys=Array.isArray(state.activeCardKeys)&&state.activeCardKeys.length?state.activeCardKeys:(state.currentProject?[state.currentProject]:[]);
+   const open=keys.map(k=>typeof parseCardKey==='function'?parseCardKey(k).projectId:k);
+   const other=open.length&&!open.includes(q.projectId)?state.projects.find(x=>x.id===q.projectId):null;
+   if(other){const box=document.querySelector('#scanResult');if(box)box.textContent='This label is from another job ('+(other.name||other.customer||'job')+'). Open that job to check it.';if(typeof playScanErrorFeedback==='function')playScanErrorFeedback();return true}
+  }
   if(openPanelRoute(q)){handlePanelIdentified();restorePointerIfCombined();return true}
   return false;
  }
@@ -4136,11 +4674,13 @@ async function startCamera(){
   // (or resumed) from a direct user interaction, and by the time a scan actually succeeds
   // we're several async ticks away from the tap that started this.
   ensureScanAudio();
+  applyScanMethodUI();positionScanModeSwitch();
   scanLoop();
  }catch(e){scanRunning=false;alert(t('msg.cameraCouldNotOpen'))}
 }
 async function scanLoop(){
  if(!scanRunning)return;
+ if(getScanMethod()==='number'){numberScanTick();return}
  try{
   if(detector){
    let codes=null;
@@ -4186,6 +4726,304 @@ function handleDetectedQrText(raw){
  lastScannedQrText=raw;lastScannedQrAt=now;
  const ok=openScannedText(raw);
  if(ok)playScanSuccessFeedback();else playScanErrorFeedback();
+}
+// Panel Number scanning: the second scan method beside QR. Studio gives every panel a fixed
+// label number (pt.labelNo, from 7001, unique within its job); a Qty > 1 panel prints one
+// sticker per piece as number-piece (7004-2). The live camera reads the number inside the
+// guide strip with OCR (Tesseract, loaded on first use). A number is turned into exactly the
+// identity a piece QR carries (project, unit, panel, copyIndex) and opened through
+// openScannedText, so access rules, Panel Check counting, the panel view, the drawing
+// highlight and every action are the QR's own. Only the job(s) open in this scanner are
+// searched. A number is acted on only after it reads the same in several frames; a label
+// still in view is not acted on again; an unclear or two-label frame is simply skipped.
+const SCAN_METHOD_KEY='fiq_scan_method_v1';
+function getScanMethod(){try{return localStorage.getItem(SCAN_METHOD_KEY)==='number'?'number':'qr'}catch(e){return 'qr'}}
+function setScanMethod(m){try{localStorage.setItem(SCAN_METHOD_KEY,m==='number'?'number':'qr')}catch(e){}}
+function applyScanMethodUI(){
+ const m=getScanMethod();
+ document.querySelectorAll('#scanMethodSwitch .scan-method-opt').forEach(b=>{const on=b.dataset.method===m;b.classList.toggle('active',on);b.setAttribute('aria-checked',on?'true':'false')});
+ const wrap=$('#cameraWrap');if(wrap)wrap.classList.toggle('number-mode',m==='number');
+ if(m==='number'&&scanRunning){
+  ensureNumberReader().catch(()=>{});
+  // Printed digits need a sharper picture than a QR; iPhone Safari opens the camera small.
+  const track=mediaStream&&mediaStream.getVideoTracks()[0];
+  if(track&&track.applyConstraints&&!track.__fiqNumberRes){track.__fiqNumberRes=true;track.applyConstraints({width:{ideal:1920},height:{ideal:1080}}).catch(()=>{})}
+ }
+}
+document.querySelectorAll('#scanMethodSwitch .scan-method-opt').forEach(b=>b.onclick=()=>{setScanMethod(b.dataset.method);resetNumberRepeat();setNumberStatus('');applyScanMethodUI()});
+applyScanMethodUI();
+const TESSERACT_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+const NUMBER_CONFIRM_FRAMES=3,NUMBER_HISTORY_FRAMES=4,NUMBER_REPEAT_QUIET_MS=3000;
+let numberWorker=null,numberWorkerPromise=null,numberBusy=false,numberCanvas=null,numberCtx=null;
+let numberHistory=[],numberLastKey=null,numberLastSeenAt=0,numberStatusTimer=null;
+function setNumberStatus(text,warn){
+ const el=$('#numberScanStatus');if(!el)return;
+ el.textContent=text||'';el.classList.toggle('warn',!!warn);
+ clearTimeout(numberStatusTimer);if(text)numberStatusTimer=setTimeout(()=>{el.textContent=''},2600);
+}
+function ensureNumberReader(){
+ if(numberWorker)return Promise.resolve(numberWorker);
+ if(!numberWorkerPromise)numberWorkerPromise=(async()=>{
+  const el=$('#numberScanStatus');if(el){clearTimeout(numberStatusTimer);el.classList.remove('warn');el.textContent='Preparing the number reader…'}
+  if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
+  const w=await Tesseract.createWorker('eng',1);
+  // Normal text, one line (the guide band holds the number line only; sparse mode lost
+  // the piece dash, 7002-2 -> 7002 2). A digits-only list made the box and sticker edges read as extra
+  // digits joined onto the number (7001 -> 700188); now edges read as separate marks.
+  await w.setParameters({tessedit_pageseg_mode:'7'});
+  numberWorker=w;setNumberStatus('');return w;
+ })().catch(e=>{numberWorkerPromise=null;throw e});
+ return numberWorkerPromise;
+}
+// Exactly the picture inside the visible guide (.scan-frame.number-mode:after, inset 40%
+// 8% of the camera screen), mapped onto the camera frame through the video's real on-screen
+// box and object-fit. (Measuring against the video element alone read the wrong strip on a
+// phone: a general video{max-height:480px} rule made the video shorter than the screen the
+// guide is drawn on, so the reader looked well above the number and saw nothing.)
+let numberLastCrop=null;
+let numberWork=null,numberWorkCtx=null,numberTmp=null;
+function numberCropCanvas(){
+ const v=$('#camera'),wrap=$('#cameraWrap');if(!v||!wrap||!v.videoWidth||!v.videoHeight)return null;
+ const vw=v.videoWidth,vh=v.videoHeight,vr=v.getBoundingClientRect(),wr=wrap.getBoundingClientRect();
+ if(!vr.width||!vr.height)return null;
+ const fit=(getComputedStyle(v).objectFit||'fill');
+ const sxs=fit==='contain'?Math.min(vr.width/vw,vr.height/vh):fit==='fill'?vr.width/vw:Math.max(vr.width/vw,vr.height/vh);
+ const sys=fit==='fill'?vr.height/vh:sxs;
+ const dx=vr.left+(vr.width-vw*sxs)/2,dy=vr.top+(vr.height-vh*sys)/2;
+ const gx=wr.left+wr.width*0.08,gy=wr.top+wr.height*0.40,gw=wr.width*0.84,gh=wr.height*0.20;
+ let x0=(gx-dx)/sxs,y0=(gy-dy)/sys,x1=(gx+gw-dx)/sxs,y1=(gy+gh-dy)/sys;
+ x0=Math.max(0,Math.min(vw,x0));x1=Math.max(0,Math.min(vw,x1));y0=Math.max(0,Math.min(vh,y0));y1=Math.max(0,Math.min(vh,y1));
+ const sw=x1-x0,sh=y1-y0;if(sw<8||sh<8)return null;
+ // The strip at the camera's own detail (at least 480 and at most 960 px wide), in grey with
+ // the contrast stretched (also helps a number photographed off a computer screen).
+ const w=Math.round(Math.max(480,Math.min(960,sw))),k=w/sw,h=Math.max(1,Math.round(sh*k));
+ if(!numberWork){numberWork=document.createElement('canvas');numberWorkCtx=numberWork.getContext('2d',{willReadFrequently:true})}
+ if(numberWork.width!==w||numberWork.height!==h){numberWork.width=w;numberWork.height=h}
+ numberWorkCtx.drawImage(v,x0,y0,sw,sh,0,0,w,h);
+ const img=numberWorkCtx.getImageData(0,0,w,h),d=img.data,n=w*h,g=new Uint8ClampedArray(n),hist=new Uint32Array(256);let sum=0,sq=0;
+ for(let i=0,j=0;j<n;i+=4,j++){const y=(d[i]*77+d[i+1]*150+d[i+2]*29)>>8;g[j]=y;hist[y]++;sum+=y;sq+=y*y}
+ // Small typed text can be well under 2% of the strip, so the dark end is taken at 0.5% and
+ // the stretch never amplifies a near-white strip into noise.
+ let lo=0,hi=255,acc=0;for(;lo<255;lo++){acc+=hist[lo];if(acc>n*0.005)break}acc=0;for(;hi>0;hi--){acc+=hist[hi];if(acc>n*0.02)break}
+ const span=Math.max(60,hi-lo);
+ for(let j=0;j<n;j++)g[j]=Math.max(0,Math.min(255,Math.round((g[j]-lo)*255/span)));
+ // Every separate dark shape is measured. Lines and frames (a number's box, label edges,
+ // spreadsheet gridlines) are never digits and are left out: a box edge beside the number
+ // was read as a 1 (7013 -> 17013).
+ const lab=new Int32Array(n).fill(-1),comps=[],stack=new Int32Array(n);
+ for(let p0=0;p0<n;p0++){
+  if(g[p0]>=128||lab[p0]>=0)continue;
+  const id=comps.length,c={x0:w,x1:0,y0:h,y1:0,count:0};comps.push(c);
+  let sp=0;stack[sp++]=p0;lab[p0]=id;
+  while(sp){const p=stack[--sp],x=p%w,y=(p-x)/w;c.count++;if(x<c.x0)c.x0=x;if(x>c.x1)c.x1=x;if(y<c.y0)c.y0=y;if(y>c.y1)c.y1=y;
+   if(x>0&&g[p-1]<128&&lab[p-1]<0){lab[p-1]=id;stack[sp++]=p-1}
+   if(x<w-1&&g[p+1]<128&&lab[p+1]<0){lab[p+1]=id;stack[sp++]=p+1}
+   if(y>0&&g[p-w]<128&&lab[p-w]<0){lab[p-w]=id;stack[sp++]=p-w}
+   if(y<h-1&&g[p+w]<128&&lab[p+w]<0){lab[p+w]=id;stack[sp++]=p+w}}
+ }
+ const ht=c=>c.y1-c.y0+1;
+ comps.forEach(c=>{const bw=c.x1-c.x0+1,bh=ht(c),fill=c.count/(bw*bh);
+  c.line=((bw>w*0.5||bh>h*0.9)&&fill<0.3)||(bh/bw>=7&&bh>=h*0.25)||(bw/bh>=7&&bw>=w*0.2)||(bh>=h*0.97)});
+ // A frame of any size: a thin shape with two or more other shapes wholly inside it (the
+ // box round a small number). A digit (0, 8) never has other shapes inside it.
+ comps.forEach(c=>{if(c.line||c.count/((c.x1-c.x0+1)*ht(c))>=0.3)return;let inside=0;
+  for(const o of comps){if(o!==c&&o.count>=6&&o.x0>c.x0&&o.x1<c.x1&&o.y0>c.y0&&o.y1<c.y1&&++inside>=2){c.line=true;break}}});
+ // Text lines: shapes side by side at the same height. The line nearest the middle of the
+ // guide is the one the fitter aims at; label text above or below (P-013, sizes, other
+ // spreadsheet rows) is left out. Small typed text counts too (from about 7 px tall).
+ const text=comps.filter(c=>!c.line&&c.count>=6&&ht(c)>=5).sort((a,b)=>ht(b)-ht(a)),lines=[];
+ text.forEach(c=>{const ln=lines.find(l=>c.y0<=l.y1&&c.y1>=l.y0&&ht(c)>=(l.y1-l.y0+1)*0.35);
+  if(ln){ln.cs.push(c);ln.y0=Math.min(ln.y0,c.y0);ln.y1=Math.max(ln.y1,c.y1)}else lines.push({y0:c.y0,y1:c.y1,cs:[c]})});
+ const pick=lines.filter(l=>l.cs.length>=2&&(l.y1-l.y0+1)>=7).sort((a,b)=>Math.abs((a.y0+a.y1)/2-h/2)-Math.abs((b.y0+b.y1)/2-h/2))[0];
+ numberCut=false;numberDropped='';
+ const mean=sum/n;
+ numberLastCrop={video:vw+'×'+vh,box:Math.round(x0)+','+Math.round(y0)+' '+Math.round(sw)+'×'+Math.round(sh),light:Math.round(mean),contrast:Math.round(Math.sqrt(Math.max(0,sq/n-mean*mean)))};
+ if(!numberCanvas){numberCanvas=document.createElement('canvas');numberCtx=numberCanvas.getContext('2d',{willReadFrequently:true})}
+ if(!pick){numberCanvas.width=Math.max(1,w>>2);numberCanvas.height=Math.max(1,h>>2);numberCtx.fillStyle='#fff';numberCtx.fillRect(0,0,numberCanvas.width,numberCanvas.height);return numberCanvas}
+ // Words on that line (a gap wider than most of the line height starts a new word: the
+ // next spreadsheet cell, or the next item on a label). A word cut by the strip's edge is
+ // left out, never guessed (7013 cut read as 7012); words wholly inside are kept, so a
+ // spreadsheet cell running off the edge no longer stops the number beside it.
+ const lh=pick.y1-pick.y0+1;
+ const members=comps.filter(c=>!c.line&&c.count>=3&&(c.y0+c.y1)/2>=pick.y0&&(c.y0+c.y1)/2<=pick.y1).sort((a,b)=>a.x0-b.x0),words=[];
+ members.forEach(c=>{const wd=words[words.length-1];if(wd&&c.x0-wd.x1<=lh*0.8){wd.cs.push(c);wd.x1=Math.max(wd.x1,c.x1);wd.y0=Math.min(wd.y0,c.y0);wd.y1=Math.max(wd.y1,c.y1)}else words.push({x0:c.x0,x1:c.x1,y0:c.y0,y1:c.y1,cs:[c]})});
+ const keep=words.filter(wd=>!(wd.x0<=1||wd.x1>=w-2||wd.y0<=1||wd.y1>=h-2));
+ if(keep.length<words.length)numberDropped='text touching the box edge left out';
+ if(!keep.length){numberCut=true;return numberCanvas}
+ // The reader gets just that line, black on white, enlarged so its text is about 48 px tall
+ // (small typed text at its own size was read as nothing or as EE).
+ const kept=new Set();keep.forEach(wd=>wd.cs.forEach(c=>kept.add(comps.indexOf(c))));
+ const bx0=Math.min(...keep.map(x=>x.x0)),bx1=Math.max(...keep.map(x=>x.x1)),by0=Math.min(...keep.map(x=>x.y0)),by1=Math.max(...keep.map(x=>x.y1));
+ const rw=bx1-bx0+1,rh=by1-by0+1;
+ if(!numberTmp)numberTmp=document.createElement('canvas');numberTmp.width=rw;numberTmp.height=rh;
+ const tctx=numberTmp.getContext('2d'),tim=tctx.createImageData(rw,rh),td=tim.data;
+ for(let y=0;y<rh;y++)for(let x=0;x<rw;x++){const id=lab[(by0+y)*w+bx0+x],i=(y*rw+x)*4,v=(id>=0&&kept.has(id))?0:255;td[i]=td[i+1]=td[i+2]=v;td[i+3]=255}
+ tctx.putImageData(tim,0,0);
+ const s=Math.max(0.5,Math.min(5,48/lh)),m=Math.round(24);
+ numberCanvas.width=Math.round(rw*s)+2*m;numberCanvas.height=Math.round(rh*s)+2*m;
+ numberCtx.fillStyle='#fff';numberCtx.fillRect(0,0,numberCanvas.width,numberCanvas.height);
+ numberCtx.imageSmoothingEnabled=true;numberCtx.drawImage(numberTmp,0,0,rw,rh,m,m,Math.round(rw*s),Math.round(rh*s));
+ return numberCanvas;
+}
+function panelNumberTokens(text){
+ // Any dash counts as the piece dash; a letter O between digits is read as 0.
+ const s=String(text||'').replace(/[‐-―−]/g,'-').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/(\d)[Oo](?=[\dOo])/g,'$10').replace(/[ \t]*-[ \t]*/g,'-'),out=new Set(),re=/(^|[^0-9-])(\d{4,6})(?:-(\d{1,3}))?(?![0-9-])/g;let m;
+ while((m=re.exec(s)))out.add(m[2]+(m[3]?'-'+m[3]:''));
+ // Scan references: room letters, then the job-wide number (KB12; a piece KB12-2). Each
+ // word, and each word joined to the next one (the reader can split KB 12), is a candidate.
+ // Only a candidate that matches a panel of the open job is ever acted on (resolveScanRef).
+ String(text||'').toUpperCase().replace(/[‐-―−]/g,'-').replace(/[ \t]*-[ \t]*/g,'-').split(/\n+/).forEach(line=>{
+  const w=line.split(/[^A-Z0-9|-]+/).filter(Boolean);
+  w.forEach((x,i)=>[x,i+1<w.length?x+w[i+1]:''].forEach(c=>{c=c.replace(/^-+|-+$/g,'');if(c&&scanRefShape(c))out.add('R:'+c)}));
+ });
+ return [...out];
+}
+// A word that could be a scan reference once the reader's look-alike mistakes are allowed
+// (B/8, O/0, I/1, S/5, Z/2, G/6): it starts with a letter, then 1-4 room letters, a
+// number, and maybe a piece number.
+const SCAN_REF_LOOSE=/^([A-Z0-9|]{1,4}?)([0-9OQDILSBZG|]{1,5})(?:-([0-9OQDILSBZG|]{1,3}))?$/;
+function scanRefShape(c){return /^[A-Z|]/.test(c)&&SCAN_REF_LOOSE.test(c)}
+function scanRefCanon(x){return String(x||'').toUpperCase().replace(/[OQD]/g,'0').replace(/[IL|]/g,'1').replace(/S/g,'5').replace(/B/g,'8').replace(/Z/g,'2').replace(/G/g,'6').replace(/[^A-Z0-9]/g,'')}
+// Every panel number in a job is used once, so a reference matches at most one panel even
+// with look-alike letters allowed. When two references still look alike (MS5 and M55),
+// only a letter-for-letter reading counts. Nothing that matches no panel is guessed.
+function resolveScanRef(word,projects){
+ const dash=word.lastIndexOf('-'),base=dash>0?word.slice(0,dash):word,pieceRaw=dash>0?word.slice(dash+1):null;
+ const pieceCanon=pieceRaw==null?null:scanRefCanon(pieceRaw);
+ if(pieceCanon!=null&&!/^\d{1,3}$/.test(pieceCanon))return {kind:'unclear'};
+ const want=scanRefCanon(base),hits=[];
+ projects.forEach(pr=>(pr.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{const code=String(pt.code||'').toUpperCase();if(/^[A-Z]{1,4}\d+$/.test(code)&&scanRefCanon(code)===want)hits.push({pr,c,pt,exact:code===base})})));
+ const pool=hits.length>1?hits.filter(h=>h.exact):hits;
+ const clear=/^[A-Z]{1,4}\d{1,5}$/.test(base)&&(pieceRaw==null||/^\d{1,3}$/.test(pieceRaw));
+ const piece=pieceCanon==null?null:Number(pieceCanon);
+ // A label printed before Make unique or Group identical pieces: its alias says which piece
+ // it is now (fiqFindAlias). The route counts printed label numbers; openPanelRoute turns it
+ // into the current piece (fiqRouteThroughLabels).
+ const byAlias=()=>{const al=typeof fiqFindAlias==='function'?fiqFindAlias(projects,a=>scanRefCanon(a.code)===want&&(a.labelNo==null?piece==null:Number(a.labelNo)===piece)):null;if(!al)return null;
+  const tq=Math.max(1,Math.floor(Number(al.pt.qty)||1)),split=Array.isArray(al.pt.pieceNos),lab=al.toLabel;
+  return {kind:'match',token:al.pt.code+(tq>1||split?'-'+lab:''),route:{a:'A1',v:8,projectId:al.pr.id,cabinetId:al.c.id,panelId:al.pt.id,copyIndex:lab===1?-1:lab-2}}};
+ if(!pool.length)return byAlias()||(clear&&!hits.length?{kind:'nomatch',token:word}:{kind:'unclear'});
+ if(pool.length>1)return {kind:'duplicate',token:word};
+ const {pr,c,pt}=pool[0],q=Math.max(1,Math.floor(Number(pt.qty)||1)),split=Array.isArray(pt.pieceNos);
+ // Same piece rule as the stickers: Qty 1 prints KB12, Qty > 1 prints KB12-1, KB12-2 ...
+ // (after Make unique, the label numbers in pt.pieceNos).
+ if(q>1||split){
+  // A grouped panel prints the same reference on every sticker (KB12): it opens the panel's counter.
+  if(piece==null&&q>1)return {kind:'match',token:pt.code,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id}};
+  if(piece==null)return byAlias()||{kind:'unclear'};
+  if(typeof fiqCurOfLabelNo==='function'?fiqCurOfLabelNo(pt,piece)==null:(piece<1||piece>q))return byAlias()||{kind:'nomatch',token:pt.code+'-'+piece};
+ }
+ else if(piece!=null)return byAlias()||{kind:'unclear'};
+ const k=q>1||split?piece:1;
+ return {kind:'match',token:pt.code+(q>1||split?'-'+k:''),route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
+}
+// The job(s) this scanner is working in: a combined Panel Check session's jobs, otherwise
+// the open job. Never any other job on the phone.
+function numberScanProjects(){
+ if(combinedCheckActive()){const ids=new Set(state.activeCardKeys.map(k=>parseCardKey(k).projectId));return state.projects.filter(p=>ids.has(p.id))}
+ const p=project();return p?[p]:[];
+}
+function resolvePanelNumber(token,projects){
+ if(String(token).startsWith('R:'))return resolveScanRef(String(token).slice(2),projects);
+ const m=String(token).match(/^(\d+)(?:-(\d+))?$/);if(!m)return {kind:'unclear'};
+ const n=Number(m[1]),piece=m[2]!=null?Number(m[2]):null,hits=[];
+ projects.forEach(pr=>(pr.cabinets||[]).forEach(c=>(c.parts||[]).forEach(pt=>{if(Number(pt.labelNo)===n)hits.push({pr,c,pt})})));
+ if(!hits.length)return {kind:'nomatch',token};
+ if(hits.length>1)return {kind:'duplicate',token};
+ const {pr,c,pt}=hits[0],q=Math.max(1,Math.floor(Number(pt.qty)||1));
+ // Same piece rule as the stickers: Qty 1 prints the bare number, Qty > 1 number-piece.
+ if(q>1){if(piece==null)return {kind:'match',token,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id}};if(piece<1||piece>q)return {kind:'nomatch',token}}
+ else if(piece!=null)return {kind:'unclear'};
+ const k=q>1?piece:1;
+ return {kind:'match',token,route:{a:'A1',v:8,projectId:pr.id,cabinetId:c.id,panelId:pt.id,copyIndex:k===1?-1:k-2}};
+}
+// Why a frame was not read (staging readout). The reader's own word and letter positions
+// and confidence proved unusable (every digit reported as the full strip height; a correct
+// 7013 at 12%), so the cut-off check is done on the picture itself (numberCropCanvas).
+let numberDropped='',numberCut=false;
+function numberTextFromResult(data){return (data&&data.text)||''}
+// One camera frame's reading: one clear panel number, or nothing (unclear, or two labels).
+function readNumberFrame(text){
+ const projects=numberScanProjects();
+ const res=panelNumberTokens(text).map(t=>resolvePanelNumber(t,projects)).filter(r=>r.kind!=='unclear');
+ const matches=res.filter(r=>r.kind==='match'),pool=matches.length?matches:res;
+ const keys=[...new Set(pool.map(numberResultKey))];
+ return keys.length===1?pool[0]:null;
+}
+function resetNumberRepeat(){numberLastKey=null;numberLastSeenAt=0;numberHistory=[]}
+function numberResultKey(r){return r.kind+':'+r.token+(r.route?':'+r.route.projectId+':'+r.route.panelId:'')}
+// Staging only: a test readout of exactly what the camera read and what it matched, so a
+// failed reading can be seen. Never shown in Beta or Production.
+// Off on the normal camera screen. On the staging page only, and only while the page address
+// itself carries ?numbertest=1; nothing is remembered on the phone (an older build kept it on
+// once it had been opened that way, so that stored setting is cleared).
+const NUMBER_DIAG_KEY='fiq_number_test_readout_v1';
+try{localStorage.removeItem(NUMBER_DIAG_KEY)}catch(e){}
+function numberDiagOn(){
+ if(!(window.FIQ_FIREBASE_CONFIG&&window.FIQ_FIREBASE_CONFIG.projectId==='fittersiq-staging'))return false;
+ return /[?&]numbertest=1(?:&|$)/.test(location.search);
+}
+let numberDiagFrames=0,numberReadMs=0,numberReadError='',numberRawText=null;
+function showNumberDiag(text,r){
+ const el=$('#numberScanRead'),wrap=$('#cameraWrap');if(!el)return;if(wrap)wrap.classList.add('fiq-number-diag');
+ numberDiagFrames++;
+ const raw=String(numberRawText!=null?numberRawText:text||'').replace(/\s+/g,' ').trim().slice(0,40)||'(nothing)',toks=panelNumberTokens(text);
+ let what;
+ if(r&&r.kind==='match'){const pr=state.projects.find(x=>x.id===r.route.projectId),c=pr&&(pr.cabinets||[]).find(x=>x.id===r.route.cabinetId),pt=c&&(c.parts||[]).find(x=>x.id===r.route.panelId),q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1)),k=r.route.copyIndex===-1?1:r.route.copyIndex+2;
+  what=r.token+' = '+(pt?pt.code+' '+(pt.name||''):'?')+(q>1?(r.route.copyIndex==null?', its counter ('+q+' pieces)':', piece '+k+' of '+q):'')}
+ else if(r&&r.kind==='nomatch')what=r.token+' = not in this job';
+ else if(r&&r.kind==='duplicate')what=r.token+' = in more than one open job';
+ else what=toks.length?'unclear: '+toks.join(', '):'no panel number';
+ const agree=r?numberHistory.filter(k=>k===numberResultKey(r)).length+1:0;
+ const c=numberLastCrop;
+ const info='TEST  frame '+numberDiagFrames+(numberReadMs?'  '+numberReadMs+' ms':'')+'\nCamera read: '+raw+'\nMeans: '+what+(r?'\nSame reading in '+Math.min(agree,NUMBER_HISTORY_FRAMES)+' of the last '+NUMBER_HISTORY_FRAMES+' frames (needs '+NUMBER_CONFIRM_FRAMES+')':'')+
+  (c?'\nCamera '+c.video+', reads box '+c.box+'\nLight '+c.light+'  contrast '+c.contrast+(c.contrast<12?'  (too flat)':''):'')+(numberDropped?'\nNot used: '+numberDropped:'')+(numberReadError?'\nReader: '+numberReadError:'');
+ let txt=el.querySelector('.nsr-text'),pic=el.querySelector('canvas');
+ if(!txt){el.textContent='';el.insertAdjacentHTML('beforeend','<div class="nsr-label">What the reader gets:</div><canvas class="nsr-pic"></canvas><div class="nsr-text"></div>');txt=el.querySelector('.nsr-text');pic=el.querySelector('canvas')}
+ if(numberCanvas&&numberCanvas.width){pic.width=numberCanvas.width;pic.height=numberCanvas.height;pic.getContext('2d').drawImage(numberCanvas,0,0)}
+ txt.textContent=info;
+}
+function handleNumberFrame(text){
+ const r=readNumberFrame(text),key=r?numberResultKey(r):null,now=Date.now();
+ if(numberDiagOn())showNumberDiag(text,r);
+ numberHistory.push(key);if(numberHistory.length>NUMBER_HISTORY_FRAMES)numberHistory.shift();
+ if(!key)return;
+ // The label just acted on is still in view: nothing happens again until it has been out
+ // of view for NUMBER_REPEAT_QUIET_MS.
+ if(key===numberLastKey&&(now-numberLastSeenAt)<NUMBER_REPEAT_QUIET_MS){numberLastSeenAt=now;return}
+ if(numberHistory.filter(k=>k===key).length<NUMBER_CONFIRM_FRAMES)return;
+ numberHistory=[];numberLastKey=key;numberLastSeenAt=now;
+ if(r.kind==='match'){
+  $("#scanResult").textContent='Panel number '+r.token+' found';
+  const ok=openScannedText(JSON.stringify(r.route));
+  if(ok){setNumberStatus('Panel number '+r.token);playScanSuccessFeedback()}
+  else{setNumberStatus($("#scanResult").textContent,true);playScanErrorFeedback()}
+ }else{
+  const msg=r.kind==='duplicate'?'Panel number '+r.token+' matches more than one panel in the open jobs. Open one job and scan again.':'Panel number '+r.token+' is not in this job.';
+  $("#scanResult").textContent=msg;setNumberStatus(msg,true);playScanErrorFeedback();
+ }
+}
+function numberViewOpen(){return ['findPanelOverlay','damagePanelOverlay'].some(id=>{const el=document.getElementById(id);return el&&!el.classList.contains('hidden')})}
+async function numberScanTick(){
+ if(!scanRunning||numberBusy)return;
+ numberBusy=true;
+ try{
+  // Reading pauses while the panel view is open; its label counts as still in view.
+  if(numberViewOpen()){if(numberLastKey)numberLastSeenAt=Date.now()}
+  else{
+   const w=await ensureNumberReader();
+   const canvas=scanRunning&&getScanMethod()==='number'&&!numberViewOpen()?numberCropCanvas():null;
+   if(canvas&&numberCut){numberDropped='the number touches the box edge, move so all of it is inside';numberRawText=null;numberReadMs=0;handleNumberFrame('')}
+   else if(canvas){const t0=performance.now();const out=await w.recognize(canvas);numberReadMs=Math.round(performance.now()-t0);numberReadError='';if(scanRunning&&getScanMethod()==='number'){numberRawText=out&&out.data?out.data.text:'';handleNumberFrame(numberTextFromResult(out&&out.data))}}
+   else if(numberDiagOn()&&scanRunning&&!numberViewOpen()){numberReadError='no camera picture yet';showNumberDiag('',null)}
+  }
+ }catch(e){
+  console.error('Panel number reading failed',e);
+  numberReadError=String(e&&e.message||e).slice(0,80);if(numberDiagOn())showNumberDiag('',null);
+  setNumberStatus('The number reader could not start. Check the internet connection.',true);
+  await new Promise(r=>setTimeout(r,3000));
+ }finally{numberBusy=false}
+ if(scanRunning){clearTimeout(scanLoopTimer);scanLoopTimer=setTimeout(scanLoop,numberViewOpen()?300:40)}
 }
 // Short Web Audio tones instead of an audio file -- no asset to add, and it works the
 // instant the scanner opens rather than waiting on a network request. Needs to be created
@@ -4307,23 +5145,33 @@ function resolveLastPanelCheckHit(){
  const pr=state.projects.find(x=>x.id===lastPanelCheckHit.prId)||null;
  const cab=pr?(pr.cabinets||[]).find(x=>x.id===lastPanelCheckHit.cabId)||null:null;
  const pt=cab?(cab.parts||[]).find(x=>x.id===lastPanelCheckHit.ptId)||null:null;
- return{pr,cab,pt};
+ return{pr,cab,pt,piece:lastPanelCheckHit.piece||null};
 }
 function handlePanelCheckScan(){
  const pr=project(),pt=part(),cab=cabinet();
  if(!pr||!pt)return;
- lastPanelCheckHit={prId:pr.id,cabId:cab?cab.id:null,ptId:pt.id};
+ // A grouped panel (same P1 on every sticker): open its saved counter; a scan never adds.
+ if(isGroupPanel(pt)){
+  lastPanelCheckHit={prId:pr.id,cabId:cab?cab.id:null,ptId:pt.id,piece:null};
+  state.scannedPiece=null;pt.lastScannedAt=new Date().toISOString();pt.lastScannedByFitterId=currentActorFitterId();save();
+  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('qr_scan');
+  if(getScanMethod()!=='number')stopCamera();
+  openFindPanelResult(false);return;
+ }
+ const piece=state.scannedPiece||null;
+ lastPanelCheckHit={prId:pr.id,cabId:cab?cab.id:null,ptId:pt.id,piece};
  const q=Math.max(1,Number(pt.qty)||1);
- pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
+ if(piece){const ps=pieceState(pt,piece,true);if(!ps.checkedAt){ps.checkedAt=new Date().toISOString();ps.checkedBy=currentActorFitterId();pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1)}}
+ else pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
  pt.lastScannedAt=new Date().toISOString();
  pt.lastScannedByFitterId=currentActorFitterId();
  save();
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderScanDashboard();
- renderPanelCheckResult(pt,'checked');
+ renderPanelCheckResult(pt,'checked',piece);
  scanLoopTimer=setTimeout(scanLoop,1100);
 }
-function renderPanelCheckResult(pt,status){
+function renderPanelCheckResult(pt,status,piece){
  const box=$('#panelCheckResult');if(!box||!pt)return;
  box.classList.remove('hidden','status-missing','status-damaged');
  if(status==='missing')box.classList.add('status-missing');
@@ -4331,7 +5179,7 @@ function renderPanelCheckResult(pt,status){
  const cab=cabinet();
  const room=(project()?.rooms||[]).find(r=>r.id===(cab?.roomId));
  $('#pcResultIcon').textContent=status==='missing'?'❔':status==='damaged'?'⚠':'✓';
- $('#pcResultCode').textContent=pt.code||t('msg.panelFallback');
+ $('#pcResultCode').textContent=(pt.code||t('msg.panelFallback'))+(piece?' · '+piece+'/'+panelPieceCount(pt):'');
  $('#pcResultName').textContent=pt.name||cab?.name||'';
  $('#pcResultRoom').textContent=room?.name||cab?.name||'';
  $('#pcResultStatus').textContent=status==='missing'?'Missing':status==='damaged'?'Damaged':'Checked';
@@ -4359,21 +5207,23 @@ function currentActorDisplayName(){
 }
 // Shared by the Problem Panel menu (Find Panel) and Panel Check's own Missing button so
 // both ways of flagging a panel missing behave identically and stay in sync.
-function applyMissingStatus(pr,pt){
- const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=currentActorFitterId();
- addJobLogEntry(pr,"🔍 Missing: "+pt.code+(pt.name?" — "+pt.name:""),[],state.currentRoom||null);
+function applyMissingStatus(pr,pt,piece){
+ if(isGroupPanel(pt)){changeGroupCount(pr,pt,'missing',1);addJobLogEntry(pr,"🔍 Missing: "+pt.code+" (1 of "+panelPieceCount(pt)+")"+(pt.name?" — "+pt.name:""),[],state.currentRoom||null);save();if(typeof exportJob==="function")exportJob(pr.id);return}
+ if(piece){const ps=pieceState(pt,piece,true);ps.status="missing";ps.statusAt=Date.now();ps.statusBy=currentActorFitterId()}
+ else{const missingMark=currentMark(pt);missingMark.status="missing";missingMark.statusUpdatedAt=Date.now();missingMark.updatedByFitterId=currentActorFitterId()}
+ addJobLogEntry(pr,"🔍 Missing: "+pt.code+(piece?" piece "+piece+"/"+panelPieceCount(pt):"")+(pt.name?" — "+pt.name:""),[],state.currentRoom||null);
  save();
  if(typeof exportJob==="function")exportJob(pr.id);
 }
 $('#pcMarkMissing').onclick=()=>{
- const {pr,pt}=resolveLastPanelCheckHit();if(!pr||!pt)return;
- applyMissingStatus(pr,pt);
- renderPanelCheckResult(pt,'missing');
+ const {pr,pt,piece}=resolveLastPanelCheckHit();if(!pr||!pt)return;
+ applyMissingStatus(pr,pt,piece);
+ renderPanelCheckResult(pt,'missing',piece);
  if(typeof renderInstall==='function')renderInstall();
 };
 $('#pcMarkDamaged').onclick=()=>{
- const {pr,cab,pt}=resolveLastPanelCheckHit();if(!pr||!pt)return;
- setDamagePanelTarget(pr,cab,pt);
+ const {pr,cab,pt,piece}=resolveLastPanelCheckHit();if(!pr||!pt)return;
+ setDamagePanelTarget(pr,cab,pt,piece);
  $('#damagePanelOverlay').classList.remove('hidden');
  $('#damagePanelCode').value=pt.code||'';
  $('#damageNote').focus();
@@ -4432,7 +5282,7 @@ function renderPanelCheckSummary(){
  // counter -- status is a single flag for the whole row -- so it's counted separately,
  // by quantity, from rows explicitly marked missing.
  let missing=0;
- t2.rows.forEach(({pt})=>{if(pt.status==='missing')missing+=Math.max(1,Number(pt.qty)||1)});
+ t2.rows.forEach(({pt})=>{if(pt.status==='missing')missing+=Math.max(1,Number(pt.qty)||1);else missing+=Math.min(Math.max(1,Number(pt.qty)||1),pieceIssueCount(pt,'missing'))});
  body.innerHTML=`<div class="pc-summary-grid"><div class="pc-summary-stat"><b>${t2.total}</b><span>Expected</span></div><div class="pc-summary-stat checked"><b>${t2.scanned}</b><span>Checked</span></div><div class="pc-summary-stat missing"><b>${missing}</b><span>Missing</span></div><div class="pc-summary-stat damaged"><b>${t2.damaged}</b><span>Damaged</span></div></div>`;
 }
 $('#pcSummaryBtn').onclick=()=>{renderPanelCheckSummary();$('#pcSummaryOverlay').classList.remove('hidden')};
@@ -4475,13 +5325,13 @@ $('#bompMarkRoomComplete').onclick=()=>{
  renderInstall();
 };
 let damagePanelTarget=null;
-function setDamagePanelTarget(pr,cab,pt){damagePanelTarget=pr&&pt?{projectId:pr.id,cabinetId:cab&&cab.id,panelId:pt.id}:null}
+function setDamagePanelTarget(pr,cab,pt,piece){damagePanelTarget=pr&&pt?{projectId:pr.id,cabinetId:cab&&cab.id,panelId:pt.id,piece:piece||null}:null}
 function resolveDamagePanelTarget(){
  if(!damagePanelTarget)return null;
  const pr=state.projects.find(x=>x.id===damagePanelTarget.projectId);
  const cab=pr&&(pr.cabinets||[]).find(x=>x.id===damagePanelTarget.cabinetId);
  const pt=cab&&(cab.parts||[]).find(x=>x.id===damagePanelTarget.panelId);
- return pr&&cab&&pt?{pr,cab,pt}:null;
+ return pr&&cab&&pt?{pr,cab,pt,piece:damagePanelTarget.piece||null}:null;
 }
 $("#openDamage").onclick=()=>{setDamagePanelTarget(null,null,null);$("#damagePanelOverlay").classList.remove("hidden");$("#damagePanelCode").focus()};
 $("#closeDamagePanel").onclick=()=>{setDamagePanelTarget(null,null,null);$("#damagePanelOverlay").classList.add("hidden")};
@@ -4519,6 +5369,7 @@ $("#markPanelCheckChoice").onclick=()=>{
  if(!found)return;
  const{pr,cab,pt}=found;
  state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+ if(isGroupPanel(pt)){state.scannedPiece=null;save();openFindPanelResult(true);return}
  const q=Math.max(1,Number(pt.qty)||1);
  pt.scannedQty=Math.min(q,(Number(pt.scannedQty)||0)+1);
  pt.lastScannedAt=new Date().toISOString();
@@ -4527,12 +5378,9 @@ $("#markPanelCheckChoice").onclick=()=>{
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderInstall();
 };
-$("#markPanelInstallChoice").onclick=()=>{
- const found=locatePanelByCode(markPanelCode);
- closeMarkPanelMenu();
- if(!found)return;
- const{pr,cab,pt}=found;
- state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+// Fitted for a whole panel (old whole-panel QR, or the Mark Panel menu): a Qty row without
+// repeated markers counts fitted pieces; otherwise the selected marker is marked Fitted.
+function applyFittedLegacy(pt){
  const totalUnits=Math.max(1,Number(pt.qty)||1,1+(pt.copies||[]).length);
  const multi=(pt.copies||[]).length>0;
  if(totalUnits>1&&!multi){
@@ -4540,13 +5388,22 @@ $("#markPanelInstallChoice").onclick=()=>{
   // same press -- without this it would silently count as two pieces fitted instead of
   // one. A deliberate second piece a moment later still increments normally.
   const now=Date.now();
-  if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return;
+  if(state.lastFittedIncrement&&state.lastFittedIncrement.partId===pt.id&&now-state.lastFittedIncrement.at<800)return false;
   state.lastFittedIncrement={partId:pt.id,at:now};
   pt.installedQty=Math.min(totalUnits,(Number(pt.installedQty)||0)+1);
   if(pt.installedQty>=totalUnits){pt.status="installed";pt.statusUpdatedAt=Date.now();pt.updatedByFitterId=currentActorFitterId()}
  }else{
   const installedMark=currentMark(pt);installedMark.status="installed";installedMark.statusUpdatedAt=Date.now();installedMark.updatedByFitterId=currentActorFitterId();
  }
+ return true;
+}
+$("#markPanelInstallChoice").onclick=()=>{
+ const found=locatePanelByCode(markPanelCode);
+ closeMarkPanelMenu();
+ if(!found)return;
+ const{pr,cab,pt}=found;
+ state.currentProject=pr.id;state.currentCabinet=cab.id;state.currentPart=pt.id;state.currentRoom=cab.roomId||null;
+ if(applyFittedLegacy(pt)===false)return;
  save();
  if(typeof syncProgressSoon==='function')syncProgressSoon(pr.id);
  renderInstall();
@@ -4639,14 +5496,23 @@ $("#saveDamage").onclick=async()=>{
  const found=resolveDamagePanelTarget()||locatePanelByCode($("#damagePanelCode").value);
  if(!found){alert(t('msg.panelNotFoundCheckNumber'));return}
  state.currentProject=found.pr.id;state.currentCabinet=found.cab.id;state.currentPart=found.pt.id;state.currentRoom=found.cab.roomId||null;
- const q=Math.max(1,Number(found.pt.qty)||1);
- found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
- found.pt.status="damaged";
- found.pt.statusUpdatedAt=Date.now();
- found.pt.updatedByFitterId=currentActorFitterId();
+ const q=Math.max(1,Number(found.pt.qty)||1),piece=found.piece||null;
+ // A grouped panel: one more damaged piece in its counter (no piece identity is invented).
+ if(isGroupPanel(found.pt))changeGroupCount(found.pr,found.pt,'damaged',1);
+ else if(piece){
+  // One physical piece: only that piece becomes damaged; the others keep their own state.
+  const ps=pieceState(found.pt,piece,true);
+  if(ps.status!=="damaged")found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
+  ps.status="damaged";ps.statusAt=Date.now();ps.statusBy=currentActorFitterId();ps.note=$("#damageNote").value.trim();
+ }else{
+  found.pt.damagedQty=Math.min(q,(Number(found.pt.damagedQty)||0)+1);
+  found.pt.status="damaged";
+  found.pt.statusUpdatedAt=Date.now();
+  found.pt.updatedByFitterId=currentActorFitterId();
+ }
  found.pt.damageNote=$("#damageNote").value.trim();
  if(damagePhotoData){found.pt.panelPhotos=found.pt.panelPhotos||[];found.pt.panelPhotos.push({id:uid(),data:damagePhotoData})}
- addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[],found.cab.roomId||null);
+ addJobLogEntry(found.pr,"⚠ Damaged: "+found.pt.code+(piece?" piece "+piece+"/"+panelPieceCount(found.pt):"")+(found.pt.damageNote?" — "+found.pt.damageNote:""),damagePhotoData?[damagePhotoData]:[],found.cab.roomId||null);
  save();
  const studioResult=typeof exportJob==='function'?await exportJob(found.pr.id,true):null;
  lastDamageShare={code:found.pt.code,name:found.pt.name||"",note:found.pt.damageNote,job:found.pr.name||t('msg.jobFallback'),photo:damagePhotoData};
@@ -4655,8 +5521,8 @@ $("#saveDamage").onclick=async()=>{
  renderScanDashboard();
  if(typeof renderInstallDashboard==='function')renderInstallDashboard();
  if(typeof renderInstall==='function')renderInstall();
- if(state.scanMode==='check')renderPanelCheckResult(found.pt,'damaged');
- if(state.scanMode==='find'&&typeof renderFindPanelResult==='function')renderFindPanelResult();
+ if(state.scanMode==='check')renderPanelCheckResult(found.pt,'damaged',piece);
+ if(typeof refreshAfterPanelAction==='function')refreshAfterPanelAction();
  $("#shareDamageWhatsapp").classList.remove("hidden");
  if(studioResult==='sent')alert("Damaged panel saved and sent to Studio.");
  else if(studioResult==='queued')alert("Damaged panel saved on this phone. It will send to Studio automatically when the connection returns.");
@@ -5151,7 +6017,7 @@ load();
  })();
  function refreshManualContext(){
    const el=document.querySelector('#manualJobContext'),pr=project();if(!el)return;
-   el.innerHTML=pr?`${t('scan.currentJob')}: <strong>${safe(pr.name)}</strong> · ${mobileJobRef(pr)}<br>${t('scan.typeOnlyPanelHint')} <strong>P-001</strong>.`:t('scan.openCorrectJobFirst');
+   el.innerHTML=pr?`${t('scan.currentJob')}: <strong>${safe(pr.name)}</strong> · ${mobileJobRef(pr)}<br>${t('scan.typeOnlyPanelHint')} <strong>${safe(((pr.cabinets||[]).flatMap(c=>c.parts||[])[0]||{}).code||'P-001')}</strong>.`:t('scan.openCorrectJobFirst');
  }
  const oldRenderAll=window.renderAll;
  window.renderAll=function(){oldRenderAll();refreshManualContext()}
@@ -5213,6 +6079,20 @@ body:has(#measure.active) main{height:100dvh!important;overflow:hidden;padding-t
  #measure.active .three-main-measures .measure-kind span{font-size:9px}
  #measure.active .markup-stage{border-radius:9px}
 }
+/* Room Note beside Add Picture: five columns in the Measure top bar, labels may wrap. */
+#measure .measure61-topbar{grid-template-columns:40px minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr) minmax(0,.95fr)!important;gap:5px}
+#measure .measure61-topbar .measure61-picture,#measure .measure61-topbar .measure61-note{white-space:normal!important;line-height:1.1;text-align:center;gap:4px}
+#measure .measure61-note{background:#fff7e8!important;border:2px solid #e8b04e!important;color:#6b4300!important}
+#measure .measure61-note.has-note{background:#ffe9c2!important;border-color:#d38a12!important}
+#measure .measure61-note .room-note-count{font-weight:900}
+@media(max-width:430px){#measure .measure61-topbar .measure61-picture,#measure .measure61-topbar .measure61-note{flex-direction:column;font-size:10px!important;padding:3px 2px!important}#measure .measure61-roomsel{padding:3px!important}#measure .measure-current-room-chip{white-space:normal;line-height:1.1;font-size:12px;padding:4px 8px;text-align:center}#measure .measure-current-room-chip .measure-current-room-icon{display:none}}
+/* Whole Site Note sits apart from the rooms and says it is for the complete Site Measure. */
+.whole-site-note-row{margin:16px 12px 6px!important;padding:12px 14px!important;border:2px solid #e8b04e!important;background:#fff9ee!important;border-radius:14px!important;gap:10px!important;text-align:left}
+.whole-site-note-row .wsn-icon{font-size:22px}
+.whole-site-note-row .wsn-text{display:flex;flex-direction:column;min-width:0}
+.whole-site-note-row .wsn-text b{font-size:15px;font-weight:900}
+.whole-site-note-row .wsn-text small{font-size:12px;color:var(--muted);font-weight:700}
+.svs-room-note{font-size:18px;flex:none}
 </style>
 <script id="a174-mobile-notice">
 (()=>{
@@ -5397,6 +6277,15 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   // and resent on this device. Only the cloned cloud packet is changed to Storage URLs.
   // This mirrors the already proven Studio-to-Mobile media path and removes the Firestore
   // document size limit from both directions.
+  const MEDIA_URL_CACHE_KEY="fiq_mobile_media_url_cache_v1";
+  let mediaUrlCache=null;
+  function mediaUrlCacheGet(k){if(!mediaUrlCache){try{mediaUrlCache=JSON.parse(localStorage.getItem(MEDIA_URL_CACHE_KEY)||"{}")||{}}catch(e){mediaUrlCache={}}}return mediaUrlCache[k]||null}
+  function mediaUrlCacheSet(k,v){mediaUrlCacheGet(k);mediaUrlCache[k]=v;const keys=Object.keys(mediaUrlCache);if(keys.length>2000)keys.slice(0,keys.length-2000).forEach(function(x){delete mediaUrlCache[x]});try{localStorage.setItem(MEDIA_URL_CACHE_KEY,JSON.stringify(mediaUrlCache))}catch(e){}}
+  async function mediaContentHash(value){
+    if(!(window.crypto&&crypto.subtle&&window.TextEncoder))return null;
+    const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
+    return Array.from(new Uint8Array(bytes)).slice(0,16).map(function(b){return b.toString(16).padStart(2,"0")}).join("");
+  }
   async function offloadMobileMediaForStudio(project,companyId){
     const cloudProject=JSON.parse(JSON.stringify(project));
     const storage=window.fiqStorage,storageFns=window.fiqStorageFns||{};
@@ -5406,6 +6295,19 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     const uploads=[];
     const transferId=uid();
     let fallbackId=0;
+    const jobFolder="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media";
+    async function durableUrl(value,transferPath){
+      const hash=await mediaContentHash(value);
+      const objectPath=hash?jobFolder+"/h/"+hash+(/^data:image\/png/i.test(value)?".png":".jpg"):transferPath;
+      const cached=hash&&mediaUrlCacheGet(objectPath);if(cached)return cached;
+      const objectRef=storageFns.ref(storage,objectPath);
+      let url=null;
+      if(hash){try{url=await storageFns.getDownloadURL(objectRef)}catch(e){url=null}}
+      if(!url){await storageFns.uploadString(objectRef,value,"data_url");url=await storageFns.getDownloadURL(objectRef)}
+      if(!url)throw new Error("The uploaded photo could not be verified.");
+      if(hash)mediaUrlCacheSet(objectPath,url);
+      return url;
+    }
     function walk(node){
       if(!node||typeof node!=="object")return;
       if(Array.isArray(node)){
@@ -5414,13 +6316,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
             const mediaId="media-"+(fallbackId++);
             const extension=/^data:image\/png/i.test(value)?"png":"jpg";
             const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+transferId+"/"+mediaId+"-item."+extension;
-            uploads.push((async function(){
-              const objectRef=storageFns.ref(storage,objectPath);
-              await storageFns.uploadString(objectRef,value,"data_url");
-              const url=await storageFns.getDownloadURL(objectRef);
-              if(!url)throw new Error("The uploaded photo could not be verified.");
-              node[index]=url;
-            })());
+            uploads.push(durableUrl(value,objectPath).then(function(url){node[index]=url}));
           }else if(value&&typeof value==="object")walk(value);
         });
         return;
@@ -5431,13 +6327,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
           const mediaId=String(node.id||("media-"+(fallbackId++))).replace(/[^a-zA-Z0-9_-]/g,"-");
           const extension=/^data:image\/png/i.test(value)?"png":"jpg";
           const objectPath="companies/"+companyId+"/jobs/"+cloudProject.id+"/mobile-media/"+transferId+"/"+mediaId+"-"+key+"."+extension;
-          uploads.push((async function(){
-            const objectRef=storageFns.ref(storage,objectPath);
-            await storageFns.uploadString(objectRef,value,"data_url");
-            const url=await storageFns.getDownloadURL(objectRef);
-            if(!url)throw new Error("The uploaded photo could not be verified.");
-            node[key]=url;
-          })());
+          uploads.push(durableUrl(value,objectPath).then(function(url){node[key]=url}));
         }else if(value&&typeof value==="object")walk(value);
       });
     }
@@ -5476,7 +6366,12 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     // than let the job vanish behind a cryptic SDK error.
     let approxBytes=0;try{approxBytes=new Blob([JSON.stringify(envelope)]).size}catch(e){approxBytes=JSON.stringify(envelope).length}
     if(approxBytes>900000)throw new Error("This site job's photos are too large to send to Studio in one go (about "+Math.round(approxBytes/1024)+"KB). Remove a photo or two, or use the backup file instead.");
-    const ref=await fs.addDoc(fs.collection(db,"companies",user.companyId,"jobs"),envelope);
+    const jobId=pack.project&&pack.project.id?String(pack.project.id).replace(/[\/]/g,"_"):"";
+    let ref;
+    if(jobId&&fs.setDoc){
+      ref={id:"mobile-"+jobId+"-"+user.uid};
+      await fs.setDoc(fs.doc(db,"companies",user.companyId,"jobs",ref.id),envelope);
+    }else ref=await fs.addDoc(fs.collection(db,"companies",user.companyId,"jobs"),envelope);
     try{new BroadcastChannel("assembleone-sync").postMessage({type:"mobile-update",syncId:ref.id,channel:CHANNEL})}catch(e){}
     // The write resolving only proves the packet reached Studio's waiting queue, not that
     // Studio has it -- callers that need real confirmation (see checkPendingStudioReceipts)
@@ -5500,6 +6395,33 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
   const CHANNEL="mads_assembleone_1089";
   const ROOT=`sync_v3/${CHANNEL}`;
   window.ASSEMBLEONE_SYNC_CHANNEL=CHANNEL;
+  const inbox={company:null,active:null,waiting:null,unsubs:[]};
+  function stopInboxListeners(){inbox.unsubs.forEach(function(u){try{u()}catch(e){}});inbox.unsubs=[];inbox.active=null;inbox.waiting=null;inbox.company=null}
+  function inboxQueries(fs,db,companyId){
+    const col=fs.collection(db,'companies',companyId,'jobs');
+    return {active:fs.query(col,fs.where('kind','==','studioToMobilePacket'),fs.where('active','==',true)),waiting:fs.query(col,fs.where('kind','==','studioToMobilePacket'),fs.where('status','==','waiting'))};
+  }
+  function inboxFromSnapshot(snap){const out=[];snap.forEach(function(d){out.push({...d.data(),syncId:'cloud:'+d.id,_cloudId:d.id})});return out}
+  function startInboxListeners(fs,db,companyId){
+    if(inbox.company===companyId&&inbox.unsubs.length)return;
+    stopInboxListeners();
+    if(!fs.onSnapshot)return;
+    inbox.company=companyId;
+    const q=inboxQueries(fs,db,companyId);
+    const listen=function(key){return fs.onSnapshot(q[key],function(snap){inbox[key]=inboxFromSnapshot(snap);if(typeof window.receiveStudioDirect==='function')window.receiveStudioDirect()},function(e){console.error('Live Studio job listener failed',e);stopInboxListeners()})};
+    inbox.unsubs=[listen('active'),listen('waiting')];
+  }
+  async function studioInboxDocs(fs,db,companyId){
+    startInboxListeners(fs,db,companyId);
+    let active=inbox.company===companyId?inbox.active:null,waiting=inbox.company===companyId?inbox.waiting:null;
+    if(!active||!waiting){
+      const q=inboxQueries(fs,db,companyId);
+      const snaps=await Promise.all([fs.getDocs(q.active),fs.getDocs(q.waiting)]);
+      active=inboxFromSnapshot(snaps[0]);waiting=inboxFromSnapshot(snaps[1]);
+    }
+    const byId=new Map();waiting.concat(active).forEach(function(p){byId.set(p._cloudId,p)});
+    return JSON.parse(JSON.stringify(Array.from(byId.values())));
+  }
   window.mobileInboxPackets=async function(){
     let legacy=[];
     // Company Firestore is the cross-device queue; the retired shared RTDB channel is not read.
@@ -5511,13 +6433,9 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     try{
       const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
       if(fs&&db&&user&&user.companyId){
-        const q=fs.query(fs.collection(db,'companies',user.companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'));
-        const snap=await fs.getDocs(q);
-        // Filter the queue state on the phone. Combining kind and status in Firestore
-        // requires a composite index; without it Studio successfully writes the packet
-        // but Mobile's polling query fails and the job appears never to arrive.
-        const packets=[];
-        snap.forEach(docSnap=>packets.push({...docSnap.data(),syncId:'cloud:'+docSnap.id,_cloudId:docSnap.id}));
+        // Two equality filters (kind plus active, or kind plus status) need no composite
+        // index; checked read-only against the production database on 24 Sep 2026.
+        const packets=await studioInboxDocs(fs,db,user.companyId);
         const latest=new Map();
         packets.forEach(packet=>{if(packet.project){const prior=latest.get(packet.project.id);if(!prior||Date.parse(packet.exportedAt)>Date.parse(prior.exportedAt))latest.set(packet.project.id,packet)}});
         const cutoff=Number(localStorage.getItem('fittersiq_test_reset_at_v1')||0);
@@ -5536,6 +6454,13 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
           if(typeof canSeeJob==='function'&&!(newest.rooms&&newest.rooms.length?newest.rooms:[null]).some(room=>canSeeJob(newest,room)))return;
           if((state.deletedProjectIds||[]).includes(incoming.id)&&packet.status!=='waiting')return;
           const local=(state.projects||[]).find(x=>x.id===incoming.id);
+          // Already applied here (same Studio send, no new notes) but still marked waiting in
+          // the cloud, e.g. because Studio's retry re-wrote it: confirm it quietly instead of
+          // applying and announcing the same job again.
+          if(packet.status==='waiting'&&local&&!window.FittersIQSyncProtocol.shouldApply(local,packet,'_lastStudioPacketAt')){
+            if(typeof window.removeMobilePacket==='function')window.removeMobilePacket(packet).catch(()=>{});
+            return;
+          }
           if(packet.status==='waiting'||window.FittersIQSyncProtocol.shouldApply(local,packet,'_lastStudioPacketAt'))cloud.push(packet);
         });
       }
@@ -5546,7 +6471,12 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
     if(packet&&packet._cloudId){
       try{
         const fs=window.fiqAuthFns,db=window.fiqFirestore,user=window.fittersiqUser;
-        if(fs&&db&&user&&user.companyId)await fs.updateDoc(fs.doc(db,'companies',user.companyId,'jobs',packet._cloudId),{status:'received',receivedAt:fs.serverTimestamp()});
+        if(fs&&db&&user&&user.companyId){
+          const ref=fs.doc(db,'companies',user.companyId,'jobs',packet._cloudId);
+          if(packet.project&&packet.exportedAt&&fs.runTransaction){
+            await fs.runTransaction(db,async function(tx){const snap=await tx.get(ref);if(!snap.exists())return;const d=snap.data()||{};if(d.status==='received'||d.exportedAt!==packet.exportedAt)return;tx.update(ref,{status:'received',receivedAt:fs.serverTimestamp()})});
+          }else await fs.updateDoc(ref,{status:'received',receivedAt:fs.serverTimestamp()});
+        }
       }catch(e){console.error(e)}
       return;
     }
@@ -5565,7 +6495,10 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
       for(const packet of packets){
         try{
           if(packet.command&&packet.command.type==='reset-all-test-data'){
-            if(typeof window.fiqResetMobileTestData==='function')await window.fiqResetMobileTestData(packet.command.resetId,packet.command.resetAt);
+            // This phone never clears itself on a message from the cloud. The jobs on it stay.
+            console.warn('FittersIQ: a "clear all test data" request was ignored; nothing was removed from this phone.');
+            try{if(packet.command.resetId)localStorage.setItem('fittersiq_last_test_reset_v1',packet.command.resetId)}catch(e){}
+            try{const st=document.getElementById('scanResult');if(st)st.textContent='A request to clear all data was ignored. Nothing was removed from this phone.'}catch(e){}
             await window.removeMobilePacket(packet);
             continue;
           }
@@ -5958,7 +6891,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   function initFiqAuthGate(){
   function $(id){return document.getElementById(id)}
   function showState(id){
-    ['fiqStateChecking','fiqStateSignIn','fiqStateJoin','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended','fiqStateDeviceWaiting'].forEach(function(s){
+    ['fiqStateChecking','fiqStateSignIn','fiqStateJoin','fiqStateVerify','fiqStateNoCompany','fiqStateSuspended','fiqStateOtherCompany','fiqStateDeviceWaiting'].forEach(function(s){
       var el=$(s); if(el) el.hidden = (s!==id);
     });
   }
@@ -6042,15 +6975,25 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   // at all, not just be hidden from view once it's already there. The owner's blanket
   // access and a fitter's assignment-only access (see canSeeJob itself) both come from
   // this one check, so there is exactly one place that rule lives.
+  // A normal open recovers only jobs Studio has live in Job Overview. Every job ever sent is
+  // read only when this phone has no jobs at all (new, reset or cleared phone), or once a
+  // week, and a job Studio has switched off (Customer Library, deleted) never comes back.
+  const FULL_JOB_RECOVERY_KEY="fiq_mobile_full_recovery_at_v1";
+  window.fiqRecoverAccessibleCompanyJobs=function(companyId){return recoverAccessibleCompanyJobs(companyId)};
   async function recoverAccessibleCompanyJobs(companyId){
     try{
       const fs=window.fiqAuthFns,db=window.fiqFirestore;
       if(!fs||!db||!companyId)return;
-      const q=fs.query(fs.collection(db,'companies',companyId,'jobs'),fs.where('kind','==','studioToMobilePacket'));
+      const lastFull=Number(localStorage.getItem(FULL_JOB_RECOVERY_KEY+":"+companyId)||0);
+      const full=!(state.projects||[]).length||Date.now()-lastFull>7*24*60*60*1000;
+      const col=fs.collection(db,'companies',companyId,'jobs');
+      const q=full?fs.query(col,fs.where('kind','==','studioToMobilePacket')):fs.query(col,fs.where('kind','==','studioToMobilePacket'),fs.where('active','==',true));
       const snap=await fs.getDocs(q);
+      if(full){try{localStorage.setItem(FULL_JOB_RECOVERY_KEY+":"+companyId,String(Date.now()))}catch(e){}}
       let changed=false;
       snap.forEach(function(docSnap){
         const data=docSnap.data()||{};
+        if(data.active===false)return;
         const incoming=data.project||data;
         if(!incoming||!incoming.id||!Array.isArray(incoming.cabinets))return;
         if((state.projects||[]).some(function(x){return x.id===incoming.id}))return;
@@ -6152,6 +7095,27 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       }
     }
     if(deviceWaitPoll){ clearInterval(deviceWaitPoll); deviceWaitPoll = null; }
+    // Mads 16 Oct 2026: jobs saved in this phone belong to the company that first signed in here. Another
+    // company never sees, sends or backs them up: it gets a plain stop screen (nothing is deleted). Support
+    // sign-ins are exempt. Without saved jobs the phone simply moves to the company now signing in.
+    if(claims.companyId && !claims.fittersiq_admin){
+      var DATA_OWNER='fiq_data_company_v1',owner=null,hasJobs=false;
+      try{owner=localStorage.getItem(DATA_OWNER)}catch(e){}
+      try{hasJobs=typeof state!=='undefined'&&state&&Array.isArray(state.projects)&&state.projects.length>0}catch(e){}
+      if(owner&&owner!==claims.companyId&&hasJobs){ showState('fiqStateOtherCompany'); return; }
+      if(owner!==claims.companyId){ try{localStorage.setItem(DATA_OWNER,claims.companyId)}catch(e){} }
+    }
+    // A join link (?join=123456) opened on a phone that is already signed in used to be ignored silently.
+    try{
+      var pendingJoin=new URLSearchParams(location.search).get('join');
+      if(pendingJoin&&/^\d{6}$/.test(pendingJoin)){
+        var clean=location.pathname+location.search.replace(/([?&])join=\d{6}&?/,'$1').replace(/[?&]$/,'')+location.hash;
+        if(confirm('This phone is already signed in'+(user.email?' as '+user.email:'')+'. To join with code '+pendingJoin+', this phone must sign out first. Jobs saved on this phone stay on it. Sign out now?')){
+          joinPrefillTried=false;await authFns.signOut(auth);return;
+        }
+        try{history.replaceState(null,'',clean)}catch(e){}
+      }
+    }catch(e){}
     unlockApp(user, claims);
   }
 
@@ -6235,7 +7199,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     var t=setInterval(function(){ s--; if(s<=0){clearInterval(t); btn.disabled=false; btn.textContent='Resend verification email'; resendCooling=false;} else btn.textContent='Resend verification email ('+s+'s)'; },1000);
   });
 
-  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn','fiqDeviceWaitingSignOutBtn'].forEach(function(id){
+  ['fiqSignOutBtn','fiqVerifySignOutBtn','fiqNoCompanySignOutBtn','fiqSuspendedSignOutBtn','fiqOtherCompanySignOutBtn','fiqDeviceWaitingSignOutBtn'].forEach(function(id){
     var el=$(id); if(el) el.addEventListener('click', function(){ authFns.signOut(auth); });
   });
   } // end initFiqAuthGate
@@ -6474,4 +7438,69 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
 }
 </style>
 
+<script id="fiq-piece-labels">
+// Fixed piece labels. Every physical piece has its own printed label (MB2-1 ... MB2-5), and
+// Panel Check counts each one once. When Studio makes one piece unique, the others keep
+// their label numbers: pt.pieceNos lists the label number of each piece in order. The piece
+// that moved, and panels merged by Group identical pieces, are found again through
+// pt.labelAliases ({panelId, code, labelNo, legacyNo, toLabel}), so labels already printed
+// keep opening the right piece. A panel without pieceNos is numbered 1..qty as always.
+function fiqLabelNos(pt){const q=Math.max(1,Math.floor(Number(pt&&pt.qty)||1));return Array.isArray(pt&&pt.pieceNos)?pt.pieceNos.slice(0,q):Array.from({length:q},(_,i)=>i+1)}
+function fiqLabelNoOf(pt,cur){const n=fiqLabelNos(pt)[cur-1];return n==null?cur:n}
+function fiqCurOfLabelNo(pt,no){const i=fiqLabelNos(pt).indexOf(Number(no));return i<0?null:i+1}
+// The panel and current piece an alias points to, inside the given jobs.
+function fiqFindAlias(projects,test){
+ for(const pr of projects)for(const c of (pr.cabinets||[]))for(const pt of (c.parts||[]))for(const a of (pt.labelAliases||[]))if(a&&test(a))return {pr,c,pt,toLabel:Number(a.toLabel)||1};
+ return null;
+}
+// A route from a printed label (its copyIndex counts printed label numbers) to the piece it
+// is now: unchanged for panels never split; moved and merged pieces follow their alias.
+function fiqRouteThroughLabels(q){
+ if(!q||!q.panelId)return q;
+ const pr=(state.projects||[]).find(x=>x.id===q.projectId);if(!pr)return q;
+ const lbl=q.copyIndex==null?null:(Number(q.copyIndex)===-1?1:Number(q.copyIndex)+2);
+ let hit=null;for(const c of (pr.cabinets||[]))for(const pt of (c.parts||[]))if(pt.id===q.panelId)hit={c,pt};
+ const toCur=(c,pt,label)=>{const cur=label==null?null:fiqCurOfLabelNo(pt,label);return {...q,cabinetId:c.id,panelId:pt.id,copyIndex:cur==null?null:(cur===1?-1:cur-2)}};
+ if(hit){
+  if(!Array.isArray(hit.pt.pieceNos))return q;
+  if(lbl==null||fiqCurOfLabelNo(hit.pt,lbl)!=null)return toCur(hit.c,hit.pt,lbl);
+ }
+ const a=fiqFindAlias([pr],x=>x.panelId===q.panelId&&(x.labelNo==null||Number(x.labelNo)===lbl));
+ return a?toCur(a.c,a.pt,a.toLabel):q;
+}
+</script>
+<style id="fiq-piece-highlight">
+/* Every placed position of the scanned panel shows its reference at the same size and all of
+   them pulse gently together. The scanned piece is still named in the piece buttons, the
+   status line and its number badge. */
+.panel-drawing .panel-highlight.fiq-group,.panel-drawing .panel-highlight.fiq-group.active{width:60px!important;height:60px!important;border-width:6px!important;opacity:1!important;background:rgba(255,255,255,.82);z-index:3;animation:fiqGroupPulse 1.8s ease-in-out infinite!important}
+.panel-highlight.fiq-group .fiq-hl-code{font-weight:900;font-size:13px;line-height:1;color:#174E98;letter-spacing:.01em}
+.fp-drawing-frame .panel-highlight.fiq-group .fiq-hl-code{transform:translateY(-12px)}
+.panel-highlight.fiq-group .panel-highlight-num{position:absolute;top:-12px;right:-12px}
+.panel-highlight.fiq-group.active .panel-highlight-num{background:#e0102f}
+@keyframes fiqGroupPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 6px rgba(23,78,152,.30)}50%{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 16px rgba(23,78,152,.04)}}
+</style>
+<script id="fiq-phone-health">
+// Backup protection status for the alerts: how much of this phone's work is still waiting to
+// upload, and since when. One record per phone (companies/{c}/health/{device}); written once a
+// minute when it changes, every 5 minutes otherwise, and when the internet returns. A refused or
+// failed write changes nothing on the phone.
+(function(){
+ let last=null,lastAt=0;
+ function waiting(){let n=0,oldest=null;try{const a=pendingStudioSyncEntries();n=a.length;a.forEach(x=>{if(x.queuedAt&&(!oldest||x.queuedAt<oldest))oldest=x.queuedAt})}catch(e){}return {n,oldest}}
+ async function write(force){
+  const u=window.fittersiqUser,fs=window.fiqAuthFns,db=window.fiqFirestore;if(!u||!u.companyId||!fs||!fs.setDoc||!db||!navigator.onLine)return null;
+  const w=waiting(),key=w.n+"|"+w.oldest;if(!force&&key===last&&Date.now()-lastAt<5*60*1000)return null;
+  // The same device id Mobile uses for device approval; created here when the company has approval off.
+  let id=null;try{id=localStorage.getItem("assembleone_device_id");if(!id){id="dev_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2);localStorage.setItem("assembleone_device_id",id)}}catch(e){}if(!id)return null;
+  const ua=navigator.userAgent||"";
+  const rec={uid:u.uid,kind:"phone",deviceName:"Phone · "+(/iPhone|iPad/.test(ua)?"iOS":/Android/.test(ua)?"Android":"browser"),state:w.n?"pending":"backed-up",lastChangeAt:null,pendingSince:w.oldest||null,lastVerifiedAt:null,coverage:null,waitingUploads:w.n,lastError:null,heartbeatAt:Date.now(),appVersion:"mobile-staging"};
+  try{await fs.setDoc(fs.doc(db,"companies",u.companyId,"health",id),rec);last=key;lastAt=Date.now();return rec}catch(e){return null}
+ }
+ setInterval(()=>{write(false)},60000);
+ window.addEventListener("online",()=>{write(true)});
+ setTimeout(()=>{write(true)},15000);
+ window.fiqPhoneHealth=write;
+})();
+</script>
 </body></html>

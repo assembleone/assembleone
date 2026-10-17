@@ -23,8 +23,12 @@
       var patch='<script src="studio-patch.js?build=86&ts='+stamp+'"><\/script>';
       var snapshot='<script src="studio-dispatch-snapshot.js?build=86&ts='+stamp+'"><\/script>';
       var hardening='<script src="studio-sync-hardening.js?build=90&ts='+stamp+'"><\/script>';
-      var bodyClose=lower.lastIndexOf('</body>');
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+html.slice(bodyClose);
+      // Automatic cloud backup (step 6), area "production" of the company. It does nothing until support
+      // turns the company switch on AND this computer's switch is turned on.
+      var cm=function(n,mod){return '<script'+(mod?' type="module"':'')+' src="cloud-master/'+n+'?build=91&ts='+stamp+'"><\/script>'};
+      var cloud='<script>window.FIQ_CLOUD_ENV="production"<\/script>'+cm('fiq-cloud-copy.js')+cm('backup-schedule.js')+cm('fiq-cloud-restore.js')+cm('studio-cloud-copy.js',true);
+      var bodyClose=html.toLowerCase().lastIndexOf('</body>');
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
