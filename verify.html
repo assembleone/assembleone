@@ -102,8 +102,8 @@ continueBtn.addEventListener("click", async () => {
 
     const pendingRaw = sessionStorage.getItem("fittersiq_pending_onboarding");
     if (pendingRaw) {
-      const { companyName, ownerName, plan } = JSON.parse(pendingRaw);
-      await completeOnboarding({ companyName, ownerName, plan });
+      const { companyName, ownerName, plan, termsVersion } = JSON.parse(pendingRaw);
+      await completeOnboarding({ companyName, ownerName, plan, termsVersion });
       sessionStorage.removeItem("fittersiq_pending_onboarding");
     }
 

@@ -1776,8 +1776,8 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
           plan: c.plan || 'Trial',
           status: statusWord(c),
           users: '1 / ' + (c.maxUsers || 1),
-          renewal: c.status === 'suspended' ? 'Suspended' : c.paidUntil ? ('Paid until ' + formatDate(c.paidUntil)) : c.subscriptionStatus === 'trialing' ? ('Trial ends ' + formatDate(c.trialEndsAt)) : formatDate(c.trialEndsAt),
-          real: true, createdAt: c.createdAt || null, maxUsers: c.maxUsers || 0, rawStatus: c.status || '', trialEndsAt: c.trialEndsAt || null, paidUntil: c.paidUntil || null, cloudBackup: c.fiqCloudCopy === 'on',
+          renewal: c.status === 'suspended' ? (c.suspendReason === 'trial_ended' ? 'Trial ended, paused' : 'Suspended') : c.paidUntil ? ('Paid until ' + formatDate(c.paidUntil)) : c.subscriptionStatus === 'trialing' ? ('Trial ends ' + formatDate(c.trialEndsAt)) : formatDate(c.trialEndsAt),
+          real: true, suspendReason: c.suspendReason || '', termsAcceptedAt: c.termsAcceptedAt || null, termsVersion: c.termsVersion || '', createdAt: c.createdAt || null, maxUsers: c.maxUsers || 0, rawStatus: c.status || '', trialEndsAt: c.trialEndsAt || null, paidUntil: c.paidUntil || null, cloudBackup: c.fiqCloudCopy === 'on',
           last: '–',
         });
       });
@@ -1802,10 +1802,11 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     box.innerHTML = '<div class="detail-grid fiq-account">'
       + '<div><small>TRIAL ENDS</small><strong>' + (trialEnd || '–') + (days != null && !paid ? ' (' + (days < 0 ? Math.abs(days) + ' days ago' : days + ' days left') + ')' : '') + '</strong></div>'
       + '<div><small>PAID UNTIL</small><strong>' + (paid || '–') + '</strong></div>'
-      + '<div><small>CLOUD BACKUP</small><strong>' + (c.cloudBackup ? 'On' : 'Off') + '</strong></div></div>'
+      + '<div><small>CLOUD BACKUP</small><strong>' + (c.cloudBackup ? 'On' : 'Off') + '</strong></div>'
+      + '<div><small>TERMS ACCEPTED</small><strong>' + (iso(c.termsAcceptedAt) ? iso(c.termsAcceptedAt) + ' (version ' + c.termsVersion + ')' : 'Not recorded') + '</strong></div></div>'
       + '<label class="fiq-account-date"><small>Date</small><input type="date" id="dAccountDate" value="' + (paid || trialEnd || '') + '"></label>'
       + '<button class="secondary wide" type="button" data-account="paid">Record payment: paid until this date</button>'
-      + (c.rawStatus === 'trial' ? '<button class="secondary wide" type="button" data-account="trial">Set trial end to this date</button>' : '')
+      + (c.rawStatus === 'trial' || c.suspendReason === 'trial_ended' ? '<button class="secondary wide" type="button" data-account="trial">' + (c.rawStatus === 'trial' ? 'Set trial end to this date' : 'Give a new trial until this date') + '</button>' : '')
       + (c.rawStatus === 'suspended' ? '<button class="secondary wide" type="button" data-account="resume">Resume access</button>' : '<button class="secondary wide" type="button" data-account="suspend">Suspend (unpaid; data is kept)</button>')
       + '<p class="fiq-account-msg" id="dAccountMsg"></p>';
     box.querySelectorAll('[data-account]').forEach(function(btn){ btn.onclick = async function(){
@@ -2000,7 +2001,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       if(!rows.length){ list.innerHTML = '<p class="muted">No support tickets yet.</p>'; return; }
       list.innerHTML = rows.map(function(r){
         var t = r.t;
-        var kind = t.type === 'bug' ? '🐞 Bug' : '💬 Help';
+        var kind = t.type === 'bug' ? '🐞 Bug' : t.type === 'error' ? '⚠ App error' : '💬 Help';
         var when = (t.createdAt && t.createdAt.toDate) ? t.createdAt.toDate().toLocaleString() : '';
         var resolved = t.status === 'resolved';
         return '<div class="support-ticket-row' + (resolved ? ' resolved' : '') + '">' +
