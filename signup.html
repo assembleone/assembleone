@@ -46,6 +46,7 @@ a{color:inherit}
       <div class="field"><label for="email">Email</label><input id="email" required type="email" autocomplete="email"></div>
       <div class="field"><label for="password">Password</label><input id="password" required type="password" minlength="8" autocomplete="new-password"></div>
       <div class="field"><label for="confirmPassword">Confirm password</label><input id="confirmPassword" required type="password" minlength="8" autocomplete="new-password"></div>
+      <label class="accept"><input id="acceptTerms" type="checkbox" required><span>I accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <button class="primary" id="submitBtn" type="submit">Start Free Trial</button>
     </form>
     <div class="secondary-link">Already have an account? <a href="signin.html">Sign In</a></div>
@@ -55,7 +56,7 @@ a{color:inherit}
 
 <script type="module">
 // The version of terms.html / privacy.html the customer accepted; stored with the company (Mads 17 Oct 2026).
-const TERMS_VERSION = "2026-10-17";
+const TERMS_VERSION = "2026-10-18";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile
@@ -94,6 +95,10 @@ form.addEventListener("submit", async (e) => {
     showMsg("Passwords do not match.", "error");
     return;
   }
+  if (!document.getElementById("acceptTerms").checked) {
+    showMsg("Please accept the Terms of Service and Privacy Policy.", "error");
+    return;
+  }
   if (password.length < 8) {
     showMsg("Password must be at least 8 characters.", "error");
     return;
@@ -109,7 +114,7 @@ form.addEventListener("submit", async (e) => {
     const plan = new URLSearchParams(location.search).get("plan") || null;
     sessionStorage.setItem(
       "fittersiq_pending_onboarding",
-      JSON.stringify({ companyName, ownerName, plan })
+      JSON.stringify({ companyName, ownerName, plan, termsVersion: TERMS_VERSION })
     );
     location.href = "verify.html";
   } catch (err) {
