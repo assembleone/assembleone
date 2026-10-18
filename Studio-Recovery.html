@@ -1450,12 +1450,16 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <div class="fiq-auth-state" id="fiqStateOtherCompany" hidden>
       <h1>Another company's jobs are here</h1>
       <p class="fiq-auth-lead">This browser holds FittersIQ jobs of a different company. They stay safely on this browser and are not shown to this account. Sign in with that company to use them, or use another browser for this company.</p>
-      <button class="fiq-auth-link" id="fiqOtherCompanySignOutBtn" type="button">Sign out</button>
+      <p class="fiq-auth-lead" id="fiqOtherCompanyWho"></p>
+      <button class="fiq-auth-submit" id="fiqOtherCompanySignOutBtn" type="button">Sign out and use the other account</button>
     </div>
 
     <div class="fiq-auth-state" id="fiqStateSuspended" hidden>
-      <h1>Account suspended</h1>
-      <p class="fiq-auth-lead">This account no longer has access. Contact your company owner or FittersIQ support.</p>
+      <h1>Access paused</h1>
+      <p class="fiq-auth-lead">Your FittersIQ access is paused. Nothing has been deleted.</p>
+      <p class="fiq-auth-lead">Ask your company owner. If it is about the free trial or a payment, the owner can email <a href="mailto:hello@danishcarpenter.com">hello@danishcarpenter.com</a> to continue straight away.</p>
+      <button class="fiq-auth-submit" id="fiqSuspendedBackupBtn" type="button">Download a backup of this computer</button>
+      <p class="fiq-auth-lead" id="fiqSuspendedBackupMsg"></p>
       <button class="fiq-auth-link" id="fiqSuspendedSignOutBtn" type="button">Sign out</button>
     </div>
   </div>
@@ -1874,6 +1878,25 @@ html.fiq-readonly body{padding-top:44px}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',paint,{once:true});else paint();
 })();
 </script>
+<script id="fiq-trial-banner">
+// Trial reminder (Mads 17 Oct 2026): from 3 days before a free trial ends, and during the 7 days after it
+// (when the daily server check pauses an unpaid account), a plain bar says so. Closing it hides it for the day.
+window.fiqTrialBanner=function(c){
+ try{
+  if(!c||c.internal===true||c.paidUntil||c.status!=='trial'||!c.trialEndsAt||!c.trialEndsAt.toDate)return;
+  var end=c.trialEndsAt.toDate(),days=Math.ceil((end-Date.now())/864e5);if(days>3)return;
+  var key='fiq_trial_banner_closed',today=new Date().toISOString().slice(0,10);try{if(localStorage.getItem(key)===today)return}catch(e){}
+  var fmt=function(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'long'})},stop=new Date(end.getTime()+7*864e5);
+  var text=days>0?'Your free trial ends in '+days+' day'+(days>1?'s':'')+' ('+fmt(end)+').':'Your free trial has ended. FittersIQ pauses on '+fmt(stop)+' unless a plan is paid. Nothing is deleted.';
+  var old=document.getElementById('fiqTrialBar');if(old)old.remove();
+  var bar=document.createElement('div');bar.id='fiqTrialBar';bar.setAttribute('role','status');
+  bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99990;background:#fff3c4;color:#5a4500;border-top:1px solid #f0d27a;padding:10px 44px 10px 16px;font:600 14px/1.4 system-ui,sans-serif;text-align:center';
+  bar.innerHTML=text+' To continue, email <a href="mailto:hello@danishcarpenter.com" style="color:#1969e8">hello@danishcarpenter.com</a>.<button type="button" aria-label="Close" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:22px;cursor:pointer;color:#5a4500">×</button>';
+  bar.querySelector('button').onclick=function(){try{localStorage.setItem(key,today)}catch(e){}bar.remove()};
+  document.body.appendChild(bar);
+ }catch(e){}
+};
+</script>
 <script id="fiq-stage1-safety">
 // Stage 1 data safety (read-only additions around the existing save; no workflow changes).
 //  1. One editing Studio per browser: the first tab holds a Web Lock and is the editor.
@@ -1888,6 +1911,7 @@ html.fiq-readonly body{padding-top:44px}
 // Data safety dialog can restore a full backup file (validated completely first, applied
 // through a journal so an interrupted restore is finished on the next open).
 (function(){
+ window.fiqDownloadBackup=function(){return downloadBackup()};
  const LOCK='fiq-studio-editor:'+location.pathname.replace(/[^\/]*$/,'');
  let role='pending',resolveReady,status='pending',detail='';
  // While a restore runs (or an interrupted one is finished) nothing may write: the tab
@@ -5384,7 +5408,8 @@ function openGuidePreview(url){const modal=$("#guidePreviewModal"),frame=$("#gui
 function closeGuidePreview(returnToQr=true){const modal=$("#guidePreviewModal"),frame=$("#guidePreviewFrame");if(modal){modal.classList.remove("open");modal.setAttribute("aria-hidden","true")}if(frame){frame.srcdoc="";frame.src="about:blank"}if(returnToQr){show("qr");requestAnimationFrame(()=>window.scrollTo({top:qrReturnScroll,behavior:"auto"}))}}
 window.addEventListener("message",e=>{if(e.data==="assembleone-close-test")closeGuidePreview(true)});
 document.addEventListener("click",e=>{const back=e.target.closest("#closeGuidePreview");if(back){e.preventDefault();e.stopPropagation();closeGuidePreview(true);return}if(e.target.id==="guidePreviewModal")closeGuidePreview(false)});
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeGuidePreview()});
+// Escape only closes the guide preview when it is open (it used to jump to the QR screen from anywhere, e.g. Drawing).
+document.addEventListener("keydown",e=>{if(e.key!=="Escape")return;const m=$("#guidePreviewModal");if(m&&m.classList.contains("open"))closeGuidePreview()});
 
 // Version 5.0: panel options behaves like a normal dropdown.
 // Version 5.5: incomplete panels remain drawing drafts and are hidden from Panel Status and Cutting Lists.
@@ -9272,6 +9297,7 @@ body.fiq-locked .app{display:none!important}
           window.fittersiqUser.ownerName = snap.data().ownerName || '';
           if(typeof window.a202SyncTopbarName==='function')window.a202SyncTopbarName();
           if(typeof renderAll==='function')renderAll();
+          if(typeof window.fiqTrialBanner==='function')window.fiqTrialBanner(snap.data());
         }
       }).catch(function(){});
     }
@@ -9313,13 +9339,17 @@ body.fiq-locked .app{display:none!important}
       var DATA_OWNER='fiq_data_company_v1',owner=null,hasJobs=false;
       try{owner=localStorage.getItem(DATA_OWNER)}catch(e){}
       try{hasJobs=typeof state!=='undefined'&&state&&Array.isArray(state.projects)&&state.projects.length>0}catch(e){}
-      if(owner&&owner!==claims.companyId&&hasJobs){ showState('fiqStateOtherCompany'); return; }
+      if(owner&&owner!==claims.companyId&&hasJobs){ var who=$('fiqOtherCompanyWho'); if(who) who.textContent='You are signed in as '+(user.email||'a different account')+'. Beta and the normal app share the sign-in, so signing in on one also signs in the other.'; showState('fiqStateOtherCompany'); return; }
       if(owner!==claims.companyId){ try{localStorage.setItem(DATA_OWNER,claims.companyId)}catch(e){} }
     }
     unlockApp(user, claims);
     if(window.fiqAuthDiag)window.fiqAuthDiag('10 Studio opened');
   }
 
+  // Paused account: the work on this computer can still be saved to a file (nothing is lost).
+  var suspBackup=$('fiqSuspendedBackupBtn');
+  if(suspBackup)suspBackup.onclick=async function(){var m=$('fiqSuspendedBackupMsg');suspBackup.disabled=true;m.textContent='Preparing backup…';
+    try{var r=await window.fiqDownloadBackup();m.textContent='Backup downloaded: '+r.jobs+' jobs. Keep the file somewhere safe.'}catch(e){m.textContent='Backup could not be made: '+(e&&e.message||e)}suspBackup.disabled=false};
   if(window.fiqAuthDiag)window.fiqAuthDiag('4b Waiting for saved session');
   authFns.onAuthStateChanged(auth, function(user){ if(window.fiqAuthDiag)window.fiqAuthDiag('5 Saved session reported',user?('signed in, verified '+!!user.emailVerified):'not signed in'); evaluate(user).catch(function(err){ if(window.fiqAuthDiag)window.fiqAuthDiag('X Sign-in check failed',String(err&&(err.code||err.message)||err)); lockToSignIn(); }); });
 
@@ -13654,5 +13684,27 @@ document.addEventListener('mousedown',function(e){
 /* A chosen material reads darker and bolder; same size and layout. */
 #screen-mark .material-picker>summary.fiq-has-material,.material-picker>summary.fiq-has-material{color:var(--ink)!important;font-weight:900!important}
 </style>
+<script id="fiq-error-report">
+// App errors to the Dashboard Support Inbox (Mads 18 Oct 2026: problems should show on the Dashboard).
+// Only when signed in to a company; the same error at most once a day per device, at most 5 a day; known
+// harmless browser noise and offline/network failures are skipped. Never blocks or changes the app.
+(function(){
+ var KEY='fiq_error_reports_v1',SKIP=/^Script error\.?$|ResizeObserver|Failed to fetch|NetworkError|Load failed|network-request-failed|unavailable|Cannot set properties of null \(setting 'innerHTML'\)/i;
+ function send(msg,where){
+  try{
+   msg=String(msg||'').slice(0,300);if(!msg||SKIP.test(msg)||!navigator.onLine)return;
+   var u=window.fittersiqUser,fns=window.fiqAuthFns,a=window.fiqAuth;if(!u||!u.companyId||!fns||!fns.addDoc||!window.fiqFirestore||!a||!a.currentUser)return;
+   var day=new Date().toISOString().slice(0,10),seen={};try{seen=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+   if(seen.day!==day)seen={day:day,n:0,m:{}};if(seen.n>=5||seen.m[msg])return;seen.n++;seen.m[msg]=1;try{localStorage.setItem(KEY,JSON.stringify(seen))}catch(e){}
+   var screen='';try{screen=(0,eval)('typeof state!=="undefined"&&state&&state.screen')||''}catch(e){}
+   fns.addDoc(fns.collection(window.fiqFirestore,'supportTickets'),{type:'error',question:msg+(where?' ('+String(where).slice(0,120)+')':''),screenLabel:'Studio'+(screen?' · '+screen:''),app:'studio',
+    uid:a.currentUser.uid,companyId:u.companyId,email:a.currentUser.email||null,userAgent:String(navigator.userAgent||'').slice(0,160),createdAt:fns.serverTimestamp?fns.serverTimestamp():new Date(),status:'open'}).catch(function(){});
+  }catch(e){}
+ }
+ window.addEventListener('error',function(e){send(e&&e.message,e&&e.filename?(e.filename.split('/').pop()+':'+e.lineno):'')});
+ window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;send(r&&(r.message||r.code)||r,'promise')});
+ window.fiqReportError=send;
+})();
+</script>
 </body>
 </html>
