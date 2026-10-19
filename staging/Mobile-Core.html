@@ -922,6 +922,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <h1>Access paused</h1>
       <p class="fiq-auth-lead">Your FittersIQ access is paused. Nothing has been deleted.</p>
       <p class="fiq-auth-lead">Ask your company owner. If it is about the free trial or a payment, the owner can email <a href="mailto:hello@danishcarpenter.com">hello@danishcarpenter.com</a> to continue straight away.</p>
+      <p class="fiq-auth-lead" id="fiqSuspendedPay" hidden></p>
       <button class="fiq-auth-link" id="fiqSuspendedSignOutBtn" type="button">Sign out</button>
     </div>
 
@@ -7054,6 +7055,12 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     try{ await authFns.updateDoc(deviceRef, {lastSeenAt:new Date().toISOString()}); }catch(e){}
     return true;
   }
+  // Paused company: its owner can pay by card on the pause screen and continue straight away (19 Oct 2026).
+  // A paused member cannot read its own membership record (rules), so the owner role decides.
+  function showPausedPay(claims, user){
+    try{ var payEl=$('fiqSuspendedPay'); if(payEl && claims && claims.role==='company_owner' && window.fiqPayButtons){ payEl.innerHTML='Pay by card and continue straight away: '+window.fiqPayButtons(claims.companyId,user.email,'font-weight:800;margin:0 6px'); payEl.hidden=false; } }catch(e){}
+  }
+
   async function evaluate(user){
     if(!user){ if(deviceWaitPoll){ clearInterval(deviceWaitPoll); deviceWaitPoll = null; } lockToSignIn(); return; }
     var tokenResult = await user.getIdTokenResult();
@@ -7077,10 +7084,12 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       try{
         var memberSnap = await authFns.getDoc(authFns.doc(db,'companies',claims.companyId,'members',user.uid));
         if(!memberSnap.exists() || memberSnap.data().status !== 'active'){
+          showPausedPay(claims, user);
           showState('fiqStateSuspended');
           return;
         }
       }catch(e){
+        showPausedPay(claims, user);
         showState('fiqStateSuspended');
         return;
       }
@@ -7506,6 +7515,13 @@ function fiqRouteThroughLabels(q){
  window.fiqPhoneHealth=write;
 })();
 </script>
+<script id="fiq-pay-links">
+// Card payment pages (Stripe, Mads 19 Oct 2026). The company id goes with the payment so the stripeWebhook function
+// marks the right company as paid; the owner's email is filled in for them.
+window.FIQ_PAY_LINKS={Professional:'https://buy.stripe.com/5kQ5kC5az4q11hXc7a3Je00',Business:'https://buy.stripe.com/28EaEW7iHaOpgcR5IM3Je01'};
+window.fiqPayLink=function(plan,companyId,email){var u=window.FIQ_PAY_LINKS[plan];if(!u||!companyId)return null;return u+'?client_reference_id='+encodeURIComponent(companyId)+(email?'&prefilled_email='+encodeURIComponent(email):'')};
+window.fiqPayButtons=function(companyId,email,style){var out=[];['Professional','Business'].forEach(function(p){var u=window.fiqPayLink(p,companyId,email);if(u)out.push('<a href="'+u+'" target="_blank" rel="noopener" data-pay="'+p+'" style="'+(style||'')+'">'+p+' €'+(p==='Business'?'99':'55')+'/month</a>')});return out.join(' ')};
+</script>
 <script id="fiq-trial-banner">
 // Trial reminder (Mads 17 Oct 2026): from 3 days before a free trial ends, and during the 7 days after it
 // (when the daily server check pauses an unpaid account), a plain bar says so. Closing it hides it for the day.
@@ -7519,7 +7535,8 @@ window.fiqTrialBanner=function(c){
   var old=document.getElementById('fiqTrialBar');if(old)old.remove();
   var bar=document.createElement('div');bar.id='fiqTrialBar';bar.setAttribute('role','status');
   bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99990;background:#fff3c4;color:#5a4500;border-top:1px solid #f0d27a;padding:10px 44px 10px 16px;font:600 14px/1.4 system-ui,sans-serif;text-align:center';
-  bar.innerHTML=text+' To continue, email <a href="mailto:hello@danishcarpenter.com" style="color:#1969e8">hello@danishcarpenter.com</a>.<button type="button" aria-label="Close" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:22px;cursor:pointer;color:#5a4500">×</button>';
+  var u=window.fittersiqUser||{},pay=window.fiqPayButtons?window.fiqPayButtons(u.companyId,u.email,'color:#1969e8;font-weight:800;margin:0 6px'):'';
+  bar.innerHTML=text+(pay?' Choose a plan: '+pay+'.':' To continue, email <a href="mailto:hello@danishcarpenter.com" style="color:#1969e8">hello@danishcarpenter.com</a>.')+'<button type="button" aria-label="Close" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:22px;cursor:pointer;color:#5a4500">×</button>';
   bar.querySelector('button').onclick=function(){try{localStorage.setItem(key,today)}catch(e){}bar.remove()};
   document.body.appendChild(bar);
  }catch(e){}
