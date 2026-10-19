@@ -13723,5 +13723,51 @@ document.addEventListener('mousedown',function(e){
  window.fiqReportError=send;
 })();
 </script>
+<script id="fiq-new-home">
+// New home (Mads 19 Oct 2026: app.fittersiq.com instead of assembleone.github.io). A browser keeps saved work per
+// web address, so on the new address Studio starts empty. When that happens for a signed-in company whose cloud
+// backup is on, this card offers to bring every job back from the cloud backup (the normal Restore from cloud,
+// which asks before it changes anything). Never shown on the old address, on a computer that already has jobs,
+// or after "Not now" on this computer.
+(function(){
+ var KEY='fiq_new_home_card_v1';
+ function oldAddress(){return /(^|\.)github\.io$/i.test(location.hostname)||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&!window.FIQ_TEST_NEW_HOME}
+ function dismissed(){try{return localStorage.getItem(KEY)==='later'}catch(e){return false}}
+ function hasWork(){try{var st=(0,eval)('typeof state!=="undefined"?state:null');return !!st&&((st.projects||[]).length>0||(st.customers||[]).length>0)}catch(e){return true}}
+ async function companyBackupOn(){
+  var u=window.fittersiqUser,f=window.fiqAuthFns,db=window.fiqFirestore;if(!u||!u.companyId||!f||!db)return false;
+  try{var s=await f.getDoc(f.doc(db,'companies',u.companyId));return s.exists()&&s.data().fiqCloudCopy==='on'}catch(e){return false}
+ }
+ function show(){
+  if(document.getElementById('fiqNewHome'))return;
+  var o=document.createElement('div');o.id='fiqNewHome';o.setAttribute('role','dialog');
+  o.style.cssText='position:fixed;inset:0;z-index:99980;background:rgba(11,37,69,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+  o.innerHTML='<div style="background:#fff;border-radius:18px;max-width:440px;width:100%;padding:28px 26px;font:15px/1.5 system-ui,sans-serif;color:#0b2545;box-shadow:0 30px 70px rgba(0,0,0,.35)">'
+   +'<h2 style="margin:0 0 10px;font-size:22px">Welcome to FittersIQ\'s new home</h2>'
+   +'<p style="margin:0 0 8px">Your jobs are safe in your cloud backup. Bring them to this computer with one click.</p>'
+   +'<p style="margin:0 0 18px;color:#5b6b7c;font-size:13px">Nothing is deleted. Studio shows what it will restore and asks before it changes anything.</p>'
+   +'<button type="button" data-new-home="go" style="display:block;width:100%;border:0;border-radius:12px;background:#4da721;color:#fff;padding:14px;font-weight:800;font-size:15px;cursor:pointer">Bring my jobs here</button>'
+   +'<button type="button" data-new-home="later" style="display:block;width:100%;border:0;background:transparent;color:#1969e8;padding:12px;font-weight:700;cursor:pointer">Not now</button>'
+   +'<p data-new-home-msg style="margin:6px 0 0;color:#b3261e;font-size:13px"></p></div>';
+  o.querySelector('[data-new-home="later"]').onclick=function(){try{localStorage.setItem(KEY,'later')}catch(e){}o.remove()};
+  o.querySelector('[data-new-home="go"]').onclick=function(){
+   var msg=o.querySelector('[data-new-home-msg]');
+   if(!window.fiqOpenDataSafety||!window.fiqCloudCopy||!window.fiqCloudCopy.restoreFromCloud){msg.textContent='Restore is not ready yet. Wait a moment and try again.';return}
+   o.remove();window.fiqOpenDataSafety();setTimeout(function(){window.fiqCloudCopy.restoreFromCloud({all:true})},400);
+  };
+  document.body.appendChild(o);
+ }
+ async function check(){
+  if(oldAddress()||dismissed())return;
+  for(var i=0;i<40&&!(window.fittersiqUser&&window.fittersiqUser.companyId);i++)await new Promise(function(r){setTimeout(r,500)});
+  if(!(window.fittersiqUser&&window.fittersiqUser.companyId))return;
+  await new Promise(function(r){setTimeout(r,1500)});// let the saved data open first
+  if(hasWork()||!(await companyBackupOn()))return;
+  show();
+ }
+ window.fiqNewHomeCheck=check;
+ if(document.readyState==='complete')check();else window.addEventListener('load',check);
+})();
+</script>
 </body>
 </html>
