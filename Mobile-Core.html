@@ -7564,4 +7564,42 @@ window.fiqTrialBanner=function(c){
  window.fiqReportError=send;
 })();
 </script>
+<script id="fiq-install-guide">
+// Install guide (Mads 19 Oct 2026): on a phone that opens FittersIQ Mobile in the browser (not yet as an app from
+// the home screen), a small sheet explains how to install it. iPhone/iPad: Share, then Add to Home Screen (Apple
+// allows no install button). Android: one Install button (the browser's own install prompt). Only on the new home
+// (not the old github.io address), only after sign-in, and "Not now" hides it on this phone for 14 days.
+(function(){
+ var KEY='fiq_install_guide_later_v1',deferred=null;
+ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;var b=document.querySelector('[data-install="go"]');if(b)b.hidden=false});
+ function installed(){try{return window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches}catch(e){return false}}
+ function oldAddress(){return /(^|\.)github\.io$/i.test(location.hostname)||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&!window.FIQ_TEST_INSTALL_GUIDE}
+ function phone(){return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)}
+ function ios(){return /iPhone|iPad|iPod/i.test(navigator.userAgent)}
+ function later(){try{var t=+localStorage.getItem(KEY)||0;return Date.now()-t<14*864e5}catch(e){return false}}
+ function show(){
+  if(document.getElementById('fiqInstallGuide'))return;
+  var o=document.createElement('div');o.id='fiqInstallGuide';o.setAttribute('role','dialog');
+  o.style.cssText='position:fixed;left:10px;right:10px;bottom:10px;z-index:2147482000;background:#fff;color:#0b2545;border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.35);padding:18px 18px 12px;font:15px/1.45 system-ui,-apple-system,sans-serif';
+  var share='<svg width="18" height="22" viewBox="0 0 18 22" style="vertical-align:-4px" aria-label="Share"><path d="M9 1v13M4.5 5.5 9 1l4.5 4.5" fill="none" stroke="#1969e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9H2v12h14V9h-3" fill="none" stroke="#1969e8" stroke-width="2" stroke-linejoin="round"/></svg>';
+  o.innerHTML='<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px"><img src="assets/icon_192.png?v=4" width="44" height="44" alt="" style="border-radius:10px"><strong style="font-size:17px">Install FittersIQ on this phone</strong></div>'
+   +(ios()?'<ol style="margin:0 0 10px 20px;padding:0"><li>Tap <b>Share</b> '+share+' in Safari (or <b>...</b> then <b>Share</b>).</li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b>.</li></ol><p style="margin:0 0 10px;color:#5b6b7c;font-size:13px">Then open FittersIQ from its icon. It opens full screen, like a normal app.</p>'
+          :'<p style="margin:0 0 10px">Get the FittersIQ icon on your home screen. It opens full screen, like a normal app.</p><button type="button" data-install="go" hidden style="display:block;width:100%;border:0;border-radius:12px;background:#4da721;color:#fff;padding:13px;font-weight:800;font-size:15px;margin-bottom:6px">Install app</button><p data-install-manual style="margin:0 0 10px;color:#5b6b7c;font-size:13px">If no button shows: open the browser menu <b>⋮</b> and tap <b>Install app</b> or <b>Add to Home screen</b>.</p>')
+   +'<button type="button" data-install="later" style="display:block;width:100%;border:0;background:transparent;color:#1969e8;padding:8px;font-weight:700">Not now</button>';
+  o.querySelector('[data-install="later"]').onclick=function(){try{localStorage.setItem(KEY,String(Date.now()))}catch(e){}o.remove()};
+  var go=o.querySelector('[data-install="go"]');
+  if(go){if(deferred)go.hidden=false;go.onclick=async function(){if(!deferred)return;deferred.prompt();try{var r=await deferred.userChoice;if(r&&r.outcome==='accepted')o.remove()}catch(e){}deferred=null}}
+  document.body.appendChild(o);
+ }
+ async function check(){
+  if(!phone()||installed()||oldAddress()||later())return;
+  for(var i=0;i<40&&!(window.fittersiqUser&&window.fittersiqUser.companyId);i++)await new Promise(function(r){setTimeout(r,500)});
+  if(!(window.fittersiqUser&&window.fittersiqUser.companyId))return;
+  await new Promise(function(r){setTimeout(r,2000)});
+  if(!installed())show();
+ }
+ window.fiqInstallGuideCheck=check;
+ if(document.readyState==='complete')check();else window.addEventListener('load',check);
+})();
+</script>
 </body></html>
