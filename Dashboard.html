@@ -1377,7 +1377,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 
         <section class="dash-card snapshot-card">
           <div class="dash-card-title"><h3>Business Snapshot</h3></div>
-          <div class="snapshot-revenue"><div><small>Monthly Revenue</small><strong id="snapRevenue">€ –</strong></div><span class="snapshot-up" id="snapRevenueNote">Connect Stripe<small>to see revenue</small></span></div>
+          <div class="snapshot-revenue"><div><small>Monthly Revenue</small><strong id="snapRevenue">€ 0</strong></div><span class="snapshot-up" id="snapRevenueNote">This month<small>card payments</small></span></div>
           <div class="snapshot-bottom">
             <div><small>Active Users</small><strong id="snapUsers">–</strong><span>Across all accounts</span></div>
             <div data-page="backups" style="cursor:pointer"><small>Backup Status</small><strong class="status-good" id="snapBackup">Checking…</strong><span class="checkmark" id="snapBackupMark">✓</span></div>
@@ -1388,7 +1388,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
       <div class="dashboard-summary-row">
         <button data-page="customers"><span class="summary-icon blue">👥</span><div><small>Customers</small><strong id="sumCustomers">–</strong><em>Total customer accounts</em></div><b>›</b></button>
         <button data-page="licences"><span class="summary-icon green">▣</span><div><small>Licences</small><strong id="sumSeats">–</strong><em>User seats across all accounts</em></div><b>›</b></button>
-        <button data-page="payments"><span class="summary-icon orange">€</span><div><small>Payments</small><strong>€ –</strong><em>Connect Stripe to see payments</em></div><b>›</b></button>
+        <button data-page="payments"><span class="summary-icon orange">€</span><div><small>Payments</small><strong id="sumPaid">€ 0</strong><em>Received this month by card</em></div><b>›</b></button>
         <button data-page="backups"><span class="summary-icon purple">☁</span><div><small>Cloud Backup</small><strong id="sumBackupOn">–</strong><em>Customers with backup on</em></div><b>›</b></button>
       </div>
 
@@ -1428,11 +1428,12 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <section class="page admin-section" id="paymentsPage">
       <div class="section-head"><div><h2>Payments</h2><p>See paid, due and overdue customer accounts.</p></div><button class="primary" id="recordPayment" data-page="customers" data-hint="payment">＋ Record Payment</button></div>
       <div class="launch-grid three">
-        <article class="launch-card"><span class="launch-icon blue">€</span><div><small>Monthly revenue</small><strong>€ –</strong><p>Shows here once Stripe is connected.</p></div></article>
+        <article class="launch-card"><span class="launch-icon blue">€</span><div><small>Received this month</small><strong id="payMonth">€ –</strong><p id="payMonthNote">Card payments through Stripe, before VAT and fees.</p></div></article>
         <article class="launch-card"><span class="launch-icon orange">!</span><div><small>Payments due</small><strong id="payDue">0</strong><p>Accounts requiring attention.</p></div></article>
-        <article class="launch-card"><span class="launch-icon green">✓</span><div><small>Payment tracking</small><strong>On</strong><p>Record payments against customer accounts.</p></div></article>
+        <article class="launch-card"><span class="launch-icon green">✓</span><div><small>Paying by card</small><strong id="payCard">–</strong><p>Customers with an active Stripe subscription.</p></div></article>
       </div>
-      <section class="admin-card launch-list"><h3>Before card payments</h3><div><span>Stripe account connected</span><b class="needs">Connect</b></div><div><span>Customer chooses euro, pounds or dollars</span><b class="needs">With Stripe</b></div><div><span>VAT per country</span><b class="needs">With Stripe</b></div><div><span>Invoice and receipt emails</span><b class="needs">With Stripe</b></div></section>
+      <section class="admin-card launch-list"><h3>Card payments</h3><div><span>Stripe account connected</span><b>Ready</b></div><div><span>Plans: Professional €55, Business €99 a month, plus VAT (also £ and $)</span><b>Ready</b></div><div><span>VAT for Spain</span><b>Ready</b></div><div><span>Paid accounts updated automatically</span><b id="payAuto" class="needs">After setup</b></div></section>
+      <section class="admin-card note-card"><h3>Stripe messages</h3><div id="stripeEventList"><p class="muted">Sign in to see Stripe messages.</p></div></section>
     </section>
 
     <section class="page admin-section" id="contractsPage">
@@ -1478,7 +1479,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <section class="page admin-section" id="reportsPage">
       <div class="section-head"><div><h2>Reports</h2><p>Revenue, renewals and customer activity in one place.</p></div><button class="secondary" id="exportReport">Export summary</button></div>
       <div class="launch-grid three">
-        <article class="launch-card"><span class="launch-icon green">↗</span><div><small>Monthly revenue</small><strong>€ –</strong><p>Shows here once Stripe is connected.</p></div></article>
+        <article class="launch-card"><span class="launch-icon green">↗</span><div><small>Received this month</small><strong id="reportRevenue">€ 0</strong><p>Card payments through Stripe, before VAT and fees.</p></div></article>
         <article class="launch-card"><span class="launch-icon blue">👥</span><div><small>Customers</small><strong id="reportCustomers">0</strong><p>Live customer accounts.</p></div></article>
         <article class="launch-card"><span class="launch-icon purple">◷</span><div><small>Trials</small><strong id="reportTrials">0</strong><p>Potential conversions.</p></div></article>
       </div>
@@ -1753,7 +1754,8 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     if(company.status === 'suspended') return 'Suspended';
     if(company.status === 'cancelled') return 'Cancelled';
     var s = company.subscriptionStatus;
-    if(s === 'active' || s === 'active_manual_invoice') return 'Active';
+    if(s === 'active' || s === 'active_manual_invoice' || s === 'active_stripe') return 'Active';
+    if(s === 'canceled') return company.paidUntil && company.paidUntil.toMillis && company.paidUntil.toMillis() > Date.now() ? 'Active' : 'Cancelled';
     if(s === 'past_due') return 'Payment Due';
     return 'Trial';
   }
@@ -1777,7 +1779,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
           status: statusWord(c),
           users: '1 / ' + (c.maxUsers || 1),
           renewal: c.status === 'suspended' ? (c.suspendReason === 'trial_ended' ? 'Trial ended, paused' : 'Suspended') : c.paidUntil ? ('Paid until ' + formatDate(c.paidUntil)) : c.subscriptionStatus === 'trialing' ? ('Trial ends ' + formatDate(c.trialEndsAt)) : formatDate(c.trialEndsAt),
-          real: true, suspendReason: c.suspendReason || '', termsAcceptedAt: c.termsAcceptedAt || null, termsVersion: c.termsVersion || '', createdAt: c.createdAt || null, maxUsers: c.maxUsers || 0, rawStatus: c.status || '', trialEndsAt: c.trialEndsAt || null, paidUntil: c.paidUntil || null, cloudBackup: c.fiqCloudCopy === 'on',
+          real: true, stripeStatus: c.subscriptionStatus || '', suspendReason: c.suspendReason || '', termsAcceptedAt: c.termsAcceptedAt || null, termsVersion: c.termsVersion || '', createdAt: c.createdAt || null, maxUsers: c.maxUsers || 0, rawStatus: c.status || '', trialEndsAt: c.trialEndsAt || null, paidUntil: c.paidUntil || null, cloudBackup: c.fiqCloudCopy === 'on',
           last: '–',
         });
       });
@@ -1786,7 +1788,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       if(typeof renderCustomers === 'function') renderCustomers();
       var foot = document.querySelector('#customersPage .admin-foot span:last-child');
       if(foot) foot.textContent = 'Live FittersIQ customer data.';
-      if(typeof window.fiqLoadOverview === 'function') window.fiqLoadOverview(snap);
+      if(typeof window.fiqLoadOverview === 'function') window.fiqLoadOverview(snap).then(function(){ if(typeof window.fiqLoadStripe === 'function') window.fiqLoadStripe(); });
     }catch(e){
       console.error('Could not load live customer data', e);
     }
@@ -1826,6 +1828,33 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     }; });
   };
 
+
+  // Stripe messages (19 Oct 2026): written by the stripeWebhook function; money totals from card payments this month.
+  window.fiqLoadStripe = async function(){
+    var esc = function(x){ return String(x == null ? '' : x).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); };
+    var set = function(id, v){ var el = document.getElementById(id); if(el) el.textContent = v; };
+    var sym = {eur:'€', gbp:'£', usd:'$'};
+    var list = document.getElementById('stripeEventList');
+    try{
+      var snap = await authFns.getDocs(authFns.query(authFns.collection(db,'stripeEvents'), authFns.orderBy('at','desc'), authFns.limit(100)));
+      var names = {}; (window.customers || (typeof customers !== 'undefined' ? customers : [])).forEach(function(c){ names[c.id] = c.company; });
+      var monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1), totals = {}, rows = [], failed = 0;
+      snap.forEach(function(d){ var e = d.data(), at = e.at && e.at.toDate ? e.at.toDate() : null;
+        if(e.type === 'invoice.paid' && at && at >= monthStart && e.amount) totals[e.currency || 'eur'] = (totals[e.currency || 'eur'] || 0) + e.amount;
+        if(e.type === 'invoice.payment_failed' && at && Date.now() - at < 14 * 864e5) failed++;
+        var money = e.amount ? (sym[e.currency] || (e.currency || '').toUpperCase() + ' ') + (e.amount / 100).toFixed(2) : '';
+        var ico = {'invoice.paid':['orange','€'],'checkout.session.completed':['green','€'],'invoice.payment_failed':['orange','!'],'customer.subscription.deleted':['purple','✕']}[e.type] || ['blue','•'];
+        rows.push('<div class="activity-line"><span class="mini-ico ' + ico[0] + '">' + ico[1] + '</span><div><strong>' + esc(e.summary || e.type) + '</strong><small>' + esc((names[e.companyId] || e.email || 'Unknown customer') + (money ? ' · ' + money : '')) + '</small></div><time>' + (at ? at.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '') + '</time></div>'); });
+      if(list) list.innerHTML = rows.join('') || '<p class="muted">No Stripe messages yet. They appear here when a customer subscribes or pays.</p>';
+      var parts = Object.keys(totals).map(function(c){ return (sym[c] || c.toUpperCase() + ' ') + (totals[c] / 100).toFixed(2); });
+      var main = parts.length ? parts.join(' + ') : '€ 0';
+      set('payMonth', main); set('snapRevenue', main); set('sumPaid', main); set('reportRevenue', main);
+      var card = 0; (typeof customers !== 'undefined' ? customers : []).forEach(function(c){ if(c.stripeStatus === 'active_stripe' || c.stripeStatus === 'past_due') card++; }); set('payCard', card);
+      if(snap.size){ var a = document.getElementById('payAuto'); if(a){ a.textContent = 'Ready'; a.className = ''; } }
+      if(failed){ var bell = document.getElementById('notifyCount'); if(bell){ bell.textContent = (+bell.textContent || 0) + failed; bell.hidden = false; } }
+    }catch(e){ if(list) list.innerHTML = '<p class="muted">Could not load Stripe messages.</p>'; console.error('Could not load Stripe messages', e); }
+  };
+
   // Overview (Mads 17 Oct 2026): real recent activity from the audit log, active users, and backup status.
   window.fiqLoadOverview = async function(companySnap){
     var esc = function(x){ return String(x == null ? '' : x).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }); };
@@ -1849,7 +1878,11 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
         company_account_paid: ['orange','€','Payment recorded'],
         company_account_trial: ['purple','◷','Trial end changed'],
         company_account_suspend: ['orange','!','Account suspended'],
-        company_account_resume: ['green','✓','Access resumed']
+        company_account_resume: ['green','✓','Access resumed'],
+        'stripe_checkout_session_completed': ['green','€','New card subscription'],
+        'stripe_invoice_paid': ['orange','€','Card payment received'],
+        'stripe_invoice_payment_failed': ['orange','!','Card payment failed'],
+        'stripe_customer_subscription_deleted': ['purple','✕','Subscription cancelled']
       };
       var when = function(t){ var d = new Date(t), now = new Date(); if(d.toDateString() === now.toDateString()) return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
         var y = new Date(now); y.setDate(now.getDate()-1); if(d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}); };
