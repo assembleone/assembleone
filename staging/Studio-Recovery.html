@@ -13740,8 +13740,11 @@ document.addEventListener('mousedown',function(e){
  }
  function show(){
   if(document.getElementById('fiqNewHome'))return;
+  // An existing company moving here does not need the first-time tour: mark it seen and close it.
+  try{localStorage.setItem('fiq_studio_onboarding_seen_v1','1')}catch(e){}
+  var tour=document.getElementById('fiqStudioOnboardOverlay');if(tour){tour.classList.remove('open');tour.style.display='none'}
   var o=document.createElement('div');o.id='fiqNewHome';o.setAttribute('role','dialog');
-  o.style.cssText='position:fixed;inset:0;z-index:99980;background:rgba(11,37,69,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+  o.style.cssText='position:fixed;inset:0;z-index:2147483000;background:rgba(11,37,69,.55);display:flex;align-items:center;justify-content:center;padding:20px';
   o.innerHTML='<div style="background:#fff;border-radius:18px;max-width:440px;width:100%;padding:28px 26px;font:15px/1.5 system-ui,sans-serif;color:#0b2545;box-shadow:0 30px 70px rgba(0,0,0,.35)">'
    +'<h2 style="margin:0 0 10px;font-size:22px">Welcome to FittersIQ\'s new home</h2>'
    +'<p style="margin:0 0 8px">Your jobs are safe in your cloud backup. Bring them to this computer with one click.</p>'
