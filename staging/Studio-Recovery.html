@@ -13792,11 +13792,13 @@ document.addEventListener('mousedown',function(e){
   '#fiqJobCut h3{margin:0 0 8px}#fiqJobCut .fjc-note{font-size:13px;color:#5b6b7c;margin:6px 0 0}'+
   '#fiqJobCut .fjc-warn{background:#fff7e6;border:1px solid #f0c36d;border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:13px}'+
   '#fiqJobCut table{width:100%;border-collapse:collapse;font-size:13px}#fiqJobCut th,#fiqJobCut td{border-bottom:1px solid #edf0f3;padding:6px 8px;text-align:left;vertical-align:top}'+
-  '#fiqJobCut td.num,#fiqJobCut th.num{text-align:right}#fiqJobCut .fjc-scroll{overflow-x:auto}'+
+  '#fiqJobCut td.num,#fiqJobCut th.num{text-align:right}#fiqJobCut th{background:#f4f7fb!important;color:#5b6b7c!important;font-size:12px;white-space:nowrap}#fiqJobCut .fjc-scroll{overflow-x:auto}'+
   '#fiqJobCut .fjc-room{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:800;font-size:11px;padding:2px 8px;border-radius:999px}';
  document.head.appendChild(css);
  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
- const scope=()=>{try{return localStorage.getItem(KEY)==='job'?'job':'unit'}catch(e){return 'unit'}};
+ // Whole job is the default (Mads 20 Oct 2026: one long cutting list, simple); This wardrobe is remembered when chosen.
+ const scope=()=>{try{return localStorage.getItem(KEY)==='unit'?'unit':'job'}catch(e){return 'job'}};
+ const numOf=code=>{const m=String(code||'').match(/(\d+)(?!.*\d)/);return m?Number(m[1]):Infinity};
  const setScope=v=>{try{localStorage.setItem(KEY,v)}catch(e){}};
  // Same material written slightly differently ("White 18mm", "white  18 mm") is one material.
  const matKey=m=>String(m||'').toLowerCase().replace(/\s+/g,' ').replace(/(\d)\s+mm\b/g,'$1mm').trim();
@@ -13854,7 +13856,7 @@ document.addEventListener('mousedown',function(e){
   if(cabs.length<2){ui.b.innerHTML='';ui.box.innerHTML='';ui.screen.classList.remove('fiq-job-mode');return}
   const rooms=new Set(cabs.map(c=>c.roomId||'_'));
   const mode=scope();
-  ui.b.innerHTML='<button type="button" data-cut-scope="unit" class="'+(mode==='unit'?'on':'')+'">This wardrobe</button><button type="button" data-cut-scope="job" class="'+(mode==='job'?'on':'')+'">Whole job ('+rooms.size+' room'+(rooms.size===1?'':'s')+' · '+cabs.length+' wardrobes)</button>';
+  ui.b.innerHTML='<button type="button" data-cut-scope="job" class="'+(mode==='job'?'on':'')+'">Whole job ('+rooms.size+' room'+(rooms.size===1?'':'s')+' · '+cabs.length+' wardrobes)</button><button type="button" data-cut-scope="unit" class="'+(mode==='unit'?'on':'')+'">This wardrobe</button>';
   ui.screen.classList.toggle('fiq-job-mode',mode==='job');
   if(mode!=='job'){ui.box.innerHTML='';return}
   const d=collect();
@@ -13864,15 +13866,15 @@ document.addEventListener('mousedown',function(e){
   ui.box.innerHTML=
    (d.incomplete.length?'<div class="fjc-warn">⚠ Not complete, so left out: '+d.incomplete.map(x=>esc(x.where)+' ('+x.n+')').join(', ')+'. Finish them in Panel Check to include them.</div>':'')+
    '<div class="fjc-card"><h3>Whole job cutting list</h3><div><b>'+d.panels.length+' panels</b> · '+pieces+' pieces · '+d.units.length+' wardrobe'+(d.units.length===1?'':'s')+' with panels</div>'+
-   '<p class="fjc-note">All sizes in mm. Each wardrobe keeps its own cutting list and stickers: choose "This wardrobe" for those.</p></div>'+
+   '<p class="fjc-note">All sizes in mm, in panel number order. The room and wardrobe of each panel are shown on every row.</p>'+
+   '<div class="fjc-scroll" style="margin-top:8px"><table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Qty</th><th>Material</th><th>Room · Wardrobe</th></tr></thead><tbody>'+
+   d.panels.slice().sort((a,c)=>numOf(a.p.code)-numOf(c.p.code)||String(a.p.code).localeCompare(String(c.p.code))).map(x=>'<tr><td><b>'+esc(x.p.code)+'</b></td><td>'+esc(x.p.name)+'</td><td class="num">'+esc(x.p.thickness)+'</td><td class="num">'+esc(x.p.length)+'</td><td class="num">'+esc(x.p.width)+'</td><td class="num">'+esc(x.p.qty||1)+'</td><td>'+esc(x.copy.material||'Not set')+'</td><td><span class="fjc-room">'+esc(x.where||'—')+'</span></td></tr>').join('')+
+   '</tbody></table></div></div>'+
    '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button>'+
    '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per physical panel, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
    '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
    (mats.some(m=>m.also.length)?'<div class="fjc-warn">Counted as one material: '+mats.filter(m=>m.also.length).map(m=>'<b>'+esc(m.name)+'</b> (also written '+m.also.map(a=>'"'+esc(a)+'"').join(', ')+')').join('; ')+'.</div>':'')+
-   '<div id="fiqJobSheets"></div></div>'+
-   '<div class="fjc-card"><h3>All panels</h3><div class="fjc-scroll"><table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Qty</th><th>Material</th><th>Room · Wardrobe</th></tr></thead><tbody>'+
-   d.panels.map(x=>'<tr><td><b>'+esc(x.p.code)+'</b></td><td>'+esc(x.p.name)+'</td><td class="num">'+esc(x.p.thickness)+'</td><td class="num">'+esc(x.p.length)+'</td><td class="num">'+esc(x.p.width)+'</td><td class="num">'+esc(x.p.qty||1)+'</td><td>'+esc(x.copy.material||'Not set')+'</td><td><span class="fjc-room">'+esc(x.where||'—')+'</span></td></tr>').join('')+
-   '</tbody></table></div></div>';
+   '<div id="fiqJobSheets"></div></div>';
   const sheets=document.getElementById('fiqJobSheets');
   if(sheets&&typeof window.a181RenderInto==='function')window.a181RenderInto(sheets,d.panels.map(x=>x.copy),'No complete panels yet.');
  }
@@ -13883,12 +13885,13 @@ document.addEventListener('mousedown',function(e){
 })();
 </script>
 <script id="fiq-whole-job-panel-check">
-// Whole job Panel Check (Mads 20 Oct 2026). In a job with two or more wardrobes Panel Check shows every panel of
-// every room and wardrobe, collected automatically as wardrobes are added with Next wardrobe: "Whole job" (the
-// default) or "This wardrobe" (exactly as before). Each wardrobe's section is drawn by the existing Panel Check
-// cards with that wardrobe selected, so double-click to check, Edit and every warning work as before and change
-// that panel in its own wardrobe. A summary on top counts the whole job and each wardrobe. Nothing else changes:
-// numbering, cutting lists, exports, Next wardrobe and Mobile are untouched.
+// Whole job Panel Check (Mads 20 Oct 2026: "one long list, simple and easy"). In a job with two or more wardrobes
+// Panel Check is ONE list of every panel in every room and wardrobe, in panel number order (KT1 ... MB12 ...), with
+// a Room · Wardrobe column, collected automatically as wardrobes are added with Next wardrobe. "This wardrobe"
+// shows the old view of the open wardrobe. Checking a row (double-click) runs the existing Panel Check approval,
+// including the missing-details and edging safety checks, on that panel in its own wardrobe: just before the
+// existing double-click handlers run, the row's wardrobe is selected. Numbering, cutting lists, exports,
+// Next wardrobe and Mobile are untouched.
 (function(){
  const KEY='fiq_pc_scope_v1';
  const css=document.createElement('style');css.textContent=
@@ -13897,17 +13900,24 @@ document.addEventListener('mousedown',function(e){
   '#fiqPcScope button.on{border-color:#4da721;background:#eaf7e1;color:#1f5d12}'+
   '#screen-parts.fiq-pc-job #customerSheetEstimateCard,#screen-parts.fiq-pc-job #panelCheckStatusBanner,#screen-parts.fiq-pc-job #installProgressCard,'+
   '#screen-parts.fiq-pc-job #estimatedMaterialsCard,#screen-parts.fiq-pc-job #edgeBandingCard,#screen-parts.fiq-pc-job #panelCheckViewSwitch,#screen-parts.fiq-pc-job #panelCheckTable,'+
-  '#screen-parts.fiq-pc-job #panelIncompleteWarning,#screen-parts.fiq-pc-job #edgeCheckWarning{display:none!important}'+
-  '#fiqPcJob .fpj-sum{border:1px solid #e3e9f0;border-radius:14px;background:#fff;padding:12px 16px;margin:0 0 14px}'+
-  '#fiqPcJob .fpj-sum b{font-size:16px}#fiqPcJob .fpj-units{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}'+
-  '#fiqPcJob .fpj-unit{border:1px solid #dbe3ee;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;color:#23364e;background:#f7f9fc}'+
-  '#fiqPcJob .fpj-unit.done{border-color:#6bbf3a;background:#eaf7e1;color:#1f5d12}'+
-  '#fiqPcJob .fpj-head{margin:18px 0 8px;font:900 16px Inter,Arial,sans-serif;color:#0b2545;display:flex;gap:10px;align-items:center}'+
-  '#fiqPcJob .fpj-head span{font-size:13px;font-weight:700;color:#5b6b7c}';
+  '#screen-parts.fiq-pc-job #panelIncompleteWarning,#screen-parts.fiq-pc-job #partsSummary,#screen-parts.fiq-pc-job #panelCheckCuttingListStrip{display:none!important}'+
+  '#fiqPcJob .fpj-sum{border:1px solid #e3e9f0;border-radius:14px;background:#fff;padding:12px 16px;margin:0 0 12px;font-size:15px}'+
+  '#fiqPcJob .fpj-sum b{font-size:17px}#fiqPcJob .fpj-help{font-size:13px;color:#5b6b7c;margin:4px 0 0}'+
+  '#fiqPcJob .fpj-scroll{overflow-x:auto;border:1px solid #e3e9f0;border-radius:14px;background:#fff}'+
+  '#fiqPcJob table{width:100%;border-collapse:collapse;font-size:14px}#fiqPcJob th{background:#f4f7fb;text-align:left;padding:9px 10px;font-size:12px;color:#5b6b7c;white-space:nowrap}'+
+  '#fiqPcJob td{border-top:1px solid #edf0f3;padding:8px 10px;vertical-align:middle}#fiqPcJob td.num,#fiqPcJob th.num{text-align:right}'+
+  '#fiqPcJob tr.ok td{background:#f6fbf2}#fiqPcJob .fpj-room{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:800;font-size:12px;padding:2px 9px;border-radius:999px;white-space:nowrap}'+
+  '#fiqPcJob .fpj-ok{color:#1f7a12;font-weight:900;white-space:nowrap}#fiqPcJob .fpj-todo{display:inline-block;background:#fff4e5;border:1px solid #f0b35a;color:#8a4b00;border-radius:8px;padding:4px 8px;font-weight:800;cursor:pointer;white-space:nowrap;user-select:none}'+
+  '#fiqPcJob .fpj-edit{border:1px solid #cfd6e4;background:#fff;border-radius:8px;padding:4px 10px;font-weight:700;cursor:pointer}';
  document.head.appendChild(css);
  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
  const scope=()=>{try{return localStorage.getItem(KEY)==='unit'?'unit':'job'}catch(e){return 'job'}};
+ const numOf=code=>{const m=String(code||'').match(/(\d+)(?!.*\d)/);return m?Number(m[1]):Infinity};
  const base=window.renderParts;
+ // Select the row's wardrobe before the existing Panel Check double-click handlers (document level) run.
+ const selectRowUnit=e=>{const row=e.target&&e.target.closest&&e.target.closest('#fiqPcJob [data-pc-unit]');if(!row)return;
+  state.currentCabinet=row.dataset.pcUnit;const c=cabinet();state.currentRoom=c&&c.roomId||null};
+ window.addEventListener('dblclick',selectRowUnit,true);
  function ensure(){
   const screen=document.getElementById('screen-parts'),summary=document.getElementById('partsSummary');if(!screen||!summary)return null;
   let b=document.getElementById('fiqPcScope');
@@ -13915,41 +13925,38 @@ document.addEventListener('mousedown',function(e){
    b.addEventListener('click',e=>{const x=e.target.closest('[data-pc-scope]');if(!x)return;try{localStorage.setItem(KEY,x.dataset.pcScope)}catch(err){}window.renderParts()})}
   let box=document.getElementById('fiqPcJob');
   if(!box){box=document.createElement('div');box.id='fiqPcJob';summary.before(box);
-   // Edit in Drawing opens the panel's own wardrobe (the card itself only sets the panel).
-   box.addEventListener('click',e=>{const el=e.target.closest('[data-edit-panel]');if(!el)return;const sec=el.closest('[data-pc-unit]');if(sec){state.currentCabinet=sec.dataset.pcUnit;const c=cabinet();state.currentRoom=c&&c.roomId||null}},true);}
+   box.addEventListener('click',e=>{const el=e.target.closest('[data-pc-edit]');if(!el)return;const row=el.closest('[data-pc-unit]');
+    state.currentCabinet=row.dataset.pcUnit;const c=cabinet();state.currentRoom=c&&c.roomId||null;state.currentPart=el.dataset.pcEdit;state.selectedCopy=-1;state.focusMarker=true;
+    if(typeof save==='function')save();if(typeof renderAll==='function')renderAll();if(typeof show==='function')show('mark')})}
   return {screen,summary,b,box};
  }
  function render(){
   const ui=ensure();const pr=typeof project==='function'?project():null,cabs=(pr&&pr.cabinets)||[];
-  if(!ui||cabs.length<2||(typeof combinedOn==='function'&&combinedOn())||(window.__jorCombinedCheck&&window.__jorCombinedCheck.active)){
-   if(ui){ui.b.innerHTML='';ui.box.innerHTML='';ui.screen.classList.remove('fiq-pc-job');ui.summary.hidden=false}
-   return typeof base==='function'?base.apply(this,arguments):undefined;
-  }
+  const off=()=>{if(ui){ui.b.innerHTML='';ui.box.innerHTML='';ui.screen.classList.remove('fiq-pc-job')}return typeof base==='function'?base.apply(this,arguments):undefined};
+  if(!ui||cabs.length<2||(window.__jorCombinedCheck&&window.__jorCombinedCheck.active))return off();
   const rooms=new Set(cabs.map(c=>c.roomId||'_')),mode=scope();
   ui.b.innerHTML='<button type="button" data-pc-scope="job" class="'+(mode==='job'?'on':'')+'">Whole job ('+rooms.size+' room'+(rooms.size===1?'':'s')+' · '+cabs.length+' wardrobes)</button><button type="button" data-pc-scope="unit" class="'+(mode==='unit'?'on':'')+'">This wardrobe</button>';
-  ui.screen.classList.toggle('fiq-pc-job',mode==='job');
-  if(mode!=='job'){ui.box.innerHTML='';ui.summary.hidden=false;return typeof base==='function'?base.apply(this,arguments):undefined}
-  // One section per wardrobe, drawn by the existing cards with that wardrobe selected; the selection is put back.
-  const keep={c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom};
-  const realSummary=ui.summary;realSummary.hidden=true;realSummary.innerHTML='';realSummary.id='partsSummaryUnit';
+  if(mode!=='job'){ui.box.innerHTML='';ui.screen.classList.remove('fiq-pc-job');return typeof base==='function'?base.apply(this,arguments):undefined}
+  // Keep the open wardrobe's own render running (warnings and the edging check live there), then hide its cards.
+  const r=typeof base==='function'?base.apply(this,arguments):undefined;
+  ui.screen.classList.add('fiq-pc-job');
+  const rows=[];let unfinished=0;
+  cabs.forEach(c=>{const room=(pr.rooms||[]).find(x=>x.id===c.roomId),where=[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'Unit';
+   (c.parts||[]).forEach(p=>{if(typeof window.fiqPanelMissingFields==='function'&&window.fiqPanelMissingFields(p).length){unfinished++;return}rows.push({c,p,where})})});
+  rows.sort((a,b)=>numOf(a.p.code)-numOf(b.p.code)||String(a.p.code).localeCompare(String(b.p.code)));
+  const ok=rows.filter(x=>window.isCompleteSupplierPart(x.p)).length,left=rows.length-ok;
+  const pieces=rows.reduce((n,x)=>n+Math.max(1,Math.floor(Number(x.p.qty)||1)),0);
+  ui.box.innerHTML='<div class="fpj-sum"><b>'+ok+' of '+rows.length+' panels checked</b>'+(left?' · '+left+' still to check':' · all checked ✓')+' · '+pieces+' pieces in total'+
+   '<div class="fpj-help">Double-click the orange "Check" when a panel\'s measurements, material, quantity and edging are right.'+(unfinished?' '+unfinished+' unfinished panel'+(unfinished===1?' is':'s are')+' still on a drawing and not listed.':'')+'</div></div>'+
+   '<div class="fpj-scroll"><table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Qty</th><th>Material</th><th>Room · Wardrobe</th><th>Checked</th><th></th></tr></thead><tbody>'+
+   rows.map(({c,p,where})=>{const good=window.isCompleteSupplierPart(p),mat=typeof materialForPanel==='function'?(String(p.material||'').trim()||'—'):(p.material||'—');
+    return '<tr data-pc-unit="'+esc(c.id)+'" data-pc-row="'+esc(p.code)+'" class="'+(good?'ok':'')+'"><td><b>'+esc(p.code)+'</b></td><td>'+esc(p.name)+'</td><td class="num">'+esc(p.thickness)+'</td><td class="num">'+esc(p.length)+'</td><td class="num">'+esc(p.width)+'</td><td class="num">'+esc(p.qty||1)+'</td><td>'+esc(mat)+'</td><td><span class="fpj-room">'+esc(where)+'</span></td>'+
+     '<td>'+(good?'<span class="fpj-ok">✓ Checked</span>':'<span class="fpj-todo" data-review-panel="'+esc(p.id)+'" title="Double-click after checking this panel">⚠ Check</span>')+'</td>'+
+     '<td><button type="button" class="fpj-edit" data-pc-edit="'+esc(p.id)+'">Edit</button></td></tr>'}).join('')+
+   '</tbody></table></div>';
   const warn=document.getElementById('componentsValidation');
-  let total=0,checked=0;const units=[];
-  ui.box.innerHTML='';const sumEl=document.createElement('div');sumEl.className='fpj-sum';ui.box.appendChild(sumEl);
-  try{
-   for(const c of cabs){
-    const room=(pr.rooms||[]).find(r=>r.id===c.roomId),where=[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'Unit';
-    const rows=(c.parts||[]).filter(p=>typeof window.fiqPanelMissingFields!=='function'||!window.fiqPanelMissingFields(p).length);
-    const ok=rows.filter(p=>window.isCompleteSupplierPart(p)).length;total+=rows.length;checked+=ok;units.push({where,ok,n:rows.length});
-    const head=document.createElement('div');head.className='fpj-head';head.innerHTML=esc(where)+' <span>'+ok+' of '+rows.length+' checked</span>';ui.box.appendChild(head);
-    const sec=document.createElement('div');sec.dataset.pcUnit=c.id;sec.id='partsSummary';ui.box.appendChild(sec);
-    state.currentCabinet=c.id;state.currentPart=null;state.currentRoom=c.roomId||null;
-    try{base.apply(this,arguments)}finally{sec.id=''}
-   }
-  }finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r;realSummary.id='partsSummary'}
-  const left=total-checked;
-  sumEl.innerHTML='<b>Whole job: '+checked+' of '+total+' panels checked</b>'+(left?' · '+left+' still to check':' · all checked')+
-   '<div class="fpj-units">'+units.map(u=>'<span class="fpj-unit'+(u.n&&u.ok===u.n?' done':'')+'">'+esc(u.where)+': '+u.ok+'/'+u.n+'</span>').join('')+'</div>';
   if(warn){warn.style.display=left?'block':'none';warn.innerHTML=left?'⚠ '+left+' panel'+(left===1?'':'s')+' in this job still need checking.':''}
+  return r;
  }
  window.renderParts=render;
  try{renderParts=window.renderParts}catch(e){}
