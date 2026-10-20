@@ -13882,5 +13882,78 @@ document.addEventListener('mousedown',function(e){
  try{renderCutting=window.renderCutting}catch(e){}
 })();
 </script>
+<script id="fiq-whole-job-panel-check">
+// Whole job Panel Check (Mads 20 Oct 2026). In a job with two or more wardrobes Panel Check shows every panel of
+// every room and wardrobe, collected automatically as wardrobes are added with Next wardrobe: "Whole job" (the
+// default) or "This wardrobe" (exactly as before). Each wardrobe's section is drawn by the existing Panel Check
+// cards with that wardrobe selected, so double-click to check, Edit and every warning work as before and change
+// that panel in its own wardrobe. A summary on top counts the whole job and each wardrobe. Nothing else changes:
+// numbering, cutting lists, exports, Next wardrobe and Mobile are untouched.
+(function(){
+ const KEY='fiq_pc_scope_v1';
+ const css=document.createElement('style');css.textContent=
+  '#fiqPcScope{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}'+
+  '#fiqPcScope button{border:2px solid #cfd6e4;background:#fff;border-radius:12px;padding:10px 16px;font:800 14px Inter,Arial,sans-serif;color:#23364e;cursor:pointer}'+
+  '#fiqPcScope button.on{border-color:#4da721;background:#eaf7e1;color:#1f5d12}'+
+  '#screen-parts.fiq-pc-job #customerSheetEstimateCard,#screen-parts.fiq-pc-job #panelCheckStatusBanner,#screen-parts.fiq-pc-job #installProgressCard,'+
+  '#screen-parts.fiq-pc-job #estimatedMaterialsCard,#screen-parts.fiq-pc-job #edgeBandingCard,#screen-parts.fiq-pc-job #panelCheckViewSwitch,#screen-parts.fiq-pc-job #panelCheckTable,'+
+  '#screen-parts.fiq-pc-job #panelIncompleteWarning,#screen-parts.fiq-pc-job #edgeCheckWarning{display:none!important}'+
+  '#fiqPcJob .fpj-sum{border:1px solid #e3e9f0;border-radius:14px;background:#fff;padding:12px 16px;margin:0 0 14px}'+
+  '#fiqPcJob .fpj-sum b{font-size:16px}#fiqPcJob .fpj-units{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}'+
+  '#fiqPcJob .fpj-unit{border:1px solid #dbe3ee;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;color:#23364e;background:#f7f9fc}'+
+  '#fiqPcJob .fpj-unit.done{border-color:#6bbf3a;background:#eaf7e1;color:#1f5d12}'+
+  '#fiqPcJob .fpj-head{margin:18px 0 8px;font:900 16px Inter,Arial,sans-serif;color:#0b2545;display:flex;gap:10px;align-items:center}'+
+  '#fiqPcJob .fpj-head span{font-size:13px;font-weight:700;color:#5b6b7c}';
+ document.head.appendChild(css);
+ const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+ const scope=()=>{try{return localStorage.getItem(KEY)==='unit'?'unit':'job'}catch(e){return 'job'}};
+ const base=window.renderParts;
+ function ensure(){
+  const screen=document.getElementById('screen-parts'),summary=document.getElementById('partsSummary');if(!screen||!summary)return null;
+  let b=document.getElementById('fiqPcScope');
+  if(!b){b=document.createElement('div');b.id='fiqPcScope';const head=screen.querySelector('.title-row');(head&&head.nextSibling)?screen.insertBefore(b,head.nextSibling):screen.prepend(b);
+   b.addEventListener('click',e=>{const x=e.target.closest('[data-pc-scope]');if(!x)return;try{localStorage.setItem(KEY,x.dataset.pcScope)}catch(err){}window.renderParts()})}
+  let box=document.getElementById('fiqPcJob');
+  if(!box){box=document.createElement('div');box.id='fiqPcJob';summary.before(box);
+   // Edit in Drawing opens the panel's own wardrobe (the card itself only sets the panel).
+   box.addEventListener('click',e=>{const el=e.target.closest('[data-edit-panel]');if(!el)return;const sec=el.closest('[data-pc-unit]');if(sec){state.currentCabinet=sec.dataset.pcUnit;const c=cabinet();state.currentRoom=c&&c.roomId||null}},true);}
+  return {screen,summary,b,box};
+ }
+ function render(){
+  const ui=ensure();const pr=typeof project==='function'?project():null,cabs=(pr&&pr.cabinets)||[];
+  if(!ui||cabs.length<2||(typeof combinedOn==='function'&&combinedOn())||(window.__jorCombinedCheck&&window.__jorCombinedCheck.active)){
+   if(ui){ui.b.innerHTML='';ui.box.innerHTML='';ui.screen.classList.remove('fiq-pc-job');ui.summary.hidden=false}
+   return typeof base==='function'?base.apply(this,arguments):undefined;
+  }
+  const rooms=new Set(cabs.map(c=>c.roomId||'_')),mode=scope();
+  ui.b.innerHTML='<button type="button" data-pc-scope="job" class="'+(mode==='job'?'on':'')+'">Whole job ('+rooms.size+' room'+(rooms.size===1?'':'s')+' · '+cabs.length+' wardrobes)</button><button type="button" data-pc-scope="unit" class="'+(mode==='unit'?'on':'')+'">This wardrobe</button>';
+  ui.screen.classList.toggle('fiq-pc-job',mode==='job');
+  if(mode!=='job'){ui.box.innerHTML='';ui.summary.hidden=false;return typeof base==='function'?base.apply(this,arguments):undefined}
+  // One section per wardrobe, drawn by the existing cards with that wardrobe selected; the selection is put back.
+  const keep={c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom};
+  const realSummary=ui.summary;realSummary.hidden=true;realSummary.innerHTML='';realSummary.id='partsSummaryUnit';
+  const warn=document.getElementById('componentsValidation');
+  let total=0,checked=0;const units=[];
+  ui.box.innerHTML='';const sumEl=document.createElement('div');sumEl.className='fpj-sum';ui.box.appendChild(sumEl);
+  try{
+   for(const c of cabs){
+    const room=(pr.rooms||[]).find(r=>r.id===c.roomId),where=[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'Unit';
+    const rows=(c.parts||[]).filter(p=>typeof window.fiqPanelMissingFields!=='function'||!window.fiqPanelMissingFields(p).length);
+    const ok=rows.filter(p=>window.isCompleteSupplierPart(p)).length;total+=rows.length;checked+=ok;units.push({where,ok,n:rows.length});
+    const head=document.createElement('div');head.className='fpj-head';head.innerHTML=esc(where)+' <span>'+ok+' of '+rows.length+' checked</span>';ui.box.appendChild(head);
+    const sec=document.createElement('div');sec.dataset.pcUnit=c.id;sec.id='partsSummary';ui.box.appendChild(sec);
+    state.currentCabinet=c.id;state.currentPart=null;state.currentRoom=c.roomId||null;
+    try{base.apply(this,arguments)}finally{sec.id=''}
+   }
+  }finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r;realSummary.id='partsSummary'}
+  const left=total-checked;
+  sumEl.innerHTML='<b>Whole job: '+checked+' of '+total+' panels checked</b>'+(left?' · '+left+' still to check':' · all checked')+
+   '<div class="fpj-units">'+units.map(u=>'<span class="fpj-unit'+(u.n&&u.ok===u.n?' done':'')+'">'+esc(u.where)+': '+u.ok+'/'+u.n+'</span>').join('')+'</div>';
+  if(warn){warn.style.display=left?'block':'none';warn.innerHTML=left?'⚠ '+left+' panel'+(left===1?'':'s')+' in this job still need checking.':''}
+ }
+ window.renderParts=render;
+ try{renderParts=window.renderParts}catch(e){}
+})();
+</script>
 </body>
 </html>
