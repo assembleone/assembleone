@@ -13772,5 +13772,115 @@ document.addEventListener('mousedown',function(e){
  if(document.readyState==='complete')check();else window.addEventListener('load',check);
 })();
 </script>
+<script id="fiq-whole-job-cutting">
+// Whole job cutting list (Mads 20 Oct 2026). On the Supplier screen of a job with two or more wardrobes:
+// "This wardrobe" (everything exactly as before) or "Whole job": one long cutting list of every complete panel in
+// every room and wardrobe, ONE production file for the supplier (the selected supplier system, same columns, one
+// row per physical panel, Room / Unit filled per row) and a sheet estimate for the quote in which panels of the
+// same material and thickness share sheets, so offcuts of one room are used for another. The estimate is not sent
+// to the supplier. Rows are built wardrobe by wardrobe with the existing code (supplierParts, fiqSupplierDataset),
+// so every row is exactly what that wardrobe's own file says; only the joining is new. All sizes stay in mm, the
+// stored unit, whatever unit the drawing screen shows. Nothing is saved or changed by this view.
+(function(){
+ const KEY='fiq_cut_scope_v1';
+ const css=document.createElement('style');css.textContent=
+  '#fiqCutScope{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}'+
+  '#fiqCutScope button{border:2px solid #cfd6e4;background:#fff;border-radius:12px;padding:10px 16px;font:800 14px Inter,Arial,sans-serif;color:#23364e;cursor:pointer}'+
+  '#fiqCutScope button.on{border-color:#4da721;background:#eaf7e1;color:#1f5d12}'+
+  '#screen-cutting.fiq-job-mode>:not(.supplier-hero):not(#fiqCutScope):not(#fiqJobCut){display:none!important}'+
+  '#fiqJobCut .fjc-card{border:1px solid #e3e9f0;border-radius:14px;background:#fff;padding:14px 16px;margin:0 0 14px}'+
+  '#fiqJobCut h3{margin:0 0 8px}#fiqJobCut .fjc-note{font-size:13px;color:#5b6b7c;margin:6px 0 0}'+
+  '#fiqJobCut .fjc-warn{background:#fff7e6;border:1px solid #f0c36d;border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:13px}'+
+  '#fiqJobCut table{width:100%;border-collapse:collapse;font-size:13px}#fiqJobCut th,#fiqJobCut td{border-bottom:1px solid #edf0f3;padding:6px 8px;text-align:left;vertical-align:top}'+
+  '#fiqJobCut td.num,#fiqJobCut th.num{text-align:right}#fiqJobCut .fjc-scroll{overflow-x:auto}'+
+  '#fiqJobCut .fjc-room{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:800;font-size:11px;padding:2px 8px;border-radius:999px}';
+ document.head.appendChild(css);
+ const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+ const scope=()=>{try{return localStorage.getItem(KEY)==='job'?'job':'unit'}catch(e){return 'unit'}};
+ const setScope=v=>{try{localStorage.setItem(KEY,v)}catch(e){}};
+ // Same material written slightly differently ("White 18mm", "white  18 mm") is one material.
+ const matKey=m=>String(m||'').toLowerCase().replace(/\s+/g,' ').replace(/(\d)\s+mm\b/g,'$1mm').trim();
+ // Every wardrobe's complete panels and production rows, built with that wardrobe selected, exactly as its own
+ // Supplier screen would; the selection is put back afterwards (nothing is saved).
+ function collect(){
+  const pr=project();if(!pr)return null;
+  const keep={c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom};
+  const out={pr,units:[],panels:[],fileRows:[],incomplete:[]};
+  try{
+   for(const c of (pr.cabinets||[])){
+    state.currentCabinet=c.id;state.currentPart=null;state.currentRoom=c.roomId||null;
+    const all=cabinetParts(),list=supplierParts();
+    const room=(pr.rooms||[]).find(r=>r.id===c.roomId);
+    const where=[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
+    if(all.length>list.length)out.incomplete.push({where:where||'Unit',n:all.length-list.length});
+    if(!list.length)continue;
+    out.units.push({id:c.id,where,room:room&&room.name||'',n:list.length});
+    list.forEach(p=>out.panels.push({p,copy:Object.assign({},p,{material:String(materialForPanel(p)||'').trim()}),where,room:room&&room.name||'',unit:c.name||''}));
+    if(typeof window.fiqSupplierDataset==='function')out.fileRows=out.fileRows.concat(window.fiqSupplierDataset(list).rows);
+   }
+  }finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r}
+  // One spelling per material for the estimate; other spellings are listed so a typo can be spotted.
+  const names={};out.panels.forEach(x=>{const k=matKey(x.copy.material);if(!k)return;(names[k]=names[k]||{name:x.copy.material,also:[]});if(x.copy.material!==names[k].name&&!names[k].also.includes(x.copy.material))names[k].also.push(x.copy.material)});
+  out.panels.forEach(x=>{const k=matKey(x.copy.material);if(k)x.copy.material=names[k].name});
+  out.materials=names;
+  return out;
+ }
+ window.fiqWholeJobCollect=collect;
+ function fileName(profile,pr){return (profile.fileLabel+' production file - '+[pr.customer,pr.name,'Whole job'].filter(Boolean).join(' - ')).replace(/[\\/:*?"<>|\x00-\x1F]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150)+'.csv'}
+ window.fiqWholeJobFile=function(system){
+  const d=collect();if(!d||!d.fileRows.length)return null;
+  const sel=document.getElementById('supplierSystemSelect');
+  const profile=window.fiqSupplierProfile(system||(sel&&sel.value)||'standard');
+  const text=window.fiqSupplierExport(profile,{rows:d.fileRows});
+  return {name:fileName(profile,d.pr),text,rows:d.fileRows.length};
+ };
+ function bar(){
+  const screen=document.getElementById('screen-cutting');if(!screen)return null;
+  let b=document.getElementById('fiqCutScope');
+  if(!b){b=document.createElement('div');b.id='fiqCutScope';const hero=screen.querySelector('.supplier-hero');(hero&&hero.nextSibling)?screen.insertBefore(b,hero.nextSibling):screen.prepend(b);
+   b.addEventListener('click',e=>{const x=e.target.closest('[data-cut-scope]');if(!x)return;setScope(x.dataset.cutScope);render()})}
+  let box=document.getElementById('fiqJobCut');
+  if(!box){box=document.createElement('div');box.id='fiqJobCut';b.after(box);
+   box.addEventListener('click',e=>{if(!e.target.closest('[data-job-file]'))return;e.preventDefault();
+    const st=box.querySelector('[data-job-file-status]'),f=window.fiqWholeJobFile();
+    if(!f){if(st)st.textContent='No complete panels are ready for the supplier yet.';return}
+    const url=URL.createObjectURL(new Blob([f.text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+    if(st)st.textContent='Downloaded '+f.name+' — '+f.rows+' row'+(f.rows===1?'':'s')+', one per physical panel.'})}
+  return {screen,b,box};
+ }
+ function render(){
+  const ui=bar();if(!ui)return;
+  const pr=project(),cabs=(pr&&pr.cabinets)||[];
+  if(cabs.length<2){ui.b.innerHTML='';ui.box.innerHTML='';ui.screen.classList.remove('fiq-job-mode');return}
+  const rooms=new Set(cabs.map(c=>c.roomId||'_'));
+  const mode=scope();
+  ui.b.innerHTML='<button type="button" data-cut-scope="unit" class="'+(mode==='unit'?'on':'')+'">This wardrobe</button><button type="button" data-cut-scope="job" class="'+(mode==='job'?'on':'')+'">Whole job ('+rooms.size+' room'+(rooms.size===1?'':'s')+' · '+cabs.length+' wardrobes)</button>';
+  ui.screen.classList.toggle('fiq-job-mode',mode==='job');
+  if(mode!=='job'){ui.box.innerHTML='';return}
+  const d=collect();
+  const pieces=d.panels.reduce((n,x)=>n+Math.max(1,Math.floor(Number(x.p.qty)||1)),0);
+  const sel=document.getElementById('supplierSystemSelect'),sys=window.FIQ_SUPPLIER_ADAPTERS&&window.FIQ_SUPPLIER_ADAPTERS[sel&&sel.value]||{fileLabel:'Standard CSV'};
+  const mats=Object.values(d.materials||{});
+  ui.box.innerHTML=
+   (d.incomplete.length?'<div class="fjc-warn">⚠ Not complete, so left out: '+d.incomplete.map(x=>esc(x.where)+' ('+x.n+')').join(', ')+'. Finish them in Panel Check to include them.</div>':'')+
+   '<div class="fjc-card"><h3>Whole job cutting list</h3><div><b>'+d.panels.length+' panels</b> · '+pieces+' pieces · '+d.units.length+' wardrobe'+(d.units.length===1?'':'s')+' with panels</div>'+
+   '<p class="fjc-note">All sizes in mm. Each wardrobe keeps its own cutting list and stickers: choose "This wardrobe" for those.</p></div>'+
+   '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button>'+
+   '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per physical panel, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
+   '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
+   (mats.some(m=>m.also.length)?'<div class="fjc-warn">Counted as one material: '+mats.filter(m=>m.also.length).map(m=>'<b>'+esc(m.name)+'</b> (also written '+m.also.map(a=>'"'+esc(a)+'"').join(', ')+')').join('; ')+'.</div>':'')+
+   '<div id="fiqJobSheets"></div></div>'+
+   '<div class="fjc-card"><h3>All panels</h3><div class="fjc-scroll"><table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Qty</th><th>Material</th><th>Room · Wardrobe</th></tr></thead><tbody>'+
+   d.panels.map(x=>'<tr><td><b>'+esc(x.p.code)+'</b></td><td>'+esc(x.p.name)+'</td><td class="num">'+esc(x.p.thickness)+'</td><td class="num">'+esc(x.p.length)+'</td><td class="num">'+esc(x.p.width)+'</td><td class="num">'+esc(x.p.qty||1)+'</td><td>'+esc(x.copy.material||'Not set')+'</td><td><span class="fjc-room">'+esc(x.where||'—')+'</span></td></tr>').join('')+
+   '</tbody></table></div></div>';
+  const sheets=document.getElementById('fiqJobSheets');
+  if(sheets&&typeof window.a181RenderInto==='function')window.a181RenderInto(sheets,d.panels.map(x=>x.copy),'No complete panels yet.');
+ }
+ window.fiqRenderWholeJobCutting=render;
+ const base=window.renderCutting;
+ window.renderCutting=function(){const r=typeof base==='function'?base.apply(this,arguments):undefined;try{render()}catch(e){console.error('Whole job cutting list',e)}return r};
+ try{renderCutting=window.renderCutting}catch(e){}
+})();
+</script>
 </body>
 </html>
