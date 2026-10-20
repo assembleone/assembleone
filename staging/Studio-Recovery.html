@@ -13797,9 +13797,10 @@ document.addEventListener('mousedown',function(e){
  document.head.appendChild(css);
  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
  // Whole job is the default (Mads 20 Oct 2026: one long cutting list, simple); This wardrobe is remembered when chosen.
- const scope=()=>{try{return localStorage.getItem(KEY)==='unit'?'unit':'job'}catch(e){return 'job'}};
+ try{localStorage.removeItem(KEY)}catch(e){}
+ const scope=()=>window.__fiqCutScope==='unit'?'unit':'job';
  const numOf=code=>{const m=String(code||'').match(/(\d+)(?!.*\d)/);return m?Number(m[1]):Infinity};
- const setScope=v=>{try{localStorage.setItem(KEY,v)}catch(e){}};
+ const setScope=v=>{window.__fiqCutScope=v};
  // Same material written slightly differently ("White 18mm", "white  18 mm") is one material.
  const matKey=m=>String(m||'').toLowerCase().replace(/\s+/g,' ').replace(/(\d)\s+mm\b/g,'$1mm').trim();
  // Every wardrobe's complete panels and production rows, built with that wardrobe selected, exactly as its own
@@ -13904,7 +13905,9 @@ document.addEventListener('mousedown',function(e){
   '.fpj-where{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:800;font-size:12px;padding:2px 9px;border-radius:999px;margin:0 0 6px}';
  document.head.appendChild(css);
  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
- const scope=()=>{try{return localStorage.getItem(KEY)==='unit'?'unit':'job'}catch(e){return 'job'}};
+ // Always opens on All rooms (Mads 20 Oct 2026); This wardrobe lasts only until Studio is reopened.
+ try{localStorage.removeItem(KEY)}catch(e){}
+ const scope=()=>window.__fiqPcScope==='unit'?'unit':'job';
  const numOf=code=>{const m=String(code||'').match(/(\d+)(?!.*\d)/);return m?Number(m[1]):Infinity};
  const base=window.renderParts;
  // Select the card's own wardrobe before the existing handlers (document level) run.
@@ -13916,7 +13919,7 @@ document.addEventListener('mousedown',function(e){
   const screen=document.getElementById('screen-parts');if(!screen)return null;
   let b=document.getElementById('fiqPcScope');
   if(!b){b=document.createElement('div');b.id='fiqPcScope';const head=screen.querySelector('.title-row');(head&&head.nextSibling)?screen.insertBefore(b,head.nextSibling):screen.prepend(b);
-   b.addEventListener('click',e=>{const x=e.target.closest('[data-pc-scope]');if(!x)return;try{localStorage.setItem(KEY,x.dataset.pcScope)}catch(err){}window.renderParts()})}
+   b.addEventListener('click',e=>{const x=e.target.closest('[data-pc-scope]');if(!x)return;window.__fiqPcScope=x.dataset.pcScope;window.renderParts()})}
   return {screen,b};
  }
  function render(){
