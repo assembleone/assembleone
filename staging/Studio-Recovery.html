@@ -7030,7 +7030,11 @@ body.guide-only .a131-back-studio{display:block}
     roomUnit:[room?.name,unit?.name].filter(Boolean).filter((v,k,a)=>a.indexOf(v)===k).join(' · '),jobRef:ref,
     notes:String(p.notes||''),qr:d.qr,qrLabel:fiqQrLabelText(d.qr),labelNumber:d.labelNumber};
   });
-  return {generatedFrom:'FittersIQ',customer:pr?.customer||'',job:pr?.name||'',roomUnit:rows[0]?.roomUnit||'',jobRef:ref,units:'mm',rows};
+  // A grouped panel (same label on every sticker) is ONE row with its quantity (Mads 20 Oct 2026: the supplier file
+  // lists KT1 x5 once, not five identical lines). Pieces that differ (e.g. older jobs with numbered pieces) stay separate.
+  const same=(x,y)=>Object.keys(x).every(k=>k==='piece'||k==='quantity'||x[k]===y[k]);
+  const merged=[];rows.forEach(r=>{const last=merged[merged.length-1];if(last&&last.panelId===r.panelId&&same(last,r))last.quantity+=1;else merged.push(Object.assign({},r))});
+  return {generatedFrom:'FittersIQ',customer:pr?.customer||'',job:pr?.name||'',roomUnit:merged[0]?.roomUnit||'',jobRef:ref,units:'mm',rows:merged};
  };
  const C=(header,field)=>({header,field});
  const EDGES=[C('EdgeTop','edgeTop'),C('EdgeBottom','edgeBottom'),C('EdgeLeft','edgeLeft'),C('EdgeRight','edgeRight')];
@@ -7072,7 +7076,7 @@ body.guide-only .a131-back-studio{display:block}
  const sel=()=>document.getElementById('supplierSystemSelect');
  function remembered(){try{return localStorage.getItem(SYS_KEY)||''}catch(e){return ''}}
  function refreshSub(){const s=sel(),sub=document.getElementById('fiqProductionFileSub');if(!s||!sub)return;const a=window.FIQ_SUPPLIER_ADAPTERS[s.value]||window.FIQ_SUPPLIER_ADAPTERS.standard;
-  let n=0;try{n=fiqStickerCopies(supplierParts()).length}catch(e){}sub.textContent=a.fileLabel+' CSV · '+n+' row'+(n===1?'':'s')+', one per physical panel'}
+  let n=0;try{n=window.fiqSupplierDataset(supplierParts()).rows.length}catch(e){}sub.textContent=a.fileLabel+' CSV · '+n+' row'+(n===1?'':'s')+', one per panel with its quantity'}
  function fileName(profile,ds){return (profile.fileLabel+' production file - '+[ds.customer,ds.job,ds.roomUnit].filter(Boolean).join(' - ')).replace(/[\\/:*?"<>|\x00-\x1F]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150)+'.csv'}
  window.fiqDownloadProductionFile=function(system){
   const msg=document.getElementById('supplierActionStatus'),say=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle('error',!!err)}};
@@ -7080,7 +7084,7 @@ body.guide-only .a131-back-studio{display:block}
   if(!list.length){say('No complete panels are ready for the supplier yet.',true);return null}
   const profile=window.fiqSupplierProfile(system||sel()?.value||'standard'),ds=window.fiqSupplierDataset(list),text=window.fiqSupplierExport(profile,ds),name=fileName(profile,ds);
   const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
-  say('Downloaded '+name+' — '+ds.rows.length+' row'+(ds.rows.length===1?'':'s')+', one per physical panel.');
+  say('Downloaded '+name+' — '+ds.rows.length+' row'+(ds.rows.length===1?'':'s')+', one per panel with its quantity.');
   return {name,text,rows:ds.rows.length};
  };
  function wire(){const s=sel();if(!s||s.dataset.wired)return;s.dataset.wired='1';const r=remembered();if(r&&window.FIQ_SUPPLIER_ADAPTERS[r])s.value=r;
@@ -13855,7 +13859,7 @@ document.addEventListener('mousedown',function(e){
     const st=box.querySelector('[data-job-file-status]'),f=window.fiqWholeJobFile();
     if(!f){if(st)st.textContent='No complete panels are ready for the supplier yet.';return}
     const url=URL.createObjectURL(new Blob([f.text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
-    if(st)st.textContent='Downloaded '+f.name+' — '+f.rows+' row'+(f.rows===1?'':'s')+', one per physical panel.'})}
+    if(st)st.textContent='Downloaded '+f.name+' — '+f.rows+' row'+(f.rows===1?'':'s')+', one per panel with its quantity.'})}
   return {screen,b,box};
  }
  function render(){
@@ -13879,7 +13883,7 @@ document.addEventListener('mousedown',function(e){
    d.panels.slice().sort((a,c)=>numOf(a.p.code)-numOf(c.p.code)||String(a.p.code).localeCompare(String(c.p.code))).map(x=>'<tr><td><b>'+esc(x.p.code)+'</b></td><td>'+esc(x.p.name)+'</td><td class="num">'+esc(x.p.thickness)+'</td><td class="num">'+esc(x.p.length)+'</td><td class="num">'+esc(x.p.width)+'</td><td class="num">'+esc(x.p.qty||1)+'</td><td>'+esc(x.copy.material||'Not set')+'</td><td><span class="fjc-room">'+esc(x.where||'—')+'</span></td></tr>').join('')+
    '</tbody></table></div></div>'+
    '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button>'+
-   '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per physical panel, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
+   '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per panel with its quantity, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
    '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
    (mats.some(m=>m.also.length)?'<div class="fjc-warn">Counted as one material: '+mats.filter(m=>m.also.length).map(m=>'<b>'+esc(m.name)+'</b> (also written '+m.also.map(a=>'"'+esc(a)+'"').join(', ')+')').join('; ')+'.</div>':'')+
    '<div id="fiqJobSheets"></div></div>';
