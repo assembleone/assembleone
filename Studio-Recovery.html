@@ -9715,7 +9715,7 @@ body.fiq-locked .app{display:none!important}
 
   var lastGroups=[];
 
-  function computeGroups(parts){
+  function computeGroups(parts,forPr){
     var settings=loadSettings();
     var byKey={};
     parts.forEach(function(p){
@@ -9725,11 +9725,11 @@ body.fiq-locked .app{display:none!important}
     });
     return Object.keys(byKey).map(function(key){
       var g=byKey[key];
-      var cfg=cfgFor(settings,g.material,g.thickness);
+      var cfg=cfgFor(settings,g.material,g.thickness,forPr);
       var r=groupResult(g.material,g.thickness,g.parts,cfg);
       // A panel larger than the sheet would be left out of the count: use the smallest standard sheet size of this
       // material that fits every panel instead (21 Oct 2026), so the number of sheets to order is complete.
-      var jobPr=(typeof project==='function')?project():null,chosenForJob=!!(jobPr&&jobPr.sheetSettings&&jobPr.sheetSettings[cfg.key]);
+      var jobPr=forPr||((typeof project==='function')?project():null),chosenForJob=!!(jobPr&&jobPr.sheetSettings&&jobPr.sheetSettings[cfg.key]);
       if(r.unplaced.length&&!chosenForJob){
         var list=presetsFor(g.material).list.slice().sort(function(a,b){return a[0]*a[1]-b[0]*b[1]});
         for(var i=0;i<list.length;i++){
@@ -9943,7 +9943,9 @@ body.fiq-locked .app{display:none!important}
       '<div class="fiq-shop-head">Sheets</div>'+
       (sheetRows||'<div class="fiq-shop-empty">No complete panels in this unit yet.</div>')+
       '<div class="est-mat-note">Estimate only, kept separate by material and thickness.</div>'+
-      (allJobs&&allJobs.jobs>1?'<div class="fiq-shop-alljobs" data-shop-all-jobs>All '+allJobs.jobs+' jobs for this customer: '+allJobs.sheets+' sheet'+(allJobs.sheets===1?'':'s')+' in total (not priced)</div>':'')+
+      (allJobs&&allJobs.jobs>1?'<div class="fiq-shop-alljobs" data-shop-all-jobs><div><b>This customer has '+allJobs.jobs+' jobs.</b> Each job on its own (not priced):</div>'+
+        (allJobs.list||[]).map(function(j){return '<div class="fiq-shop-row"><span>'+safe(j.name)+(j.current?' <small>(this job)</small>':'')+'</span><b>'+j.sheets+' sheet'+(j.sheets===1?'':'s')+'</b></div>'}).join('')+
+        '<div class="fiq-shop-row fiq-shop-total"><span>All '+allJobs.jobs+' jobs added together</span><b>'+allJobs.sheets+' sheet'+(allJobs.sheets===1?'':'s')+'</b></div></div>':'')+
       '<div class="fiq-shop-head">Edge Banding</div>'+
       (edgeRows?edgeRows+'<div class="fiq-shop-row fiq-shop-total" data-shop-edging-total><span>Total</span><b>'+m(edgeTotal)+'</b></div>':'<div class="fiq-shop-empty">No edging on these panels.</div>')+
       (unsized.length?'<div class="fiq-shop-empty">Not counted, size missing: '+unsized.map(safe).join(', ')+'</div>':'')+
@@ -10218,7 +10220,11 @@ body.fiq-locked .app{display:none!important}
     // A panel larger than the sheet is never counted as fitting: it is named instead.
     const tooBig=g=>{if(!g.unplaced.length)return '';const sizes=[...new Set(g.unplaced.map(u=>Math.round(u.w)+'×'+Math.round(u.h)))];return '<div class="cust-sheet-warn">⚠ '+g.unplaced.length+' panel'+(g.unplaced.length===1?'':'s')+' larger than a '+g.w+' × '+g.h+' sheet, not counted: '+safe(sizes.join(', '))+' mm</div>'};
     void tooBig;
-    window.__fiqShopAllJobs={jobs:jobs.length,sheets:groups.reduce((n,g)=>n+g.sheets,0)};
+    // Each job counted on its own with the same sheet estimate as the Shopping List (turning, sheet size).
+    const perJobSheets=jobs.map(pr=>{const ps=[];(pr.cabinets||[]).forEach(c=>(c.parts||[]).filter(pt=>isPanelComplete(pr,c,pt)).forEach(pt=>ps.push(Object.assign({},pt,{material:resolvedMaterial(pr,c,pt)}))));
+      const gs=ps.length&&typeof window.a181ComputeGroups==='function'?window.a181ComputeGroups(ps,pr):[];
+      return {name:pr.name||pr.customer||'Job',current:pr.id===p.id,sheets:gs.reduce((n,g)=>n+g.sheets.length,0)}});
+    window.__fiqShopAllJobs={jobs:jobs.length,sheets:perJobSheets.reduce((n,j)=>n+j.sheets,0),list:perJobSheets};
     box.innerHTML='<div class="est-mat-card cust-sheet-card">'+
       '<div class="cust-sheet-customer">👤 '+safe(customer.name)+'</div>'+
       '<div class="est-mat-title">🛒 Shopping List</div>'+
