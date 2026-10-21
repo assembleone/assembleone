@@ -838,7 +838,7 @@ input:focus,textarea:focus,select:focus{outline:3px solid rgba(107,191,58,.20)!i
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut,
-  sendEmailVerification, sendPasswordResetEmail, reload
+  sendEmailVerification, sendPasswordResetEmail, reload, GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
@@ -861,7 +861,7 @@ window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
 window.fiqStorage = getStorage(fiqApp);
 window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL };
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction };
+window.fiqAuthFns = { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <div id="fiqAuthGate" class="fiq-auth-gate">
@@ -882,6 +882,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         <button class="fiq-auth-submit" id="fiqSignInBtn" type="submit">Sign In</button>
       </form>
       <button class="fiq-auth-link" id="fiqForgotBtn" type="button">Forgot password?</button>
+      <div id="fiqEasyAuth" hidden><div class="fiq-auth-or" style="display:flex;align-items:center;gap:10px;color:#66758a;font-size:12px;margin:14px 0">or</div><button class="fiq-auth-submit" id="fiqGoogleBtn" type="button" style="background:#fff;color:#15283d;border:1px solid #d5dce5;display:flex;align-items:center;justify-content:center;gap:10px;width:100%"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.2 5.6c4.2-3.9 7.1-9.6 7.1-17z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.8-5.8l-7.2-5.6c-2 1.4-4.7 2.3-8.6 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Continue with Google</button><a class="fiq-auth-link" id="fiqStartTrialLink" href="signup.html" style="display:block;text-align:center;margin-top:12px">New to FittersIQ? Start your free trial</a></div>
       <button class="fiq-auth-link" id="fiqJoinLinkBtn" type="button">New fitter? Join your company</button>
     </div>
 
@@ -7173,6 +7174,13 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       btn.disabled=false; btn.textContent='Join';
       showMsg(msg, (err && err.message) ? err.message : 'That code did not work. Ask for a new one.', 'error');
     }
+  });
+
+  if(/(^|\.)fittersiq\.com$/.test(location.hostname)){ $('fiqEasyAuth').hidden=false; }
+  $('fiqGoogleBtn').addEventListener('click', async function(){
+    var msg=$('fiqSignInMsg');
+    try{ await authFns.signInWithPopup(auth, new authFns.GoogleAuthProvider()); }
+    catch(err){ if(err.code!=='auth/popup-closed-by-user'&&err.code!=='auth/cancelled-popup-request') showMsg(msg,'Google sign in did not work. Please try again or use your email.','error'); }
   });
 
   $('fiqForgotBtn').addEventListener('click', async function(){

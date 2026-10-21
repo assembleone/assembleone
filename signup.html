@@ -31,6 +31,13 @@ a{color:inherit}
 .msg.ok{background:#eef8e9;color:#347d18}
 .accept{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--text);margin:4px 0 16px;line-height:1.45}.accept input{margin-top:3px;width:17px;height:17px;flex:none}.accept a{color:var(--blue);font-weight:800}
 .fine{font-size:11px;color:var(--muted);margin-top:18px;line-height:1.5}
+.google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text);padding:13px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit}
+.google:hover{background:#f6f8fa}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px;margin:18px 0}
+.or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
+.pw{position:relative}
+.pw input{padding-right:64px}
+.pw button{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);font-weight:800;font-size:12px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -40,12 +47,13 @@ a{color:inherit}
     <h1>Create your account</h1>
     <p class="lead">Start your 30 day free trial. No charge during the trial.</p>
     <div class="msg" id="formMsg"></div>
+    <button class="google" id="googleBtn" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.2 5.6c4.2-3.9 7.1-9.6 7.1-17z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.8-5.8l-7.2-5.6c-2 1.4-4.7 2.3-8.6 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
+    <div class="or">or</div>
     <form id="signupForm">
       <div class="field"><label for="companyName">Company name</label><input id="companyName" required type="text" autocomplete="organization"></div>
       <div class="field"><label for="ownerName">Your name</label><input id="ownerName" required type="text" autocomplete="name"></div>
       <div class="field"><label for="email">Email</label><input id="email" required type="email" autocomplete="email"></div>
-      <div class="field"><label for="password">Password</label><input id="password" required type="password" minlength="8" autocomplete="new-password"></div>
-      <div class="field"><label for="confirmPassword">Confirm password</label><input id="confirmPassword" required type="password" minlength="8" autocomplete="new-password"></div>
+      <div class="field"><label for="password">Password</label><div class="pw"><input id="password" required type="password" minlength="8" autocomplete="new-password"><button type="button" id="showPw">Show</button></div></div>
       <label class="accept"><input id="acceptTerms" type="checkbox" required><span>I accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a> and the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <button class="primary" id="submitBtn" type="submit">Start Free Trial</button>
     </form>
@@ -59,8 +67,9 @@ a{color:inherit}
 const TERMS_VERSION = "2026-10-18";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
-  getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile
+  getAuth, createUserWithEmailAndPassword, sendEmailVerification, updateProfile, GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -73,6 +82,24 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const completeOnboarding = httpsCallable(getFunctions(app), "completeOnboarding");
+const plan = new URLSearchParams(location.search).get("plan") || null;
+
+document.getElementById("showPw").addEventListener("click", () => {
+  const p = document.getElementById("password"), b = document.getElementById("showPw");
+  p.type = p.type === "password" ? "text" : "password"; b.textContent = p.type === "password" ? "Show" : "Hide";
+});
+
+// Continue with Google: no password and no email link. A new customer then only types the company name.
+document.getElementById("googleBtn").addEventListener("click", async () => {
+  try {
+    const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+    const t = await cred.user.getIdTokenResult();
+    location.href = t.claims.companyId ? "index.html" : "account.html" + (plan ? "?plan=" + encodeURIComponent(plan) : "");
+  } catch (err) {
+    if (err.code !== "auth/popup-closed-by-user" && err.code !== "auth/cancelled-popup-request") showMsg("Google sign in did not work. Please try again or use your email below.", "error");
+  }
+});
 
 const form = document.getElementById("signupForm");
 const msg = document.getElementById("formMsg");
@@ -89,12 +116,7 @@ form.addEventListener("submit", async (e) => {
   const ownerName = document.getElementById("ownerName").value.trim();
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
-  const confirmPassword = document.getElementById("confirmPassword").value;
 
-  if (password !== confirmPassword) {
-    showMsg("Passwords do not match.", "error");
-    return;
-  }
   if (!document.getElementById("acceptTerms").checked) {
     showMsg("Please accept the Terms of Service and Privacy Policy.", "error");
     return;
@@ -111,7 +133,6 @@ form.addEventListener("submit", async (e) => {
     await updateProfile(cred.user, { displayName: ownerName });
     await sendEmailVerification(cred.user, { url: "https://app.fittersiq.com/account.html" });
 
-    const plan = new URLSearchParams(location.search).get("plan") || null;
     const pending = JSON.stringify({ companyName, ownerName, plan, termsVersion: TERMS_VERSION });
     sessionStorage.setItem("fittersiq_pending_onboarding", pending);
     // Also kept in this browser, so setup still finishes if the email link opens in another tab.

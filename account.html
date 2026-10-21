@@ -124,7 +124,7 @@ onAuthStateChanged(auth, async (user) => {
           await completeOnboarding({ companyName, ownerName, plan, termsVersion });
           try { sessionStorage.removeItem("fittersiq_pending_onboarding"); localStorage.removeItem("fittersiq_pending_onboarding"); } catch (e) {}
           await user.getIdToken(true);
-          location.reload();
+          location.href = "index.html";
           return;
         }catch(e){ console.warn("Could not finish setup", e); }
       }
@@ -160,7 +160,7 @@ document.getElementById("setupForm").addEventListener("submit", async (e) => {
   try{
     await completeOnboarding({ companyName, ownerName, plan, termsVersion: TERMS_VERSION });
     await auth.currentUser.getIdToken(true);
-    location.reload();
+    location.href = "index.html";
   }catch(e2){
     err.textContent = "Something went wrong. Please try again."; err.className = "msg show error";
     btn.disabled = false; btn.textContent = "Start Free Trial";
