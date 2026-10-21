@@ -13940,8 +13940,11 @@ document.addEventListener('mousedown',function(e){
    '</tbody></table></div></div>'+
    '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button>'+
    '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per panel with its quantity, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
+   '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
    (mats.some(m=>m.also.length)?'<div class="fjc-warn">Counted as one material: '+mats.filter(m=>m.also.length).map(m=>'<b>'+esc(m.name)+'</b> (also written '+m.also.map(a=>'"'+esc(a)+'"').join(', ')+')').join('; ')+'.</div>':'')+
-   '<p class="fjc-note">Sheets for the whole job: open 📐 Sheet Optimiser below. Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms.</p>';
+   '<div id="fiqJobSheets"></div></div>';
+  const sheets=document.getElementById('fiqJobSheets');
+  if(sheets&&typeof window.a181RenderInto==='function')window.a181RenderInto(sheets,d.panels.map(x=>x.copy),'No complete panels yet.');
   if(typeof window.fiqRenderSheetOptimiser==='function')window.fiqRenderSheetOptimiser();
  }
  window.fiqRenderWholeJobCutting=render;
