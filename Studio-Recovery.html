@@ -9638,13 +9638,17 @@ body.fiq-locked .app{display:none!important}
   }
   function groupResult(materialLabel,thickness,partsList,cfg){
     var pieces=[];
-    partsList.forEach(function(p){var n=Math.max(1,Number(p.qty)||1);for(var i=0;i<n;i++)pieces.push({w:Number(p.length)||0,h:Number(p.width)||0,code:p.code,name:p.name||''})});
+    var uW=cfg.w-2*(Number(cfg.trim)||0),uH=cfg.h-2*(Number(cfg.trim)||0),turnedCodes=[];
+    partsList.forEach(function(p){var n=Math.max(1,Number(p.qty)||1),w=Number(p.length)||0,h=Number(p.width)||0;
+      // Grain on and the panel only fits turned (typed width × height): turn it, grain along its long side.
+      if(cfg.grain&&!(w<=uW&&h<=uH)&&h<=uW&&w<=uH){var t=w;w=h;h=t;if(turnedCodes.indexOf(p.code||'?')<0)turnedCodes.push(p.code||'?')}
+      for(var i=0;i<n;i++)pieces.push({w:w,h:h,code:p.code,name:p.name||''})});
     var res=pack(pieces,cfg.w,cfg.h,cfg.kerf,!cfg.grain,cfg.trim);
     var sheetArea=cfg.w*cfg.h,usedArea=0;
     res.sheets.forEach(function(s){s.placements.forEach(function(p){usedArea+=p.w*p.h})});
     var totalArea=res.sheets.length*sheetArea;
     var wastePct=totalArea>0?fmt(100*(1-usedArea/totalArea)):0;
-    return {materialLabel:materialLabel,thickness:thickness,cfg:cfg,sheets:res.sheets,unplaced:res.unplaced,wastePct:wastePct,sheetArea:sheetArea,usedArea:usedArea};
+    return {materialLabel:materialLabel,thickness:thickness,cfg:cfg,sheets:res.sheets,unplaced:res.unplaced,wastePct:wastePct,sheetArea:sheetArea,usedArea:usedArea,turned:turnedCodes};
   }
 
   function sheetSizeHtml(g,idx){
@@ -9715,7 +9719,20 @@ body.fiq-locked .app{display:none!important}
     return Object.keys(byKey).map(function(key){
       var g=byKey[key];
       var cfg=cfgFor(settings,g.material,g.thickness);
-      return groupResult(g.material,g.thickness,g.parts,cfg);
+      var r=groupResult(g.material,g.thickness,g.parts,cfg);
+      // A panel larger than the sheet would be left out of the count: use the smallest standard sheet size of this
+      // material that fits every panel instead (21 Oct 2026), so the number of sheets to order is complete.
+      var jobPr=(typeof project==='function')?project():null,chosenForJob=!!(jobPr&&jobPr.sheetSettings&&jobPr.sheetSettings[cfg.key]);
+      if(r.unplaced.length&&!chosenForJob){
+        var list=presetsFor(g.material).list.slice().sort(function(a,b){return a[0]*a[1]-b[0]*b[1]});
+        for(var i=0;i<list.length;i++){
+          if(list[i][0]*list[i][1]<=cfg.w*cfg.h)continue;
+          var big=Object.assign({},cfg,{w:list[i][0],h:list[i][1],custom:false,auto:{w:cfg.w,h:cfg.h}});
+          var r2=groupResult(g.material,g.thickness,g.parts,big);
+          if(!r2.unplaced.length){r=r2;break}
+        }
+      }
+      return r;
     });
   }
 
@@ -9727,7 +9744,12 @@ body.fiq-locked .app{display:none!important}
     if(!box)return [];
     if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">'+(emptyMsg||t("studio.supplier.sheetOptimEmptyGeneric"))+'</div>';return []}
     var groups=computeGroups(parts);
-    box.innerHTML=groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
+    var order='<div class="sheet-order" data-sheet-order><div class="sheet-order-title">Sheets to order</div>'+groups.map(function(g,i){
+      return '<div class="sheet-order-row"><span><span class="sheet-optim-swatch" style="background:'+colorForGroup(i)+'"></span>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</span><b>'+g.sheets.length+' sheet'+(g.sheets.length===1?'':'s')+' of '+g.cfg.w+' × '+g.cfg.h+'</b></div>'+
+       (g.turned&&g.turned.length?'<div class="sheet-order-note">Turned so the grain runs along the long side: '+g.turned.map(safe).join(', ')+'</div>':'')+
+       (g.cfg.auto?'<div class="sheet-order-note">'+g.cfg.w+' × '+g.cfg.h+' used because a panel is too big for '+g.cfg.auto.w+' × '+g.cfg.auto.h+'</div>':'')+
+       (g.unplaced.length?'<div class="sheet-order-warn">⚠ Too big for every standard sheet, not counted: '+unplacedSummaryText(g.unplaced)+'</div>':'')}).join('')+'</div>';
+    box.innerHTML=order+groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
     box.querySelectorAll('[data-sheet-preset],[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
       el.addEventListener('change',function(){
         var idx=Number(el.dataset.sheetPreset??el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetTrim??el.dataset.sheetGrain);
@@ -9807,7 +9829,8 @@ body.fiq-locked .app{display:none!important}
   }
   function render(){
     var box=document.getElementById('estimatedMaterialsCard');if(!box)return;
-    var allParts=(typeof cabinetParts==='function'?cabinetParts():[]);
+    var jobParts=typeof window.fiqPcJobParts==='function'?window.fiqPcJobParts():null;
+    var allParts=jobParts?jobParts.parts:(typeof cabinetParts==='function'?cabinetParts():[]);
     if(!allParts.length){box.innerHTML='';return}
     if(typeof window.a181RenderInto!=='function'){box.innerHTML='';return}
     var complete=allParts.filter(panelHasCompleteInfo),incomplete=allParts.filter(function(p){return !panelHasCompleteInfo(p)});
@@ -9870,6 +9893,9 @@ body.fiq-locked .app{display:none!important}
   function renderShopping(){
     var box=document.getElementById('fiqShoppingList');if(!box)return;
     var c=(typeof cabinet==='function')?cabinet():null,pr=(typeof project==='function')?project():null;
+    // Panel Check on All rooms: the whole job, every room and wardrobe, as one list (21 Oct 2026).
+    var jobParts=typeof window.fiqPcJobParts==='function'?window.fiqPcJobParts():null;
+    if(jobParts)c={parts:jobParts.parts,hardwareChecklist:jobParts.hardware,name:'',roomId:null};
     if(!c){box.innerHTML='';return}
     var prices=loadPrices();
     var num=function(v){return Number(v)||0};
@@ -9902,7 +9928,7 @@ body.fiq-locked .app{display:none!important}
     var cutRows=cutGroups.map(function(g){var n=cutsOf(g);return '<div class="fiq-shop-row" data-shop-cut-group><span>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</span><b>'+n+' estimated cut'+(n===1?'':'s')+'</b></div>'}).join('');
     var room=pr&&(pr.rooms||[]).find(function(r){return r.id===c.roomId});
     box.innerHTML='<div class="fiq-shop" data-shopping-list>'+
-      '<div class="fiq-shop-scope">This unit: '+safe([pr&&pr.name,room&&room.name,c.name].filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i}).join(' · '))+'</div>'+
+      '<div class="fiq-shop-scope">'+(jobParts?'Whole job: '+safe(pr&&pr.name||'')+' · '+jobParts.units+' wardrobes, all rooms':'This unit: '+safe([pr&&pr.name,room&&room.name,c.name].filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i}).join(' · ')))+'</div>'+
       '<div class="fiq-shop-head">Sheets</div>'+
       (sheetRows||'<div class="fiq-shop-empty">No complete panels in this unit yet.</div>')+
       '<div class="est-mat-note">Estimate only, kept separate by material and thickness.</div>'+
@@ -9922,11 +9948,20 @@ body.fiq-locked .app{display:none!important}
     updateCostTotal(box);
   }
   window.fiqRenderShoppingList=renderShopping;
+  window.fiqRenderEstimatedSheets=render;
   var prevRenderParts=window.renderParts;
   window.renderParts=function(){var r=prevRenderParts?prevRenderParts.apply(this,arguments):undefined;render();return r};
   try{render()}catch(e){}
 })();
 </script>
+<style id="fiq-sheet-order-style">
+.sheet-order{border:2px solid #cfe6c0;background:#f6fbf2;border-radius:12px;padding:10px 14px;margin:0 0 14px}
+.sheet-order-title{font-size:12px;font-weight:900;color:#1f5d12;text-transform:uppercase;letter-spacing:.03em;margin:0 0 4px}
+.sheet-order-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #e3efda;font-weight:700;color:#171c46}
+.sheet-order-row b{white-space:nowrap}
+.sheet-order-note{font-size:12px;color:#5b6b7f;margin:2px 0 4px}
+.sheet-order-warn{font-size:12px;font-weight:700;color:#b3261e;margin:2px 0 4px}
+</style>
 <style id="fiq-shopping-style">
 .fiq-shop{margin-top:12px;padding-top:10px;border-top:1px solid #e3e9f0}
 .fiq-shop-scope{font-size:12px;font-weight:700;color:#5b6b7f;margin:-2px 0 6px}
@@ -13922,8 +13957,8 @@ document.addEventListener('mousedown',function(e){
   '#fiqPcScope button.on{border-color:#4da721;background:#eaf7e1;color:#1f5d12}'+
   '#fiqPcScope select{border:2px solid #cfd6e4;background:#fff;border-radius:12px;padding:9px 12px;font:800 14px Inter,Arial,sans-serif;color:#23364e;cursor:pointer;max-width:360px}'+
   '#fiqPcScope select.on{border-color:#4da721;background:#eaf7e1;color:#1f5d12}'+
-  '#screen-parts.fiq-pc-job #customerSheetEstimateCard,#screen-parts.fiq-pc-job #panelCheckStatusBanner,#screen-parts.fiq-pc-job #installProgressCard,'+
-  '#screen-parts.fiq-pc-job #estimatedMaterialsCard,#screen-parts.fiq-pc-job #edgeBandingCard,#screen-parts.fiq-pc-job #panelCheckViewSwitch,#screen-parts.fiq-pc-job #panelCheckTable,'+
+  '#screen-parts.fiq-pc-job #panelCheckStatusBanner,#screen-parts.fiq-pc-job #installProgressCard,'+
+  '#screen-parts.fiq-pc-job #edgeBandingCard,#screen-parts.fiq-pc-job #panelCheckViewSwitch,#screen-parts.fiq-pc-job #panelCheckTable,'+
   '#screen-parts.fiq-pc-job #panelIncompleteWarning{display:none!important}'+
   '.fpj-where{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:800;font-size:12px;padding:2px 9px;border-radius:999px;margin:0 0 6px}.fiq-compact-line .fpj-where{margin:0;white-space:nowrap}';
  document.head.appendChild(css);
@@ -13933,6 +13968,18 @@ document.addEventListener('mousedown',function(e){
  const scope=()=>window.__fiqPcScope==='unit'?'unit':'job';
  const numOf=code=>{const m=String(code||'').match(/(\d+)(?!.*\d)/);return m?Number(m[1]):Infinity};
  const base=window.renderParts;
+ // Every panel of every wardrobe, each with its own material, for the Shopping List and Estimated Sheets on All rooms.
+ window.fiqPcJobParts=function(){
+  if(window.__fiqPcBuilding)return null;
+  const screen=document.getElementById('screen-parts');if(!screen||!screen.classList.contains('fiq-pc-job'))return null;
+  const pr=typeof project==='function'?project():null,cabs=(pr&&pr.cabinets)||[];if(cabs.length<2)return null;
+  const keep={c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom},parts=[],hardware=[];
+  try{for(const c of cabs){state.currentCabinet=c.id;state.currentPart=null;state.currentRoom=c.roomId||null;
+   (c.parts||[]).forEach(p=>parts.push(Object.assign({},p,{material:String((typeof materialForPanel==='function'?materialForPanel(p):p.material)||'').trim()})));
+   (Array.isArray(c.hardwareChecklist)?c.hardwareChecklist:[]).forEach(it=>hardware.push(it))}}
+  finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r}
+  return {parts,hardware,units:cabs.length};
+ };
  // Select the card's own wardrobe before the existing handlers (document level) run.
  const selectCardUnit=e=>{const card=e.target&&e.target.closest&&e.target.closest('#partsSummary [data-pc-unit]');if(!card)return;
   state.currentCabinet=card.dataset.pcUnit;const c=cabinet();state.currentRoom=c&&c.roomId||null};
@@ -13963,7 +14010,7 @@ document.addEventListener('mousedown',function(e){
   const keep={c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom};
   const tmp=document.createElement('div');tmp.hidden=true;document.body.appendChild(tmp);
   const cards=[];let total=0,checked=0,r;
-  real.id='partsSummaryAll';
+  real.id='partsSummaryAll';window.__fiqPcBuilding=true;
   try{
    for(const c of cabs){
     const room=(pr.rooms||[]).find(x=>x.id===c.roomId),where=[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'Unit';
@@ -13977,7 +14024,9 @@ document.addEventListener('mousedown',function(e){
      const fold=card.querySelector('.fiq-compact-line');if(fold&&!fold.querySelector('.fpj-where')){const w=document.createElement('span');w.className='fpj-where';w.dataset.pcWhereLine='1';w.textContent=where;const cd=fold.querySelector('.fiq-compact-code');cd?cd.after(w):fold.prepend(w)}
      const content=card.querySelector('.panel-check-content');(content||card).prepend(tag);cards.push({code:code.trim(),card})});
    }
-  }finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r;real.id='partsSummary'}
+  }finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r;real.id='partsSummary';window.__fiqPcBuilding=false}
+  try{if(typeof window.fiqRenderCustomerSheets==='function')window.fiqRenderCustomerSheets();else if(typeof window.fiqRenderShoppingList==='function')window.fiqRenderShoppingList();
+   if(typeof window.fiqRenderEstimatedSheets==='function')window.fiqRenderEstimatedSheets()}catch(e){console.error('Whole job estimate',e)}
   cards.sort((a,b)=>numOf(a.code)-numOf(b.code)||a.code.localeCompare(b.code));
   real.innerHTML=total?'<div class="panel-check-summary">'+t("studio.panelCheck.summaryTemplate",[checked,total])+'</div><div class="panel-review-instruction">'+t("studio.panelCheck.reviewInstruction")+'</div><div class="panel-check-grid"></div>':'<div class="empty">'+t("studio.panelCheck.noPanelsYetEmpty")+'</div>';
   const grid=real.querySelector('.panel-check-grid');if(grid)cards.forEach(x=>grid.appendChild(x.card));
