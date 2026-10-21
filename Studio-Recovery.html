@@ -13286,7 +13286,7 @@ document.addEventListener('mousedown',function(e){
     const size=p?[p.length,p.width,p.thickness].map(v=>v||'—').join(' × ')+' mm · Qty '+(p.qty||'—'):'';
     const mat=p?String((typeof materialForPanel==='function'?materialForPanel(p):p.material)||''):'';
     const line=document.createElement('div');line.className='fiq-compact-line';
-    line.innerHTML='<span class="fiq-compact-tick">✓</span><span class="fiq-compact-code">'+safe(code)+'</span><span>'+safe(name)+'</span><span>'+safe(size)+'</span>'+(mat?'<span>'+safe(mat)+'</span>':'')+'<span class="fiq-compact-more">Details ▸</span>';
+    line.innerHTML='<span class="fiq-compact-tick">✓</span><span class="fiq-compact-code">'+safe(code)+'</span>'+(card.dataset.pcWhere?'<span class="fpj-where" data-pc-where-line="1">'+safe(card.dataset.pcWhere)+'</span>':'')+'<span>'+safe(name)+'</span><span>'+safe(size)+'</span>'+(mat?'<span>'+safe(mat)+'</span>':'')+'<span class="fiq-compact-more">Details ▸</span>';
     card.prepend(line);
     const actions=card.querySelector('.panel-check-actions');
     if(actions&&!actions.querySelector('[data-fiq-compact-btn]')){const b=document.createElement('button');b.type='button';b.className='fiq-card-compact-btn';b.dataset.fiqCompactBtn=id;b.textContent='▴ Compact';actions.appendChild(b)}
@@ -13925,7 +13925,7 @@ document.addEventListener('mousedown',function(e){
   '#screen-parts.fiq-pc-job #customerSheetEstimateCard,#screen-parts.fiq-pc-job #panelCheckStatusBanner,#screen-parts.fiq-pc-job #installProgressCard,'+
   '#screen-parts.fiq-pc-job #estimatedMaterialsCard,#screen-parts.fiq-pc-job #edgeBandingCard,#screen-parts.fiq-pc-job #panelCheckViewSwitch,#screen-parts.fiq-pc-job #panelCheckTable,'+
   '#screen-parts.fiq-pc-job #panelIncompleteWarning{display:none!important}'+
-  '.fpj-where{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:800;font-size:12px;padding:2px 9px;border-radius:999px;margin:0 0 6px}';
+  '.fpj-where{display:inline-block;background:#eef3ff;color:#0051ff;font-weight:800;font-size:12px;padding:2px 9px;border-radius:999px;margin:0 0 6px}.fiq-compact-line .fpj-where{margin:0;white-space:nowrap}';
  document.head.appendChild(css);
  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
  // Always opens on All rooms (Mads 20 Oct 2026); This wardrobe lasts only until Studio is reopened.
@@ -13973,7 +13973,8 @@ document.addEventListener('mousedown',function(e){
     const rows=(c.parts||[]).filter(p=>typeof window.fiqPanelMissingFields!=='function'||!window.fiqPanelMissingFields(p).length);
     total+=rows.length;checked+=rows.filter(p=>window.isCompleteSupplierPart(p)).length;
     box.querySelectorAll('.panel-check-card').forEach(card=>{const code=(card.querySelector('.panel-check-code')||{}).textContent||'';
-     card.dataset.pcUnit=c.id;const tag=document.createElement('div');tag.className='fpj-where';tag.textContent=where;
+     card.dataset.pcUnit=c.id;card.dataset.pcWhere=where;const tag=document.createElement('div');tag.className='fpj-where';tag.textContent=where;
+     const fold=card.querySelector('.fiq-compact-line');if(fold&&!fold.querySelector('.fpj-where')){const w=document.createElement('span');w.className='fpj-where';w.dataset.pcWhereLine='1';w.textContent=where;const cd=fold.querySelector('.fiq-compact-code');cd?cd.after(w):fold.prepend(w)}
      const content=card.querySelector('.panel-check-content');(content||card).prepend(tag);cards.push({code:code.trim(),card})});
    }
   }finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r;real.id='partsSummary'}
