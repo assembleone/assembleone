@@ -921,7 +921,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <div class="fiq-auth-state" id="fiqStateSuspended" hidden>
       <h1>Access paused</h1>
       <p class="fiq-auth-lead">Your FittersIQ access is paused. Nothing has been deleted.</p>
-      <p class="fiq-auth-lead">Ask your company owner. If it is about the free trial or a payment, the owner can email <a href="mailto:hello@danishcarpenter.com">hello@danishcarpenter.com</a> to continue straight away.</p>
+      <p class="fiq-auth-lead">Ask your company owner. If it is about the free trial or a payment, the owner can email <a href="mailto:hello@fittersiq.com">hello@fittersiq.com</a> to continue straight away.</p>
       <p class="fiq-auth-lead" id="fiqSuspendedPay" hidden></p>
       <button class="fiq-auth-link" id="fiqSuspendedSignOutBtn" type="button">Sign out</button>
     </div>
@@ -7536,7 +7536,7 @@ window.fiqTrialBanner=function(c){
   var bar=document.createElement('div');bar.id='fiqTrialBar';bar.setAttribute('role','status');
   bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99990;background:#fff3c4;color:#5a4500;border-top:1px solid #f0d27a;padding:10px 44px 10px 16px;font:600 14px/1.4 system-ui,sans-serif;text-align:center';
   var u=window.fittersiqUser||{},pay=window.fiqPayButtons?window.fiqPayButtons(u.companyId,u.email,'color:#1969e8;font-weight:800;margin:0 6px'):'';
-  bar.innerHTML=text+(pay?' Choose a plan: '+pay+'.':' To continue, email <a href="mailto:hello@danishcarpenter.com" style="color:#1969e8">hello@danishcarpenter.com</a>.')+'<button type="button" aria-label="Close" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:22px;cursor:pointer;color:#5a4500">×</button>';
+  bar.innerHTML=text+(pay?' Choose a plan: '+pay+'.':' To continue, email <a href="mailto:hello@fittersiq.com" style="color:#1969e8">hello@fittersiq.com</a>.')+'<button type="button" aria-label="Close" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:22px;cursor:pointer;color:#5a4500">×</button>';
   bar.querySelector('button').onclick=function(){try{localStorage.setItem(key,today)}catch(e){}bar.remove()};
   document.body.appendChild(bar);
  }catch(e){}
