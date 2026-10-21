@@ -9341,6 +9341,8 @@ body.fiq-locked .app{display:none!important}
     if(window.fiqAuthDiag)window.fiqAuthDiag('7 Account token read','company '+((tokenResult.claims||{}).companyId?'yes':'no'));
     var claims = tokenResult.claims || {};
     if(!claims.companyId && !claims.fittersiq_admin){
+      // New sign-up whose company was not created yet: the account page finishes it (company name, free trial).
+      if(/(^|\.)fittersiq\.com$/.test(location.hostname)){location.href='account.html';return;}
       showState('fiqStateNoCompany');
       return;
     }

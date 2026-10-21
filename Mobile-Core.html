@@ -7077,6 +7077,8 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       return;
     }
     if(!claims.companyId && !claims.fittersiq_admin){
+      // New sign-up whose company was not created yet: the account page finishes it (company name, free trial).
+      if(/(^|\.)fittersiq\.com$/.test(location.hostname)){location.href='account.html';return;}
       showState('fiqStateNoCompany');
       return;
     }
