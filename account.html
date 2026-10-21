@@ -29,6 +29,12 @@ a{color:inherit}
 .msg{border-radius:10px;padding:11px 13px;font-size:13px;font-weight:700;margin-bottom:16px;display:none}
 .msg.show{display:block}
 .msg.error{background:#fdeaea;color:#b3261e}
+#setupForm{display:none;text-align:left;margin-bottom:18px}
+#setupForm label{display:block;font-size:13px;font-weight:800;margin:12px 0 6px}
+#setupForm input[type=text]{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:15px}
+#setupForm .accept{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:14px 0}
+#setupForm .accept a{color:#2b62d9;font-weight:800}
+#setupForm button{display:block;width:100%;border:0;border-radius:12px;background:#65c536;color:#fff;padding:14px;font-weight:900;font-size:15px;cursor:pointer}
 .msg.ok{background:#eef8e9;color:#347d18}
 .signout-row{text-align:center;margin-top:18px}
 .signout-row button{border:0;background:transparent;color:var(--muted);font-weight:800;font-size:12px;cursor:pointer;text-decoration:underline}
@@ -42,6 +48,14 @@ a{color:inherit}
   <div class="auth-card" id="acctCard" style="display:none">
     <h1>My FittersIQ Account</h1>
     <p class="lead">Signed in as <strong id="acctEmail"></strong></p>
+    <form id="setupForm">
+      <div class="msg show ok">One last step: tell us your company name to start your 30 day free trial.</div>
+      <div class="msg" id="setupErr"></div>
+      <label for="setupCompany">Company name</label><input type="text" id="setupCompany" required autocomplete="organization">
+      <label for="setupOwner">Your name</label><input type="text" id="setupOwner" required autocomplete="name">
+      <label class="accept"><input type="checkbox" id="setupTerms" required> <span>I accept the <a href="terms.html" target="_blank">Terms of Service</a> and the <a href="privacy.html" target="_blank">Privacy Policy</a>.</span></label>
+      <button type="submit" id="setupBtn">Start Free Trial</button>
+    </form>
     <div class="msg" id="setupMsg">Your company details are still being set up. If this doesn't clear up shortly, use Contact FittersIQ Support.</div>
     <div id="acctDetails" style="display:none">
       <div class="acct-row"><span>Company</span><span id="acctCompany">–</span></div>
@@ -60,6 +74,7 @@ a{color:inherit}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaLqtidxyPh9qIAMsCtKMVoKg5US1hat0",
@@ -73,6 +88,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const completeOnboarding = httpsCallable(getFunctions(app), "completeOnboarding");
+const TERMS_VERSION = "2026-10-18";
 
 const loadingCard = document.getElementById("loadingCard");
 const acctCard = document.getElementById("acctCard");
@@ -98,7 +115,22 @@ onAuthStateChanged(auth, async (user) => {
     const tokenResult = await user.getIdTokenResult();
     const companyId = tokenResult.claims.companyId;
     if(!companyId){
-      document.getElementById("setupMsg").classList.add("show");
+      // Setup did not finish on the verify page (for example the email link opened in another tab): finish it here.
+      let pendingRaw = null;
+      try { pendingRaw = sessionStorage.getItem("fittersiq_pending_onboarding") || localStorage.getItem("fittersiq_pending_onboarding"); } catch (e) {}
+      if(pendingRaw){
+        try{
+          const { companyName, ownerName, plan, termsVersion } = JSON.parse(pendingRaw);
+          await completeOnboarding({ companyName, ownerName, plan, termsVersion });
+          try { sessionStorage.removeItem("fittersiq_pending_onboarding"); localStorage.removeItem("fittersiq_pending_onboarding"); } catch (e) {}
+          await user.getIdToken(true);
+          location.reload();
+          return;
+        }catch(e){ console.warn("Could not finish setup", e); }
+      }
+      document.getElementById("setupOwner").value = user.displayName || "";
+      document.getElementById("setupForm").style.display = "block";
+      document.querySelector(".acct-apps").style.display = "none";
       return;
     }
     const snap = await getDoc(doc(db, "companies", companyId));
@@ -114,6 +146,24 @@ onAuthStateChanged(auth, async (user) => {
   }catch(e){
     console.warn("Could not load company details", e);
     document.getElementById("setupMsg").classList.add("show");
+  }
+});
+
+document.getElementById("setupForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("setupBtn"), err = document.getElementById("setupErr");
+  const companyName = document.getElementById("setupCompany").value.trim();
+  const ownerName = document.getElementById("setupOwner").value.trim();
+  if(!companyName || !ownerName || !document.getElementById("setupTerms").checked) return;
+  btn.disabled = true; btn.textContent = "Setting up your company..."; err.className = "msg";
+  const plan = new URLSearchParams(location.search).get("plan") || null;
+  try{
+    await completeOnboarding({ companyName, ownerName, plan, termsVersion: TERMS_VERSION });
+    await auth.currentUser.getIdToken(true);
+    location.reload();
+  }catch(e2){
+    err.textContent = "Something went wrong. Please try again."; err.className = "msg show error";
+    btn.disabled = false; btn.textContent = "Start Free Trial";
   }
 });
 

@@ -109,13 +109,13 @@ form.addEventListener("submit", async (e) => {
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: ownerName });
-    await sendEmailVerification(cred.user);
+    await sendEmailVerification(cred.user, { url: "https://app.fittersiq.com/account.html" });
 
     const plan = new URLSearchParams(location.search).get("plan") || null;
-    sessionStorage.setItem(
-      "fittersiq_pending_onboarding",
-      JSON.stringify({ companyName, ownerName, plan, termsVersion: TERMS_VERSION })
-    );
+    const pending = JSON.stringify({ companyName, ownerName, plan, termsVersion: TERMS_VERSION });
+    sessionStorage.setItem("fittersiq_pending_onboarding", pending);
+    // Also kept in this browser, so setup still finishes if the email link opens in another tab.
+    try { localStorage.setItem("fittersiq_pending_onboarding", pending); } catch (e) {}
     location.href = "verify.html";
   } catch (err) {
     submitBtn.disabled = false;

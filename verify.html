@@ -87,38 +87,42 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-continueBtn.addEventListener("click", async () => {
-  if (!currentUser) return;
-  continueBtn.disabled = true;
-  continueBtn.textContent = "Checking...";
+let finishing = false;
+async function finishSetup(fromButton) {
+  if (!currentUser || finishing) return;
+  finishing = true;
+  if (fromButton) { continueBtn.disabled = true; continueBtn.textContent = "Checking..."; }
   try {
     await reload(currentUser);
     if (!currentUser.emailVerified) {
-      showMsg("Not verified yet — open the link in the email we sent, then try again.", "error");
+      if (fromButton) showMsg("Not verified yet. Open the link in the email we sent, then try again.", "error");
       continueBtn.disabled = false;
       continueBtn.textContent = "I've verified — Continue";
+      finishing = false;
       return;
     }
-
-    const pendingRaw = sessionStorage.getItem("fittersiq_pending_onboarding");
+    let pendingRaw = sessionStorage.getItem("fittersiq_pending_onboarding");
+    try { pendingRaw = pendingRaw || localStorage.getItem("fittersiq_pending_onboarding"); } catch (e) {}
     if (pendingRaw) {
       const { companyName, ownerName, plan, termsVersion } = JSON.parse(pendingRaw);
       await completeOnboarding({ companyName, ownerName, plan, termsVersion });
       sessionStorage.removeItem("fittersiq_pending_onboarding");
+      try { localStorage.removeItem("fittersiq_pending_onboarding"); } catch (e) {}
     }
-
     // Refresh the ID token so the new companyId/role claims are picked up.
     await currentUser.getIdToken(true);
-
-    showMsg("You're all set! Open FittersIQ Studio or FittersIQ Mobile and sign in with this email and password.", "ok");
-    continueBtn.style.display = "none";
-    resendBtn.style.display = "none";
+    location.href = "account.html";
   } catch (err) {
     showMsg("Something went wrong finishing setup. Please try again.", "error");
     continueBtn.disabled = false;
     continueBtn.textContent = "I've verified — Continue";
+    finishing = false;
   }
-});
+}
+continueBtn.addEventListener("click", () => finishSetup(true));
+// Checks by itself every few seconds, so the customer does not have to come back and press Continue.
+setInterval(() => { if (document.visibilityState === "visible") finishSetup(false); }, 4000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") finishSetup(false); });
 
 let resendCooldown = false;
 resendBtn.addEventListener("click", async () => {
@@ -126,7 +130,7 @@ resendBtn.addEventListener("click", async () => {
   resendCooldown = true;
   resendBtn.disabled = true;
   try {
-    await sendEmailVerification(currentUser);
+    await sendEmailVerification(currentUser, { url: "https://app.fittersiq.com/account.html" });
     showMsg("Verification email sent again.", "ok");
   } catch (err) {
     showMsg("Could not resend right now. Please wait a moment and try again.", "error");
