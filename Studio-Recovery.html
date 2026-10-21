@@ -9781,12 +9781,15 @@ body.fiq-locked .app{display:none!important}
 
   function render(){
     var box=document.getElementById('sheetOptimiserBody');if(!box)return;
-    var parts=(typeof supplierParts==='function')?supplierParts():[];
+    // Whole job on the Supplier screen: every complete panel of every room and wardrobe on the same sheets.
+    var jprA=(typeof project==='function')?project():null;
+    var jobD=(window.__fiqCutScope!=='unit'&&jprA&&(jprA.cabinets||[]).length>1&&typeof window.fiqWholeJobCollect==='function')?window.fiqWholeJobCollect():null;
+    var parts=jobD?jobD.panels.map(function(x){return x.copy}):((typeof supplierParts==='function')?supplierParts():[]);
     lastGroups=renderInto(box,parts,t("studio.supplier.sheetOptimEmptySupplier"));
     if(!parts.length){window.a181SheetOptimPrintHtml=function(){return ''};return}
     var pr=(typeof project==='function')?project():null,unit=(typeof cabinet==='function')?cabinet():null;
     window.a181SheetOptimPrintHtml=function(){
-      return '<section style="break-before:page;page-break-before:always"><h1>Sheet Optimisation Summary</h1><p>'+safe(pr?.name||'Project')+' · '+safe(unit?.name||'Unit')+'</p>'+lastGroups.map(function(g,i){return renderGroupPrintHtml(g,i)}).join('')+'</section>';
+      return '<section style="break-before:page;page-break-before:always"><h1>Sheet Optimisation Summary</h1><p>'+safe(pr?.name||'Project')+' · '+(jobD?'Whole job':safe(unit?.name||'Unit'))+'</p>'+lastGroups.map(function(g,i){return renderGroupPrintHtml(g,i)}).join('')+'</section>';
     };
   }
 
@@ -9800,6 +9803,7 @@ body.fiq-locked .app{display:none!important}
     toggleBtn.textContent=card.hasAttribute('hidden')?t("studio.supplier.sheetOptimToggleClosedBtn"):t("studio.supplier.sheetOptimToggleOpenBtn");
   }
 
+  window.fiqRenderSheetOptimiser=function(){render();refreshToggleText()};
   var prevRenderCutting=window.renderCutting;
   window.renderCutting=function(){if(typeof prevRenderCutting==='function')prevRenderCutting();render();refreshToggleText()};
   try{render()}catch(e){}
@@ -13850,7 +13854,7 @@ document.addEventListener('mousedown',function(e){
   '#fiqCutScope{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}'+
   '#fiqCutScope button{border:2px solid #cfd6e4;background:#fff;border-radius:12px;padding:10px 16px;font:800 14px Inter,Arial,sans-serif;color:#23364e;cursor:pointer}'+
   '#fiqCutScope button.on{border-color:#4da721;background:#eaf7e1;color:#1f5d12}'+
-  '#screen-cutting.fiq-job-mode>:not(.supplier-hero):not(#fiqCutScope):not(#fiqJobCut){display:none!important}'+
+  '#screen-cutting.fiq-job-mode>:not(.supplier-hero):not(#fiqCutScope):not(#fiqJobCut):not(#sheetOptimiserToggleBtn):not(#sheetOptimiserCard){display:none!important}'+
   '#fiqJobCut .fjc-card{border:1px solid #e3e9f0;border-radius:14px;background:#fff;padding:14px 16px;margin:0 0 14px}'+
   '#fiqJobCut h3{margin:0 0 8px}#fiqJobCut .fjc-note{font-size:13px;color:#5b6b7c;margin:6px 0 0}'+
   '#fiqJobCut .fjc-warn{background:#fff7e6;border:1px solid #f0c36d;border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:13px}'+
@@ -13922,7 +13926,7 @@ document.addEventListener('mousedown',function(e){
   const mode=scope();
   ui.b.innerHTML='<button type="button" data-cut-scope="job" class="'+(mode==='job'?'on':'')+'">Whole job ('+rooms.size+' room'+(rooms.size===1?'':'s')+' · '+cabs.length+' wardrobes)</button><button type="button" data-cut-scope="unit" class="'+(mode==='unit'?'on':'')+'">This wardrobe</button>';
   ui.screen.classList.toggle('fiq-job-mode',mode==='job');
-  if(mode!=='job'){ui.box.innerHTML='';return}
+  if(mode!=='job'){ui.box.innerHTML='';if(typeof window.fiqRenderSheetOptimiser==='function')window.fiqRenderSheetOptimiser();return}
   const d=collect();
   const pieces=d.panels.reduce((n,x)=>n+Math.max(1,Math.floor(Number(x.p.qty)||1)),0);
   const sel=document.getElementById('supplierSystemSelect'),sys=window.FIQ_SUPPLIER_ADAPTERS&&window.FIQ_SUPPLIER_ADAPTERS[sel&&sel.value]||{fileLabel:'Standard CSV'};
@@ -13936,11 +13940,9 @@ document.addEventListener('mousedown',function(e){
    '</tbody></table></div></div>'+
    '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button>'+
    '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per panel with its quantity, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
-   '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
    (mats.some(m=>m.also.length)?'<div class="fjc-warn">Counted as one material: '+mats.filter(m=>m.also.length).map(m=>'<b>'+esc(m.name)+'</b> (also written '+m.also.map(a=>'"'+esc(a)+'"').join(', ')+')').join('; ')+'.</div>':'')+
-   '<div id="fiqJobSheets"></div></div>';
-  const sheets=document.getElementById('fiqJobSheets');
-  if(sheets&&typeof window.a181RenderInto==='function')window.a181RenderInto(sheets,d.panels.map(x=>x.copy),'No complete panels yet.');
+   '<p class="fjc-note">Sheets for the whole job: open 📐 Sheet Optimiser below. Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms.</p>';
+  if(typeof window.fiqRenderSheetOptimiser==='function')window.fiqRenderSheetOptimiser();
  }
  window.fiqRenderWholeJobCutting=render;
  const base=window.renderCutting;
