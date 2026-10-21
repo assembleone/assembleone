@@ -9506,6 +9506,13 @@ body.fiq-locked .app{display:none!important}
   // Keyed by material+thickness (not material alone): 19mm walnut and 30mm walnut are
   // physically different sheet products and must never share sheet size, kerf, trim or
   // grain settings just because the material name matches.
+  function grainByDefault(material){
+    var m=String(material||'').toLowerCase();
+    if(/oak|walnut|ash\b|beech|cherry|maple|pine|teak|elm|birch|wenge|wood|veneer|grain|ply|timber|castello|halifax|sonoma|nebraska/.test(m))return true;
+    if(/melamin|\bmfc\b|white|black|grey|gray|cream|ivory|anthracite|cashmere|colour|color|gloss|matt|plain|\bmdf\b|primed/.test(m))return false;
+    return DEFAULT_CFG.grain;
+  }
+  window.fiqGrainByDefault=grainByDefault;
   function cfgFor(all,material,thickness,pr){
     var matKey=String(material||'').trim().toLowerCase();
     var key=matKey+'__'+(Number(thickness)||0);
@@ -9515,7 +9522,7 @@ body.fiq-locked .app{display:none!important}
     if(pr===undefined)pr=(typeof project==='function')?project():null;
     var c=(pr&&pr.sheetSettings&&pr.sheetSettings[key])||all[key]||all[matKey];
     var d=presetsFor(material).list[0];
-    return {key:key,w:Number(c&&c.w)||d[0],h:Number(c&&c.h)||d[1],kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,trim:c&&c.trim!=null?Number(c.trim):DEFAULT_CFG.trim,grain:c&&c.grain!=null?!!c.grain:DEFAULT_CFG.grain,custom:!!(c&&c.custom)}
+    return {key:key,w:Number(c&&c.w)||d[0],h:Number(c&&c.h)||d[1],kerf:c&&c.kerf!=null?Number(c.kerf):DEFAULT_CFG.kerf,trim:c&&c.trim!=null?Number(c.trim):DEFAULT_CFG.trim,grain:c&&c.grain!=null?!!c.grain:grainByDefault(material),custom:!!(c&&c.custom)}
   }
 
   function colorFor(code){var s=String(code||''),h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PALETTE[h%PALETTE.length]}
