@@ -13886,7 +13886,7 @@ document.addEventListener('mousedown',function(e){
   '#fiqCutScope{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}'+
   '#fiqCutScope button{border:2px solid #cfd6e4;background:#fff;border-radius:12px;padding:10px 16px;font:800 14px Inter,Arial,sans-serif;color:#23364e;cursor:pointer}'+
   '#fiqCutScope button.on{border-color:#4da721;background:#eaf7e1;color:#1f5d12}'+
-  '#screen-cutting.fiq-job-mode>:not(.supplier-hero):not(#fiqCutScope):not(#fiqJobCut):not(#sheetOptimiserToggleBtn):not(#sheetOptimiserCard):not(#cuttingListReturnStrip){display:none!important}'+
+  '#screen-cutting.fiq-job-mode>:not(.supplier-hero):not(#fiqCutScope):not(#fiqJobCut):not(#sheetOptimiserToggleBtn):not(#sheetOptimiserCard):not(#cuttingListReturnStrip):not(#supplierSummary):not(.supplier-materials-card):not(.supplier-section-title):not(#supplierPanelCards):not(.supplier-sticker-settings):not(#supplierLabels){display:none!important}'+
   '#fiqJobCut .fjc-card{border:1px solid #e3e9f0;border-radius:14px;background:#fff;padding:14px 16px;margin:0 0 14px}'+
   '#fiqJobCut h3{margin:0 0 8px}#fiqJobCut .fjc-note{font-size:13px;color:#5b6b7c;margin:6px 0 0}'+
   '#fiqJobCut .fjc-warn{background:#fff7e6;border:1px solid #f0c36d;border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:13px}'+
@@ -13994,6 +13994,36 @@ document.addEventListener('mousedown',function(e){
   const sheets=document.getElementById('fiqJobSheets');
   if(sheets&&typeof window.a181RenderInto==='function')window.a181RenderInto(sheets,d.panels.map(x=>x.copy),'No complete panels yet.');
   if(typeof window.fiqRenderSheetOptimiser==='function')window.fiqRenderSheetOptimiser();
+  try{fillWholeJobSections(d)}catch(e){console.error('Whole job sections',e)}
+ }
+ // Summary, Materials, Cutting List table and Sticker preview for the whole job (built wardrobe by wardrobe).
+ function fillWholeJobSections(d){
+  const pr=d.pr,keep={c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom},rows=[],stickers=[];
+  try{
+   for(const c of pr.cabinets||[]){
+    state.currentCabinet=c.id;state.currentPart=null;state.currentRoom=c.roomId||null;
+    const list=supplierParts();if(!list.length)continue;
+    const room=(pr.rooms||[]).find(r=>r.id===c.roomId),where=[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
+    const ids=new Set(list.map(p=>String(p.id)));
+    if(typeof window.fiqCuttingListRows==='function')window.fiqCuttingListRows(pr,'unit:'+c.id).filter(r=>ids.has(r.panelId)).forEach(r=>rows.push({r,where,range:typeof window.fiqLabelRangeFor==='function'?window.fiqLabelRangeFor(r.panelId):''}));
+    fiqStickerCopies(list).forEach(({p,i})=>stickers.push({id:'supplierqr-'+p.id+'-'+i,html:fiqStickerHtml(p,'<div id="supplierqr-'+p.id+'-'+i+'" class="qrbox"></div>','',i+1),qr:phoneQrText(p,i+1),n:numOf(p.code)}));
+   }
+  }finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r}
+  rows.sort((a,b)=>numOf(a.r.panelNumber)-numOf(b.r.panelNumber)||String(a.r.panelNumber).localeCompare(String(b.r.panelNumber)));
+  stickers.sort((a,b)=>a.n-b.n);
+  const pieces=d.panels.reduce((n,x)=>n+Math.max(1,Number(x.p.qty)||1),0),mats={};
+  d.panels.forEach(x=>{const m=x.copy.material||'Material not set';mats[m]=(mats[m]||0)+Math.max(1,Number(x.p.qty)||1)});
+  const sum=document.getElementById('supplierSummary');
+  if(sum)sum.innerHTML='<div class="supplier-stat"><span>'+t("studio.supplier.completePanelsStatLabel")+'</span><strong>'+d.panels.length+'</strong></div><div class="supplier-stat"><span>'+t("studio.supplier.totalPiecesStatLabel")+'</span><strong>'+pieces+'</strong></div><div class="supplier-stat"><span>'+t("bom.materials")+'</span><strong>'+Object.keys(mats).length+'</strong></div>';
+  const ms=document.getElementById('supplierMaterialSummary');
+  if(ms)ms.innerHTML=Object.keys(mats).length?'<div class="material-summary-grid">'+Object.entries(mats).map(([m,q])=>'<div class="material-summary-item"><strong>'+esc(m)+'</strong><span>'+(q===1?t("studio.supplier.pieceCountSingular",[q]):t("studio.supplier.pieceCountPlural",[q]))+'</span></div>').join('')+'</div>':'<div class="muted">'+t("studio.supplier.noCompleteMaterialsYet")+'</div>';
+  const cards=document.getElementById('supplierPanelCards');
+  if(cards)cards.innerHTML=rows.length?'<div class="supplier-room-tag">Whole job · every room and wardrobe</div><div class="fiq-sent-scroll"><table class="fiq-sent-table fiq-cutting-table" data-cutting-table data-whole-job-table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Long edges</th><th class="num">Short edges</th><th class="num">Quantity</th><th>Material</th><th>Notes</th><th>Room · Wardrobe</th></tr></thead><tbody>'+
+   rows.map(({r,where,range})=>'<tr data-cutting-row="'+esc(r.panelNumber)+'"><td>'+esc(r.panelNumber)+range+'</td><td>'+esc(r.partName)+'</td><td class="num">'+r.thickness+'</td><td class="num">'+r.length+'</td><td class="num">'+r.width+'</td><td class="num">'+r.edgeLong+'</td><td class="num">'+r.edgeShort+'</td><td class="num">'+r.quantity+'</td><td>'+esc(r.material)+'</td><td>'+esc(r.notes)+'</td><td><span class="fjc-room">'+esc(where)+'</span></td></tr>').join('')+
+   '</tbody></table></div><div class="est-mat-note">All sizes in mm, as in the supplier spreadsheet.</div>':'<div class="empty">'+t("studio.supplier.noCompletePanelsReadyForSupplier")+'</div>';
+  const labels=document.getElementById('supplierLabels');
+  if(labels){labels.innerHTML=stickers.length?stickers.map(x=>x.html).join(''):'<div class="empty">'+t("studio.supplier.noStickersToPrintEmpty")+'</div>';
+   setTimeout(()=>stickers.forEach(x=>{const el=document.getElementById(x.id);if(el&&!el.childNodes.length&&typeof makeQr==='function')makeQr(el,x.qr,150)}),0)}
  }
  window.fiqRenderWholeJobCutting=render;
  const base=window.renderCutting;
