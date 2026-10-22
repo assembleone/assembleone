@@ -13981,11 +13981,6 @@ document.addEventListener('mousedown',function(e){
   const mats=Object.values(d.materials||{});
   ui.box.innerHTML=
    (d.incomplete.length?'<div class="fjc-warn">⚠ Not complete, so left out: '+d.incomplete.map(x=>esc(x.where)+' ('+x.n+')').join(', ')+'. Finish them in Panel Check to include them.</div>':'')+
-   '<div class="fjc-card"><h3>Whole job cutting list</h3><div><b>'+d.panels.length+' panels</b> · '+pieces+' pieces · '+d.units.length+' wardrobe'+(d.units.length===1?'':'s')+' with panels</div>'+
-   '<p class="fjc-note">All sizes in mm, in panel number order. The room and wardrobe of each panel are shown on every row.</p>'+
-   '<div class="fjc-scroll" style="margin-top:8px"><table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Qty</th><th>Material</th><th>Room · Wardrobe</th></tr></thead><tbody>'+
-   d.panels.slice().sort((a,c)=>numOf(a.p.code)-numOf(c.p.code)||String(a.p.code).localeCompare(String(c.p.code))).map(x=>'<tr><td><b>'+esc(x.p.code)+'</b></td><td>'+esc(x.p.name)+'</td><td class="num">'+esc(x.p.thickness)+'</td><td class="num">'+esc(x.p.length)+'</td><td class="num">'+esc(x.p.width)+'</td><td class="num">'+esc(x.p.qty||1)+'</td><td>'+esc(x.copy.material||'Not set')+'</td><td><span class="fjc-room">'+esc(x.where||'—')+'</span></td></tr>').join('')+
-   '</tbody></table></div></div>'+
    '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button> <button type="button" class="btn primary" data-job-pdf>🖨 Download Supplier PDF (whole job)</button> <button type="button" class="btn primary" data-job-wa style="background:#25d366;border-color:#25d366">Send by WhatsApp</button>'+
    '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per panel with its quantity, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
    '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
