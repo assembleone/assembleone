@@ -6982,6 +6982,24 @@ body.guide-only .a131-back-studio{display:block}
   return {doc,fileName:fileName(info),stickers:copies.length,stickerSize:{w:ST.w,h:ST.h,qr:ST.qr},pages:n};
   }finally{PACK_UNITS=null}
  };
+ window.fiqSharePackWhatsApp=async function(list,opts,pr){
+  const btn=opts&&opts.btn,msg=opts&&opts.msg,say=t=>{if(msg)msg.textContent=t};
+  if(btn)btn.disabled=true;say('Making the PDF for WhatsApp…');
+  try{
+   const r=await window.fiqBuildSupplierPackPdf(list,opts);
+   const file=new File([r.doc.output('blob')],r.fileName,{type:'application/pdf'});
+   const text='Cutting list'+(pr&&pr.customer?' for '+pr.customer:'')+(pr&&pr.name&&pr.name!==pr.customer?' - '+pr.name:'')+' ('+r.stickers+' panels). From FittersIQ.';
+   if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:r.fileName.replace(/\.pdf$/,''),text});say('Shared '+r.fileName+'.')}
+    catch(e){if(e&&e.name==='AbortError')say('Not sent.');else throw e}
+   }else{
+    // This browser cannot hand a file to WhatsApp: download it and open WhatsApp with the message ready.
+    r.doc.save(r.fileName);window.open('https://wa.me/?text='+encodeURIComponent(text+' The PDF is attached.'),'_blank');
+    say('Downloaded '+r.fileName+'. WhatsApp is opening: pick the person, then attach the PDF from your Downloads.');
+   }
+  }catch(e){say('Could not make the PDF for WhatsApp: '+(e&&e.message||e))}
+  finally{if(btn)btn.disabled=false}
+ };
  window.fiqDownloadSupplierPackPdf=async function(list,opts){
   const btn=opts&&opts.btn||document.getElementById('printSupplierPackBtn'),msg=opts&&opts.msg||document.getElementById('supplierActionStatus');
   const say=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle('error',!!err)}};
@@ -13925,7 +13943,7 @@ document.addEventListener('mousedown',function(e){
    b.addEventListener('click',e=>{const x=e.target.closest('[data-cut-scope]');if(!x)return;setScope(x.dataset.cutScope);render()})}
   let box=document.getElementById('fiqJobCut');
   if(!box){box=document.createElement('div');box.id='fiqJobCut';b.after(box);
-   box.addEventListener('click',e=>{const pdfBtn=e.target.closest('[data-job-pdf]');if(!pdfBtn)return;e.preventDefault();
+   box.addEventListener('click',e=>{const pdfBtn=e.target.closest('[data-job-pdf],[data-job-wa]');if(!pdfBtn)return;e.preventDefault();const viaWa=pdfBtn.hasAttribute('data-job-wa');
     // One PDF for the whole job: every complete panel of every wardrobe, in panel number order, each with its wardrobe.
     const pr=project(),keep={c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom},units=new Map(),list=[];
     try{for(const c of (pr&&pr.cabinets)||[]){state.currentCabinet=c.id;state.currentPart=null;state.currentRoom=c.roomId||null;
@@ -13937,7 +13955,9 @@ document.addEventListener('mousedown',function(e){
     list.sort((a,b)=>numOf(a.code)-numOf(b.code)||String(a.code).localeCompare(String(b.code)));
     if(typeof stableSave==='function')try{stableSave(false)}catch(er){}
     const rooms=new Set([...units.values()].map(u=>u.roomId||'_')).size;
-    window.fiqDownloadSupplierPackPdf(list,{units,label:'Whole job ('+rooms+' room'+(rooms===1?'':'s')+' · '+(pr.cabinets||[]).length+' wardrobes)',btn:pdfBtn,msg:st});
+    const packOpts={units,label:'Whole job ('+rooms+' room'+(rooms===1?'':'s')+' · '+(pr.cabinets||[]).length+' wardrobes)',btn:pdfBtn,msg:st};
+    if(viaWa){window.fiqSharePackWhatsApp(list,packOpts,pr);return}
+    window.fiqDownloadSupplierPackPdf(list,packOpts);
    });
    box.addEventListener('click',e=>{if(!e.target.closest('[data-job-file]'))return;e.preventDefault();
     const st=box.querySelector('[data-job-file-status]'),f=window.fiqWholeJobFile();
@@ -13966,7 +13986,7 @@ document.addEventListener('mousedown',function(e){
    '<div class="fjc-scroll" style="margin-top:8px"><table><thead><tr><th>Panel No.</th><th>Part name</th><th class="num">Thickness mm</th><th class="num">Length mm</th><th class="num">Width mm</th><th class="num">Qty</th><th>Material</th><th>Room · Wardrobe</th></tr></thead><tbody>'+
    d.panels.slice().sort((a,c)=>numOf(a.p.code)-numOf(c.p.code)||String(a.p.code).localeCompare(String(c.p.code))).map(x=>'<tr><td><b>'+esc(x.p.code)+'</b></td><td>'+esc(x.p.name)+'</td><td class="num">'+esc(x.p.thickness)+'</td><td class="num">'+esc(x.p.length)+'</td><td class="num">'+esc(x.p.width)+'</td><td class="num">'+esc(x.p.qty||1)+'</td><td>'+esc(x.copy.material||'Not set')+'</td><td><span class="fjc-room">'+esc(x.where||'—')+'</span></td></tr>').join('')+
    '</tbody></table></div></div>'+
-   '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button> <button type="button" class="btn primary" data-job-pdf>🖨 Download Supplier PDF (whole job)</button>'+
+   '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button> <button type="button" class="btn primary" data-job-pdf>🖨 Download Supplier PDF (whole job)</button> <button type="button" class="btn primary" data-job-wa style="background:#25d366;border-color:#25d366">Send by WhatsApp</button>'+
    '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per panel with its quantity, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
    '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
    (mats.some(m=>m.also.length)?'<div class="fjc-warn">Counted as one material: '+mats.filter(m=>m.also.length).map(m=>'<b>'+esc(m.name)+'</b> (also written '+m.also.map(a=>'"'+esc(a)+'"').join(', ')+')').join('; ')+'.</div>':'')+
