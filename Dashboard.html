@@ -1765,9 +1765,28 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     try{ return new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric'}).format(ts.toDate()); }catch(e){ return '–'; }
   }
 
+  // New sign-ups since the admin last opened Customers (this browser); FittersIQ's own companies are not counted.
+  var SIGNUPS_SEEN_KEY = 'fiq_dash_signups_seen_v1';
+  function fiqSignupsSeenAt(){ try{ return Number(localStorage.getItem(SIGNUPS_SEEN_KEY)) || 0; }catch(e){ return 0; } }
+  window.__fiqBackupWarn = 0; window.__fiqNewSignups = 0;
+  function fiqPaintBell(){
+    var bell = document.getElementById('notifyCount'); if(!bell) return;
+    var n = (window.__fiqBackupWarn || 0) + (window.__fiqNewSignups || 0);
+    bell.textContent = n; bell.hidden = !n;
+    var box = bell.closest('.notify');
+    if(box){ box.dataset.page = window.__fiqNewSignups ? 'customers' : 'backups';
+      box.setAttribute('aria-label', (window.__fiqNewSignups ? window.__fiqNewSignups + ' new customer' + (window.__fiqNewSignups === 1 ? '' : 's') + (window.__fiqBackupWarn ? ', ' : '') : '') + (window.__fiqBackupWarn ? window.__fiqBackupWarn + ' backup alert' + (window.__fiqBackupWarn === 1 ? '' : 's') : (window.__fiqNewSignups ? '' : 'Backup alerts')));
+      box.title = box.getAttribute('aria-label'); }
+  }
+  window.fiqPaintBell = fiqPaintBell;
+  function fiqMarkSignupsSeen(){ try{ localStorage.setItem(SIGNUPS_SEEN_KEY, String(Date.now())); }catch(e){} window.__fiqNewSignups = 0; fiqPaintBell(); }
+  document.addEventListener('click', function(e){ var b = e.target.closest && e.target.closest('[data-page="customers"]'); if(b) setTimeout(fiqMarkSignupsSeen, 0); });
+  var fiqLastLoad = 0;
   async function loadRealCustomers(){
+    fiqLastLoad = Date.now();
     try{
       var snap = await authFns.getDocs(authFns.collection(db,'companies'));
+      try{ var seen = fiqSignupsSeenAt(); window.__fiqNewSignups = snap.docs.filter(function(d){ var c = d.data(), t = c.createdAt && c.createdAt.toMillis ? c.createdAt.toMillis() : 0; return c.internal !== true && t > seen; }).length; fiqPaintBell(); }catch(e){}
       var real = [];
       snap.forEach(function(d){
         var c = d.data();
@@ -1851,7 +1870,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       set('payMonth', main); set('snapRevenue', main); set('sumPaid', main); set('reportRevenue', main);
       var card = 0; (typeof customers !== 'undefined' ? customers : []).forEach(function(c){ if(c.stripeStatus === 'active_stripe' || c.stripeStatus === 'past_due') card++; }); set('payCard', card);
       if(snap.size){ var a = document.getElementById('payAuto'); if(a){ a.textContent = 'Ready'; a.className = ''; } }
-      if(failed){ var bell = document.getElementById('notifyCount'); if(bell){ bell.textContent = (+bell.textContent || 0) + failed; bell.hidden = false; } }
+      if(failed){ window.__fiqBackupWarn = (window.__fiqBackupWarn || 0) + failed; fiqPaintBell(); }
     }catch(e){ if(list) list.innerHTML = '<p class="muted">Could not load Stripe messages.</p>'; console.error('Could not load Stripe messages', e); }
   };
 
@@ -1903,7 +1922,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       await window.fiqLoadBackups();
       var warn = +((document.getElementById('bkWarn') || {}).textContent || 0), mark = document.getElementById('snapBackupMark'), el = document.getElementById('snapBackup');
       if(el){ el.textContent = warn ? warn + ' need' + (warn > 1 ? '' : 's') + ' attention' : 'All backups OK'; el.className = 'status-good'; el.style.color = warn ? '#d14a00' : ''; }
-      var bell = document.getElementById('notifyCount'); if(bell){ bell.textContent = warn; bell.hidden = !warn; }
+      window.__fiqBackupWarn = warn; fiqPaintBell();
       if(mark){ mark.textContent = warn ? '!' : '✓'; mark.style.background = warn ? '#ef5b00' : ''; }
     }catch(e){ console.error('Could not check backups', e); }
   };
@@ -1943,6 +1962,10 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   document.querySelector('.nav button[data-page="backups"]')?.addEventListener('click', function(){ window.fiqLoadBackups(); });
 
   window.fiqLoadRealCustomers=function(){return loadRealCustomers()};
+  // Keeps itself up to date: every 5 minutes while the Dashboard is on screen, and when it is opened again after a minute away.
+  function fiqLiveRefresh(){ var a = window.fiqAuth || auth; if(!a || !a.currentUser || document.body.classList.contains('fiq-locked')) return; loadRealCustomers(); }
+  setInterval(function(){ if(document.visibilityState === 'visible') fiqLiveRefresh(); }, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible' && Date.now() - fiqLastLoad > 60 * 1000) fiqLiveRefresh(); });
   async function loadUsageStats(){
     var setText=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
     try{
