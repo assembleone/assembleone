@@ -1467,7 +1467,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     </section>
 
     <section class="page admin-section" id="backupsPage">
-      <div class="section-head"><div><h2>Backups</h2><p>Live from each customer's devices: is their work safely in the cloud? Alerts are also emailed to hello@fittersiq.com.</p></div><button class="secondary" id="refreshBackups" type="button">Refresh</button></div>
+      <div class="section-head"><div><h2>Backups</h2><p>Live from each customer's devices: is their work safely in the cloud? Alerts are also emailed to hello@danishcarpenter.com.</p></div><button class="secondary" id="refreshBackups" type="button">Refresh</button></div>
       <div class="launch-grid three">
         <article class="launch-card"><span class="launch-icon green">✓</span><div><small>Backed up</small><strong id="bkOk">–</strong><p>Companies whose devices are all backed up.</p></div></article>
         <article class="launch-card"><span class="launch-icon purple">◷</span><div><small>Needs attention</small><strong id="bkWarn">–</strong><p>Work waiting too long, a failed backup, or a computer gone quiet.</p></div></article>
@@ -1512,9 +1512,9 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <section class="page admin-section" id="settingsPage">
       <div class="section-head"><div><h2>Settings</h2><p>FittersIQ Admin account and launch settings.</p></div></div>
       <div class="settings-grid">
-        <section class="admin-card settings-card"><h3>Owner</h3><label>Signed in as<input id="ownerEmail" readonly></label><label>Alert emails go to<input value="hello@fittersiq.com" readonly></label></section>
+        <section class="admin-card settings-card"><h3>Owner</h3><label>Signed in as<input id="ownerEmail" readonly></label><label>Alert emails go to<input value="hello@danishcarpenter.com" readonly></label></section>
         <section class="admin-card settings-card"><h3>Defaults</h3><label>Language<input value="English" readonly></label><label>Prices set in<input value="Euro (EUR €)" readonly></label></section>
-        <section class="admin-card launch-list"><h3>Launch connections</h3><div><span>Real database</span><b>Ready</b></div><div><span>Login / authentication</span><b>Ready</b></div><div><span>Sign-up and password emails</span><b>Ready</b></div><div><span>Backup alert emails</span><b>Ready</b></div><div><span>Payment provider (Stripe)</span><b class="needs">Connect</b></div><div><span>Tax / VAT per country</span><b class="needs">With Stripe</b></div></section>
+        <section class="admin-card launch-list"><h3>Launch connections</h3><div><span>Real database</span><b>Ready</b></div><div><span>Login / authentication</span><b>Ready</b></div><div><span>Sign-up and password emails</span><b>Ready</b></div><div><span>Backup alert emails</span><b>Ready</b></div><div><span>Payment provider (Stripe)</span><b>Ready</b></div><div><span>Tax / VAT per country</span><b class="needs">With Stripe</b></div></section>
       </div>
     </section>
 
@@ -1646,7 +1646,10 @@ function go(page){
   window.scrollTo({top:0,behavior:"smooth"});
 }
 document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.page)));
-const initials=n=>n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase();
+// Text typed by customers is always shown as text (24 Oct 2026 audit: never as page code in the admin Dashboard).
+window.fiqH=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const H=window.fiqH;
+const initials=n=>H(String(n||"").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase());
 const statClass=s=>s.replaceAll(" ","-");
 function updateMetrics(){
   const active=customers.filter(c=>c.status==="Active").length;
@@ -1665,13 +1668,13 @@ function renderCustomers(){
   const list=customers.filter(c=>(filter==="all"||c.status===filter)&&(!q||c.company.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)));
   if($("rows")) $("rows").innerHTML=list.map(c=>`
   <div class="customer-row launch-row">
-    <div class="company"><span class="badge">${initials(c.company)}</span><div><strong>${c.company}</strong><small>${c.email}</small></div></div>
-    <span class="${c.plan==="Professional"?"plan-pro":"plan-standard"}">${c.plan}</span>
-    <span><b class="status ${statClass(c.status)}">${c.status}</b></span>
-    <span>${c.users}</span>
-    <span class="${c.status==="Payment Due"||c.status==="Suspended"?"due-red":c.status==="Trial"?"trial-purple":""}">${c.renewal}</span>
-    <span>${c.last}</span>
-    <button class="more" type="button" data-open="${String(c.id)}" aria-label="Open ${c.company}">•••</button>
+    <div class="company"><span class="badge">${initials(c.company)}</span><div><strong>${H(c.company)}</strong><small>${H(c.email)}</small></div></div>
+    <span class="${c.plan==="Professional"?"plan-pro":"plan-standard"}">${H(c.plan)}</span>
+    <span><b class="status ${statClass(c.status)}">${H(c.status)}</b></span>
+    <span>${H(c.users)}</span>
+    <span class="${c.status==="Payment Due"||c.status==="Suspended"?"due-red":c.status==="Trial"?"trial-purple":""}">${H(c.renewal)}</span>
+    <span>${H(c.last)}</span>
+    <button class="more" type="button" data-open="${H(String(c.id))}" aria-label="Open ${H(c.company)}">•••</button>
   </div>`).join("")||'<div class="empty-state">No customers match this search.</div>';
   if($("showing")) $("showing").textContent=`Showing ${list.length} of ${customers.length} customers`;
   document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openCustomer(b.dataset.open)));
@@ -1688,14 +1691,14 @@ if($("cancelAdd")) $("cancelAdd").addEventListener("click",()=>$("addDialog").cl
 
 function openCustomer(id){
   const c=customers.find(x=>String(x.id)===String(id));if(!c)return;
-  $("dCompany").textContent=c.company;$("dEmail").textContent=c.email;$("dStatus").innerHTML=`<span class="status ${statClass(c.status)}">${c.status}</span>`;
+  $("dCompany").textContent=c.company;$("dEmail").textContent=c.email;$("dStatus").innerHTML=`<span class="status ${statClass(c.status)}">${H(c.status)}</span>`;
   $("dPlan").textContent=c.plan;$("dUsers").textContent=c.users;$("dRenewal").textContent=c.renewal;$("dLast").textContent=c.last;
   if($("dAccount"))$("dAccount").innerHTML="";if(c.real&&typeof window.fiqAccountPanel==="function")window.fiqAccountPanel(c);
   if($("detailDialog")?.showModal)$("detailDialog").showModal();
 }
 function populateSupportCustomers(){
   if(!$("supportCustomer"))return;
-  $("supportCustomer").innerHTML=customers.map(c=>`<option value="${c.id}">${c.company}</option>`).join("");
+  $("supportCustomer").innerHTML=customers.map(c=>`<option value="${H(c.id)}">${H(c.company)}</option>`).join("");
 }
 document.querySelectorAll('[data-hint="payment"]').forEach(b=>b.addEventListener("click",()=>{const f=$("showing");if(f)f.textContent="To record a payment, open the customer (•••) and use Record payment."}));
 // Export: the live customer list as a spreadsheet file (CSV).
@@ -1771,16 +1774,17 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   window.__fiqBackupWarn = 0; window.__fiqNewSignups = 0;
   function fiqPaintBell(){
     var bell = document.getElementById('notifyCount'); if(!bell) return;
-    var n = (window.__fiqBackupWarn || 0) + (window.__fiqNewSignups || 0);
+    var n = (window.__fiqBackupWarn || 0) + (window.__fiqNewSignups || 0) + (window.__fiqNewTickets || 0);
     bell.textContent = n; bell.hidden = !n;
     var box = bell.closest('.notify');
-    if(box){ box.dataset.page = window.__fiqNewSignups ? 'customers' : 'backups';
-      box.setAttribute('aria-label', (window.__fiqNewSignups ? window.__fiqNewSignups + ' new customer' + (window.__fiqNewSignups === 1 ? '' : 's') + (window.__fiqBackupWarn ? ', ' : '') : '') + (window.__fiqBackupWarn ? window.__fiqBackupWarn + ' backup alert' + (window.__fiqBackupWarn === 1 ? '' : 's') : (window.__fiqNewSignups ? '' : 'Backup alerts')));
+    if(box){ box.dataset.page = window.__fiqNewTickets ? 'support' : window.__fiqNewSignups ? 'customers' : 'backups';
+      box.setAttribute('aria-label', (window.__fiqNewTickets ? window.__fiqNewTickets + ' new support message' + (window.__fiqNewTickets === 1 ? '' : 's') + ((window.__fiqNewSignups || window.__fiqBackupWarn) ? ', ' : '') : '') + (window.__fiqNewSignups ? window.__fiqNewSignups + ' new customer' + (window.__fiqNewSignups === 1 ? '' : 's') + (window.__fiqBackupWarn ? ', ' : '') : '') + (window.__fiqBackupWarn ? window.__fiqBackupWarn + ' backup alert' + (window.__fiqBackupWarn === 1 ? '' : 's') : (window.__fiqNewSignups ? '' : 'Backup alerts')));
       box.title = box.getAttribute('aria-label'); }
   }
   window.fiqPaintBell = fiqPaintBell;
   function fiqMarkSignupsSeen(){ try{ localStorage.setItem(SIGNUPS_SEEN_KEY, String(Date.now())); }catch(e){} window.__fiqNewSignups = 0; fiqPaintBell(); }
-  document.addEventListener('click', function(e){ var b = e.target.closest && e.target.closest('[data-page="customers"]'); if(b) setTimeout(fiqMarkSignupsSeen, 0); });
+  document.addEventListener('click', function(e){ var b = e.target.closest && e.target.closest('[data-page="customers"]'); if(b) setTimeout(fiqMarkSignupsSeen, 0);
+    var s = e.target.closest && e.target.closest('[data-page="support"]'); if(s) setTimeout(function(){ try{ localStorage.setItem('fiq_dash_tickets_seen_v1', String(Date.now())); }catch(er){} window.__fiqNewTickets = 0; fiqPaintBell(); }, 0); });
   var fiqLastLoad = 0;
   async function loadRealCustomers(){
     fiqLastLoad = Date.now();
@@ -1824,7 +1828,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       + '<div><small>TRIAL ENDS</small><strong>' + (trialEnd || '–') + (days != null && !paid ? ' (' + (days < 0 ? Math.abs(days) + ' days ago' : days + ' days left') + ')' : '') + '</strong></div>'
       + '<div><small>PAID UNTIL</small><strong>' + (paid || '–') + '</strong></div>'
       + '<div><small>CLOUD BACKUP</small><strong>' + (c.cloudBackup ? 'On' : 'Off') + '</strong></div>'
-      + '<div><small>TERMS ACCEPTED</small><strong>' + (iso(c.termsAcceptedAt) ? iso(c.termsAcceptedAt) + ' (version ' + c.termsVersion + ')' : 'Not recorded') + '</strong></div></div>'
+      + '<div><small>TERMS ACCEPTED</small><strong>' + (iso(c.termsAcceptedAt) ? iso(c.termsAcceptedAt) + ' (version ' + window.fiqH(c.termsVersion) + ')' : 'Not recorded') + '</strong></div></div>'
       + '<label class="fiq-account-date"><small>Date</small><input type="date" id="dAccountDate" value="' + (paid || trialEnd || '') + '"></label>'
       + '<button class="secondary wide" type="button" data-account="paid">Record payment: paid until this date</button>'
       + (c.rawStatus === 'trial' || c.suspendReason === 'trial_ended' ? '<button class="secondary wide" type="button" data-account="trial">' + (c.rawStatus === 'trial' ? 'Set trial end to this date' : 'Give a new trial until this date') + '</button>' : '')
@@ -1963,7 +1967,8 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
 
   window.fiqLoadRealCustomers=function(){return loadRealCustomers()};
   // Keeps itself up to date: every 5 minutes while the Dashboard is on screen, and when it is opened again after a minute away.
-  function fiqLiveRefresh(){ var a = window.fiqAuth || auth; if(!a || !a.currentUser || document.body.classList.contains('fiq-locked')) return; loadRealCustomers(); }
+  function fiqLiveRefresh(){ var a = window.fiqAuth || auth; if(!a || !a.currentUser || document.body.classList.contains('fiq-locked')) return; loadRealCustomers(); loadSupportTickets(); loadUsageStats(); }
+  window.fiqLoadSupportTickets = function(){ return loadSupportTickets(); };
   setInterval(function(){ if(document.visibilityState === 'visible') fiqLiveRefresh(); }, 5 * 60 * 1000);
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible' && Date.now() - fiqLastLoad > 60 * 1000) fiqLiveRefresh(); });
   async function loadUsageStats(){
@@ -2054,6 +2059,8 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
         var t = d.data();
         rows.push({id:d.id, t:t});
       });
+      // New help and bug messages since Support was last opened go on the bell (automatic error reports do not).
+      try{ var seenT = Number(localStorage.getItem('fiq_dash_tickets_seen_v1')) || 0; window.__fiqNewTickets = rows.filter(function(r){ var t = r.t, ms = t.createdAt && t.createdAt.toMillis ? t.createdAt.toMillis() : 0; return t.type !== 'error' && t.status !== 'resolved' && ms > seenT; }).length; if(window.fiqPaintBell) window.fiqPaintBell(); }catch(e){}
       if(!rows.length){ list.innerHTML = '<p class="muted">No support tickets yet.</p>'; return; }
       list.innerHTML = rows.map(function(r){
         var t = r.t;
@@ -2061,10 +2068,10 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
         var when = (t.createdAt && t.createdAt.toDate) ? t.createdAt.toDate().toLocaleString() : '';
         var resolved = t.status === 'resolved';
         return '<div class="support-ticket-row' + (resolved ? ' resolved' : '') + '">' +
-          '<div class="support-ticket-top"><b>' + kind + '</b><span>' + (t.screenLabel || t.app || '') + '</span><time>' + when + '</time></div>' +
-          '<p>' + (t.question ? String(t.question).replace(/</g,'&lt;') : '') + '</p>' +
-          '<div class="support-ticket-meta"><span>' + (t.email || 'unknown user') + '</span>' +
-          (resolved ? '<b class="ready">Resolved</b>' : '<button type="button" class="secondary" data-resolve-ticket="' + r.id + '">Mark resolved</button>') +
+          '<div class="support-ticket-top"><b>' + kind + '</b><span>' + window.fiqH(t.screenLabel || t.app || '') + '</span><time>' + window.fiqH(when) + '</time></div>' +
+          '<p>' + window.fiqH(t.question || '') + '</p>' +
+          '<div class="support-ticket-meta"><span>' + window.fiqH(t.email || 'unknown user') + '</span>' +
+          (resolved ? '<b class="ready">Resolved</b>' : '<button type="button" class="secondary" data-resolve-ticket="' + window.fiqH(r.id) + '">Mark resolved</button>') +
           '</div></div>';
       }).join('');
       list.querySelectorAll('[data-resolve-ticket]').forEach(function(btn){
