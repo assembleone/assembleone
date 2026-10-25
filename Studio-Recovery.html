@@ -1377,6 +1377,11 @@ document.addEventListener('DOMContentLoaded', function(){
 .app>.sidebar .nav-btn:nth-of-type(6).active{background:#6BBF3A!important;color:#fff!important}
 </style>
 <script src="sync-protocol.js?build=90"></script>
+<style id="fiq-nav-words">
+.sidebar .nav-btn{height:auto!important;min-height:60px!important;width:58px!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 2px!important}
+.sidebar .nav-word{display:block;font:700 9.5px/1.15 Inter,Arial,sans-serif;color:#33465c;text-align:center;white-space:normal;max-width:56px;letter-spacing:0}
+.sidebar .nav-btn.active .nav-word{color:#1f5d12}
+</style>
 </head>
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
@@ -1469,11 +1474,11 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="app">
 <aside class="sidebar">
 
-<button class="nav-btn active" data-screen="jobs" title="Project" aria-label="Project" data-i18n-title="proj.projectFallback" data-i18n-aria="proj.projectFallback"><span class="nav-colour-icon">🏠</span></button>
-<button class="nav-btn" data-screen="mark" title="Drawing" aria-label="Drawing" data-i18n-title="studio.nav.drawingTab" data-i18n-aria="studio.nav.drawingTab"><span class="nav-colour-icon">✏️</span></button>
-<button class="nav-btn" data-screen="parts" title="Panel Check" aria-label="Panel Check" data-i18n-title="studio.panelCheck.screenTitle" data-i18n-aria="studio.panelCheck.screenTitle"><span class="nav-colour-icon">🧩</span></button>
-<button class="nav-btn" data-screen="qr" title="QR and Scan" aria-label="QR and Scan" data-i18n-title="studio.nav.qrAndScanTab" data-i18n-aria="studio.nav.qrAndScanTab"><span class="nav-colour-icon">📲</span></button>
-<button class="nav-btn" data-screen="cutting" title="Cutting List" aria-label="Cutting List" data-i18n-title="detail.cuttingList" data-i18n-aria="detail.cuttingList"><span class="nav-colour-icon">📋</span></button>
+<button class="nav-btn active" data-screen="jobs" title="Project" aria-label="Project" data-i18n-title="proj.projectFallback" data-i18n-aria="proj.projectFallback"><span class="nav-colour-icon">🏠</span><span class="nav-word" data-i18n="studio.nav.homeTab">Home</span></button>
+<button class="nav-btn" data-screen="mark" title="Drawing" aria-label="Drawing" data-i18n-title="studio.nav.drawingTab" data-i18n-aria="studio.nav.drawingTab"><span class="nav-colour-icon">✏️</span><span class="nav-word" data-i18n="studio.nav.drawingTab">Drawing</span></button>
+<button class="nav-btn" data-screen="parts" title="Panel Check" aria-label="Panel Check" data-i18n-title="studio.panelCheck.screenTitle" data-i18n-aria="studio.panelCheck.screenTitle"><span class="nav-colour-icon">🧩</span><span class="nav-word" data-i18n="studio.panelCheck.screenTitle">Panel Check</span></button>
+<button class="nav-btn" data-screen="qr" title="QR and Scan" aria-label="QR and Scan" data-i18n-title="studio.nav.qrAndScanTab" data-i18n-aria="studio.nav.qrAndScanTab"><span class="nav-colour-icon">📲</span><span class="nav-word" data-i18n="studio.nav.qrAndScanTab">QR and Scan</span></button>
+<button class="nav-btn" data-screen="cutting" title="Cutting List" aria-label="Cutting List" data-i18n-title="detail.cuttingList" data-i18n-aria="detail.cuttingList"><span class="nav-colour-icon">📋</span><span class="nav-word" data-i18n="detail.cuttingList">Cutting List</span></button>
 <small>Studio</small>
 </aside>
 <main class="main">
@@ -2664,7 +2669,7 @@ function newJob(){
    state.currentProject=existing.id;state.currentCabinet=null;state.currentPart=null;state.showStartShell=true;
    if(n)n.value="";if(cust)cust.value="";
    save();renderAll();show("jobs");
-   setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn)editBtn.click()},90);
+   setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn){window.__fiqNewJobEdit=true;editBtn.click();window.__fiqNewJobEdit=false}},90);
    return;
  }
  if(typeof window.fiqLogActivity==='function')window.fiqLogActivity('project_created');
@@ -2673,7 +2678,7 @@ function newJob(){
  state.projects.unshift(p);state.currentProject=p.id;state.currentCabinet=null;state.currentPart=null;state.showStartShell=true;
  if(n)n.value="";if(cust)cust.value="";
  save();renderAll();show("jobs");
- setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn)editBtn.click()},90);
+ setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn){window.__fiqNewJobEdit=true;editBtn.click();window.__fiqNewJobEdit=false}},90);
 }
 function selectedStudioRoom(){const p=ensureSharedProject(project());return p?.rooms.find(r=>r.id===state.currentRoom)||null}
 function unitLabelForRoom(room){
@@ -3695,7 +3700,7 @@ function newJobForCustomer(customerId){
  const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
  if(n)n.value="";if(cust)cust.value=c.name;
  save();renderAll();show("jobs");
- setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn)editBtn.click()},90);
+ setTimeout(()=>{const editBtn=document.getElementById('a100EditJob');if(editBtn){window.__fiqNewJobEdit=true;editBtn.click();window.__fiqNewJobEdit=false}},90);
 }
 function customerCardAvatarInitial(name){
  const s=String(name||"").trim();
@@ -6165,9 +6170,10 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
   function selectedRoom(){try{return selectedStudioRoom()}catch(e){return null}}
   function openEdit(opts){
     const p=getProject(); if(!p) return;
-    const need=!!(opts&&opts.requireCustomer);
+    const isNew=!!window.__fiqNewJobEdit;
+    const need=!!(opts&&opts.requireCustomer)||isNew;
     const o=document.createElement('div'); o.className='a100-edit-dialog';
-    o.innerHTML='<div class="a100-edit-sheet"><h2>'+t("studio.home.editJobHeading")+'</h2><label>'+t("studio.home.jobName")+'<input id="a100JobName"></label><label>'+t("studio.home.customerLabel")+'<input id="a100Customer"></label><div class="a100-edit-actions"><button class="btn" id="a100Cancel">'+t("studio.customerLibrary.cancelBtn")+'</button><button class="btn primary" id="a100Save">'+t("studio.customerLibrary.saveBtn")+'</button></div></div>';
+    o.innerHTML='<div class="a100-edit-sheet"><h2>'+(isNew?t("studio.home.newJobHeading"):t("studio.home.editJobHeading"))+'</h2><label>'+t("studio.home.jobName")+'<input id="a100JobName"></label><label>'+t("studio.home.customerLabel")+'<input id="a100Customer"></label><div class="a100-edit-actions"><button class="btn" id="a100Cancel">'+t("studio.customerLibrary.cancelBtn")+'</button><button class="btn primary" id="a100Save">'+t("studio.customerLibrary.saveBtn")+'</button></div></div>';
     document.body.appendChild(o); o.querySelector('#a100JobName').value=p.name||''; o.querySelector('#a100Customer').value=p.customer||'';
     const close=()=>o.remove(); o.querySelector('#a100Cancel').onclick=close; o.onclick=e=>{if(e.target===o)close()};
     const custInput=o.querySelector('#a100Customer');
