@@ -9765,6 +9765,19 @@ body.fiq-locked .app{display:none!important}
           if(!r2.unplaced.length){r=r2;break}
         }
       }
+      // Least waste: the standard size that needs the least board in total.
+      var pieceCount=g.parts.reduce(function(n,p){return n+Math.max(1,Number(p.qty)||1)},0);
+      var savedSize=!!(settings[cfg.key]||settings[String(g.material||"").trim().toLowerCase()])||cfg.custom;
+      if(!chosenForJob&&!savedSize&&!r.unplaced.length&&pieceCount<=600){
+        var area=function(x){return x.sheets.length*x.cfg.w*x.cfg.h};
+        var first={w:r.cfg.w,h:r.cfg.h,m2:area(r)/1e6,sheets:r.sheets.length};
+        presetsFor(g.material).list.forEach(function(d){
+          if(d[0]===r.cfg.w&&d[1]===r.cfg.h)return;
+          var r3=groupResult(g.material,g.thickness,g.parts,Object.assign({},cfg,{w:d[0],h:d[1],custom:false,auto:null}));
+          if(!r3.unplaced.length&&area(r3)<area(r)-1)r=r3;
+        });
+        if(r.cfg.w!==first.w||r.cfg.h!==first.h)r.cfg.leastWaste={w:first.w,h:first.h,m2:first.m2,sheets:first.sheets,nowM2:area(r)/1e6};
+      }
       return r;
     });
   }
@@ -9780,7 +9793,8 @@ body.fiq-locked .app{display:none!important}
     var order='<div class="sheet-order" data-sheet-order><div class="sheet-order-title">Sheets to order</div>'+groups.map(function(g,i){
       return '<div class="sheet-order-row"><span><span class="sheet-optim-swatch" style="background:'+colorForGroup(i)+'"></span>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</span><b>'+g.sheets.length+' sheet'+(g.sheets.length===1?'':'s')+' of '+g.cfg.w+' × '+g.cfg.h+'</b></div>'+
        (g.turned&&g.turned.length?'<div class="sheet-order-note">Turned so the grain runs along the long side: '+g.turned.map(safe).join(', ')+'</div>':'')+
-       (g.cfg.auto?'<div class="sheet-order-note">'+g.cfg.w+' × '+g.cfg.h+' used because a panel is too big for '+g.cfg.auto.w+' × '+g.cfg.auto.h+'</div>':'')+
+       (g.cfg.leastWaste?'<div class="sheet-order-note">'+g.cfg.w+' × '+g.cfg.h+' chosen for least waste: '+fmt(g.cfg.leastWaste.nowM2)+' m² of board instead of '+fmt(g.cfg.leastWaste.m2)+' m² ('+g.cfg.leastWaste.sheets+' sheets of '+g.cfg.leastWaste.w+' × '+g.cfg.leastWaste.h+')</div>':'')+
+       (g.cfg.auto&&!g.cfg.leastWaste?'<div class="sheet-order-note">'+g.cfg.w+' × '+g.cfg.h+' used because a panel is too big for '+g.cfg.auto.w+' × '+g.cfg.auto.h+'</div>':'')+
        (g.unplaced.length?'<div class="sheet-order-warn">⚠ Too big for every standard sheet, not counted: '+unplacedSummaryText(g.unplaced)+'</div>':'')}).join('')+'</div>';
     box.innerHTML=order+groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
     box.querySelectorAll('[data-sheet-preset],[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
