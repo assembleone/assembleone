@@ -6996,11 +6996,11 @@ body.guide-only .a131-back-studio{display:block}
    const file=new File([r.doc.output('blob')],r.fileName,{type:'application/pdf'});
    const text='Cutting list'+(pr&&pr.customer?' for '+pr.customer:'')+(pr&&pr.name&&pr.name!==pr.customer?' - '+pr.name:'')+' ('+r.stickers+' panels). From FittersIQ.';
    if(navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],title:r.fileName.replace(/\.pdf$/,''),text});say('Shared '+r.fileName+'.')}
+    try{await navigator.share({files:[file],title:r.fileName.replace(/\.pdf$/,''),text});if(window.fiqMarkOrdered)window.fiqMarkOrdered(list);say('Shared '+r.fileName+'. Marked as ordered.')}
     catch(e){if(e&&e.name==='AbortError')say('Not sent.');else throw e}
    }else{
     // This browser cannot hand a file to WhatsApp: download it and open WhatsApp with the message ready.
-    r.doc.save(r.fileName);window.open('https://wa.me/?text='+encodeURIComponent(text+' The PDF is attached.'),'_blank');
+    r.doc.save(r.fileName);if(window.fiqMarkOrdered)window.fiqMarkOrdered(list);window.open('https://wa.me/?text='+encodeURIComponent(text+' The PDF is attached.'),'_blank');
     say('Downloaded '+r.fileName+'. WhatsApp is opening: pick the person, then attach the PDF from your Downloads.');
    }
   }catch(e){say('Could not make the PDF for WhatsApp: '+(e&&e.message||e))}
@@ -7010,7 +7010,7 @@ body.guide-only .a131-back-studio{display:block}
   const btn=opts&&opts.btn||document.getElementById('printSupplierPackBtn'),msg=opts&&opts.msg||document.getElementById('supplierActionStatus');
   const say=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle('error',!!err)}};
   if(btn)btn.disabled=true;say('Building the supplier pack PDF…');
-  try{const r=await window.fiqBuildSupplierPackPdf(list,opts);r.doc.save(r.fileName);say('Downloaded '+r.fileName+' — '+r.stickers+' sticker'+(r.stickers===1?'':'s')+'. Attach it to your email to the supplier.')}
+  try{const r=await window.fiqBuildSupplierPackPdf(list,opts);r.doc.save(r.fileName);if(window.fiqMarkOrdered)window.fiqMarkOrdered(list);say('Downloaded '+r.fileName+' — '+r.stickers+' sticker'+(r.stickers===1?'':'s')+'. Attach it to your email to the supplier.')}
   catch(e){say('Supplier pack PDF could not be made: '+(e?.message||e),true)}
   finally{if(btn)btn.disabled=false}
  };
@@ -13906,7 +13906,7 @@ document.addEventListener('mousedown',function(e){
   '#fiqCutScope{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}'+
   '#fiqCutScope button{border:2px solid #cfd6e4;background:#fff;border-radius:12px;padding:10px 16px;font:800 14px Inter,Arial,sans-serif;color:#23364e;cursor:pointer}'+
   '#fiqCutScope button.on{border-color:#4da721;background:#eaf7e1;color:#1f5d12}'+
-  '#screen-cutting.fiq-job-mode>:not(.supplier-hero):not(#fiqCutScope):not(#fiqJobCut):not(#sheetOptimiserToggleBtn):not(#sheetOptimiserCard):not(#cuttingListReturnStrip):not(#supplierSummary):not(.supplier-materials-card):not(.supplier-section-title):not(#supplierPanelCards):not(.supplier-sticker-settings):not(#supplierLabels){display:none!important}'+
+  '#screen-cutting.fiq-job-mode>:not(.supplier-hero):not(#fiqCutScope):not(#fiqJobCut):not(#sheetOptimiserToggleBtn):not(#sheetOptimiserCard):not(#cuttingListReturnStrip):not(#supplierSummary):not(.supplier-materials-card):not(.supplier-section-title):not(#supplierPanelCards):not(.supplier-sticker-settings):not(#supplierLabels):not(#fiqOrderedBar){display:none!important}'+
   '#fiqJobCut .fjc-card{border:1px solid #e3e9f0;border-radius:14px;background:#fff;padding:14px 16px;margin:0 0 14px}'+
   '#fiqJobCut h3{margin:0 0 8px}#fiqJobCut .fjc-note{font-size:13px;color:#5b6b7c;margin:6px 0 0}'+
   '#fiqJobCut .fjc-warn{background:#fff7e6;border:1px solid #f0c36d;border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:13px}'+
@@ -13954,7 +13954,7 @@ document.addEventListener('mousedown',function(e){
   const sel=document.getElementById('supplierSystemSelect');
   const profile=window.fiqSupplierProfile(system||(sel&&sel.value)||'standard');
   const text=window.fiqSupplierExport(profile,{rows:d.fileRows});
-  return {name:fileName(profile,d.pr),text,rows:d.fileRows.length};
+  return {name:fileName(profile,d.pr),text,rows:d.fileRows.length,panels:d.panels.map(x=>x.p)};
  };
  function bar(){
   const screen=document.getElementById('screen-cutting');if(!screen)return null;
@@ -13983,7 +13983,8 @@ document.addEventListener('mousedown',function(e){
     const st=box.querySelector('[data-job-file-status]'),f=window.fiqWholeJobFile();
     if(!f){if(st)st.textContent='No complete panels are ready for the supplier yet.';return}
     const url=URL.createObjectURL(new Blob([f.text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
-    if(st)st.textContent='Downloaded '+f.name+' — '+f.rows+' row'+(f.rows===1?'':'s')+', one per panel with its quantity.'})}
+    if(window.fiqMarkOrdered)window.fiqMarkOrdered(f.panels);
+    if(st)st.textContent='Downloaded '+f.name+' — '+f.rows+' row'+(f.rows===1?'':'s')+', one per panel with its quantity. Marked as ordered.'})}
   return {screen,b,box};
  }
  function render(){
@@ -14142,6 +14143,72 @@ document.addEventListener('mousedown',function(e){
  }
  window.renderParts=render;
  try{renderParts=window.renderParts}catch(e){}
+})();
+</script>
+<script id="fiq-ordered-panels">
+(function(){
+ // What makes a panel "the same order": its own manufacturing details.
+ const sig=pt=>[pt.code,pt.name,pt.length,pt.width,pt.thickness,Math.max(1,Math.floor(Number(pt.qty)||1)),pt.material||'',Number(pt.edgeLong)||0,Number(pt.edgeShort)||0].join('|');
+ window.fiqOrderSig=sig;
+ const orderedOf=pr=>(pr&&pr.orderedPanels)||{};
+ // An order is everything downloaded or shared within one hour: those panels stay in the list (file, PDF, WhatsApp).
+ const ORDER_WINDOW=60*60*1000;
+ const state0=pt=>{const o=orderedOf(project())[pt.id];return !o?'new':o.sig!==sig(pt)?'changed':Date.now()-(o.at||0)<ORDER_WINDOW?'recent':'ordered'};
+ const filterOn=()=>window.__fiqShowAllOrdered!==true&&typeof state!=='undefined'&&state.screen==='cutting';
+ const baseSupplierParts=supplierParts;
+ window.fiqAllSupplierParts=function(){return baseSupplierParts.apply(this,arguments)};
+ supplierParts=function(){const list=baseSupplierParts.apply(this,arguments);if(!filterOn())return list;return list.filter(pt=>state0(pt)!=='ordered')};
+ window.supplierParts=supplierParts;
+ window.fiqMarkOrdered=function(parts,opts){
+  const pr=typeof project==='function'?project():null;if(!pr||!parts||!parts.length)return 0;
+  pr.orderedPanels=pr.orderedPanels||{};const at=Date.now()-(opts&&opts.earlier?ORDER_WINDOW+60000:0);
+  parts.forEach(pt=>{if(pt&&pt.id!=null)pr.orderedPanels[pt.id]={sig:sig(pt),at}});
+  if(typeof save==='function')save();return parts.length;
+ };
+ // The single wardrobe production file.
+ const pf=window.fiqDownloadProductionFile;
+ if(typeof pf==='function')window.fiqDownloadProductionFile=function(){const list=supplierParts();const r=pf.apply(this,arguments);if(r)window.fiqMarkOrdered(list);return r};
+ // Every complete panel in view (this wardrobe, or the whole job), with its ordered state.
+ function inView(){
+  const pr=project();if(!pr)return [];
+  const job=window.__fiqCutScope!=='unit'&&(pr.cabinets||[]).length>1;
+  if(!job)return baseSupplierParts();
+  const keep={c:state.currentCabinet,pt:state.currentPart,r:state.currentRoom},out=[];
+  try{for(const c of pr.cabinets||[]){state.currentCabinet=c.id;state.currentPart=null;state.currentRoom=c.roomId||null;baseSupplierParts().forEach(p=>out.push(p))}}
+  finally{state.currentCabinet=keep.c;state.currentPart=keep.pt;state.currentRoom=keep.r}
+  return out;
+ }
+ const day=ms=>new Date(ms).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+ const css=document.createElement('style');css.textContent='#fiqOrderedBar{border:2px solid #cfe6c0;background:#f6fbf2;border-radius:12px;padding:10px 14px;margin:0 0 14px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:14px;color:#16281d}#fiqOrderedBar b{color:#1f5d12}#fiqOrderedBar .fob-changed{flex-basis:100%;font-size:13px;color:#8a4b00}#fiqOrderedBar button{border:1px solid #cfd6e4;background:#fff;border-radius:10px;padding:7px 12px;font:700 13px Inter,Arial,sans-serif;cursor:pointer}#fiqOrderedBar .fob-undo{border:0;background:none;color:#5b6b7f;text-decoration:underline;padding:4px}';document.head.appendChild(css);
+ function bar(){
+  const screen=document.getElementById('screen-cutting');if(!screen)return;
+  let b=document.getElementById('fiqOrderedBar');
+  if(!b){b=document.createElement('div');b.id='fiqOrderedBar';const after=document.getElementById('fiqCutScope')||screen.querySelector('.supplier-hero');(after&&after.nextSibling)?screen.insertBefore(b,after.nextSibling):screen.prepend(b);
+   b.addEventListener('click',e=>{const x=e.target.closest('[data-ordered]');if(!x)return;const a=x.dataset.ordered,list=inView();
+    if(a==='all'){window.__fiqShowAllOrdered=true}
+    else if(a==='new'){window.__fiqShowAllOrdered=false}
+    else if(a==='mark'){const todo=list.filter(p=>state0(p)==='new'||state0(p)==='changed');if(!todo.length||!confirm('Mark these '+todo.length+' panels as already ordered? They will then be left out of the supplier list and files.'))return;window.fiqMarkOrdered(todo,{earlier:true})}
+    else if(a==='undo'){const done=list.filter(p=>state0(p)!=='new');if(!done.length||!confirm('Forget that these '+done.length+' panels were ordered? They will be in the supplier list and files again.'))return;const o=project().orderedPanels||{};done.forEach(p=>delete o[p.id]);if(typeof save==='function')save()}
+    if(typeof renderAll==='function')renderAll()})}
+  const list=inView(),st=list.map(p=>({p,s:state0(p)}));
+  const ordered=st.filter(x=>x.s==='ordered'),changed=st.filter(x=>x.s==='changed'),fresh=st.filter(x=>x.s==='new'),recent=st.filter(x=>x.s==='recent');
+  const recentLine=recent.length?'<span class="fob-changed" style="color:#1f5d12">'+recent.length+' panel'+(recent.length===1?' was':'s were')+' ordered in the last hour and '+(recent.length===1?'stays':'stay')+' in the list, so the file, PDF and stickers of that order match. Later '+(recent.length===1?'it is':'they are')+' left out.</span>':'';
+  if(!ordered.length&&!changed.length&&recent.length){b.hidden=false;b.innerHTML=(fresh.length?'<button type="button" data-ordered="mark">Mark as already ordered</button>':'')+'<button type="button" class="fob-undo" data-ordered="undo">Undo ordered marks</button>'+recentLine;return}
+  if(!ordered.length&&!changed.length){b.innerHTML=fresh.length?'<span>Nothing ordered yet from this list.</span><button type="button" data-ordered="mark">Mark as already ordered</button>':'';b.hidden=!fresh.length;return}
+  b.hidden=false;
+  const o=orderedOf(project()),last=Math.max(...st.filter(x=>x.s!=='new').map(x=>(o[x.p.id]||{}).at||0));
+  const showAll=window.__fiqShowAllOrdered===true;
+  b.innerHTML=(showAll?'<span>Showing <b>everything</b>, including '+ordered.length+' panel'+(ordered.length===1?'':'s')+' already ordered.</span><button type="button" data-ordered="new">Only panels not ordered yet</button>'
+    :'<span><b>'+ordered.length+' panel'+(ordered.length===1?'':'s')+' already ordered</b> (last on '+day(last)+') '+(ordered.length===1?'is':'are')+' left out, so nothing is ordered twice. '+(fresh.length+changed.length+recent.length)+' to order now.</span><button type="button" data-ordered="all">Show everything</button>')+
+   (fresh.length||changed.length?'<button type="button" data-ordered="mark">Mark as already ordered</button>':'')+
+   '<button type="button" class="fob-undo" data-ordered="undo">Undo ordered marks</button>'+
+   recentLine+(changed.length?'<span class="fob-changed">Changed since ordered, so included again: '+changed.map(x=>esc(x.p.code||x.p.name)).join(', ')+'. Check these with your supplier.</span>':'');
+ }
+ window.fiqRenderOrderedBar=bar;
+ const prev=window.renderCutting;
+ window.renderCutting=function(){const r=typeof prev==='function'?prev.apply(this,arguments):undefined;try{bar()}catch(e){console.error('Ordered panels bar',e)}return r};
+ try{renderCutting=window.renderCutting}catch(e){}
 })();
 </script>
 </body>
