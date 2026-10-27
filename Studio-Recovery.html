@@ -6948,7 +6948,7 @@ body.guide-only .a131-back-studio{display:block}
   const x0=PAGE.margin;let y=18;
   doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('Supplier Cutting List',x0,y);y+=8;
   doc.setFontSize(10);
-  [['Customer',info.customer],['Job',info.job],['Room / unit',info.unit],['Job ref',info.ref],['Date',info.date],['Panels',info.count+' panel'+(info.count===1?'':'s')+(info.withStickers?' — one '+(fiqLabelMode()==='number'?'panel number':'QR')+' sticker per panel on the sticker pages':' — cutting list only, no sticker pages')]].forEach(([k,v])=>{
+  [['Customer',info.customer],['Job',info.job],['Room / unit',info.unit],['Job ref',info.ref],['Date',info.date],['Panels',info.count+' panel'+(info.count===1?'':'s')+(info.withStickers?' — one '+(fiqLabelMode()==='number'?'panel number':'QR')+' sticker per panel on the sticker pages':'')]].forEach(([k,v])=>{
    doc.setFont('helvetica','bold');doc.text(k+':',x0,y);doc.setFont('helvetica','normal');doc.text(pdfText(v||'—'),x0+26,y,{maxWidth:PAGE.w-2*PAGE.margin-26});y+=5.2});
   y+=3;
   const cols=[['Panel',18],['Part name',36],['Length',17],['Width',17],['Thick',13],['Qty',10],['Material',42],['Edging',33]];
