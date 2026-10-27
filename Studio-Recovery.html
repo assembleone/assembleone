@@ -2662,9 +2662,11 @@ window.addEventListener('popstate',function(e){
 // create the next one.
 function blankUnstartedProject(){return state.projects.find(p=>!String(p.name||"").trim()&&!String(p.customer||"").trim()&&!(p.rooms||[]).length&&!(p.cabinets||[]).length)}
 function newJob(){
- if(typeof window.fiqCloseOpenJob==='function')window.fiqCloseOpenJob();
- if(!window.__skipNewProjectLanding&&typeof window.openNewProjectLanding==='function'&&window.openNewProjectLanding())return;
+ // fiq-newproject-keeps-job (27 Oct 2026): the New Project box only shows choices. The open job stays open while it is
+ // shown, so looking at a Site Job and coming back to Drawing still shows that job. It closes when a new project starts.
+ if(!window.__skipNewProjectLanding&&typeof window.openNewProjectLanding==='function'&&window.openNewProjectLanding()){if(typeof save==='function')save();return}
  window.__skipNewProjectLanding=false;
+ if(typeof window.fiqCloseOpenJob==='function')window.fiqCloseOpenJob();
  const existing=blankUnstartedProject();
  const n=document.getElementById('projectName'),cust=document.getElementById('customerName');
  if(existing){
@@ -14154,6 +14156,60 @@ document.addEventListener('mousedown',function(e){
 })();
 </script>
 <style id="fiq-wa-unit-style">.supplier-actions-simple .supplier-action.whatsapp{grid-column:1/-1;min-height:90px!important;background:#25d366;border-color:#1ebe5a;color:#fff}.supplier-action.whatsapp small{color:#eafff1}</style>
+<style id="fiq-site-peek-style">
+#screen-mark .fiq-site-peek-btn{height:30px;min-height:0;display:inline-flex;align-items:center;gap:5px;margin:0;padding:0 10px;flex:0 0 auto;border:1px solid #d5dae3;border-radius:8px;background:#fff;color:#5b6472;font-size:14px;font-weight:700;white-space:nowrap;cursor:pointer}
+#screen-mark .fiq-site-peek-btn:hover{border-color:#4da721;color:#1f5d12}
+.fiq-site-peek{position:fixed;inset:0;z-index:10040;background:rgba(24,20,45,.45);display:flex;align-items:flex-start;justify-content:center;padding:70px 16px 16px}
+.fiq-site-peek-card{width:min(520px,100%);max-height:calc(100vh - 100px);overflow:auto;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.25);padding:16px 18px;font-family:Inter,Arial,sans-serif;color:#172e4a}
+.fiq-site-peek-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.fiq-site-peek-head h3{margin:0;font-size:18px}
+.fiq-site-peek-close{border:0;background:#eef1f6;border-radius:10px;width:34px;height:34px;font-size:20px;cursor:pointer}
+.fiq-site-peek-job{margin:10px 0 4px;font-weight:800;font-size:14px;color:#5b6472}
+.fiq-site-peek-room{display:flex;width:100%;align-items:center;gap:8px;text-align:left;border:1px solid #d5dae3;background:#fff;border-radius:10px;padding:9px 12px;margin:4px 0;font:700 15px Inter,Arial,sans-serif;color:#172e4a;cursor:pointer}
+.fiq-site-peek-room:hover{border-color:#4da721;background:#f3faee}.fiq-site-peek-room small{margin-left:auto;color:#5b6472;font-weight:600}
+.fiq-site-peek-empty{color:#5b6472;padding:10px 0}
+</style>
+<script id="fiq-site-peek">
+(function(){
+ const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const hasSite=r=>{try{return siteRoomCaptures(r).length>0||siteRoomMeasureCount(r)>0}catch(e){return false}};
+ const words=s=>String(s||'').toLowerCase().split(/[^a-z0-9æøåäöüéèñ]+/).filter(w=>w.length>2&&w!=='and'&&w!=='the');
+ function siteJobs(){
+  const cur=typeof project==='function'?project():null,curWords=new Set(words(cur&&cur.customer));
+  const rank=p=>p===cur?0:(cur&&p.customerId&&p.customerId===cur.customerId)?1:words(p.customer).some(w=>curWords.has(w))?2:3;
+  return (state.projects||[]).filter(p=>p&&(p.rooms||[]).some(hasSite))
+   .map(p=>({p,r:rank(p)})).sort((a,b)=>a.r-b.r||(Number(b.p.updatedAt)||0)-(Number(a.p.updatedAt)||0)).map(x=>x.p);
+ }
+ function openList(){
+  document.getElementById('fiqSitePeek')?.remove();
+  const jobs=siteJobs(),o=document.createElement('div');o.id='fiqSitePeek';o.className='fiq-site-peek';
+  o.innerHTML='<div class="fiq-site-peek-card" role="dialog" aria-label="Site measure"><div class="fiq-site-peek-head"><h3>📐 Site measure</h3><button type="button" class="fiq-site-peek-close" aria-label="Close">×</button></div>'+
+   (jobs.length?jobs.map(p=>'<div class="fiq-site-peek-job">'+esc(p.customer||p.name||'Job')+(p.name&&p.name!==p.customer?' · '+esc(p.name):'')+'</div>'+
+    (p.rooms||[]).filter(hasSite).map(r=>{const n=siteRoomMeasureCount(r);return '<button type="button" class="fiq-site-peek-room" data-peek-project="'+esc(p.id)+'" data-peek-room="'+esc(r.id)+'">'+esc(r.icon||'⌂')+' '+esc(r.name||'Room')+'<small>'+n+' measurement'+(n===1?'':'s')+'</small></button>'}).join('')).join('')
+   :'<div class="fiq-site-peek-empty">No site measurements yet.</div>')+'</div>';
+  document.body.appendChild(o);
+  const close=()=>o.remove();
+  o.addEventListener('click',e=>{
+   if(e.target===o||e.target.closest('.fiq-site-peek-close')){close();return}
+   const b=e.target.closest('[data-peek-room]');if(!b)return;
+   close();openSiteRoomDetails(b.dataset.peekProject,b.dataset.peekRoom);
+  });
+  o.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}});
+  o.querySelector('.fiq-site-peek-close').focus();
+ }
+ window.fiqOpenSitePeek=openList;
+ function ensureBtn(){
+  const note=document.getElementById('fiqPanelNote');if(!note||!note.parentElement)return;
+  let b=document.getElementById('fiqSitePeekBtn');
+  if(!b){b=document.createElement('button');b.type='button';b.id='fiqSitePeekBtn';b.className='fiq-site-peek-btn';b.textContent='📐 Site measure';b.title='Look at site measurements without leaving the drawing';b.addEventListener('click',e=>{e.preventDefault();openList()})}
+  if(b.parentElement!==note||note.lastElementChild!==b)note.appendChild(b);// inside the Panel note box, right beside it
+ }
+ const prev=window.fiqRenderPanelNote;
+ if(typeof prev==='function')window.fiqRenderPanelNote=function(){const r=prev.apply(this,arguments);try{ensureBtn()}catch(e){}return r};
+ const prevAll=window.renderAll;
+ if(typeof prevAll==='function'){window.renderAll=function(){const r=prevAll.apply(this,arguments);try{ensureBtn()}catch(e){}return r};try{renderAll=window.renderAll}catch(e){}}
+ try{ensureBtn()}catch(e){}
+})();
+</script>
 <style id="fiq-stickers-tick-style">.fiq-stickers-tick{display:flex;align-items:center;gap:8px;margin:4px 0 10px;font:700 14px Inter,Arial,sans-serif;color:#23364e;cursor:pointer}.fiq-stickers-tick input{width:20px;height:20px}#fiqJobCut .fiq-stickers-tick{margin:10px 0 0}</style>
 <script id="fiq-stickers-tick">
 // The tick follows the job (Panel Number jobs unticked by default, QR Code jobs ticked); changing it is kept on the job.
