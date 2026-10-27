@@ -3033,10 +3033,13 @@ document.getElementById('measureHomeBtn')?.addEventListener('click',()=>{
 // losing progress or silently jumping into Site Visit Summary with no room yet (see
 // startSiteMeasureFlow). Room type and floor reuse the exact same addRoom()/roomTypes/
 // floor-label vocabulary already used everywhere else in Mobile -- nothing new there.
+const NSJ_SKIPPED=[2,3];
 const NSJ_STEP_SUBTITLES={1:'Customer information',2:'Phone number (optional)',3:'Email address (optional)',4:'Site address',5:'What are we measuring?',6:'Which floor?'};
 function renderNewSiteJobScreen(){
  const p=project();if(!p)return;
  p.nsjStep=p.nsjStep||1;
+ // Phone (2) and email (3) are not asked any more (27 Oct 2026); a job left on one of them continues at the address.
+ if(NSJ_SKIPPED.includes(p.nsjStep))p.nsjStep=4;
  document.getElementById('nsjCustomerName').value=p.customer||'';
  document.getElementById('nsjPhone').value=p.phone||'';
  document.getElementById('nsjEmail').value=p.email||'';
@@ -3091,7 +3094,7 @@ document.getElementById('nsjSkipFloor')?.addEventListener('click',()=>{const p=p
 // so must not risk a second job being started) unless there's nowhere earlier to go.
 document.getElementById('nsjBackBtn')?.addEventListener('click',()=>{
  const p=project();
- if(p&&p.nsjStep>1){p.nsjStep--;save();renderNewSiteJobScreen();return}
+ if(p&&p.nsjStep>1){p.nsjStep--;while(NSJ_SKIPPED.includes(p.nsjStep))p.nsjStep--;save();renderNewSiteJobScreen();return}
  show('projects');
 });
 document.getElementById('nsjCustomerName')?.addEventListener('input',e=>{const p=project();if(p)p.customer=e.target.value;save()});
@@ -3120,6 +3123,7 @@ document.getElementById('nsjNextBtn')?.addEventListener('click',()=>{
   p.customer=name;
  }
  p.nsjStep=Math.min(6,(p.nsjStep||1)+1);
+ while(NSJ_SKIPPED.includes(p.nsjStep))p.nsjStep++;
  save();
  renderNewSiteJobScreen();
 });
