@@ -1762,6 +1762,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <div class="supplier-actions supplier-actions-simple">
 <button class="supplier-action export" id="fiqProductionFileBtn" type="button"><span class="supplier-action-icon">⇩</span><strong>Download Production File</strong><small id="fiqProductionFileSub">CSV for the selected supplier system</small></button>
 <button class="supplier-action print-pack" id="printSupplierPackBtn" type="button"><span class="supplier-action-icon">🖨</span><strong>Download Supplier PDF</strong><small>Cutting list + print-ready QR stickers</small></button>
+<button class="supplier-action whatsapp" id="fiqWaPackBtn" type="button"><span class="supplier-action-icon">💬</span><strong>Send by WhatsApp</strong><small>Cutting list + stickers PDF, straight to the supplier or fitter</small></button>
 <button hidden id="exportSupplierCsvBtn" type="button"></button>
 </div>
 <div class="supplier-feedback" id="supplierActionStatus" aria-live="polite"></div>
@@ -14144,6 +14145,16 @@ document.addEventListener('mousedown',function(e){
  window.renderParts=render;
  try{renderParts=window.renderParts}catch(e){}
 })();
+</script>
+<style id="fiq-wa-unit-style">.supplier-actions-simple .supplier-action.whatsapp{grid-column:1/-1;min-height:90px!important;background:#25d366;border-color:#1ebe5a;color:#fff}.supplier-action.whatsapp small{color:#eafff1}</style>
+<script id="fiq-wa-unit">
+document.addEventListener('click',function(e){
+ const btn=e.target.closest&&e.target.closest('#fiqWaPackBtn');if(!btn)return;e.preventDefault();
+ const msg=document.getElementById('supplierActionStatus');
+ const list=(typeof supplierParts==='function'?supplierParts():[]).filter(Boolean);
+ if(!list.length){if(msg)msg.textContent='No complete panels are ready for the supplier yet.';return}
+ if(typeof window.fiqSharePackWhatsApp==='function')window.fiqSharePackWhatsApp(list,{btn,msg},typeof project==='function'?project():null);
+});
 </script>
 <script id="fiq-ordered-panels">
 (function(){
