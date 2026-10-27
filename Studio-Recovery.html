@@ -1765,6 +1765,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <button class="supplier-action whatsapp" id="fiqWaPackBtn" type="button"><span class="supplier-action-icon">💬</span><strong>Send by WhatsApp</strong><small>Cutting list + stickers PDF, straight to the supplier or fitter</small></button>
 <button hidden id="exportSupplierCsvBtn" type="button"></button>
 </div>
+<label class="fiq-stickers-tick"><input type="checkbox" data-stickers-tick> Include stickers in the Supplier PDF and WhatsApp</label>
 <div class="supplier-feedback" id="supplierActionStatus" aria-live="polite"></div>
 <h3 class="supplier-section-title">Cutting List</h3><div class="supplier-panel-cards" id="supplierPanelCards"></div>
 <div hidden><table><tbody id="cuttingBody"></tbody></table><button id="downloadCsvBtn"></button><button id="printCuttingBtn"></button></div>
@@ -6945,7 +6946,7 @@ body.guide-only .a131-back-studio{display:block}
   const x0=PAGE.margin;let y=18;
   doc.setTextColor(17,17,17);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('Supplier Cutting List',x0,y);y+=8;
   doc.setFontSize(10);
-  [['Customer',info.customer],['Job',info.job],['Room / unit',info.unit],['Job ref',info.ref],['Date',info.date],['Panels',info.count+' panel'+(info.count===1?'':'s')+' — one '+(fiqLabelMode()==='number'?'panel number':'QR')+' sticker per panel on the sticker pages']].forEach(([k,v])=>{
+  [['Customer',info.customer],['Job',info.job],['Room / unit',info.unit],['Job ref',info.ref],['Date',info.date],['Panels',info.count+' panel'+(info.count===1?'':'s')+(info.withStickers?' — one '+(fiqLabelMode()==='number'?'panel number':'QR')+' sticker per panel on the sticker pages':' — cutting list only, no sticker pages')]].forEach(([k,v])=>{
    doc.setFont('helvetica','bold');doc.text(k+':',x0,y);doc.setFont('helvetica','normal');doc.text(pdfText(v||'—'),x0+26,y,{maxWidth:PAGE.w-2*PAGE.margin-26});y+=5.2});
   y+=3;
   const cols=[['Panel',18],['Part name',36],['Length',17],['Width',17],['Thick',13],['Qty',10],['Material',42],['Edging',33]];
@@ -6960,13 +6961,16 @@ body.guide-only .a131-back-studio{display:block}
    const note=[].concat(whereU&&whereU.where?doc.splitTextToSize(pdfText('Room: '+whereU.where),184):[],p.notes?doc.splitTextToSize(pdfText('Note: '+p.notes),184):[]);
    const h=Math.max(...wrapped.map(w=>w.length))*4+note.length*3.6+2.2;
    if(y+h>PAGE.h-16){doc.addPage('a4','portrait');y=18;head();doc.setFont('helvetica','normal');doc.setFontSize(9)}
-   let cx=x0+1.2;wrapped.forEach((w,i)=>{doc.setFont('helvetica',i===0?'bold':'normal');doc.text(w,cx,y,{lineHeightFactor:1.25});cx+=cols[i][1]});
+   const bigNo=fiqLabelMode()==='number';
+   let cx=x0+1.2;wrapped.forEach((w,i)=>{doc.setFont('helvetica',i===0?'bold':'normal');doc.setFontSize(i===0&&bigNo?12:9);doc.text(w,cx,y+(i===0&&bigNo?0.6:0),{lineHeightFactor:1.25});cx+=cols[i][1]});doc.setFontSize(9);
    let ny=y+Math.max(...wrapped.map(w=>w.length))*4-0.4;
    if(note.length){doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(80,80,80);doc.text(note,x0+1.2,ny,{lineHeightFactor:1.25});doc.setTextColor(17,17,17);ny+=note.length*3.6}
    y=ny;doc.setDrawColor(190,190,190);doc.setLineWidth(0.2);doc.line(x0,y-2.2,x0+186,y-2.2);y+=2.6;
   });
  }
  function fileName(info){return ('Supplier Pack - '+[info.customer,info.job,info.unit].filter(Boolean).join(' - ')).replace(/[\\/:*?"<>|\x00-\x1F]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150)+'.pdf'}
+ // Stickers in the PDF: the job's own choice, else QR Code jobs yes and Panel Number jobs no.
+ window.fiqIncludeStickers=function(pr){pr=pr||(typeof project==='function'?project():null);if(pr&&typeof pr.sendStickers==='boolean')return pr.sendStickers;return fiqLabelMode(pr)!=='number'};
  window.fiqBuildSupplierPackPdf=async function(list,opts){
   const JsPDF=await loadJsPdf();
   PACK_UNITS=opts&&opts.units||null;
@@ -6974,19 +6978,22 @@ body.guide-only .a131-back-studio{display:block}
   const pr=project(),unit=cabinet(),room=(pr?.rooms||[]).find(r=>r.id===unit?.roomId);
   const copies=fiqStickerCopies(list);
   const info={customer:pr?.customer||'',job:pr?.name||'Project',unit:opts&&opts.label?opts.label:[room?.name,unit?.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · '),
-   ref:typeof window.assembleOneJobRef==='function'?window.assembleOneJobRef(pr):'',date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),count:copies.length};
+   ref:typeof window.assembleOneJobRef==='function'?window.assembleOneJobRef(pr):'',date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),count:copies.length,
+   withStickers:opts&&typeof opts.stickers==='boolean'?opts.stickers:window.fiqIncludeStickers(pr)};
   const doc=new JsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
   doc.setProperties({title:fileName(info).replace(/\.pdf$/,''),subject:'Cutting list and print-ready QR stickers',creator:'FittersIQ'});
   try{doc.viewerPreferences({PrintScaling:'None'},true)}catch(e){}
   cuttingPages(doc,info,list);
+  if(info.withStickers){
   const pieces=copies.map(({p,i})=>{const d=inUnit(p,()=>fiqStickerData(p,i+1));return {d,g:d.mode==='number'?null:qrModules(d.qr)}});
   const per=ST.cols*ST.rows,pages=Math.ceil(copies.length/per),x0=(PAGE.w-(ST.cols*ST.w+(ST.cols-1)*ST.gapX))/2;
   copies.forEach(({p},i)=>{const k=i%per;if(k===0){doc.addPage('a4','portrait');stickerHeader(doc,info,i/per+1,pages)}
    drawSticker(doc,pieces[i].d,pieces[i].g,x0+(k%ST.cols)*(ST.w+ST.gapX),ST.top+Math.floor(k/ST.cols)*(ST.h+ST.gapY))});
+  }
   const n=doc.getNumberOfPages();
   for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
    doc.text(pdfText('FittersIQ supplier pack · '+[info.customer,info.job].filter(Boolean).join(' · ')+(info.ref?' · '+info.ref:'')),PAGE.margin,PAGE.h-7);doc.text('Page '+i+' of '+n,PAGE.w-PAGE.margin,PAGE.h-7,{align:'right'})}
-  return {doc,fileName:fileName(info),stickers:copies.length,stickerSize:{w:ST.w,h:ST.h,qr:ST.qr},pages:n};
+  return {doc,fileName:fileName(info),stickers:info.withStickers?copies.length:0,stickerSize:{w:ST.w,h:ST.h,qr:ST.qr},pages:n};
   }finally{PACK_UNITS=null}
  };
  window.fiqSharePackWhatsApp=async function(list,opts,pr){
@@ -7011,7 +7018,7 @@ body.guide-only .a131-back-studio{display:block}
   const btn=opts&&opts.btn||document.getElementById('printSupplierPackBtn'),msg=opts&&opts.msg||document.getElementById('supplierActionStatus');
   const say=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle('error',!!err)}};
   if(btn)btn.disabled=true;say('Building the supplier pack PDF…');
-  try{const r=await window.fiqBuildSupplierPackPdf(list,opts);r.doc.save(r.fileName);if(window.fiqMarkOrdered)window.fiqMarkOrdered(list);say('Downloaded '+r.fileName+' — '+r.stickers+' sticker'+(r.stickers===1?'':'s')+'. Attach it to your email to the supplier.')}
+  try{const r=await window.fiqBuildSupplierPackPdf(list,opts);r.doc.save(r.fileName);if(window.fiqMarkOrdered)window.fiqMarkOrdered(list);say('Downloaded '+r.fileName+' — '+(r.stickers?r.stickers+' sticker'+(r.stickers===1?'':'s'):'cutting list only, no stickers')+'. Attach it to your email to the supplier.')}
   catch(e){say('Supplier pack PDF could not be made: '+(e?.message||e),true)}
   finally{if(btn)btn.disabled=false}
  };
@@ -14003,7 +14010,7 @@ document.addEventListener('mousedown',function(e){
   const mats=Object.values(d.materials||{});
   ui.box.innerHTML=
    (d.incomplete.length?'<div class="fjc-warn">⚠ Not complete, so left out: '+d.incomplete.map(x=>esc(x.where)+' ('+x.n+')').join(', ')+'. Finish them in Panel Check to include them.</div>':'')+
-   '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button> <button type="button" class="btn primary" data-job-pdf>🖨 Download Supplier PDF (whole job)</button> <button type="button" class="btn primary" data-job-wa style="background:#25d366;border-color:#25d366">Send by WhatsApp</button>'+
+   '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button> <button type="button" class="btn primary" data-job-pdf>🖨 Download Supplier PDF (whole job)</button> <button type="button" class="btn primary" data-job-wa style="background:#25d366;border-color:#25d366">Send by WhatsApp</button><label class="fiq-stickers-tick"><input type="checkbox" data-stickers-tick> Include stickers in the PDF and WhatsApp</label>'+
    '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per panel with its quantity, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
    '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
    (mats.some(m=>m.also.length)?'<div class="fjc-warn">Counted as one material: '+mats.filter(m=>m.also.length).map(m=>'<b>'+esc(m.name)+'</b> (also written '+m.also.map(a=>'"'+esc(a)+'"').join(', ')+')').join('; ')+'.</div>':'')+
@@ -14147,6 +14154,21 @@ document.addEventListener('mousedown',function(e){
 })();
 </script>
 <style id="fiq-wa-unit-style">.supplier-actions-simple .supplier-action.whatsapp{grid-column:1/-1;min-height:90px!important;background:#25d366;border-color:#1ebe5a;color:#fff}.supplier-action.whatsapp small{color:#eafff1}</style>
+<style id="fiq-stickers-tick-style">.fiq-stickers-tick{display:flex;align-items:center;gap:8px;margin:4px 0 10px;font:700 14px Inter,Arial,sans-serif;color:#23364e;cursor:pointer}.fiq-stickers-tick input{width:20px;height:20px}#fiqJobCut .fiq-stickers-tick{margin:10px 0 0}</style>
+<script id="fiq-stickers-tick">
+// The tick follows the job (Panel Number jobs unticked by default, QR Code jobs ticked); changing it is kept on the job.
+(function(){
+ function paint(){const on=window.fiqIncludeStickers?window.fiqIncludeStickers():true;
+  document.querySelectorAll('[data-stickers-tick]').forEach(x=>{x.checked=on});
+  const sub=document.querySelector('#printSupplierPackBtn small');const qr=typeof fiqLabelMode==='function'&&fiqLabelMode()!=='number';if(sub)sub.textContent=on?(qr?'Cutting list + print-ready QR stickers':'Cutting list + panel number stickers'):'Cutting list only, no stickers';
+  const wa=document.querySelector('#fiqWaPackBtn small');if(wa)wa.textContent=(on?'Cutting list + stickers PDF':'Cutting list PDF')+', straight to the supplier or fitter'}
+ document.addEventListener('change',e=>{const x=e.target.closest&&e.target.closest('[data-stickers-tick]');if(!x)return;const pr=typeof project==='function'?project():null;if(!pr)return;
+  pr.sendStickers=!!x.checked;if(typeof save==='function')save();paint()});
+ const prev=window.renderCutting;
+ window.renderCutting=function(){const r=typeof prev==='function'?prev.apply(this,arguments):undefined;try{paint()}catch(e){}return r};
+ try{renderCutting=window.renderCutting}catch(e){}
+})();
+</script>
 <script id="fiq-wa-unit">
 document.addEventListener('click',function(e){
  const btn=e.target.closest&&e.target.closest('#fiqWaPackBtn');if(!btn)return;e.preventDefault();
