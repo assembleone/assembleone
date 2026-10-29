@@ -3856,7 +3856,7 @@ function renderCustomerCard(){
    const rowBtn=`<button type="button" class="customer-tab-row" data-open-job-design="${safe(room?room.id:"")}" data-open-job-design-project="${safe(p.id)}" data-open-job-design-cabinet="${safe(cabinet.id)}">`+
      `<span class="customer-tab-row-icon">${safe(icon)}</span>`+
      `<span class="customer-tab-row-main"><strong>${safe(name)}</strong>${subtitle?`<span class="customer-tab-row-sub">${subtitle}</span>`:""}</span>`+
-     `<span class="customer-tab-row-meta"><span class="customer-job-status ${status.cls}"${/Cutting List sent/.test(status.label)?` data-chip-open-list title="Open the saved Cutting List"`:""}>${status.label}</span>${panelHtml}${updatedHtml}</span>`+
+     `<span class="customer-tab-row-meta"><span class="customer-job-status ${status.cls}"${/Cutting List sent/.test(status.label)?` data-chip-open-list title="Open the saved Cutting List"`:""}>${status.label}</span>${typeof window.fiqStageChip==="function"?window.fiqStageChip(cabinet):""}${panelHtml}${updatedHtml}</span>`+
      `<span class="customer-tab-row-chevron">›</span>`+
    `</button>`;
    const sentVersions=typeof window.fiqSentVersionCount==='function'?window.fiqSentVersionCount(p.id,room?room.id:"",cabinet.id):0;
@@ -14643,6 +14643,73 @@ document.addEventListener('click',function(e){
   if(d){dismiss(d.dataset.visitDismiss);reopen()}
   if(typeof paintSiteInbox==='function')paintSiteInbox();
  },true);
+})();
+</script>
+
+<style id="fiq-full-estimate">
+.fiq-estimate-view-box .fiq-est-actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.fiq-estimate-view-box .fiq-est-panels{margin-top:14px}
+.fiq-estimate-view-box .fiq-est-panels summary{cursor:pointer;font-weight:800;padding:6px 0}
+.customer-stage-chip{display:inline-block;font-size:11px;font-weight:850;border-radius:999px;padding:2px 8px;background:#EAF8E4;color:#0f4d1c;border:1px solid #8FCB77;white-space:nowrap}
+</style>
+<script>
+// Full estimate in the Documents tab (Mads 29 Oct 2026): an estimate opens with everything used
+// to price it - sheets, edge banding, cuts, hardware and the estimated supplier cost - drawn by
+// the same Shopping List code Panel Check uses, so both always agree. A design still being
+// priced shows its live estimate with "Open in Panel Check" and "Quote accepted"; an accepted
+// estimate shows its frozen copy, read only. The customer card shows each design's stage.
+(function(){
+ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const date=v=>v?new Date(v).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
+ const nameOf=(pr,roomId,n)=>{const room=(pr.rooms||[]).find(r=>r.id===roomId);return [room&&room.name,n].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'Design'};
+ // Draws Panel Check's Shopping List for any design (or frozen copy) into box.
+ function drawShopping(box,pr,unit){
+  if(typeof window.fiqRenderShoppingList!=='function'){box.innerHTML='';return}
+  const pc=document.getElementById('fiqShoppingList'),keep={cabinet:window.cabinet,project:window.project,job:window.fiqPcJobParts,all:window.__fiqShopAllJobs};
+  if(pc)pc.id='fiqShoppingListPanelCheck';box.id='fiqShoppingList';
+  try{window.cabinet=()=>unit;window.project=()=>pr;window.fiqPcJobParts=()=>null;window.__fiqShopAllJobs=null;window.fiqRenderShoppingList()}
+  catch(e){console.error('Estimate view',e)}
+  finally{window.cabinet=keep.cabinet;window.project=keep.project;window.fiqPcJobParts=keep.job;window.__fiqShopAllJobs=keep.all;if(pc)pc.id='fiqShoppingList'}
+ }
+ function panelTable(parts){
+  const mat=pt=>(typeof materialForPanel==='function'?materialForPanel(pt):pt.material)||'';
+  const rows=(parts||[]).map(pt=>'<tr><td>'+esc(pt.code||'')+'</td><td>'+esc(pt.name||'')+'</td><td class="num">'+esc(pt.length||'')+'</td><td class="num">'+esc(pt.width||'')+'</td><td class="num">'+esc(pt.thickness||'')+'</td><td class="num">'+esc(pt.qty||1)+'</td><td>'+esc(mat(pt))+'</td></tr>').join('');
+  return '<details class="fiq-est-panels"><summary>Panels ('+(parts||[]).length+')</summary><table><thead><tr><th>Panel</th><th>Part</th><th class="num">Length</th><th class="num">Width</th><th class="num">Thick</th><th class="num">Qty</th><th>Material</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7">No panels</td></tr>')+'</tbody></table></details>';
+ }
+ function openView(pr,unit,opts){
+  document.querySelectorAll('.fiq-estimate-view').forEach(x=>x.remove());
+  const ov=document.createElement('div');ov.className='fiq-estimate-view';
+  const actions=opts.live?'<div class="fiq-est-actions"><button type="button" class="btn" data-est-open-pc="'+esc(pr.id)+'::'+esc(unit.id)+'">Open in Panel Check</button><button type="button" class="btn primary" data-fiq-accept-quote="'+esc(pr.id)+'::'+esc(unit.id)+'">✓ Quote accepted</button></div>':'';
+  ov.innerHTML='<div class="fiq-estimate-view-box" role="dialog" aria-label="Estimate"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="flex:1"><h3 style="margin:0">'+(opts.live?'📝':'📄')+' Estimate · '+esc(opts.title)+'</h3><div class="muted">'+esc(pr.name||'')+' · '+esc(opts.sub)+'</div></div><button type="button" class="btn" data-close-estimate>Close</button></div>'+actions+'<div class="fiq-est-shop"></div>'+panelTable(unit.parts)+'</div>';
+  ov.addEventListener('click',ev=>{if(ev.target===ov||ev.target.closest('[data-close-estimate]'))ov.remove();else if(ev.target.closest('[data-fiq-accept-quote]'))setTimeout(()=>ov.remove(),0)});
+  document.body.appendChild(ov);
+  drawShopping(ov.querySelector('.fiq-est-shop'),pr,unit);
+ }
+ document.addEventListener('click',e=>{
+  const live=e.target.closest('[data-open-estimate-live]'),copy=e.target.closest('[data-open-estimate]'),pc=e.target.closest('[data-est-open-pc]');
+  if(!live&&!copy&&!pc)return;e.preventDefault();e.stopImmediatePropagation();
+  if(pc){const [pid,cid]=pc.dataset.estOpenPc.split('::');document.querySelectorAll('.fiq-estimate-view').forEach(x=>x.remove());switchToProject(pid,cid);renderAll();save();show('parts');return}
+  if(live){const [pid,cid]=live.dataset.openEstimateLive.split('::');const pr=(state.projects||[]).find(p=>p.id===pid),c=pr&&(pr.cabinets||[]).find(x=>x.id===cid);if(!c)return;
+   openView(pr,c,{live:true,title:nameOf(pr,c.roomId,c.name),sub:'being priced · updates as you work'});return}
+  const [pid,eid]=copy.dataset.openEstimate.split('::');const pr=(state.projects||[]).find(p=>p.id===pid),est=pr&&(pr.estimateCopies||[]).find(x=>x.id===eid);if(!est)return;
+  const orig=(pr.cabinets||[]).find(c=>c.id===est.cabinetId)||{};
+  const unit=Object.assign({},orig,{id:'estimate-'+est.id,name:est.unitName,roomId:est.roomId,parts:est.parts||[],hardwareChecklist:est.hardwareChecklist||[]});
+  openView(pr,unit,{live:false,title:nameOf(pr,est.roomId,est.unitName||est.roomName),sub:'accepted '+date(est.savedAt)+' · read only, not for production'});
+ },true);
+ // The frozen copy also keeps the ticked hardware, so the accepted estimate shows its full price.
+ const accept=window.fiqAcceptQuote;
+ if(typeof accept==='function')window.fiqAcceptQuote=function(pid,cid){
+  const pr=(state.projects||[]).find(p=>p.id===pid),c=pr&&(pr.cabinets||[]).find(x=>x.id===cid),before=(pr&&pr.estimateCopies||[]).length;
+  const hw=c&&Array.isArray(c.hardwareChecklist)?JSON.parse(JSON.stringify(c.hardwareChecklist)):[];
+  const r=accept.apply(this,arguments);
+  if(pr&&(pr.estimateCopies||[]).length>before){pr.estimateCopies[pr.estimateCopies.length-1].hardwareChecklist=hw;if(typeof save==='function')save()}
+  return r;
+ };
+ // Customer card: the stage of each design beside its status.
+ window.fiqStageChip=function(c){
+  if(!c||c.stage==='estimate')return '';
+  return c.finalStartedAt?'<span class="customer-stage-chip" title="Quote accepted: final measurements">✓ Quote accepted '+esc(new Date(c.finalStartedAt).toLocaleDateString(undefined,{day:'numeric',month:'short'}))+'</span>':'<span class="customer-stage-chip" title="Final sizes">✓ Final</span>';
+ };
 })();
 </script>
 
