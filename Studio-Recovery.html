@@ -14420,6 +14420,7 @@ document.addEventListener('click',function(e){
   c.stage='final';c.finalStartedAt=new Date().toISOString();pr.updatedAt=Date.now();
   if(typeof save==='function')save();if(typeof renderAll==='function')renderAll();
   if(typeof toast==='function')toast('Final started. Check every panel in Panel Check.');
+  if(state.screen==='customerCard'&&typeof renderCustomerCard==='function')renderCustomerCard();
  }
  window.fiqAcceptQuote=(projectId,cabinetId)=>{const pr=(state.projects||[]).find(p=>p.id===projectId);acceptQuote(pr,pr&&(pr.cabinets||[]).find(c=>c.id===cabinetId))};
 
@@ -14443,18 +14444,26 @@ document.addEventListener('click',function(e){
  if(typeof sh==='function'){window.show=function(){const r=sh.apply(this,arguments);try{paintStrips()}catch(e){console.error(e)}return r};try{show=window.show}catch(e){}}
  window.fiqPaintStageStrips=paintStrips;
 
- // Documents tab: the frozen estimates of this customer's jobs, newest first.
+ // Documents tab: every design still being estimated (live, opens it in Panel Check, with the
+ // Quote accepted button), then the frozen copies of accepted estimates, newest first.
  window.fiqCustomerDocumentsHtml=function(jobs){
-  const rows=[];(jobs||[]).forEach(pr=>(pr.estimateCopies||[]).forEach(e=>rows.push({pr,e})));
-  if(!rows.length)return '';
-  rows.sort((a,b)=>String(b.e.savedAt).localeCompare(String(a.e.savedAt)));
-  return rows.map(({pr,e})=>{
-   const panels=(e.parts||[]).reduce((n,pt)=>n+Math.max(1,Number(pt.qty)||1),0);
-   const when=new Date(e.savedAt).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
-   const name=[e.roomName,e.unitName].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'Design';
-   return '<button type="button" class="customer-tab-row" data-open-estimate="'+esc(pr.id)+'::'+esc(e.id)+'"><span class="customer-tab-row-icon">📄</span><span class="customer-tab-row-main"><strong>Estimate · '+esc(name)+'</strong><span class="customer-tab-row-sub">'+esc(pr.name||'')+'</span></span><span class="customer-tab-row-meta"><span>'+panels+' panel'+(panels===1?'':'s')+'</span><span class="customer-tab-row-updated">'+esc(when)+'</span></span><span class="customer-tab-row-chevron">›</span></button>';
+  const unitName=(pr,roomId,name)=>{const room=(pr.rooms||[]).find(r=>r.id===roomId);return [room&&room.name,name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'Design'};
+  const panelsOf=parts=>(parts||[]).reduce((n,pt)=>n+Math.max(1,Number(pt.qty)||1),0);
+  const date=v=>v?new Date(v).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
+  const live=[],copies=[];
+  (jobs||[]).filter(pr=>!pr.linkedToProjectId).forEach(pr=>{(pr.cabinets||[]).filter(isEstimate).forEach(c=>live.push({pr,c}));(pr.estimateCopies||[]).forEach(e=>copies.push({pr,e}))});
+  if(!live.length&&!copies.length)return '';
+  live.sort((x,y)=>(Number(y.pr.updatedAt)||0)-(Number(x.pr.updatedAt)||0));
+  copies.sort((x,y)=>String(y.e.savedAt).localeCompare(String(x.e.savedAt)));
+  const liveHtml=live.map(({pr,c})=>{const n=panelsOf(c.parts);
+   return '<div class="customer-tab-row-wrap"><button type="button" class="customer-tab-row" data-open-estimate-live="'+esc(pr.id)+'::'+esc(c.id)+'" title="Open in Panel Check: sheets and price"><span class="customer-tab-row-icon">📝</span><span class="customer-tab-row-main"><strong>Estimate · '+esc(unitName(pr,c.roomId,c.name))+'</strong><span class="customer-tab-row-sub">'+esc(pr.name||'')+' · being priced</span></span><span class="customer-tab-row-meta"><span class="customer-job-status status-estimate">📝 Estimate</span><span>'+n+' panel'+(n===1?'':'s')+'</span>'+(pr.updatedAt?'<span class="customer-tab-row-updated">'+esc(date(pr.updatedAt))+'</span>':'')+'</span><span class="customer-tab-row-chevron">›</span></button><button type="button" class="btn primary" data-fiq-accept-quote="'+esc(pr.id)+'::'+esc(c.id)+'">✓ Quote accepted</button></div>';
   }).join('');
+  const copyHtml=copies.map(({pr,e})=>{const n=panelsOf(e.parts);
+   return '<button type="button" class="customer-tab-row" data-open-estimate="'+esc(pr.id)+'::'+esc(e.id)+'"><span class="customer-tab-row-icon">📄</span><span class="customer-tab-row-main"><strong>Estimate · '+esc(unitName(pr,e.roomId,e.unitName||e.roomName))+'</strong><span class="customer-tab-row-sub">'+esc(pr.name||'')+' · accepted '+esc(date(e.savedAt))+' · read only</span></span><span class="customer-tab-row-meta"><span>'+n+' panel'+(n===1?'':'s')+'</span></span><span class="customer-tab-row-chevron">›</span></button>';
+  }).join('');
+  return liveHtml+copyHtml;
  };
+ document.addEventListener('click',e=>{const b=e.target.closest('[data-open-estimate-live]');if(!b)return;e.preventDefault();const [pid,cid]=b.dataset.openEstimateLive.split('::');if(typeof switchToProject!=='function')return;switchToProject(pid,cid);if(typeof renderAll==='function')renderAll();if(typeof save==='function')save();if(typeof show==='function')show('parts')});
  document.addEventListener('click',e=>{
   const b=e.target.closest('[data-open-estimate]');if(!b)return;
   const [pid,eid]=b.dataset.openEstimate.split('::');const pr=(state.projects||[]).find(p=>p.id===pid);const est=pr&&(pr.estimateCopies||[]).find(x=>x.id===eid);if(!est)return;
