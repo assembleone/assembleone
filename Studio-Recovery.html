@@ -2707,7 +2707,7 @@ function addCabinet(){
  const room=selectedStudioRoom(),label=unitLabelForRoom(room),same=p.cabinets.filter(c=>room?c.roomId===room.id:true).length;
  const defaultName=label.charAt(0).toUpperCase()+label.slice(1)+(same?` ${same+1}`:"");
  const name=prompt(t("studio.home.cabinetNamePromptLabel",[label.charAt(0).toUpperCase()+label.slice(1)]),defaultName);if(name===null)return;
- const c={id:uid(),name:name||defaultName,roomId:room?.id||"",drawing:null,drawingType:null,parts:[]};
+ const c={id:uid(),name:name||defaultName,roomId:room?.id||"",drawing:null,drawingType:null,parts:[],stage:"estimate"};
  p.cabinets.push(c);state.currentCabinet=c.id;state.currentPart=null;save();renderAll();show("mark")
 }
 // A new panel's scan reference (room code + job-wide number, e.g. KB12; see fiq-scan-references).
@@ -2991,7 +2991,7 @@ function startDesignFromSiteRoom(projectId,roomId){
  p.isNewFromSite=false;
  let c=p.cabinets.find(x=>x.roomId===room.id);
  const alreadyHasDrawing=!!(c&&c.drawing);
- if(!c){c={id:uid(),name:room.name+' design',roomId:room.id,drawing:null,drawingType:null,parts:[]};p.cabinets.push(c)}
+ if(!c){c={id:uid(),name:room.name+' design',roomId:room.id,drawing:null,drawingType:null,parts:[],stage:'estimate'};p.cabinets.push(c)}
  // Site Measurements stay the reference: the new design starts with an empty drawing area
  // for the finished (CAD) drawing. Designs that already copied a site photo keep it.
  switchToProject(p.id,c.id);closeSiteRoomDetails();renderAll();save();show('mark');
@@ -3883,7 +3883,7 @@ function renderCustomerCard(){
  // No separate Photos tab: it only repeated the Site Measurement photos (same rooms, same
  // pictures, opening the same room view), which Site Measurements already shows in full.
 
- const documentsTabHtml=`<div class="empty">${t("studio.customerLibrary.noDocumentsYetEmpty")}</div>`;
+ const documentsTabHtml=(typeof window.fiqCustomerDocumentsHtml==="function"&&window.fiqCustomerDocumentsHtml(jobs))||`<div class="empty">${t("studio.customerLibrary.noDocumentsYetEmpty")}</div>`;
 
  const tabs=[
    {key:"jobs",label:(l=>l==="Jobs / Designs"?"Jobs / Cutting Lists":l)(t("studio.customerLibrary.tabJobsDesigns")),html:jobsTabHtml},// English: the saved Cutting Lists are found here
@@ -5048,7 +5048,7 @@ function ensureRoomsWorkspace(){
  }
  let c=cabinet();
  if(!c){
-   c={id:uid(),name:"Wardrobe 1",drawing:null,drawingType:null,drawingName:"",parts:[]};
+   c={id:uid(),name:"Wardrobe 1",drawing:null,drawingType:null,drawingName:"",parts:[],stage:"estimate"};
    p.cabinets.push(c);state.currentCabinet=c.id;
  }
  return c;
@@ -6240,7 +6240,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     if(!c){
       const base=roomLabel(room),same=(p.cabinets||[]).filter(x=>x.roomId===room.id).length;
       const name=(base.charAt(0).toUpperCase()+base.slice(1))+(same?` ${same+1}`:'');
-      c={id:uid(),name,roomId:room.id,drawing:null,drawingType:null,parts:[]};
+      c={id:uid(),name,roomId:room.id,drawing:null,drawingType:null,parts:[],stage:'estimate'};
       p.cabinets=p.cabinets||[];
       p.cabinets.push(c);
     }
@@ -6279,7 +6279,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
       if(!c){
         const base=roomLabel(room),same=(p.cabinets||[]).filter(x=>x.roomId===room.id).length;
         const name=(base.charAt(0).toUpperCase()+base.slice(1))+(same?` ${same+1}`:'');
-        c={id:uid(),name,roomId:room.id,drawing:null,drawingType:null,parts:[]};
+        c={id:uid(),name,roomId:room.id,drawing:null,drawingType:null,parts:[],stage:'estimate'};
         p.cabinets.push(c);
       }
       state.currentCabinet=c.id;state.currentPart=null;save();renderAll();show('mark');
@@ -6526,6 +6526,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     return '<!doctype html><html><head><meta charset="utf-8"><title>FittersIQ QR Labels</title><style>@page{margin:10mm}body{font-family:Arial,sans-serif;color:#223449;margin:0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10mm}.qr-card{border:1px solid #d8d5e1;border-radius:12px;padding:10px;text-align:center;break-inside:avoid}.qr-card img,.qr-card canvas{width:150px!important;height:150px!important}.qr-card h3{font-size:22px;margin:7px 0}.qr-meta{font-size:12px;line-height:1.4}@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}</style></head><body><div class="grid">'+cloned+'</div><script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body></html>';
   }
   function printQrLabels(){
+    if(typeof window.fiqEstimateBlocksStickers==='function'&&window.fiqEstimateBlocksStickers())return;
     if(!document.querySelector('#qrGrid .qr-card')){renderQr();setTimeout(printQrLabels,150);return}
     const html=printableQrHtml();if(!html){toast(t("studio.drawing.generateQrCodesFirst"),true);return}
     const w=window.open('','_blank');
@@ -7927,7 +7928,7 @@ body.guide-only .a131-back-studio{display:block}
     const r={id:uid(),type:pickedType||'Custom',name:rn,scanCode:sc||undefined,icon:pickedIcon||'🏠',beforePhotos:[],designImages:[],notes:'',siteMarkup:{image:null,w:0,h:0,marks:[]}};
     p.rooms=p.rooms||[];p.rooms.push(r);roomId=r.id;
    }
-   const nc={id:uid(),name:nm,roomId:roomId||'',drawing:null,drawingType:null,parts:[]};
+   const nc={id:uid(),name:nm,roomId:roomId||'',drawing:null,drawingType:null,parts:[]};{const from=typeof cabinet==='function'?cabinet():null;if(!from||from.stage==='estimate')nc.stage='estimate'}
    p.cabinets.push(nc);p.updatedAt=Date.now();
    switchToProject(p.id,nc.id);state.currentRoom=roomId||null;state.currentPart=null;state.selectedCopy=-1;
    save();close();renderAll();show('mark');
@@ -14326,5 +14327,145 @@ document.addEventListener('click',function(e){
  try{renderCutting=window.renderCutting}catch(e){}
 })();
 </script>
+<style id="fiq-estimate-final">
+.fiq-stage-strip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FFF7E6;border:2px solid #F0C36D;color:#5a3d00;border-radius:12px;padding:10px 14px;margin:0 0 12px;font-weight:700}
+.fiq-stage-strip b{font-weight:900;letter-spacing:.04em}
+.fiq-stage-strip .fiq-stage-units{flex:1 1 260px;font-size:13px}
+.fiq-stage-strip .btn{white-space:nowrap}
+.customer-job-status.status-estimate{background:#FFF7E6;color:#6b4b06;border:1px solid #F0C36D}
+.fiq-estimate-print-note{border:3px solid #c77700;color:#7a4500;font:900 20px Arial,sans-serif;text-align:center;padding:10px;margin:0 0 12px}
+.fiq-estimate-view{position:fixed;inset:0;z-index:9000;background:#0007;display:flex;align-items:center;justify-content:center;padding:16px}
+.fiq-estimate-view-box{background:#fff;border-radius:16px;max-width:900px;width:100%;max-height:90vh;overflow:auto;padding:18px}
+.fiq-estimate-view-box table{width:100%;border-collapse:collapse;font-size:13px}
+.fiq-estimate-view-box th,.fiq-estimate-view-box td{border-bottom:1px solid #e3e6ec;padding:6px;text-align:left}
+.fiq-estimate-view-box td.num,.fiq-estimate-view-box th.num{text-align:right}
+</style>
+<script>
+// Estimate and Final (Mads 29 Oct 2026). A design made after this change starts as an
+// Estimate (stage:'estimate'); every older design has no stage and counts as Final, so
+// nothing already in Studio changes or gets blocked. In an Estimate everything works as
+// before (Drawing, Panel Check ticks, cutting list, sheet counts); only what leaves Studio
+// is refused: supplier files, supplier PDF and WhatsApp, stickers, ordered marks and Send
+// to Mobile. "Quote accepted" keeps a frozen copy of the estimate (customer Documents tab),
+// turns the design Final and clears every Panel Check tick, so each panel must be checked
+// again with the final measurements before anything can go out.
+(function(){
+ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const isEstimate=c=>!!c&&c.stage==='estimate';
+ window.fiqUnitIsEstimate=isEstimate;
+ const unitLabel=(pr,c)=>{const room=(pr&&pr.rooms||[]).find(r=>r.id===c.roomId);return [room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'this design'};
+ // Which estimate designs a list of panels (or whole-job copies, or file rows) comes from.
+ function estimateUnitsFor(items){
+  const ids=new Set();(items||[]).forEach(x=>{if(!x)return;[x.id,x.panelId,x.copy&&x.copy.id,x.p&&x.p.id].forEach(v=>{if(v!=null)ids.add(String(v))})});
+  const out=[];if(!ids.size)return out;
+  (state.projects||[]).forEach(pr=>(pr.cabinets||[]).forEach(c=>{if(isEstimate(c)&&(c.parts||[]).some(pt=>ids.has(String(pt.id))))out.push({pr,c})}));
+  return out;
+ }
+ function refuse(units,what){
+  const names=units.map(u=>unitLabel(u.pr,u.c)).join(', ');
+  alert(names+(units.length>1?' are ESTIMATES.':' is an ESTIMATE.')+'\n\n'+what+' is only for final sizes.\n\nWhen the customer accepts the quote, press "Quote accepted, start final" and check every panel in Panel Check.');
+ }
+ function guard(items,what){const u=estimateUnitsFor(items);if(u.length){refuse(u,what);return true}return false}
+ window.fiqEstimateGuard=guard;
+ const unitsInView=()=>{
+  const pr=typeof project==='function'?project():null,c=typeof cabinet==='function'?cabinet():null;if(!pr)return [];
+  const whole=window.__fiqCutScope!=='unit'&&(pr.cabinets||[]).length>1&&state.screen==='cutting';
+  return (whole?(pr.cabinets||[]):(c?[c]:[])).filter(isEstimate).map(x=>({pr,c:x}));
+ };
+
+ // Outward actions. Each wrapper refuses before anything is built, downloaded or sent.
+ const wrap=(name,what,itemsOf)=>{const orig=window[name];if(typeof orig!=='function')return;window[name]=function(){if(guard(itemsOf.apply(this,arguments),what))return;return orig.apply(this,arguments)}};
+ wrap('fiqDownloadSupplierPackPdf','The supplier PDF',list=>list);
+ wrap('fiqSharePackWhatsApp','Sending to the supplier',list=>list);
+ wrap('fiqSupplierExport','The supplier file',(profile,ds)=>ds&&ds.rows);
+ wrap('fiqDownloadProductionFile','The production file',()=>typeof supplierParts==='function'?supplierParts():[]);
+ const markOrdered=window.fiqMarkOrdered;
+ if(typeof markOrdered==='function')window.fiqMarkOrdered=function(parts){if(estimateUnitsFor(parts).length)return 0;return markOrdered.apply(this,arguments)};
+ const combinedCsv=window.exportCombinedSupplierCsv;
+ if(typeof combinedCsv==='function')window.exportCombinedSupplierCsv=function(cardKeys){
+  const units=[];(cardKeys||[]).forEach(k=>{const [pid,rid]=String(k).split('::');const pr=(state.projects||[]).find(p=>p.id===pid);if(!pr)return;(pr.cabinets||[]).filter(c=>isEstimate(c)&&(!rid||c.roomId===rid)).forEach(c=>units.push({pr,c}))});
+  if(units.length){refuse(units,'The supplier file');return}
+  return combinedCsv.apply(this,arguments);
+ };
+ const toMobile=window.exportProjectToMobile;
+ if(typeof toMobile==='function')window.exportProjectToMobile=async function(target){
+  const pr=target||(typeof project==='function'?project():null);
+  const units=(pr&&pr.cabinets||[]).filter(c=>isEstimate(c)&&(c.parts||[]).length).map(c=>({pr,c}));
+  if(units.length){refuse(units,'Sending the job to Mobile');return}
+  return toMobile.apply(this,arguments);
+ };
+ window.fiqEstimateBlocksStickers=function(){const u=unitsInView();if(u.length){refuse(u,'Printing stickers');return true}return false};
+ // Browser print of the cutting list and stickers.
+ const cutPrint=window.buildCuttingPrint;
+ if(typeof cutPrint==='function')window.buildCuttingPrint=function(){const r=cutPrint.apply(this,arguments);if(unitsInView().length){const el=document.getElementById('cuttingPrintArea');if(el)el.insertAdjacentHTML('afterbegin','<div class="fiq-estimate-print-note">ESTIMATE ONLY. NOT FOR PRODUCTION.</div>')}return r};
+ const stickerPrint=window.buildStickerPrint;
+ if(typeof stickerPrint==='function')window.buildStickerPrint=function(){if(unitsInView().length){const el=document.getElementById('stickerPrintArea');if(el)el.innerHTML='<div class="fiq-estimate-print-note">ESTIMATE. Stickers are printed only for final sizes.</div>';return}return stickerPrint.apply(this,arguments)};
+
+ // Customer Library row status.
+ const statusInfo=window.customerCabinetStatusInfo;
+ if(typeof statusInfo==='function')window.customerCabinetStatusInfo=function(c){if(isEstimate(c))return {label:'📝 Estimate',cls:'status-estimate'};return statusInfo.apply(this,arguments)};
+
+ // Quote accepted: frozen copy, Final, every tick cleared.
+ function acceptQuote(pr,c){
+  if(!pr||!c||!isEstimate(c))return;
+  const label=unitLabel(pr,c);
+  if(!confirm('Quote accepted for '+label+'?\n\nThe estimate is kept as a copy in the customer\'s Documents tab.\n\nThis design becomes FINAL. Every panel must then be checked again in Panel Check with the final measurements before anything goes to the supplier.'))return;
+  const room=(pr.rooms||[]).find(r=>r.id===c.roomId);
+  pr.estimateCopies=pr.estimateCopies||[];
+  pr.estimateCopies.push({id:typeof uid==='function'?uid():String(Date.now()),cabinetId:c.id,roomId:c.roomId||'',roomName:room&&room.name||'',unitName:c.name||'',savedAt:new Date().toISOString(),parts:JSON.parse(JSON.stringify(c.parts||[]))});
+  (c.parts||[]).forEach(pt=>{delete pt.reviewSignature});
+  c.stage='final';c.finalStartedAt=new Date().toISOString();pr.updatedAt=Date.now();
+  if(typeof save==='function')save();if(typeof renderAll==='function')renderAll();
+  if(typeof toast==='function')toast('Final started. Check every panel in Panel Check.');
+ }
+ window.fiqAcceptQuote=(projectId,cabinetId)=>{const pr=(state.projects||[]).find(p=>p.id===projectId);acceptQuote(pr,pr&&(pr.cabinets||[]).find(c=>c.id===cabinetId))};
+
+ // The Estimate strip on Panel Check and Supplier.
+ function paintStrips(){
+  ['screen-parts','screen-cutting'].forEach(id=>{
+   const sec=document.getElementById(id);if(!sec)return;
+   let el=sec.querySelector(':scope > .fiq-stage-strip');
+   const units=unitsInView();
+   if(!units.length){if(el)el.remove();return}
+   if(!el){el=document.createElement('div');el.className='fiq-stage-strip';const title=sec.querySelector(':scope > .title-row, :scope > .supplier-hero');if(title)title.after(el);else sec.prepend(el)}
+   const html='<b>ESTIMATE</b><span class="fiq-stage-units">'+esc(units.map(u=>unitLabel(u.pr,u.c)).join(', '))+'. Sizes are not final: supplier files, stickers and Send to Mobile are off.</span>'+
+    units.map(u=>'<button type="button" class="btn primary" data-fiq-accept-quote="'+esc(u.pr.id)+'::'+esc(u.c.id)+'">✓ Quote accepted, start final'+(units.length>1?' · '+esc(u.c.name||''):'')+'</button>').join('');
+   if(el.innerHTML!==html)el.innerHTML=html;
+  });
+ }
+ document.addEventListener('click',e=>{const b=e.target.closest('[data-fiq-accept-quote]');if(!b)return;e.preventDefault();const [pid,cid]=b.dataset.fiqAcceptQuote.split('::');window.fiqAcceptQuote(pid,cid)});
+ const ra=window.renderAll;
+ if(typeof ra==='function'){window.renderAll=function(){const r=ra.apply(this,arguments);try{paintStrips()}catch(e){console.error(e)}return r};try{renderAll=window.renderAll}catch(e){}}
+ const sh=window.show;
+ if(typeof sh==='function'){window.show=function(){const r=sh.apply(this,arguments);try{paintStrips()}catch(e){console.error(e)}return r};try{show=window.show}catch(e){}}
+ window.fiqPaintStageStrips=paintStrips;
+
+ // Documents tab: the frozen estimates of this customer's jobs, newest first.
+ window.fiqCustomerDocumentsHtml=function(jobs){
+  const rows=[];(jobs||[]).forEach(pr=>(pr.estimateCopies||[]).forEach(e=>rows.push({pr,e})));
+  if(!rows.length)return '';
+  rows.sort((a,b)=>String(b.e.savedAt).localeCompare(String(a.e.savedAt)));
+  return rows.map(({pr,e})=>{
+   const panels=(e.parts||[]).reduce((n,pt)=>n+Math.max(1,Number(pt.qty)||1),0);
+   const when=new Date(e.savedAt).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+   const name=[e.roomName,e.unitName].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'Design';
+   return '<button type="button" class="customer-tab-row" data-open-estimate="'+esc(pr.id)+'::'+esc(e.id)+'"><span class="customer-tab-row-icon">📄</span><span class="customer-tab-row-main"><strong>Estimate · '+esc(name)+'</strong><span class="customer-tab-row-sub">'+esc(pr.name||'')+'</span></span><span class="customer-tab-row-meta"><span>'+panels+' panel'+(panels===1?'':'s')+'</span><span class="customer-tab-row-updated">'+esc(when)+'</span></span><span class="customer-tab-row-chevron">›</span></button>';
+  }).join('');
+ };
+ document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-open-estimate]');if(!b)return;
+  const [pid,eid]=b.dataset.openEstimate.split('::');const pr=(state.projects||[]).find(p=>p.id===pid);const est=pr&&(pr.estimateCopies||[]).find(x=>x.id===eid);if(!est)return;
+  const name=[est.roomName,est.unitName].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
+  const mat=pt=>(typeof materialForPanel==='function'?materialForPanel(pt):pt.material)||'';
+  const rows=(est.parts||[]).map(pt=>'<tr><td>'+esc(pt.code||'')+'</td><td>'+esc(pt.name||'')+'</td><td class="num">'+esc(pt.length||'')+'</td><td class="num">'+esc(pt.width||'')+'</td><td class="num">'+esc(pt.thickness||'')+'</td><td class="num">'+esc(pt.qty||1)+'</td><td>'+esc(mat(pt))+'</td></tr>').join('');
+  const ov=document.createElement('div');ov.className='fiq-estimate-view';
+  ov.innerHTML='<div class="fiq-estimate-view-box" role="dialog" aria-label="Estimate"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="flex:1"><h3 style="margin:0">Estimate · '+esc(name)+'</h3><div class="muted">'+esc(pr.name||'')+' · saved '+esc(new Date(est.savedAt).toLocaleString())+' · read only, not for production</div></div><button type="button" class="btn" data-close-estimate>Close</button></div><table><thead><tr><th>Panel</th><th>Part</th><th class="num">Length</th><th class="num">Width</th><th class="num">Thick</th><th class="num">Qty</th><th>Material</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7">No panels</td></tr>')+'</tbody></table></div>';
+  ov.addEventListener('click',ev=>{if(ev.target===ov||ev.target.closest('[data-close-estimate]'))ov.remove()});
+  document.body.appendChild(ov);
+ });
+ try{paintStrips()}catch(e){}
+})();
+</script>
+
 </body>
 </html>
