@@ -2851,6 +2851,7 @@ function bestSiteReference(holder){
 function openSiteRoomDetails(projectId,roomId){
  const p=ensureSharedProject(state.projects.find(x=>x.id===projectId));if(!p)return;
  const room=p.rooms.find(r=>r.id===roomId)||p.rooms.find(r=>siteRoomPictures(r).length)||p.rooms[0]||{name:t("studio.siteRoom.siteRoomFallback"),icon:'📍'};
+ {const to=typeof window.fiqVisitRedirect==='function'?window.fiqVisitRedirect(p,room):null;if(to)return openSiteRoomDetails(to.projectId,to.roomId)}
  // Mobile has both a room note and the whole Site Job Notes button. The room card used to
  // ignore p.siteNotes completely, which made a successfully sent Site Job note look lost.
  // Show both scopes here, each with its own photos, so the Site Note follows the Site
@@ -2859,7 +2860,7 @@ function openSiteRoomDetails(projectId,roomId){
  const photoSrc=x=>typeof x==='string'?x:(x?.data||x?.src||x?.image||x?.dataUrl||'');
  const uniqueText=list=>list.map(x=>String(x||'').trim()).filter((x,i,a)=>x&&a.indexOf(x)===i);
  const uniquePhotos=(list,skip)=>list.map(photoSrc).filter((x,i,a)=>x&&a.indexOf(x)===i&&!(skip||[]).includes(x));
- const roomNoteParts=uniqueText([room.notes,room.siteNotes]);
+ const roomNoteParts=uniqueText([room.notes,room.siteNotes,...(typeof window.fiqVisitRoomNotes==='function'?window.fiqVisitRoomNotes(p,room):[])]);
  const siteNoteParts=uniqueText([p.siteNotes,p.notes]).filter(x=>!roomNoteParts.includes(x));
  const caps=siteRoomCaptures(room),measures=siteRoomMeasureCount(room),floor=room.floor||room.location||t("studio.siteRoom.notSelectedFallback"),notes=roomNoteParts.join('\n\n');
  const roomNotePhotos=uniquePhotos([...(room.notePhotos||[]),...(room.siteNotePhotos||[])]);
@@ -2871,7 +2872,7 @@ function openSiteRoomDetails(projectId,roomId){
  // whole Site Measure's Site Note photos and general site photos (shown in every room). Note
  // photos carry a small pencil badge and are not repeated under the note text.
  const capSet=new Set(caps.map(c=>c.image));
- const strip=[...caps.map(c=>({...c,kind:'photo'})),
+ const strip=[...(typeof window.fiqVisitPhotoStrip==='function'?window.fiqVisitPhotoStrip(p,room,caps):caps).map(c=>({...c,kind:'photo'})),
   ...roomNotePhotos.filter(x=>!capSet.has(x)).map(image=>({image,kind:'room-note',marks:[]})),
   ...siteNotePhotos.filter(x=>!capSet.has(x)).map(image=>({image,kind:'site-note',marks:[]})),
   ...siteGeneralPhotos.map(image=>({image,kind:'site',marks:[]}))];
@@ -2903,7 +2904,7 @@ function openSiteRoomDetails(projectId,roomId){
  if(startDesignBtn)startDesignBtn.textContent=t("studio.siteRoom.startDesignBtn");
  const frame=document.getElementById('siteRoomReferenceFrame');
  const thumbLabel={photo:'Photo','room-note':'Room Note photo','site-note':'Whole Site Note photo',site:'Site photo · whole Site Measure'};
- const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=strip.map((c,i)=>{const note=c.kind==='room-note'||c.kind==='site-note';const label=thumbLabel[c.kind]+' '+(i+1);return `<span class="site-thumb-item" data-site-thumb="${i}" data-thumb-kind="${c.kind}" title="${label}"><img class="site-thumb ${i===0?'active':''}" src="${safe(c.image)}" alt="${label}">${note?`<span class="site-thumb-badge${c.kind==='site-note'?' site-note':''}" aria-hidden="true">✎</span>`:''}</span>`}).join('');
+ const thumbs=document.getElementById('siteRoomThumbs');thumbs.innerHTML=strip.map((c,i)=>{const note=c.kind==='room-note'||c.kind==='site-note';const label=thumbLabel[c.kind]+' '+(i+1);return `<span class="site-thumb-item" data-site-thumb="${i}" data-thumb-kind="${c.kind}" title="${label}"><img class="site-thumb ${i===0?'active':''}" src="${safe(c.image)}" alt="${label}">${c.visitLabel?`<span class="site-thumb-date">${safe(c.visitLabel)}</span>`:''}${note?`<span class="site-thumb-badge${c.kind==='site-note'?' site-note':''}" aria-hidden="true">✎</span>`:''}</span>`}).join('');
  document.getElementById('siteRoomMeasureCount').textContent=measures;document.getElementById('siteRoomFloor').textContent=floor;
  // A section only shows when it has something in it: no "No room note" placeholder.
  document.getElementById('siteRoomNotes').textContent=notes;
@@ -2932,13 +2933,14 @@ function openSiteRoomDetails(projectId,roomId){
    const paint=()=>{const svg=buildMeasureOverlaySvg({marks:c.marks,w:c.w||img.naturalWidth,h:c.h||img.naturalHeight});if(svg)layer.appendChild(svg)};
    attachSitePhotoZoom(frame,layer);
    if(img.complete&&img.naturalWidth)paint();else img.onload=paint;
-   if(per)per.textContent=c.kind==='photo'?`Photo ${i+1} of ${strip.length} · ${count} measurement${count===1?'':'s'}`:thumbLabel[c.kind];
+   if(per)per.textContent=c.kind==='photo'?`Photo ${i+1} of ${strip.length}${c.visitLabel?' · visit '+c.visitLabel:''} · ${count} measurement${count===1?'':'s'}`:thumbLabel[c.kind];
   }else if(per)per.textContent='';
   thumbs.querySelectorAll('.site-thumb').forEach((x,xi)=>x.classList.toggle('active',xi===i));
  }
  thumbs.querySelectorAll('[data-site-thumb]').forEach(t=>t.onclick=()=>showCapture(+t.dataset.siteThumb));
  showCapture(0);
- overlay.classList.add('open');overlay.setAttribute('aria-hidden','false')
+ overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
+ if(typeof window.fiqPaintVisitMatch==='function')window.fiqPaintVisitMatch(overlay,p)
 }
 // Zoom for the Site Measure photo viewer (Mads 29 Oct 2026): mouse wheel or pinch to zoom,
 // drag to move around, double-click or Fit to go back. The photo and its measurement lines
@@ -3784,7 +3786,7 @@ function customerJobDesignRows(jobs){
 // stays listed here too (see openSiteRoomDetails).
 function customerSiteMeasurementRows(jobs){
  const rows=[];
- jobs.forEach(p=>(p.rooms||[]).filter(r=>r.name).forEach(r=>rows.push({project:p,room:r})));
+ jobs.forEach(p=>(p.rooms||[]).filter(r=>r.name&&!(typeof window.fiqSiteRowHidden==='function'&&window.fiqSiteRowHidden(p,r))).forEach(r=>rows.push({project:p,room:r})));
  return rows;
 }
 function renderCustomerCard(){
@@ -3816,7 +3818,7 @@ function renderCustomerCard(){
  const lastUpdated=Math.max(c.updatedAt||0,...jobs.map(p=>p.updatedAt||0),0);
  const headerHtml=`<div class="customer-card customer-card-detail"><div class="customer-card-columns"><div class="customer-card-main"><div class="customer-card-top"><span class="customer-avatar">${safe(customerCardAvatarInitial(c.name))}</span><div class="customer-card-head"><div><strong>${safe(c.name)}</strong>${newCount?`<span class="customer-new-tag">${t("studio.customerLibrary.newFromSite")}</span>`:""}${addressHtml}${lastUpdated?`<div class="customer-card-updated">${t("studio.customerLibrary.lastUpdated",[timeAgo(lastUpdated)])}</div>`:""}</div><span class="customer-card-actions"><button class="btn customer-edit-btn" type="button" data-edit-customer="${safe(c.id)}" title="${t("studio.customerLibrary.editCustomerDetailsTitle")}">${t("studio.customerLibrary.editBtn")}</button></span></div></div>${contactHtml}</div>${mapBoxHtml}</div></div>`;
 
- const jobRows=customerJobDesignRows(jobs);
+ const jobRows=customerJobDesignRows(jobs.filter(p=>!p.linkedToProjectId));
  const siteRows=customerSiteMeasurementRows(jobs);
  const showSubtitle=jobs.length>1;
 
@@ -3868,7 +3870,8 @@ function renderCustomerCard(){
  const jobsTabHtml=jobsToolbarHtml+jobsTabRowsHtml+supplierSendHtml;
 
  const siteTabHtml=siteRows.length?siteRows.map(({project:p,room})=>{
-   const subtitle=showSubtitle?safe(p.name||t("studio.customerLibrary.untitledJob")):"";
+   const visitInfo=typeof window.fiqRoomVisitInfo==="function"?window.fiqRoomVisitInfo(p,room):"";
+   const subtitle=[showSubtitle?safe(p.name||t("studio.customerLibrary.untitledJob")):"",safe(visitInfo)].filter(Boolean).join(" · ");
    return `<button type="button" class="customer-tab-row" data-open-site-room="${safe(room.id)}" data-open-site-room-project="${safe(p.id)}" title="${t("studio.customerLibrary.openRoomOnItsOwn",[safe(room.name)])}">`+
      `<span class="customer-tab-row-icon">${safe(room.icon||"⌂")}</span>`+
      `<span class="customer-tab-row-main"><strong>${safe(room.name)}</strong>${subtitle?`<span class="customer-tab-row-sub">${subtitle}</span>`:""}</span>`+
@@ -4693,7 +4696,7 @@ async function paintSiteInbox(){
   panel?.classList.toggle('inbox-ready',!!items.length);
   if(!list)return;
   if(!items.length){list.innerHTML=`<div class="site-jobs-empty">${t('studio.siteJobsInbox.noNewSiteJobs')}</div>`;return}
-  list.innerHTML=items.map(pack=>{const x=inboxSummary(pack);return `<div class="site-job-inbox-card"><span class="site-job-room-icon">${x.icon}</span><span class="site-job-main"><strong>${safe(x.customer)}</strong><span class="site-project-name">${safe(x.project)} · ${x.rooms} room${x.rooms===1?'':'s'} · ${safe(x.room)}${x.floor?' · '+safe(x.floor):''}</span><span class="site-job-meta"><span>📷 ${x.photos}</span><span>📏 ${x.measures}</span><span>📝 ${x.notes}</span></span><span class="site-transfer-state ${x.verification.state}" title="${safe(x.verification.detail)}">${x.verification.state==='complete'?'✓ ':x.verification.state==='incomplete'?'⚠ ':''}${x.verification.label}</span></span><span class="site-inbox-review-actions"><button class="btn" type="button" data-review-site-packet="${safe(x.syncId)}">Review</button><button class="btn primary" type="button" data-accept-site-packet="${safe(x.syncId)}" ${x.verification.complete?'':'disabled'}>Accept Site Measure</button></span></div>`}).join('');
+  list.innerHTML=items.map(pack=>{const x=inboxSummary(pack);return `<div class="site-job-inbox-card"><span class="site-job-room-icon">${x.icon}</span><span class="site-job-main"><strong>${safe(x.customer)}</strong><span class="site-project-name">${safe(x.project)} · ${x.rooms} room${x.rooms===1?'':'s'} · ${safe(x.room)}${x.floor?' · '+safe(x.floor):''}</span><span class="site-job-meta"><span>📷 ${x.photos}</span><span>📏 ${x.measures}</span><span>📝 ${x.notes}</span></span><span class="site-transfer-state ${x.verification.state}" title="${safe(x.verification.detail)}">${x.verification.state==='complete'?'✓ ':x.verification.state==='incomplete'?'⚠ ':''}${x.verification.label}</span>${typeof window.fiqInboxMatchHtml==='function'?window.fiqInboxMatchHtml(pack):''}</span><span class="site-inbox-review-actions"><button class="btn" type="button" data-review-site-packet="${safe(x.syncId)}">Review</button><button class="btn primary" type="button" data-accept-site-packet="${safe(x.syncId)}" ${x.verification.complete?'':'disabled'}>Accept Site Measure</button></span></div>`}).join('');
  }catch(e){
   if(badge){badge.textContent='Use backup file';badge.style.display=''}
   if(list)list.innerHTML='<div class="site-jobs-empty">Direct sync unavailable. Use the backup file.</div>';
@@ -14464,6 +14467,173 @@ document.addEventListener('click',function(e){
   document.body.appendChild(ov);
  });
  try{paintStrips()}catch(e){}
+})();
+</script>
+
+<style id="fiq-customer-visits">
+.site-visit-match{background:#EEF4FF;border:2px solid #9DB8F5;border-radius:12px;padding:10px 12px;margin-bottom:8px;color:#1d2f4f}
+.site-visit-match h4{margin:0 0 6px;font-size:14px}
+.site-visit-match-option{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #d5def0;border-radius:10px;padding:7px 9px;margin-top:6px}
+.site-visit-match-option img{width:54px;height:42px;object-fit:cover;border-radius:7px;background:#eee;flex:0 0 auto}
+.site-visit-match-option .who{flex:1;min-width:0;font-size:12px;line-height:1.35}
+.site-visit-match-option .who b{font-size:14px;display:block}
+.site-visit-match .btn{white-space:nowrap}
+.site-visit-match-no{margin-top:8px;font-size:12px}
+.site-visit-linked{background:#F3F8EE;border:1px solid #B9D9A3;border-radius:10px;padding:7px 10px;margin-bottom:8px;font-size:12px;color:#2f4d1c;display:flex;gap:8px;align-items:center}
+.site-visit-linked button{margin-left:auto}
+.site-thumb-item{position:relative}
+.site-thumb-date{position:absolute;left:2px;right:2px;bottom:2px;background:#0b2545cc;color:#fff;font-size:9px;font-weight:800;border-radius:5px;text-align:center;line-height:13px;pointer-events:none}
+.site-job-inbox-match{display:block;margin-top:4px;font-size:12px;color:#1d2f4f}
+.site-job-inbox-match button{margin-left:6px}
+</style>
+<script>
+// Customer visits (Mads 29 Oct 2026). The phone is unchanged: every New Site Job still lands
+// in Studio as its own job record, so the transfer, receipts and acceptance stay exactly as
+// they were. Studio then suggests "same customer?" (similar name, or the same full address -
+// a flat number counts; a map pin only supports a name, never decides alone) and, when the
+// owner says yes, links the visit to the main job (linkedToProjectId). A linked visit keeps
+// all its own photos and notes; its rooms are shown inside the main job's room of the same
+// name, newest visit first. Nothing is merged or deleted, so "Separate" undoes it fully.
+(function(){
+ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+ const addrKey=a=>{const k=norm(a).replace(/\b(flat|apartment|apt|unit|no|number|piso|puerta|planta)\b/g,' ').replace(/\s+/g,' ').trim();return k.length>=6?k:''};
+ function lev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let prev=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const cur=[i];for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur}return prev[n]}
+ const similar=(a,b,min)=>{if(!a||!b)return false;return 1-lev(a,b)/Math.max(a.length,b.length)>=min};
+ const STOP=new Set(['and','the','mr','mrs','ms','miss','dr','y','og','und','et']);
+ const tokens=s=>norm(s).split(' ').filter(w=>w.length>=3&&!STOP.has(w));
+ function nameMatch(a,b){
+  const na=norm(a),nb=norm(b);if(!na||!nb||/^(no customer name|new site job)$/.test(na)||/^(no customer name|new site job)$/.test(nb))return false;
+  if(na===nb||similar(na,nb,0.8))return true;
+  const ta=tokens(a),tb=tokens(b);return ta.some(x=>tb.some(y=>x===y||(x.length>=4&&y.length>=4&&similar(x,y,0.8))));
+ }
+ function metres(a,b){if(a.geoLat==null||b.geoLat==null)return Infinity;const R=6371000,r=x=>x*Math.PI/180,dLat=r(b.geoLat-a.geoLat),dLng=r(b.geoLng-a.geoLng),h=Math.sin(dLat/2)**2+Math.cos(r(a.geoLat))*Math.cos(r(b.geoLat))*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+ const custOf=p=>(state.customers||[]).find(c=>c.id===p.customerId)||null;
+ const nameOf=p=>{const c=custOf(p);return (c&&c.name)||p.customer||''};
+ const addressOf=p=>p.address||((custOf(p)||{}).address)||'';
+ const mainOf=p=>p&&p.linkedToProjectId?(state.projects||[]).find(x=>x.id===p.linkedToProjectId)||null:null;
+ const hasPanels=p=>(p.cabinets||[]).some(c=>(c.parts||[]).length);
+ const isVisitOnly=p=>!!p&&(p.rooms||[]).length>0&&!hasPanels(p);
+ // When a visit was made: its earliest photo, else when it reached Studio.
+ function visitTime(p){
+  let t=Infinity;(p.rooms||[]).forEach(r=>(r.measureCaptures||[]).forEach(c=>{const v=Number(c&&c.createdAt)||Date.parse(c&&c.createdAt||'');if(v&&v<t)t=v}));
+  if(t!==Infinity)return t;return Number(p._lastMobilePacketAt)||Date.parse(p.siteMeasureAcceptedAt||'')||Number(p.updatedAt)||0;
+ }
+ const day=t=>t?new Date(t).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'';
+ const dayFull=t=>t?new Date(t).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
+ window.fiqVisitTime=visitTime;
+
+ // Suggestions: which existing jobs this site visit probably belongs to.
+ function suggestionsFor(src){
+  if(!src||src.linkedToProjectId||!isVisitOnly(src))return [];
+  const dismissed=new Set(src.visitMatchDismissed||[]);
+  const sa=addrKey(addressOf(src)),sn=nameOf(src);
+  const out=[];
+  (state.projects||[]).forEach(t=>{
+   if(!t||t.id===src.id||t.linkedToProjectId||dismissed.has(t.id)||!((t.rooms||[]).length||(t.cabinets||[]).length))return;
+   if(visitTime(t)>visitTime(src))return;// a visit joins an earlier job, never the other way round
+   const ta=addrKey(addressOf(t)),sameAddr=!!sa&&sa===ta,named=nameMatch(sn,nameOf(t)),near=metres(src,t)<=50;
+   const conflict=!!sa&&!!ta&&sa!==ta;
+   if(!(sameAddr||(named&&(!conflict||(near&&similar(sa,ta,0.8))))))return;
+   out.push({t,score:(sameAddr?4:0)+(named?2:0)+(near?1:0)});
+  });
+  return out.sort((a,b)=>b.score-a.score||(Number(b.t.updatedAt)||0)-(Number(a.t.updatedAt)||0)).slice(0,3).map(x=>x.t);
+ }
+ window.fiqVisitSuggestions=suggestionsFor;
+ function latestPhoto(p){const pics=[];[p,...(state.projects||[]).filter(q=>q.linkedToProjectId===p.id)].forEach(q=>(q.rooms||[]).forEach(r=>{try{siteRoomCaptures(r).forEach(c=>pics.push({img:c.image,t:visitTime(q)}))}catch(e){}}));pics.sort((a,b)=>b.t-a.t);return pics[0]&&pics[0].img||''}
+ function lastVisit(p){return Math.max(visitTime(p),...(state.projects||[]).filter(q=>q.linkedToProjectId===p.id).map(visitTime))}
+ function floorOf(p){const r=(p.rooms||[]).find(x=>x.floor||x.location);return r?(r.floor||r.location):''}
+
+ function link(srcId,tgtId){
+  const src=(state.projects||[]).find(p=>p.id===srcId),tgt=(state.projects||[]).find(p=>p.id===tgtId);if(!src||!tgt||src===tgt||tgt.linkedToProjectId)return false;
+  const now=Date.now(),oldCustomer=src.customerId;
+  if(typeof ensureCustomerForProject==='function')ensureCustomerForProject(tgt);
+  src.linkedToProjectId=tgt.id;src.linkedAt=now;
+  (state.projects||[]).forEach(q=>{if(q.linkedToProjectId===src.id)q.linkedToProjectId=tgt.id});
+  src.customerId=tgt.customerId;src.customer=nameOf(tgt)||src.customer;
+  src.isNewFromSite=false;src.overviewFinishedAt=src.overviewFinishedAt||now;src.movedToLibraryAt=src.movedToLibraryAt||now;src.updatedAt=now;tgt.updatedAt=now;
+  // A customer record made only for this visit (a misspelt name) is removed; its details fill gaps.
+  if(oldCustomer&&oldCustomer!==tgt.customerId&&!(state.projects||[]).some(q=>q.customerId===oldCustomer)){
+   const old=(state.customers||[]).find(c=>c.id===oldCustomer),keep=(state.customers||[]).find(c=>c.id===tgt.customerId);
+   if(old&&keep)['address','phone','email'].forEach(k=>{if(!keep[k]&&old[k])keep[k]=old[k]});
+   state.customers=(state.customers||[]).filter(c=>c.id!==oldCustomer);
+  }
+  if(typeof save==='function')save();if(typeof renderAll==='function')renderAll();
+  return true;
+ }
+ function separate(srcId){
+  const src=(state.projects||[]).find(p=>p.id===srcId);if(!src||!src.linkedToProjectId)return;
+  src.visitMatchDismissed=[...new Set([...(src.visitMatchDismissed||[]),src.linkedToProjectId])];
+  delete src.linkedToProjectId;delete src.linkedAt;src.updatedAt=Date.now();
+  if(typeof save==='function')save();if(typeof renderAll==='function')renderAll();
+ }
+ function dismiss(srcId){
+  const src=(state.projects||[]).find(p=>p.id===srcId);if(!src)return;
+  src.visitMatchDismissed=[...new Set([...(src.visitMatchDismissed||[]),...suggestionsFor(src).map(t=>t.id)])];
+  if(typeof save==='function')save();
+ }
+ window.fiqLinkVisit=link;window.fiqSeparateVisit=separate;window.fiqDismissVisitMatch=dismiss;
+
+ // Rooms of linked visits that belong to this room (same name), newest first.
+ function visitRooms(p,room){
+  const key=norm(room&&room.name);if(!p||!key)return [];
+  return (state.projects||[]).filter(q=>q.linkedToProjectId===p.id).flatMap(q=>(q.rooms||[]).filter(r=>norm(r.name)===key).map(r=>({q,r}))).sort((a,b)=>visitTime(b.q)-visitTime(a.q));
+ }
+ // A linked visit's room opens inside the main job's room of the same name.
+ window.fiqVisitRedirect=function(p,room){
+  const main=mainOf(p);if(!main||!room)return null;
+  const mr=(main.rooms||[]).find(r=>norm(r.name)===norm(room.name));
+  return mr?{projectId:main.id,roomId:mr.id}:null;
+ };
+ // The photo strip: this room's photos and every linked visit's, newest visit first, each dated.
+ window.fiqVisitPhotoStrip=function(p,room,caps){
+  const created=new Map();(room.measureCaptures||[]).forEach(c=>{if(c&&c.image)created.set(c.image,Number(c.createdAt)||Date.parse(c.createdAt||'')||0)});
+  const base=visitTime(p),visits=visitRooms(p,room);
+  const all=caps.map(c=>({...c,_t:created.get(c.image)||base}));
+  visits.forEach(({q,r})=>{let vc=[];try{vc=siteRoomCaptures(r)}catch(e){}const vt=visitTime(q);vc.forEach(c=>{if(!all.some(x=>x.image===c.image))all.push({...c,_t:vt})})});
+  if(!visits.length)return caps;// a room never visited twice keeps its order
+  all.sort((a,b)=>b._t-a._t);
+  return all.map(c=>({...c,visitLabel:day(c._t)}));
+ };
+ window.fiqVisitRoomNotes=function(p,room){
+  return visitRooms(p,room).map(({q,r})=>[r.notes,r.siteNotes].filter(x=>String(x||'').trim()).map(x=>'Visit '+dayFull(visitTime(q))+': '+String(x).trim()).join('\n')).filter(Boolean);
+ };
+ window.fiqRoomVisitInfo=function(p,room){const v=visitRooms(p,room);return v.length?(v.length+1)+' visits · latest '+day(Math.max(visitTime(p),...v.map(x=>visitTime(x.q)))):''};
+ // Customer Library Site Measurements: a linked visit's room is listed inside its main room.
+ window.fiqSiteRowHidden=function(p,room){const main=mainOf(p);return !!main&&(main.rooms||[]).some(r=>norm(r.name)===norm(room.name))};
+
+ function optionHtml(src,t){
+  const img=latestPhoto(t),addr=addressOf(t),fl=floorOf(t),lv=lastVisit(t);
+  return '<div class="site-visit-match-option">'+(img?'<img src="'+esc(img)+'" alt="">':'')+'<div class="who"><b>'+esc(nameOf(t)||'Customer')+'</b>'+esc([addr,fl].filter(Boolean).join(' · '))+'<br>'+esc(t.name||'Job')+(lv?' · last visit '+esc(dayFull(lv)):'')+'</div><button type="button" class="btn primary" data-visit-link="'+esc(src.id)+'::'+esc(t.id)+'">Yes, add as visit</button></div>';
+ }
+ // The question in the Site Measure box (and its undo once linked).
+ window.fiqPaintVisitMatch=function(overlay,p){
+  const pane=overlay&&overlay.querySelector('.site-design-pane');if(!pane)return;
+  pane.querySelectorAll('.site-visit-match,.site-visit-linked').forEach(x=>x.remove());
+  const visits=(state.projects||[]).filter(q=>q.linkedToProjectId===p.id).sort((a,b)=>visitTime(b)-visitTime(a));
+  if(visits.length){const el=document.createElement('div');el.className='site-visit-linked';el.innerHTML='🗓 '+(visits.length+1)+' visits · first '+esc(dayFull(visitTime(p)))+' · latest '+esc(dayFull(visitTime(visits[0])))+'<button type="button" class="btn" data-visit-separate="'+esc(visits[0].id)+'" title="Make the latest visit its own job again">Separate latest visit</button>';pane.prepend(el);return}
+  const main=mainOf(p);if(main){const el=document.createElement('div');el.className='site-visit-linked';el.innerHTML='🗓 Visit of '+esc(nameOf(main))+' · '+esc(main.name||'')+' · '+esc(dayFull(visitTime(p)))+'<button type="button" class="btn" data-visit-separate="'+esc(p.id)+'">Separate</button>';pane.prepend(el);return}
+  const s=suggestionsFor(p);if(!s.length)return;
+  const el=document.createElement('div');el.className='site-visit-match';
+  el.innerHTML='<h4>Same customer? This visit looks like:</h4>'+s.map(t=>optionHtml(p,t)).join('')+'<div class="site-visit-match-no"><button type="button" class="btn" data-visit-dismiss="'+esc(p.id)+'">No, this is a different customer</button></div>';
+  pane.prepend(el);
+ };
+ // A short version on the Home screen's waiting Site Measure card.
+ window.fiqInboxMatchHtml=function(pack){
+  const id=(pack&&pack.project||pack||{}).id,p=(state.projects||[]).find(x=>x.id===id);if(!p)return '';
+  const main=mainOf(p);if(main)return '<span class="site-job-inbox-match">🗓 Added as a visit to '+esc(nameOf(main))+' · '+esc(main.name||'')+'</span>';
+  const t=suggestionsFor(p)[0];if(!t)return '';
+  return '<span class="site-job-inbox-match">Same customer as <b>'+esc(nameOf(t))+'</b>'+(addressOf(t)?', '+esc(addressOf(t)):'')+'?<button type="button" class="btn" data-review-site-packet="'+esc(pack.syncId||pack.exportedAt||'')+'">Check</button></span>';
+ };
+ document.addEventListener('click',e=>{
+  const l=e.target.closest('[data-visit-link]'),s=e.target.closest('[data-visit-separate]'),d=e.target.closest('[data-visit-dismiss]');
+  if(!l&&!s&&!d)return;e.preventDefault();e.stopPropagation();
+  const modal=document.getElementById('siteRoomDetailsModal'),reopen=()=>{const pid=modal&&modal.dataset.projectId,rid=modal&&modal.dataset.roomId;if(modal&&modal.classList.contains('open')&&typeof openSiteRoomDetails==='function'&&pid)openSiteRoomDetails(pid,rid)};
+  if(l){const [src,tgt]=l.dataset.visitLink.split('::');const t=(state.projects||[]).find(x=>x.id===tgt);if(link(src,tgt)){if(typeof toast==='function')toast('Added as a visit to '+nameOf(t)+'.');const sp=(state.projects||[]).find(x=>x.id===src),rid=modal&&modal.dataset.roomId,room=sp&&(sp.rooms||[]).find(r=>r.id===rid),to=room&&window.fiqVisitRedirect(sp,room);if(to&&typeof openSiteRoomDetails==='function')openSiteRoomDetails(to.projectId,to.roomId);else reopen()}}
+  if(s){separate(s.dataset.visitSeparate);if(typeof toast==='function')toast('The latest visit is its own job again.');reopen()}
+  if(d){dismiss(d.dataset.visitDismiss);reopen()}
+  if(typeof paintSiteInbox==='function')paintSiteInbox();
+ },true);
 })();
 </script>
 
