@@ -14542,6 +14542,7 @@ document.addEventListener('click',function(e){
   (state.projects||[]).forEach(t=>{
    if(!t||t.id===src.id||t.linkedToProjectId||dismissed.has(t.id)||!((t.rooms||[]).length||(t.cabinets||[]).length))return;
    if(visitTime(t)>visitTime(src))return;// a visit joins an earlier job, never the other way round
+   if(typeof window.fiqSameCustomer==='function'){const m=window.fiqSameCustomer({name:sn,address:addressOf(src),geoLat:src.geoLat,geoLng:src.geoLng},{name:nameOf(t),address:addressOf(t),geoLat:t.geoLat,geoLng:t.geoLng});if(m.match)out.push({t,score:m.score});return}
    const ta=addrKey(addressOf(t)),sameAddr=!!sa&&sa===ta,named=nameMatch(sn,nameOf(t)),near=metres(src,t)<=50;
    const conflict=!!sa&&!!ta&&sa!==ta;
    if(!(sameAddr||(named&&(!conflict||(near&&similar(sa,ta,0.8))))))return;
@@ -14813,6 +14814,144 @@ document.addEventListener('click',function(e){
  if(typeof ra==='function'){window.renderAll=function(){const r=ra.apply(this,arguments);try{paint()}catch(e){}return r};try{renderAll=window.renderAll}catch(e){}}
  setInterval(()=>{try{paint()}catch(e){}},5000);
  try{paint()}catch(e){}
+})();
+</script>
+
+<style id="fiq-customer-merge">
+.fiq-dup-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#FFF7E6;border:2px solid #F0C36D;color:#5a3d00;border-radius:12px;padding:10px 14px;margin:0 0 12px;font-weight:700}
+.fiq-dup-banner .btn{margin-left:auto}
+.fiq-dup-view{position:fixed;inset:0;z-index:9000;background:#0007;display:flex;align-items:center;justify-content:center;padding:16px}
+.fiq-dup-box{background:#fff;border-radius:16px;max-width:820px;width:100%;max-height:90vh;overflow:auto;padding:18px}
+.fiq-dup-pair{border:1px solid #e1e6ef;border-radius:12px;padding:10px;margin-top:10px}
+.fiq-dup-sides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fiq-dup-side{background:#fafcff;border:1px solid #e8edf5;border-radius:10px;padding:8px;font-size:12px;color:#4b5563}
+.fiq-dup-side b{display:block;font-size:15px;color:#14243b}
+.fiq-dup-why{font-size:12px;color:#5f5975;margin:6px 0}
+.fiq-dup-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:640px){.fiq-dup-sides{grid-template-columns:1fr}}
+</style>
+<script>
+// Same customer matching and Merge customers (Mads 30 Oct 2026: "a lot of names I have spelled
+// wrong, but it's the same customer"). Addresses are compared by house number, street words and
+// postcode, ignoring filler (Carrer de, Palma, Spain ...), so a typed "27 Font i Monteros" matches
+// the full Google address. A different house or flat number, or postcode, means a different
+// address. Names allow small spelling mistakes and shared words. A map pin only supports a match.
+// Merge moves every job of one customer card onto the other; the merged card is kept inside the
+// one that stays (mergedCustomers), nothing is deleted.
+(function(){
+ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+ function lev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let prev=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const cur=[i];for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur}return prev[n]}
+ const sim=(a,b)=>!a||!b?0:1-lev(a,b)/Math.max(a.length,b.length);
+ const close=(a,b)=>a===b||(a.length>=4&&b.length>=4&&sim(a,b)>=0.8);
+ const FILL=new Set('spain espana espanya illes balears balearic baleares islands island mallorca majorca palma de del dels la las el los les els i y the and districte distrito district centre centro center calle carrer c avenida avinguda av avda street st road rd avenue ave lane plaza placa pl passeig paseo urb urbanizacion flat apartment apt piso puerta planta floor block bloque edificio no number'.split(' '));
+ function addrParts(a){
+  const toks=norm(a).split(' ').filter(Boolean);
+  const nums=toks.filter(t=>/^\d+[a-z]?$/.test(t)),post=nums.filter(t=>/^\d{5}$/.test(t)),house=nums.filter(t=>!/^\d{5}$/.test(t));
+  return {house,post,words:[...new Set(toks.filter(t=>!/\d/.test(t)&&t.length>=3&&!FILL.has(t)))],empty:!toks.length};
+ }
+ // 'same', 'different' or 'unclear'
+ function addrCompare(a,b){
+  const x=addrParts(a),y=addrParts(b);if(x.empty||y.empty)return 'unclear';
+  if(x.post.length&&y.post.length&&!x.post.some(p=>y.post.includes(p)))return 'different';
+  if(x.house.length&&y.house.length){const [s,l]=x.house.length<=y.house.length?[x.house,y.house]:[y.house,x.house];if(!s.every(n=>l.includes(n)))return 'different'}
+  const [ws,wl]=x.words.length<=y.words.length?[x.words,y.words]:[y.words,x.words];
+  if(!ws.length)return 'unclear';
+  const hit=ws.filter(w=>wl.some(v=>close(w,v))).length;
+  if(hit/ws.length>=0.6)return 'same';
+  if(hit===0&&ws.length>=2)return 'different';
+  return 'unclear';
+ }
+ const STOP=new Set(['and','the','mr','mrs','ms','miss','dr','y','og','und','et','sr','sra','senor','senora']);
+ const PLACEHOLDER=/^(no customer name|new site job|customer|new job)?$/;
+ function nameScore(a,b){
+  const na=norm(a),nb=norm(b);if(PLACEHOLDER.test(na)||PLACEHOLDER.test(nb))return 0;
+  if(na===nb)return 1;const whole=sim(na,nb);if(whole>=0.75)return whole;
+  const ta=na.split(' ').filter(w=>w.length>=3&&!STOP.has(w)),tb=nb.split(' ').filter(w=>w.length>=3&&!STOP.has(w));
+  return ta.some(x=>tb.some(y=>close(x,y)))?0.8:whole;
+ }
+ function metres(a,b){if(a.geoLat==null||b.geoLat==null||a.geoLng==null||b.geoLng==null)return Infinity;const R=6371000,r=x=>x*Math.PI/180,dLat=r(b.geoLat-a.geoLat),dLng=r(b.geoLng-a.geoLng),h=Math.sin(dLat/2)**2+Math.cos(r(a.geoLat))*Math.cos(r(b.geoLat))*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+ // a, b: {name, addresses:[...], pins:[{geoLat,geoLng}]} (or address/geoLat/geoLng)
+ function sameCustomer(a,b){
+  const A=a.addresses||[a.address],B=b.addresses||[b.address],PA=a.pins||[a],PB=b.pins||[b];
+  let addr='unclear';for(const x of A)for(const y of B){const c=addrCompare(x,y);if(c==='same'){addr='same';break}if(c==='different'&&addr!=='same')addr='different'}
+  if(A.some(x=>B.some(y=>addrCompare(x,y)==='same')))addr='same';
+  const ns=nameScore(a.name,b.name),named=ns>=0.75;
+  let near=Infinity;PA.forEach(p=>PB.forEach(q=>{near=Math.min(near,metres(p,q))}));
+  const match=addr==='same'||(addr!=='different'&&(named||(near<=25&&ns>=0.5)));
+  const why=[addr==='same'?'same address':'',named?'similar name':'',near<=25?'same map pin':''].filter(Boolean).join(' · ');
+  return {match,score:(addr==='same'?4:0)+(named?2:0)+(near<=25?1:0)+ns,why,addr,ns,near};
+ }
+ window.fiqAddrCompare=addrCompare;window.fiqSameCustomer=sameCustomer;
+
+ // Customer cards that are probably the same person.
+ function customerInfo(c){
+  const jobs=(state.projects||[]).filter(p=>p.customerId===c.id);
+  return {c,jobs,name:c.name,addresses:[c.address,...jobs.map(p=>p.address)].filter(x=>String(x||'').trim()),pins:jobs.filter(p=>p.geoLat!=null)};
+ }
+ function duplicatePairs(){
+  const infos=(state.customers||[]).map(customerInfo).filter(i=>i.jobs.length||String(i.c.name||'').trim());
+  const out=[];
+  for(let i=0;i<infos.length;i++)for(let j=i+1;j<infos.length;j++){
+   const a=infos[i],b=infos[j];
+   if((a.c.notSameAs||[]).includes(b.c.id)||(b.c.notSameAs||[]).includes(a.c.id))continue;
+   const m=sameCustomer(a,b);if(m.match)out.push({a,b,m});
+  }
+  return out.sort((x,y)=>y.m.score-x.m.score);
+ }
+ window.fiqDuplicateCustomers=duplicatePairs;
+ // Keep the card with more jobs (then the older one) and merge the other into it.
+ function merge(keepId,goneId){
+  const keep=(state.customers||[]).find(c=>c.id===keepId),gone=(state.customers||[]).find(c=>c.id===goneId);if(!keep||!gone||keep===gone)return false;
+  const now=Date.now();
+  (state.projects||[]).forEach(p=>{if(p.customerId===goneId){p.customerId=keepId;p.customer=keep.name;p.updatedAt=now}});
+  (state.deletedProjects||[]).forEach(d=>{if(d&&d.project&&d.project.customerId===goneId){d.project.customerId=keepId;d.project.customer=keep.name}});
+  ['address','phone','email'].forEach(k=>{if(!String(keep[k]||'').trim()&&gone[k])keep[k]=gone[k]});
+  keep.mergedCustomers=[...(keep.mergedCustomers||[]),{...gone,mergedAt:now}];
+  keep.notSameAs=[...new Set([...(keep.notSameAs||[]),...(gone.notSameAs||[])])].filter(id=>id!==keepId);
+  keep.updatedAt=now;
+  state.customers=(state.customers||[]).filter(c=>c.id!==goneId);
+  if(state.currentCustomerCard===goneId)state.currentCustomerCard=keepId;
+  if(typeof save==='function')save();if(typeof renderAll==='function')renderAll();
+  return true;
+ }
+ function notSame(aId,bId){const a=(state.customers||[]).find(c=>c.id===aId);if(!a)return;a.notSameAs=[...new Set([...(a.notSameAs||[]),bId])];if(typeof save==='function')save()}
+ window.fiqMergeCustomers=merge;window.fiqNotSameCustomer=notSame;
+ const keepFirst=(a,b)=>(b.jobs.length-a.jobs.length)||((Number(a.c.createdAt)||0)-(Number(b.c.createdAt)||0));
+ const date=v=>v?new Date(v).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
+ function sideHtml(i){const last=Math.max(Number(i.c.updatedAt)||0,...i.jobs.map(p=>Number(p.updatedAt)||0));return '<div class="fiq-dup-side"><b>'+esc(i.c.name||'No name')+'</b>'+esc(i.addresses[0]||'No address')+'<br>'+i.jobs.length+' job'+(i.jobs.length===1?'':'s')+(last?' · updated '+esc(date(last)):'')+'</div>'}
+ function openReview(onlyId){
+  document.querySelectorAll('.fiq-dup-view').forEach(x=>x.remove());
+  const pairs=duplicatePairs().filter(p=>!onlyId||p.a.c.id===onlyId||p.b.c.id===onlyId);
+  const ov=document.createElement('div');ov.className='fiq-dup-view';
+  ov.innerHTML='<div class="fiq-dup-box" role="dialog" aria-label="Same customer"><div style="display:flex;align-items:center;gap:10px"><h3 style="flex:1;margin:0">Same customer?</h3><button type="button" class="btn" data-dup-close>Close</button></div><p class="muted" style="margin:6px 0 0">Merge puts every job, photo, measurement and estimate under one customer card. Nothing is deleted.</p>'+
+   (pairs.length?pairs.map(({a,b,m})=>{const [k,g]=keepFirst(a,b)<=0?[a,b]:[b,a];
+    return '<div class="fiq-dup-pair"><div class="fiq-dup-sides">'+sideHtml(k)+sideHtml(g)+'</div><div class="fiq-dup-why">Looks the same: '+esc(m.why||'similar details')+'</div><div class="fiq-dup-actions"><button type="button" class="btn primary" data-dup-merge="'+esc(k.c.id)+'::'+esc(g.c.id)+'">Merge into '+esc(k.c.name||'this card')+'</button><button type="button" class="btn" data-dup-merge="'+esc(g.c.id)+'::'+esc(k.c.id)+'">Merge into '+esc(g.c.name||'the other card')+'</button><button type="button" class="btn" data-dup-not="'+esc(k.c.id)+'::'+esc(g.c.id)+'">Not the same</button></div></div>'}).join(''):'<p style="margin-top:14px">No customer cards look the same.</p>')+'</div>';
+  ov.addEventListener('click',e=>{
+   if(e.target===ov||e.target.closest('[data-dup-close]')){ov.remove();return}
+   const mg=e.target.closest('[data-dup-merge]'),nt=e.target.closest('[data-dup-not]');
+   if(mg){const [k,g]=mg.dataset.dupMerge.split('::');const kc=(state.customers||[]).find(c=>c.id===k),gc=(state.customers||[]).find(c=>c.id===g);
+    if(!confirm('Merge '+(gc&&gc.name||'this card')+' into '+(kc&&kc.name||'the other card')+'?\n\nAll jobs, photos, measurements and estimates go under '+(kc&&kc.name||'one card')+'.'))return;
+    merge(k,g);if(typeof toast==='function')toast('Merged into '+(kc&&kc.name||'one card')+'.');openReview(onlyId&&onlyId===g?k:onlyId);paintBanners()}
+   if(nt){const [a,b]=nt.dataset.dupNot.split('::');notSame(a,b);openReview(onlyId);paintBanners()}
+  });
+  document.body.appendChild(ov);
+ }
+ window.fiqOpenDuplicateReview=openReview;
+ // Banners: on the Customer Library list, and on a customer card that has a likely twin.
+ function paintBanners(){
+  const list=document.getElementById('screen-customers');
+  if(list){let el=list.querySelector(':scope > .fiq-dup-banner');const n=duplicatePairs().length;
+   if(!n){if(el)el.remove()}else{if(!el){el=document.createElement('div');el.className='fiq-dup-banner';const t=list.querySelector(':scope > .title-row');if(t)t.after(el);else list.prepend(el)}
+    const html='👥 '+n+' customer card'+(n===1?' pair looks':' pairs look')+' like the same customer.<button type="button" class="btn primary" data-dup-review="">Review and merge</button>';if(el.innerHTML!==html)el.innerHTML=html}}
+  const card=document.getElementById('customerCardBody'),cid=state.currentCustomerCard;
+  if(card&&cid){card.querySelectorAll('.fiq-dup-banner').forEach(x=>x.remove());const pairs=duplicatePairs().filter(p=>p.a.c.id===cid||p.b.c.id===cid);
+   if(pairs.length){const o=pairs[0].a.c.id===cid?pairs[0].b.c:pairs[0].a.c;const el=document.createElement('div');el.className='fiq-dup-banner';el.innerHTML='👥 This may be the same customer as <b>'+esc(o.name||'')+'</b>'+(pairs.length>1?' and '+(pairs.length-1)+' more':'')+'.<button type="button" class="btn primary" data-dup-review="'+esc(cid)+'">Check and merge</button>';card.prepend(el)}}
+ }
+ document.addEventListener('click',e=>{const b=e.target.closest('[data-dup-review]');if(!b)return;e.preventDefault();openReview(b.dataset.dupReview||null)});
+ const rc=window.renderCustomers;if(typeof rc==='function'){window.renderCustomers=function(){const r=rc.apply(this,arguments);try{paintBanners()}catch(e){console.error(e)}return r};try{renderCustomers=window.renderCustomers}catch(e){}}
+ const rcc=window.renderCustomerCard;if(typeof rcc==='function'){window.renderCustomerCard=function(){const r=rcc.apply(this,arguments);try{paintBanners()}catch(e){console.error(e)}return r};try{renderCustomerCard=window.renderCustomerCard}catch(e){}}
+ try{paintBanners()}catch(e){}
 })();
 </script>
 
