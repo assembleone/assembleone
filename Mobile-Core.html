@@ -7616,4 +7616,36 @@ window.fiqTrialBanner=function(c){
  if(document.readyState==='complete')check();else window.addEventListener('load',check);
 })();
 </script>
+<style id="fiq-mobile-new-job-bell">
+.fiq-m-bell{position:relative;border:1px solid #d7dae0;background:#fff;border-radius:12px;width:40px;height:40px;font-size:19px;display:inline-flex;align-items:center;justify-content:center;margin-left:auto;flex:0 0 auto;cursor:pointer}
+.fiq-m-bell b{display:none;position:absolute;top:-6px;right:-6px;background:#e53935;color:#fff;font:900 11px/18px Arial,sans-serif;min-width:18px;height:18px;border-radius:9px;padding:0 4px}
+.fiq-m-bell.has-new b{display:block}
+.fiq-m-bell.has-new{border-color:#FFC600;box-shadow:0 0 0 3px rgba(255,198,0,.35)}
+</style>
+<script>
+// New job bell on the phone (Mads 30 Oct 2026): a bell in the header with the number of new
+// jobs from Studio not opened yet - exactly the Jobs badge count (updateInstallNewBadge), so the
+// two never disagree. Tapping it opens the Jobs list. A short message when a new job arrives.
+(function(){
+ let last=null;
+ function paint(){
+  const src=document.getElementById('installNewBadge'),head=document.querySelector('header.slim-header');if(!src||!head)return;
+  let bell=document.getElementById('fiqMobileBell');
+  if(!bell){
+   bell=document.createElement('button');bell.type='button';bell.id='fiqMobileBell';bell.className='fiq-m-bell';bell.setAttribute('aria-label','New jobs');bell.innerHTML='🔔<b></b>';
+   const acct=document.getElementById('fiqAccountBadge');if(acct&&acct.parentNode===head)head.insertBefore(bell,acct);else head.appendChild(bell);
+   bell.onclick=()=>{try{if(typeof projectsListMode!=='undefined')projectsListMode='jobs';if(typeof listChoiceByNav!=='undefined')listChoiceByNav=true}catch(e){}if(typeof show==='function')show('projects')};
+  }
+  const n=src.classList.contains('hidden')?0:(Number(src.textContent)||0);
+  bell.querySelector('b').textContent=String(n);bell.classList.toggle('has-new',n>0);bell.title=n?n+' new job'+(n===1?'':'s'):'No new jobs';
+  if(last!==null&&n>last){const msg='🔔 New job from Studio';const t=document.createElement('div');t.textContent=msg;t.setAttribute('role','status');t.style.cssText='position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:99999;background:#14243b;color:#fff;font:800 14px Arial,sans-serif;padding:10px 16px;border-radius:12px;box-shadow:0 8px 24px #0004';document.body.appendChild(t);setTimeout(()=>t.remove(),3500);try{navigator.vibrate&&navigator.vibrate(120)}catch(e){}}
+  last=n;
+ }
+ const upd=window.updateInstallNewBadge;
+ if(typeof upd==='function'){window.updateInstallNewBadge=function(){const r=upd.apply(this,arguments);try{paint()}catch(e){}return r};try{updateInstallNewBadge=window.updateInstallNewBadge}catch(e){}}
+ setInterval(()=>{try{paint()}catch(e){}},4000);
+ try{paint()}catch(e){}
+})();
+</script>
+
 </body></html>
