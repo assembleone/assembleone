@@ -3812,7 +3812,7 @@ function renderCustomerCard(){
  }
  const addressHtml=c.address?`<div class="customer-card-address">📍 ${safe(c.address)}</div>`:"";
  const contactBits=[];
- if(c.phone)contactBits.push(`📞 ${safe(c.phone)}`);
+
  if(c.email)contactBits.push(`✉️ ${safe(c.email)}`);
  const contactHtml=contactBits.length?`<div class="customer-card-contact">${contactBits.join("<br>")}</div>`:"";
  const lastUpdated=Math.max(c.updatedAt||0,...jobs.map(p=>p.updatedAt||0),0);
@@ -3886,12 +3886,12 @@ function renderCustomerCard(){
  // No separate Photos tab: it only repeated the Site Measurement photos (same rooms, same
  // pictures, opening the same room view), which Site Measurements already shows in full.
 
- const documentsTabHtml=(typeof window.fiqCustomerDocumentsHtml==="function"&&window.fiqCustomerDocumentsHtml(jobs))||`<div class="empty">${t("studio.customerLibrary.noDocumentsYetEmpty")}</div>`;
+ const documentsTabHtml=(typeof window.fiqCustomerDocumentsHtml==="function"&&window.fiqCustomerDocumentsHtml(jobs))||`<div class="empty">No estimates yet.</div>`;
 
  const tabs=[
    {key:"jobs",label:(l=>l==="Jobs / Designs"?"Jobs / Cutting Lists":l)(t("studio.customerLibrary.tabJobsDesigns")),html:jobsTabHtml},// English: the saved Cutting Lists are found here
    {key:"site",label:t("studio.customerLibrary.tabSiteMeasurements"),html:siteTabHtml},
-   {key:"documents",label:t("studio.customerLibrary.tabDocuments"),html:documentsTabHtml}
+   {key:"documents",label:"Estimate",html:documentsTabHtml}
  ];
  if(!tabs.some(tb=>tb.key===customerCardActiveTab))customerCardActiveTab="jobs";
  const tabsBarHtml=`<div class="customer-card-tabs" role="tablist">${tabs.map(tb=>`<button type="button" class="customer-tab${tb.key===customerCardActiveTab?" active":""}" data-tab="${tb.key}" role="tab" aria-selected="${tb.key===customerCardActiveTab}">${tb.label}</button>`).join("")}</div>`;
