@@ -14905,7 +14905,8 @@ document.addEventListener('click',function(e){
   const keep=(state.customers||[]).find(c=>c.id===keepId),gone=(state.customers||[]).find(c=>c.id===goneId);if(!keep||!gone||keep===gone)return false;
   const now=Date.now();
   (state.projects||[]).forEach(p=>{if(p.customerId===goneId){p.customerId=keepId;p.customer=keep.name;p.updatedAt=now}});
-  (state.deletedProjects||[]).forEach(d=>{if(d&&d.project&&d.project.customerId===goneId){d.project.customerId=keepId;d.project.customer=keep.name}});
+  // Deleted jobs are left exactly as they are: the cloud keeps them unchanged for good. Restoring
+  // one finds its new card through mergedCustomers (ensureCustomerForProject below).
   ['address','phone','email'].forEach(k=>{if(!String(keep[k]||'').trim()&&gone[k])keep[k]=gone[k]});
   keep.mergedCustomers=[...(keep.mergedCustomers||[]),{...gone,mergedAt:now}];
   keep.notSameAs=[...new Set([...(keep.notSameAs||[]),...(gone.notSameAs||[])])].filter(id=>id!==keepId);
@@ -14917,6 +14918,9 @@ document.addEventListener('click',function(e){
  }
  function notSame(aId,bId){const a=(state.customers||[]).find(c=>c.id===aId);if(!a)return;a.notSameAs=[...new Set([...(a.notSameAs||[]),bId])];if(typeof save==='function')save()}
  window.fiqMergeCustomers=merge;window.fiqNotSameCustomer=notSame;
+ // A job (restored from the recycle bin) still linked to a merged card goes to the card it was merged into.
+ const ecp=window.ensureCustomerForProject;
+ if(typeof ecp==='function'){window.ensureCustomerForProject=function(p){if(p&&p.customerId&&!(state.customers||[]).some(c=>c.id===p.customerId)){const k=(state.customers||[]).find(c=>(c.mergedCustomers||[]).some(m=>m.id===p.customerId));if(k){p.customerId=k.id;p.customer=k.name}}return ecp.apply(this,arguments)};try{ensureCustomerForProject=window.ensureCustomerForProject}catch(e){}}
  const keepFirst=(a,b)=>(b.jobs.length-a.jobs.length)||((Number(a.c.createdAt)||0)-(Number(b.c.createdAt)||0));
  const date=v=>v?new Date(v).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
  function sideHtml(i){const last=Math.max(Number(i.c.updatedAt)||0,...i.jobs.map(p=>Number(p.updatedAt)||0));return '<div class="fiq-dup-side"><b>'+esc(i.c.name||'No name')+'</b>'+esc(i.addresses[0]||'No address')+'<br>'+i.jobs.length+' job'+(i.jobs.length===1?'':'s')+(last?' · updated '+esc(date(last)):'')+'</div>'}
