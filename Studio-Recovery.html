@@ -14961,5 +14961,51 @@ document.addEventListener('click',function(e){
 })();
 </script>
 
+<style id="fiq-other-downloads">
+.fiq-other-downloads{margin:12px 0 4px;border:1px solid #d7dae0;border-radius:14px;background:#fff}
+.fiq-other-downloads>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:14px 16px;font:800 16px Inter,Arial,sans-serif;color:#293a4e;user-select:none}
+.fiq-other-downloads>summary::-webkit-details-marker{display:none}
+.fiq-other-downloads>summary .fiq-od-icon{font-size:18px}
+.fiq-other-downloads>summary .fiq-od-chevron{margin-left:auto;transition:transform .15s ease;font-size:14px;color:#5b6472}
+.fiq-other-downloads[open]>summary .fiq-od-chevron{transform:rotate(90deg)}
+.fiq-other-downloads>summary small{font-weight:600;color:#5b6472;font-size:12px}
+.fiq-other-downloads .fiq-other-grid{padding:0 12px 12px;margin:0!important}
+.fiq-other-grid .supplier-action{min-height:84px!important;padding:12px 14px!important;grid-template-columns:44px 1fr!important;column-gap:12px!important}
+.fiq-other-grid .supplier-action .supplier-action-icon{font-size:28px!important}
+.fiq-other-grid .supplier-action strong{font-size:17px!important}
+</style>
+<script>
+// Export for Supplier, simpler (Mads 1 Nov 2026): Send by WhatsApp stays the big main action; the four
+// downloads (Cutting List, Label File, Production File, Supplier PDF) move, unchanged, into one
+// "Other Download Options" section under it, closed by default. The buttons themselves are moved, not
+// copied, so every download works exactly as before. Open or closed is remembered on this computer.
+(function(){
+ const KEY='fiq_other_downloads_open_v1';
+ const IDS=['fiqJobSheetBtn','fiqLabelFileBtn','fiqProductionFileBtn','printSupplierPackBtn'];
+ function arrange(){
+  const screen=document.getElementById('screen-cutting');if(!screen)return;
+  const bar=screen.querySelector('.supplier-actions-simple:not(.fiq-other-grid)'),wa=document.getElementById('fiqWaPackBtn');if(!bar||!wa)return;
+  if(bar.firstElementChild!==wa)bar.insertBefore(wa,bar.firstChild);
+  let box=document.getElementById('fiqOtherDownloads');
+  if(!box){
+   box=document.createElement('details');box.id='fiqOtherDownloads';box.className='fiq-other-downloads';
+   box.innerHTML='<summary><span class="fiq-od-icon" aria-hidden="true">⇩</span><span>Other Download Options</span><small>Cutting List, Label File, Production File, Supplier PDF</small><span class="fiq-od-chevron" aria-hidden="true">▶</span></summary><div class="supplier-actions supplier-actions-simple fiq-other-grid"></div>';
+   try{if(localStorage.getItem(KEY)==='1')box.open=true}catch(e){}
+   box.addEventListener('toggle',()=>{try{localStorage.setItem(KEY,box.open?'1':'0')}catch(e){}});
+   bar.after(box);
+  }
+  const grid=box.querySelector('.fiq-other-grid');
+  IDS.forEach(id=>{const b=document.getElementById(id);if(b&&b.parentNode!==grid)grid.appendChild(b)});
+  const want=IDS.map(id=>document.getElementById(id)).filter(Boolean),have=[...grid.children];
+  if(want.some((b,i)=>have[i]!==b))want.forEach(b=>grid.appendChild(b));// keep the order, only when it changed
+ }
+ window.fiqArrangeSupplierDownloads=arrange;
+ const ra=window.renderAll;if(typeof ra==='function'){window.renderAll=function(){const r=ra.apply(this,arguments);try{arrange()}catch(e){}return r};try{renderAll=window.renderAll}catch(e){}}
+ const sh=window.show;if(typeof sh==='function'){window.show=function(){const r=sh.apply(this,arguments);try{arrange()}catch(e){}return r};try{show=window.show}catch(e){}}
+ setInterval(()=>{try{arrange()}catch(e){}},1500);
+ try{arrange()}catch(e){}
+})();
+</script>
+
 </body>
 </html>
