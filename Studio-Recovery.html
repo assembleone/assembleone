@@ -3077,7 +3077,7 @@ function renderRooms(){
  // has never been zoomed keeps whatever zoom the *previous* cabinet left behind, and the
  // line below immediately writes that stale number onto this cabinet's own viewState --
  // i.e. a brand new job's brand new drawing silently inherits the last job's zoom level.
- if(c){c.viewState=c.viewState||{};state.drawingZoom=c.viewState.zoom!=null?c.viewState.zoom:1}
+ if(c){c.viewState=c.viewState||{};if(window.__fiqZoomUnit!==c.id){state.drawingZoom=c.viewState.zoom!=null?c.viewState.zoom:1;window.__fiqZoomUnit=c.id}}
  const zoom=Math.max(.25,Math.min(4,Number(state.drawingZoom||1)));state.drawingZoom=zoom;if(c)c.viewState.zoom=zoom;$("#zoomValue").textContent=Math.round(zoom*100)+"%";
  function sizeCanvas(){const pad=28,availableW=Math.max(260,stage.clientWidth-pad),availableH=Math.max(320,stage.clientHeight-pad);if(c?.drawingType==="pdf"){canvas.style.width=Math.round(availableW*zoom)+"px";canvas.style.height=Math.round(availableH*zoom)+"px";return}const nw=img.naturalWidth||availableW,nh=img.naturalHeight||availableH,fit=Math.min(availableW/nw,availableH/nh,1);canvas.style.width=Math.max(180,Math.round(nw*fit*zoom))+"px";canvas.style.height=Math.max(180,Math.round(nh*fit*zoom))+"px"}
  sizeCanvas();
@@ -6366,7 +6366,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     openQuickMenu(b.dataset.quickMenu);
   },true);
 
-  let zoom=Number((window.state&&state.drawingZoom)||1)||1;
+  let zoom=Number((typeof state!=="undefined"&&state.drawingZoom)||1)||1;
   function getFitSize(){
     const stage=document.getElementById('drawingStage');
     const img=document.getElementById('drawingImage');
@@ -6381,7 +6381,8 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     const canvas=document.getElementById('drawingCanvas');
     if(!stage||!canvas)return;
     zoom=Math.max(.25,Math.min(4,Math.round(zoom*4)/4));
-    if(window.state)state.drawingZoom=zoom;
+    if(typeof state!=="undefined")state.drawingZoom=zoom;
+    try{const c=typeof cabinet==='function'?cabinet():null;if(c){c.viewState=c.viewState||{};c.viewState.zoom=zoom;window.__fiqZoomUnit=c.id}}catch(e){}
     const centreX=stage.scrollLeft+stage.clientWidth/2, centreY=stage.scrollTop+stage.clientHeight/2;
     const oldW=canvas.offsetWidth||1, oldH=canvas.offsetHeight||1;
     const fit=getFitSize();
@@ -6400,6 +6401,7 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
     const fit=e.target.closest&&e.target.closest('#zoomFitBtn');
     if(!plus&&!minus&&!fit)return;
     e.preventDefault();e.stopImmediatePropagation();
+    zoom=Number((typeof state!=="undefined"&&state.drawingZoom)||1)||1;
     if(plus)zoom+=.25;
     if(minus)zoom-=.25;
     if(fit)zoom=1;
@@ -6408,10 +6410,10 @@ if(appLang){appLang.value=(typeof currentLang==='function'?currentLang():null)||
   },true);
   const observer=new MutationObserver(()=>{
     const img=document.getElementById('drawingImage');
-    if(img&&!img.dataset.a105load){img.dataset.a105load='1';img.addEventListener('load',()=>{zoom=Number((window.state&&state.drawingZoom)||1)||1;requestAnimationFrame(()=>applyZoom(false))})}
+    if(img&&!img.dataset.a105load){img.dataset.a105load='1';img.addEventListener('load',()=>{zoom=Number((typeof state!=="undefined"&&state.drawingZoom)||1)||1;requestAnimationFrame(()=>applyZoom(false))})}
   });
   observer.observe(document.documentElement,{childList:true,subtree:true});
-  window.addEventListener('resize',()=>applyZoom(false));
+  window.addEventListener('resize',()=>{zoom=Number((typeof state!=="undefined"&&state.drawingZoom)||1)||1;applyZoom(false)});
   setTimeout(()=>applyZoom(false),100);
 })();
 </script>
@@ -8573,7 +8575,7 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     const pdf=document.getElementById('drawingPdf');
     if(!stage||!canvas)return;
     const c=(typeof cabinet==='function')?cabinet():null;
-    const zoom=Math.max(.25,Math.min(4,Number((window.state&&state.drawingZoom)||1)));
+    const zoom=Math.max(.25,Math.min(4,Number((typeof state!=="undefined"&&state.drawingZoom)||1)));
     const pad=28;
     const availableW=Math.max(260,stage.clientWidth-pad);
     const availableH=Math.max(300,stage.clientHeight-pad);
