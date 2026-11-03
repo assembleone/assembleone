@@ -35,7 +35,7 @@ const SCHEMA=1;
 const LEASE_MS=3*60*1000;// lock length; the rules allow at most 5 minutes
 const RENEW_MS=60*1000;
 const SETTINGS_LIMIT=900*1024;// Firestore records stop at 1 MiB
-const STATE_SETTINGS=['units','fitters','lastChosenPartName'];// durable; screen state is not copied
+const STATE_SETTINGS=['units','fitters','lastChosenPartName','priceList','estimates'];// durable; screen state is not copied
 const PRODUCTION_LINK=/assembleone-fabac/i;// Production media is never fetched in this phase
 
 const hex=buf=>Array.from(new Uint8Array(buf),b=>b.toString(16).padStart(2,'0')).join('');
