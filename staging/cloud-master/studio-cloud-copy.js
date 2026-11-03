@@ -190,6 +190,7 @@ async function runCopy(auto){
   if(sched){sched.started(Date.now());saveSched()}
   r=await copier().copyAndVerify(await input(),runId(),{previous:fullCheck?null:prints,fullCheck});
   recordAttempt(r,{offline:!!(r.error&&netError(r.error)),scope:r.scope&&r.scope.kind});
+  if(r&&!r.ok){const ids=recycleProblemIds(r);if(ids.length){try{if(await repairRecycleBin(ids))retryAfterRepair=true}catch(e){console.error('Recycle-bin repair',e)}}}
   if(r.ok){ls.set(K.prints,JSON.stringify(r.prints));if(fullCheck){ls.set(K.lastFull,String(Date.now()));fullNext=false}}
   if(sched){sched.finished(Date.now(),r.ok?{ok:true,coverage:r.verify&&r.verify.checked}:{ok:false,error:(r.error&&r.error.message)||((r.conflicts||[]).length?'needs review':'not verified')});saveSched()}
  }catch(e){recordAttempt(null,{id:'error-'+Date.now(),code:e.code||'error',message:String(e.message||e),offline:netError(e),sourceSha256:current});if(sched){sched.finished(Date.now(),{ok:false,error:String(e.message||e)});saveSched()}}
@@ -199,6 +200,7 @@ async function runCopy(auto){
  // never says "backed up" with a waiting time (a closed Studio would otherwise raise a false alert).
  if(r&&r.ok)await settleIfVerified(Date.now());
  writeHealth(true);
+ if(retryAfterRepair){retryAfterRepair=false;setTimeout(()=>runCopy(true),1500)}
 }
 // Only this computer's own verified backup of exactly this data counts. The open-time check can
 // also mark data "confirmed by the cloud" after a restore; that computer still has to run its first
@@ -341,6 +343,27 @@ function paintSection(){
  const ro=s.querySelector('[data-cloud-restore-one]');if(ro)ro.onclick=()=>{noteText='';if(!chosenCustomer)return note('Choose a customer first.');restoreFromCloud({customerId:chosenCustomer})};
 }
 let cloudCustomers=null,chosenCustomer='';
+// Recycle-bin repair (30 Oct 2026). A deleted job is final in the cloud (its tombstone is never
+// written again), so a later change to the browser's copy fails every check for ever. Merge customers
+// changed the customer of deleted jobs that way. Only when the browser copy differs from the cloud
+// copy in the customer fields alone is the cloud copy put back; any other difference is left as it is.
+let retryAfterRepair=false;
+function recycleProblemIds(r){return [...new Set(((r&&r.verify&&r.verify.problems)||[]).map(p=>(/^Recycle-bin copy differs in the cloud: (\S+)/.exec(String(p))||[])[1]).filter(Boolean))]}
+async function repairRecycleBin(ids){
+ const S=(0,eval)('typeof state!=="undefined"?state:null'),u=user();if(!S||!Array.isArray(S.deletedProjects)||!u)return 0;
+ const rs=restorer(),strip=j=>{const c=JSON.parse(JSON.stringify(j||{}));delete c.customer;delete c.customerId;return JSON.stringify(c)};
+ let fixed=0;
+ for(const id of ids){
+  const e=S.deletedProjects.find(x=>x&&x.project&&x.project.id===id);if(!e)continue;
+  const snap=await fb.getDoc(fb.doc(db,'companies',u.companyId,'fiqMaster',ENV,'jobs',id));if(!snap.exists())continue;
+  const g=await rs.goodVersion({id,...snap.data()});if(!g.ok||!g.pkg||!g.pkg.job)continue;
+  if(strip(g.pkg.job)!==strip(e.project))continue;
+  e.project=JSON.parse(JSON.stringify(g.pkg.job));fixed++;
+ }
+ if(fixed&&typeof window.save==='function')await window.save();
+ return fixed;
+}
+window.fiqRepairRecycleBin=repairRecycleBin;
 function restorer(){const u=user();return window.FiqCloudRestore.createCloudRestore({fb,st,db,storage,companyId:u.companyId,env:ENV,statLink})}
 async function loadCloudCustomers(){
  if(!user()||!connect()||!window.FiqCloudRestore)return;
