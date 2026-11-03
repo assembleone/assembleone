@@ -838,7 +838,7 @@ input:focus,textarea:focus,select:focus{outline:3px solid rgba(107,191,58,.20)!i
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut,
-  sendEmailVerification, sendPasswordResetEmail, reload
+  sendEmailVerification, sendPasswordResetEmail, reload, GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
@@ -861,7 +861,7 @@ window.fiqFunctions = getFunctions(fiqApp);
 window.fiqFirestore = getFirestore(fiqApp);
 window.fiqStorage = getStorage(fiqApp);
 window.fiqStorageFns = { ref: storageRef, uploadString, getDownloadURL };
-window.fiqAuthFns = { onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction };
+window.fiqAuthFns = { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut, sendEmailVerification, sendPasswordResetEmail, reload, httpsCallable, doc, getDoc, setDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, onSnapshot, runTransaction };
 window.dispatchEvent(new Event('fiqFirebaseReady'));
 </script>
 <div id="fiqAuthGate" class="fiq-auth-gate">
@@ -882,6 +882,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
         <button class="fiq-auth-submit" id="fiqSignInBtn" type="submit">Sign In</button>
       </form>
       <button class="fiq-auth-link" id="fiqForgotBtn" type="button">Forgot password?</button>
+      <div id="fiqEasyAuth" hidden><div class="fiq-auth-or" style="display:flex;align-items:center;gap:10px;color:#66758a;font-size:12px;margin:14px 0">or</div><button class="fiq-auth-submit" id="fiqGoogleBtn" type="button" style="background:#fff;color:#15283d;border:1px solid #d5dce5;display:flex;align-items:center;justify-content:center;gap:10px;width:100%"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.2 5.6c4.2-3.9 7.1-9.6 7.1-17z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.8-5.8l-7.2-5.6c-2 1.4-4.7 2.3-8.6 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Continue with Google</button><a class="fiq-auth-link" id="fiqStartTrialLink" href="signup.html" style="display:block;text-align:center;margin-top:12px">New to FittersIQ? Start your free trial</a></div>
       <button class="fiq-auth-link" id="fiqJoinLinkBtn" type="button">New fitter? Join your company</button>
     </div>
 
@@ -914,12 +915,15 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
     <div class="fiq-auth-state" id="fiqStateOtherCompany" hidden>
       <h1>Another company's jobs are here</h1>
       <p class="fiq-auth-lead">This phone holds FittersIQ jobs of a different company. They stay safely on this phone and are not shown to this account. Sign in with that company to use them, or use another phone for this company.</p>
-      <button class="fiq-auth-link" id="fiqOtherCompanySignOutBtn" type="button">Sign out</button>
+      <p class="fiq-auth-lead" id="fiqOtherCompanyWho"></p>
+      <button class="fiq-auth-submit" id="fiqOtherCompanySignOutBtn" type="button">Sign out and use the other account</button>
     </div>
 
     <div class="fiq-auth-state" id="fiqStateSuspended" hidden>
-      <h1>Account suspended</h1>
-      <p class="fiq-auth-lead">This account no longer has access. Contact your company owner or FittersIQ support.</p>
+      <h1>Access paused</h1>
+      <p class="fiq-auth-lead">Your FittersIQ access is paused. Nothing has been deleted.</p>
+      <p class="fiq-auth-lead">Ask your company owner. If it is about the free trial or a payment, the owner can email <a href="mailto:hello@fittersiq.com">hello@fittersiq.com</a> to continue straight away.</p>
+      <p class="fiq-auth-lead" id="fiqSuspendedPay" hidden></p>
       <button class="fiq-auth-link" id="fiqSuspendedSignOutBtn" type="button">Sign out</button>
     </div>
 
@@ -3029,10 +3033,13 @@ document.getElementById('measureHomeBtn')?.addEventListener('click',()=>{
 // losing progress or silently jumping into Site Visit Summary with no room yet (see
 // startSiteMeasureFlow). Room type and floor reuse the exact same addRoom()/roomTypes/
 // floor-label vocabulary already used everywhere else in Mobile -- nothing new there.
+const NSJ_SKIPPED=[2,3];
 const NSJ_STEP_SUBTITLES={1:'Customer information',2:'Phone number (optional)',3:'Email address (optional)',4:'Site address',5:'What are we measuring?',6:'Which floor?'};
 function renderNewSiteJobScreen(){
  const p=project();if(!p)return;
  p.nsjStep=p.nsjStep||1;
+ // Phone (2) and email (3) are not asked any more (27 Oct 2026); a job left on one of them continues at the address.
+ if(NSJ_SKIPPED.includes(p.nsjStep))p.nsjStep=4;
  document.getElementById('nsjCustomerName').value=p.customer||'';
  document.getElementById('nsjPhone').value=p.phone||'';
  document.getElementById('nsjEmail').value=p.email||'';
@@ -3087,7 +3094,7 @@ document.getElementById('nsjSkipFloor')?.addEventListener('click',()=>{const p=p
 // so must not risk a second job being started) unless there's nowhere earlier to go.
 document.getElementById('nsjBackBtn')?.addEventListener('click',()=>{
  const p=project();
- if(p&&p.nsjStep>1){p.nsjStep--;save();renderNewSiteJobScreen();return}
+ if(p&&p.nsjStep>1){p.nsjStep--;while(NSJ_SKIPPED.includes(p.nsjStep))p.nsjStep--;save();renderNewSiteJobScreen();return}
  show('projects');
 });
 document.getElementById('nsjCustomerName')?.addEventListener('input',e=>{const p=project();if(p)p.customer=e.target.value;save()});
@@ -3116,6 +3123,7 @@ document.getElementById('nsjNextBtn')?.addEventListener('click',()=>{
   p.customer=name;
  }
  p.nsjStep=Math.min(6,(p.nsjStep||1)+1);
+ while(NSJ_SKIPPED.includes(p.nsjStep))p.nsjStep++;
  save();
  renderNewSiteJobScreen();
 });
@@ -6942,6 +6950,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       if(claims.role==='company_owner'){
         authFns.getDoc(authFns.doc(db,'companies',claims.companyId)).then(function(snap){
           if(snap.exists())window.fittersiqUser.name = snap.data().ownerName || '';
+          if(snap.exists()&&typeof window.fiqTrialBanner==='function')window.fiqTrialBanner(snap.data());
         }).catch(function(){});
       }else if(claims.fitterId){
         authFns.getDoc(authFns.doc(db,'companies',claims.companyId,'fitters',claims.fitterId)).then(function(snap){
@@ -7051,6 +7060,12 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     try{ await authFns.updateDoc(deviceRef, {lastSeenAt:new Date().toISOString()}); }catch(e){}
     return true;
   }
+  // Paused company: its owner can pay by card on the pause screen and continue straight away (19 Oct 2026).
+  // A paused member cannot read its own membership record (rules), so the owner role decides.
+  function showPausedPay(claims, user){
+    try{ var payEl=$('fiqSuspendedPay'); if(payEl && claims && claims.role==='company_owner' && window.fiqPayButtons){ payEl.innerHTML='Pay by card and continue straight away: '+window.fiqPayButtons(claims.companyId,user.email,'font-weight:800;margin:0 6px'); payEl.hidden=false; } }catch(e){}
+  }
+
   async function evaluate(user){
     if(!user){ if(deviceWaitPoll){ clearInterval(deviceWaitPoll); deviceWaitPoll = null; } lockToSignIn(); return; }
     var tokenResult = await user.getIdTokenResult();
@@ -7067,6 +7082,8 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       return;
     }
     if(!claims.companyId && !claims.fittersiq_admin){
+      // New sign-up whose company was not created yet: the account page finishes it (company name, free trial).
+      if(/(^|\.)fittersiq\.com$/.test(location.hostname)){location.href='account.html';return;}
       showState('fiqStateNoCompany');
       return;
     }
@@ -7074,10 +7091,12 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       try{
         var memberSnap = await authFns.getDoc(authFns.doc(db,'companies',claims.companyId,'members',user.uid));
         if(!memberSnap.exists() || memberSnap.data().status !== 'active'){
+          showPausedPay(claims, user);
           showState('fiqStateSuspended');
           return;
         }
       }catch(e){
+        showPausedPay(claims, user);
         showState('fiqStateSuspended');
         return;
       }
@@ -7102,7 +7121,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       var DATA_OWNER='fiq_data_company_v1',owner=null,hasJobs=false;
       try{owner=localStorage.getItem(DATA_OWNER)}catch(e){}
       try{hasJobs=typeof state!=='undefined'&&state&&Array.isArray(state.projects)&&state.projects.length>0}catch(e){}
-      if(owner&&owner!==claims.companyId&&hasJobs){ showState('fiqStateOtherCompany'); return; }
+      if(owner&&owner!==claims.companyId&&hasJobs){ var who=$('fiqOtherCompanyWho'); if(who) who.textContent='You are signed in as '+(user.email||'a different account')+'. Beta and the normal app share the sign-in, so signing in on one also signs in the other.'; showState('fiqStateOtherCompany'); return; }
       if(owner!==claims.companyId){ try{localStorage.setItem(DATA_OWNER,claims.companyId)}catch(e){} }
     }
     // A join link (?join=123456) opened on a phone that is already signed in used to be ignored silently.
@@ -7130,16 +7149,12 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       await authFns.signInWithEmailAndPassword(auth,email,password);
     }catch(err){
       btn.disabled=false; btn.textContent='Sign In';
-      // BETA ONLY: show the real Firebase error and what was actually sent, so a failed
-      // sign-in can be diagnosed on a phone. The password itself is never shown.
-      var detail=' [Firebase: '+((err&&err.code)||'no code')+' | email sent: "'+email+'" | password length: '+password.length+(password!==password.trim()?', has spaces at start or end':'')+']';
-      try{ console.error('BETA sign-in error', err); }catch(_){}
       if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].indexOf(err.code)>=0){
-        showMsg(msg,'Email or password is incorrect.'+detail,'error');
+        showMsg(msg,'Email or password is incorrect.','error');
       } else if(err.code==='auth/too-many-requests'){
-        showMsg(msg,'Too many attempts. Please wait a moment and try again.'+detail,'error');
+        showMsg(msg,'Too many attempts. Please wait a moment and try again.','error');
       } else {
-        showMsg(msg,'Something went wrong signing in. Please try again.'+detail,'error');
+        showMsg(msg,'Something went wrong signing in. Please try again.','error');
       }
     }
   });
@@ -7163,6 +7178,13 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       btn.disabled=false; btn.textContent='Join';
       showMsg(msg, (err && err.message) ? err.message : 'That code did not work. Ask for a new one.', 'error');
     }
+  });
+
+  if(/(^|\.)fittersiq\.com$/.test(location.hostname)){ $('fiqEasyAuth').hidden=false; }
+  $('fiqGoogleBtn').addEventListener('click', async function(){
+    var msg=$('fiqSignInMsg');
+    try{ await authFns.signInWithPopup(auth, new authFns.GoogleAuthProvider()); }
+    catch(err){ if(err.code!=='auth/popup-closed-by-user'&&err.code!=='auth/cancelled-popup-request') showMsg(msg,'Google sign in did not work. Please try again or use your email.','error'); }
   });
 
   $('fiqForgotBtn').addEventListener('click', async function(){
@@ -7507,4 +7529,123 @@ function fiqRouteThroughLabels(q){
  window.fiqPhoneHealth=write;
 })();
 </script>
+<script id="fiq-pay-links">
+// Card payment pages (Stripe, Mads 19 Oct 2026). The company id goes with the payment so the stripeWebhook function
+// marks the right company as paid; the owner's email is filled in for them.
+window.FIQ_PAY_LINKS={Professional:'https://buy.stripe.com/5kQ5kC5az4q11hXc7a3Je00',Business:'https://buy.stripe.com/28EaEW7iHaOpgcR5IM3Je01'};
+window.fiqPayLink=function(plan,companyId,email){var u=window.FIQ_PAY_LINKS[plan];if(!u||!companyId)return null;return u+'?client_reference_id='+encodeURIComponent(companyId)+(email?'&prefilled_email='+encodeURIComponent(email):'')};
+window.fiqPayButtons=function(companyId,email,style){var out=[];['Professional','Business'].forEach(function(p){var u=window.fiqPayLink(p,companyId,email);if(u)out.push('<a href="'+u+'" target="_blank" rel="noopener" data-pay="'+p+'" style="'+(style||'')+'">'+p+' €'+(p==='Business'?'99':'55')+'/month</a>')});return out.join(' ')};
+</script>
+<script id="fiq-trial-banner">
+// Trial reminder (Mads 17 Oct 2026): from 3 days before a free trial ends, and during the 7 days after it
+// (when the daily server check pauses an unpaid account), a plain bar says so. Closing it hides it for the day.
+window.fiqTrialBanner=function(c){
+ try{
+  if(!c||c.internal===true||c.paidUntil||c.status!=='trial'||!c.trialEndsAt||!c.trialEndsAt.toDate)return;
+  var end=c.trialEndsAt.toDate(),days=Math.ceil((end-Date.now())/864e5);if(days>3)return;
+  var key='fiq_trial_banner_closed',today=new Date().toISOString().slice(0,10);try{if(localStorage.getItem(key)===today)return}catch(e){}
+  var fmt=function(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'long'})},stop=new Date(end.getTime()+7*864e5);
+  var text=days>0?'Your free trial ends in '+days+' day'+(days>1?'s':'')+' ('+fmt(end)+').':'Your free trial has ended. FittersIQ pauses on '+fmt(stop)+' unless a plan is paid. Nothing is deleted.';
+  var old=document.getElementById('fiqTrialBar');if(old)old.remove();
+  var bar=document.createElement('div');bar.id='fiqTrialBar';bar.setAttribute('role','status');
+  bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99990;background:#fff3c4;color:#5a4500;border-top:1px solid #f0d27a;padding:10px 44px 10px 16px;font:600 14px/1.4 system-ui,sans-serif;text-align:center';
+  var u=window.fittersiqUser||{},pay=window.fiqPayButtons?window.fiqPayButtons(u.companyId,u.email,'color:#1969e8;font-weight:800;margin:0 6px'):'';
+  bar.innerHTML=text+(pay?' Choose a plan: '+pay+'.':' To continue, email <a href="mailto:hello@fittersiq.com" style="color:#1969e8">hello@fittersiq.com</a>.')+'<button type="button" aria-label="Close" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:22px;cursor:pointer;color:#5a4500">×</button>';
+  bar.querySelector('button').onclick=function(){try{localStorage.setItem(key,today)}catch(e){}bar.remove()};
+  document.body.appendChild(bar);
+ }catch(e){}
+};
+</script>
+<script id="fiq-error-report">
+// App errors to the Dashboard Support Inbox (Mads 18 Oct 2026: problems should show on the Dashboard).
+// Only when signed in to a company; the same error at most once a day per device, at most 5 a day; known
+// harmless browser noise and offline/network failures are skipped. Never blocks or changes the app.
+(function(){
+ var KEY='fiq_error_reports_v1',SKIP=/^Script error\.?$|ResizeObserver|Failed to fetch|NetworkError|Load failed|network-request-failed|unavailable|Cannot set properties of null \(setting 'innerHTML'\)/i;
+ function send(msg,where){
+  try{
+   msg=String(msg||'').slice(0,300);if(!msg||SKIP.test(msg)||!navigator.onLine)return;
+   var u=window.fittersiqUser,fns=window.fiqAuthFns,a=window.fiqAuth;if(!u||!u.companyId||!fns||!fns.addDoc||!window.fiqFirestore||!a||!a.currentUser)return;
+   var day=new Date().toISOString().slice(0,10),seen={};try{seen=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+   if(seen.day!==day)seen={day:day,n:0,m:{}};if(seen.n>=5||seen.m[msg])return;seen.n++;seen.m[msg]=1;try{localStorage.setItem(KEY,JSON.stringify(seen))}catch(e){}
+   var screen='';try{screen=(0,eval)('typeof state!=="undefined"&&state&&state.screen')||''}catch(e){}
+   fns.addDoc(fns.collection(window.fiqFirestore,'supportTickets'),{type:'error',question:msg+(where?' ('+String(where).slice(0,120)+')':''),screenLabel:'Mobile'+(screen?' · '+screen:''),app:'mobile',
+    uid:a.currentUser.uid,companyId:u.companyId,email:a.currentUser.email||null,userAgent:String(navigator.userAgent||'').slice(0,160),createdAt:fns.serverTimestamp?fns.serverTimestamp():new Date(),status:'open'}).catch(function(){});
+  }catch(e){}
+ }
+ window.addEventListener('error',function(e){send(e&&e.message,e&&e.filename?(e.filename.split('/').pop()+':'+e.lineno):'')});
+ window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;send(r&&(r.message||r.code)||r,'promise')});
+ window.fiqReportError=send;
+})();
+</script>
+<script id="fiq-install-guide">
+// Install guide (Mads 19 Oct 2026): on a phone that opens FittersIQ Mobile in the browser (not yet as an app from
+// the home screen), a small sheet explains how to install it. iPhone/iPad: Share, then Add to Home Screen (Apple
+// allows no install button). Android: one Install button (the browser's own install prompt). Only on the new home
+// (not the old github.io address), only after sign-in, and "Not now" hides it on this phone for 14 days.
+(function(){
+ var KEY='fiq_install_guide_later_v1',deferred=null;
+ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;var b=document.querySelector('[data-install="go"]');if(b)b.hidden=false});
+ function installed(){try{return window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches}catch(e){return false}}
+ function oldAddress(){return /(^|\.)github\.io$/i.test(location.hostname)||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&!window.FIQ_TEST_INSTALL_GUIDE}
+ function phone(){return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)}
+ function ios(){return /iPhone|iPad|iPod/i.test(navigator.userAgent)}
+ function later(){try{var t=+localStorage.getItem(KEY)||0;return Date.now()-t<14*864e5}catch(e){return false}}
+ function show(){
+  if(document.getElementById('fiqInstallGuide'))return;
+  var o=document.createElement('div');o.id='fiqInstallGuide';o.setAttribute('role','dialog');
+  o.style.cssText='position:fixed;left:10px;right:10px;bottom:10px;z-index:2147482000;background:#fff;color:#0b2545;border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.35);padding:18px 18px 12px;font:15px/1.45 system-ui,-apple-system,sans-serif';
+  var share='<svg width="18" height="22" viewBox="0 0 18 22" style="vertical-align:-4px" aria-label="Share"><path d="M9 1v13M4.5 5.5 9 1l4.5 4.5" fill="none" stroke="#1969e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9H2v12h14V9h-3" fill="none" stroke="#1969e8" stroke-width="2" stroke-linejoin="round"/></svg>';
+  o.innerHTML='<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px"><img src="assets/icon_192.png?v=4" width="44" height="44" alt="" style="border-radius:10px"><strong style="font-size:17px">Install FittersIQ on this phone</strong></div>'
+   +(ios()?'<ol style="margin:0 0 10px 20px;padding:0"><li>Tap <b>Share</b> '+share+' in Safari (or <b>...</b> then <b>Share</b>).</li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b>.</li></ol><p style="margin:0 0 10px;color:#5b6b7c;font-size:13px">Then open FittersIQ from its icon. It opens full screen, like a normal app.</p>'
+          :'<p style="margin:0 0 10px">Get the FittersIQ icon on your home screen. It opens full screen, like a normal app.</p><button type="button" data-install="go" hidden style="display:block;width:100%;border:0;border-radius:12px;background:#4da721;color:#fff;padding:13px;font-weight:800;font-size:15px;margin-bottom:6px">Install app</button><p data-install-manual style="margin:0 0 10px;color:#5b6b7c;font-size:13px">If no button shows: open the browser menu <b>⋮</b> and tap <b>Install app</b> or <b>Add to Home screen</b>.</p>')
+   +'<button type="button" data-install="later" style="display:block;width:100%;border:0;background:transparent;color:#1969e8;padding:8px;font-weight:700">Not now</button>';
+  o.querySelector('[data-install="later"]').onclick=function(){try{localStorage.setItem(KEY,String(Date.now()))}catch(e){}o.remove()};
+  var go=o.querySelector('[data-install="go"]');
+  if(go){if(deferred)go.hidden=false;go.onclick=async function(){if(!deferred)return;deferred.prompt();try{var r=await deferred.userChoice;if(r&&r.outcome==='accepted')o.remove()}catch(e){}deferred=null}}
+  document.body.appendChild(o);
+ }
+ async function check(){
+  if(!phone()||installed()||oldAddress()||later())return;
+  for(var i=0;i<40&&!(window.fittersiqUser&&window.fittersiqUser.companyId);i++)await new Promise(function(r){setTimeout(r,500)});
+  if(!(window.fittersiqUser&&window.fittersiqUser.companyId))return;
+  await new Promise(function(r){setTimeout(r,2000)});
+  if(!installed())show();
+ }
+ window.fiqInstallGuideCheck=check;
+ if(document.readyState==='complete')check();else window.addEventListener('load',check);
+})();
+</script>
+<style id="fiq-mobile-new-job-bell">
+.fiq-m-bell{position:relative;border:1px solid #d7dae0;background:#fff;border-radius:12px;width:40px;height:40px;font-size:19px;display:inline-flex;align-items:center;justify-content:center;margin-left:auto;flex:0 0 auto;cursor:pointer}
+.fiq-m-bell b{display:none;position:absolute;top:-6px;right:-6px;background:#e53935;color:#fff;font:900 11px/18px Arial,sans-serif;min-width:18px;height:18px;border-radius:9px;padding:0 4px}
+.fiq-m-bell.has-new b{display:block}
+.fiq-m-bell.has-new{border-color:#FFC600;box-shadow:0 0 0 3px rgba(255,198,0,.35)}
+</style>
+<script>
+// New job bell on the phone (Mads 30 Oct 2026): a bell in the header with the number of new
+// jobs from Studio not opened yet - exactly the Jobs badge count (updateInstallNewBadge), so the
+// two never disagree. Tapping it opens the Jobs list. A short message when a new job arrives.
+(function(){
+ let last=null;
+ function paint(){
+  const src=document.getElementById('installNewBadge'),head=document.querySelector('header.slim-header');if(!src||!head)return;
+  let bell=document.getElementById('fiqMobileBell');
+  if(!bell){
+   bell=document.createElement('button');bell.type='button';bell.id='fiqMobileBell';bell.className='fiq-m-bell';bell.setAttribute('aria-label','New jobs');bell.innerHTML='🔔<b></b>';
+   const acct=document.getElementById('fiqAccountBadge');if(acct&&acct.parentNode===head)head.insertBefore(bell,acct);else head.appendChild(bell);
+   bell.onclick=()=>{try{if(typeof projectsListMode!=='undefined')projectsListMode='jobs';if(typeof listChoiceByNav!=='undefined')listChoiceByNav=true}catch(e){}if(typeof show==='function')show('projects')};
+  }
+  const n=src.classList.contains('hidden')?0:(Number(src.textContent)||0);
+  bell.querySelector('b').textContent=String(n);bell.classList.toggle('has-new',n>0);bell.title=n?n+' new job'+(n===1?'':'s'):'No new jobs';
+  if(last!==null&&n>last){const msg='🔔 New job from Studio';const t=document.createElement('div');t.textContent=msg;t.setAttribute('role','status');t.style.cssText='position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:99999;background:#14243b;color:#fff;font:800 14px Arial,sans-serif;padding:10px 16px;border-radius:12px;box-shadow:0 8px 24px #0004';document.body.appendChild(t);setTimeout(()=>t.remove(),3500);try{navigator.vibrate&&navigator.vibrate(120)}catch(e){}}
+  last=n;
+ }
+ const upd=window.updateInstallNewBadge;
+ if(typeof upd==='function'){window.updateInstallNewBadge=function(){const r=upd.apply(this,arguments);try{paint()}catch(e){}return r};try{updateInstallNewBadge=window.updateInstallNewBadge}catch(e){}}
+ setInterval(()=>{try{paint()}catch(e){}},4000);
+ try{paint()}catch(e){}
+})();
+</script>
+
 </body></html>

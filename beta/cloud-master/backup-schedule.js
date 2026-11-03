@@ -15,6 +15,10 @@ function createBackupSchedule(o){
  const quietMs=o.quietMs||2*MIN,maxMs=o.maxMs||10*MIN,retry=o.retryMs||[1*MIN,2*MIN,5*MIN,10*MIN];
  // Persisted between page loads by the adapter (localStorage); everything needed to resume.
  const s=Object.assign({pendingSince:null,lastChangeAt:null,lastVerified:null,running:null,failures:0,nextTryAt:null,lastError:null,offline:false},o.saved||{});
+ // A run saved as still going was cut off: Studio was closed or refreshed during the backup
+ // (Mads 30 Oct 2026, pending for a day). No run survives a page load, so it would otherwise
+ // block every later backup for ever. Its changes are still pending: back them up straight away.
+ if(s.running){s.running=null;if(s.pendingSince!=null){s.forceAt=o.now||Date.now();s.nextTryAt=null;s.failures=0}}
  const api={
   change(t){if(s.pendingSince==null)s.pendingSince=t;s.lastChangeAt=t},
   online(on,t){s.offline=!on;if(on&&s.failures)s.nextTryAt=Math.min(s.nextTryAt||t,t)},
