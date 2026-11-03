@@ -19,7 +19,11 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
   patches:typeof window.fiqMarkJobOverviewCards==='function',syncProtocol:!!window.FittersIQSyncProtocol,i18n:typeof window.t==='function',manifest:!!document.querySelector('link[rel=manifest]'),probe:localStorage.getItem('probe')}));
  assert(!b.ids.includes('normal1'),'beta cannot see the normal Studio jobs');assert.equal(b.probe,null,'beta cannot read normal storage');
  assert(b.banner,'beta banner shown');assert(/^BETA /.test(b.title),'title says BETA');assert(!b.manifest,'beta cannot be installed as the app');
- assert(b.noteFix,'beta runs the Site Note photo fix');assert(b.betaPatch,'beta loads its own studio-patch.js');assert(b.syncProtocol,'shared sync helper loads');assert(b.i18n,'translations load');
+ { // The fix lives inside the original openSiteRoomDetails; since 30 Oct Production wraps that function
+   // (New Job bell), so the running function's text no longer shows it. Check the beta core instead.
+   const core=require('node:fs').readFileSync(require('node:path').join(__dirname,'..','beta','Studio-Recovery.html'),'utf8');
+   const at=core.indexOf('function openSiteRoomDetails(');
+   assert(b.noteFix||(at>=0&&core.slice(at,at+4000).includes('x?.data||')),'beta runs the Site Note photo fix'); }assert(b.betaPatch,'beta loads its own studio-patch.js');assert(b.syncProtocol,'shared sync helper loads');assert(b.i18n,'translations load');
  await beta.evaluate(async()=>{const st=(0,eval)('state');st.projects.push({id:'beta1',name:'Beta job',rooms:[],cabinets:[],jobLog:[]});save();localStorage.setItem('probe','beta');await new Promise(r=>{const q=indexedDB.open('probe-db',1);q.onsuccess=()=>{q.result.close();r()};q.onerror=r})});
  const raw=await beta.evaluate(async()=>{const keys=[];for(let i=0;Storage.prototype.key.call(localStorage,i)!==null&&i<500;i++)keys.push(Storage.prototype.key.call(localStorage,i));const dbs=indexedDB.databases?(await indexedDB.databases()).map(d=>d.name):[];return {keys,dbs}});
  assert(raw.keys.includes('fiqbeta:probe')&&raw.keys.some(k=>k.startsWith('fiqbeta:')&&k!=='fiqbeta:probe'),'beta data stored under its own names');
