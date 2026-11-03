@@ -88,7 +88,10 @@ window.FIQ_FIREBASE_CONFIG={
       // Last line of defence: if Firebase ever reports another project, stop the page.
       var guard='<script>(function(){function check(){var a=window.fiqFirestore&&window.fiqFirestore.app;if(!a)return setTimeout(check,200);if(a.options.projectId!=="'+STAGING_PROJECT+'"){document.documentElement.innerHTML="<body style=\\"font-family:Arial;padding:40px;background:#7f1d1d;color:#fff\\"><h1>Stopped</h1><p>This staging page was connected to the wrong Firebase project and has been stopped.</p></body>"}}check()})()<\/script>';
       var bodyClose=html.toLowerCase().lastIndexOf('</body>');
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+banner+retitle+guard+html.slice(bodyClose);
+      // FittersIQ Estimator (spec v1.1): internal costing only, its own data (state.estimates, state.priceList).
+      var estimator='<script src="'+scriptUrl('estimator-core.js',await exists('estimator-core.js'))+'"><\/script>'+
+                    '<script src="'+scriptUrl('estimator-studio.js',await exists('estimator-studio.js'))+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+banner+retitle+guard+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
