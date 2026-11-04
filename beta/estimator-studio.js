@@ -66,7 +66,7 @@
   function esc(v) { return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function money(v) { return v === null || v === undefined ? '—' : '€' + Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function amt(v) { return v === null || v === undefined ? '' : String(v); }
-  function jobTitle(p) { return p ? (p.customer || p.name || 'Untitled job') + (p.address ? ' · ' + p.address : '') : 'Job'; }
+  function jobTitle(p) { return p ? (p.customer || p.name || 'Untitled job') + (p.customer && p.name && p.name !== p.customer ? ' · ' + p.name : '') + (p.address ? ' · ' + p.address : '') : 'Job'; }
   function statusChip(e) { var m = { draft: ['Draft', 'warn'], saved: ['Saved', 'info'], won: ['Won', 'ok'], lost: ['Lost', 'muted'] }[e.status] || [e.status, 'muted']; return '<span class="fiqx-chip fiqx-' + m[1] + '">' + m[0] + '</span>'; }
   function catLabel(k) { var c = C.CATEGORIES.find(function (x) { return x[0] === k; }); return c ? c[1] : k; }
   function activeItems(pred) { return priceList().items.filter(function (i) { return !i.archived && (!pred || pred(i)); }); }
@@ -101,6 +101,8 @@
     '.fiqx-list button.fiqx-item{display:flex;width:100%;justify-content:space-between;align-items:center;text-align:left;border:1px solid #dfe5ee;background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font:inherit}' +
     '.fiqx-side{position:fixed;right:18px;top:70px;bottom:18px;width:360px;background:#fff;border:1px solid #dfe5ee;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.25);z-index:99995;overflow:auto;padding:12px}' +
     '.fiqx-side img{width:100%;border-radius:8px;margin:4px 0}' +
+    '#fiqxStudioEstimatorBtn{flex-shrink:0;padding:6px 10px;font-size:11px;min-height:0;font-weight:800;background:#e8f0ff;border-color:#8fa8df;color:#0b2545}' +
+    '@media(max-width:1100px){#screen-mark #fiqxStudioEstimatorBtn{grid-column:1 / -1;width:100%}}' +
     '.fiqx-est-btn{margin-left:6px}.fiqx-cl{margin-bottom:14px}.fiqx-cl h4{margin:6px 0}.fiqx-cl .fiqx-clrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 8px;border:1px solid #dfe5ee;border-radius:8px;margin:4px 0;background:#fff;cursor:pointer;width:100%;font:inherit;text-align:left}';
   function ensureStyle() { if (document.getElementById('fiqx-style')) return; var s = document.createElement('style'); s.id = 'fiqx-style'; s.textContent = css; document.head.appendChild(s); }
 
@@ -493,10 +495,44 @@
   // never the old Cutting List route.
   document.addEventListener('click', function (ev) {
     var el = ev.target.closest && ev.target.closest('button,a,[role="button"]'); if (!el) return;
+    if (el.hasAttribute('data-fiqx-from-studio')) return; // the Drawing toolbar button has its own handler
     if (el.hasAttribute('data-fiqx-header-estimator') || (!el.closest('#fiqxEst,#fiqxPL,.fiqx-side') && /^\W*estimator\s*$/i.test(String(el.textContent || '').trim()))) {
       ev.preventDefault(); ev.stopImmediatePropagation(); openPicker();
     }
   }, true);
+
+  // ---------- Estimator button on the Drawing toolbar, beside Site Measurements ----------
+  // Shown only when the open job has at least one panel (rough or final). It opens the Estimator
+  // for that same job, so the customer and job are never entered again.
+  function jobHasPanels(p) { return !!(p && (p.cabinets || []).some(function (c) { return (c.parts || []).length > 0; })); }
+  var studioBtnQueued = false;
+  function syncStudioButton() {
+    studioBtnQueued = false;
+    var site = document.getElementById('drawingViewSiteMeasurementBtn'); if (!site || !site.parentNode) return;
+    var btn = document.getElementById('fiqxStudioEstimatorBtn');
+    var show = jobHasPanels(jobById(currentJobId()));
+    if (!btn) {
+      ensureStyle();
+      btn = document.createElement('button'); btn.className = 'btn'; btn.id = 'fiqxStudioEstimatorBtn'; btn.type = 'button';
+      btn.setAttribute('data-fiqx-from-studio', '1'); btn.textContent = '🧮 Estimator';
+      btn.title = 'Open the Estimator for this job. The panels come with it; nothing in the design changes.';
+      site.parentNode.insertBefore(btn, site.nextSibling);
+    } else if (btn.previousElementSibling !== site) site.parentNode.insertBefore(btn, site.nextSibling);
+    if (btn.hidden === show) btn.hidden = !show;
+  }
+  function queueStudioButton() { if (studioBtnQueued) return; studioBtnQueued = true; (window.requestAnimationFrame || setTimeout)(syncStudioButton); }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-fiqx-from-studio]'); if (!b) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    openFromStudio();
+  }, true);
+  function openFromStudio() {
+    var pid = currentJobId(); if (!pid || !jobById(pid)) { alert('Open or choose a job first.'); return; }
+    ensureStyle(); loadAdmins();
+    openEstimator(pid);
+  }
+  window.fiqOpenEstimatorFromStudio = openFromStudio;
+  queueStudioButton();
 
   // ---------- entry points ----------
   window.fiqOpenEstimatorPicker = openPicker;
@@ -514,7 +550,7 @@
       if (move) move.parentNode.insertBefore(btn, move); else row.appendChild(btn);
     });
   }
-  new MutationObserver(function (muts) { for (var i = 0; i < muts.length; i++) if (muts[i].addedNodes.length) { decorateCards(); addHeaderButton(); break; } }).observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(function (muts) { for (var i = 0; i < muts.length; i++) if (muts[i].addedNodes.length) { decorateCards(); addHeaderButton(); queueStudioButton(); break; } }).observe(document.documentElement, { childList: true, subtree: true });
   addHeaderButton();
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-fiqx-estimate],[data-fiqx-open-est],[data-fiqx-new-est],[data-fiqx-pricelist]'); if (!b) return;
