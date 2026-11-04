@@ -103,6 +103,10 @@
     '.fiqx-side img{width:100%;border-radius:8px;margin:4px 0}' +
     '#fiqxStudioEstimatorBtn{flex-shrink:0;padding:6px 10px;font-size:11px;min-height:0;font-weight:800;background:#e8f0ff;border-color:#8fa8df;color:#0b2545}' +
     '@media(max-width:1100px){#screen-mark #fiqxStudioEstimatorBtn{grid-column:1 / -1;width:100%}}' +
+    '.fiqx-cfg{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:4px;font-size:12px;color:#5b6b80}.fiqx-cfg label{display:flex;gap:4px;align-items:center;white-space:nowrap}.fiqx-cfg .fiqx-in.num{width:62px}' +
+    '.fiqx-need{border-color:#d9822b;background:#fff7ea}.fiqx-studio{border-color:#8fa8df}.fiqx-stale{border-color:#e0a030;background:#fffaf0}' +
+    '.fiqx-modal-bg{position:fixed;inset:0;z-index:99999;background:rgba(11,37,69,.5);display:flex;align-items:center;justify-content:center;padding:18px}' +
+    '.fiqx-modal{background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.fiqx-modal h3{margin:0 0 6px}.fiqx-modal ul{margin:4px 0 10px 18px;padding:0}.fiqx-modal li{margin:3px 0;font-size:13px}' +
     '.fiqx-est-btn{margin-left:6px}.fiqx-cl{margin-bottom:14px}.fiqx-cl h4{margin:6px 0}.fiqx-cl .fiqx-clrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 8px;border:1px solid #dfe5ee;border-radius:8px;margin:4px 0;background:#fff;cursor:pointer;width:100%;font:inherit;text-align:left}';
   function ensureStyle() { if (document.getElementById('fiqx-style')) return; var s = document.createElement('style'); s.id = 'fiqx-style'; s.textContent = css; document.head.appendChild(s); }
 
@@ -126,12 +130,79 @@
     if (view.mode === 'version') { var e = estById(estId); view.n = e.versions.length ? e.versions[e.versions.length - 1].n : null; }
     render();
   }
-  function newEstimateFor(projectId) {
+  // ---- panels copied from Studio ----
+  // Initial sheet settings come from Panel Check (the job own settings first, then this browser, then the material
+  // default: 3 mm saw cut, 5 mm trim, grain by material). Read only; stored in the estimate, never back.
+  function panelCheckCfg(job, material, thickness) {
+    if (typeof window.a181CfgFor !== 'function' || typeof window.a181LoadSettings !== 'function') return null;
+    try { var c = window.a181CfgFor(window.a181LoadSettings(), material, thickness, job); return { w: c.w, h: c.h, kerf: c.kerf, trim: c.trim, grain: !!c.grain, from: 'panelcheck' }; } catch (x) { return null; }
+  }
+  function ensureCfg(version, item, line, job) {
+    if (!item || !version.sheetCfg || version.sheetCfg[item.id]) return;
+    var c = panelCheckCfg(job, (line && line.material) || item.name, (line && line.thickness) || (item.sheet && item.sheet.thickness) || 0);
+    if (c) version.sheetCfg[item.id] = c;
+  }
+  function initCfgs(version, job) { C.importedLines(version).forEach(function (x) { ensureCfg(version, C.findItem(priceList(), x.line.itemId), x.line, job); }); }
+  function setCfg(e, a, t) {
+    var pp = a.split('|'), id = pp[0], f = pp[1], d = e.draft; d.sheetCfg = d.sheetCfg || {};
+    var cur = d.sheetCfg[id] || C.cfgOf(d, id, C.findItem(priceList(), id));
+    cur = { w: cur.w, h: cur.h, kerf: cur.kerf, trim: cur.trim, grain: cur.grain, from: cur.from || 'estimate' };
+    if (f === 'grain') cur.grain = !!t.checked; else { var n = C.parseAmount(t.value); cur[f] = n === null ? 0 : n; }
+    d.sheetCfg[id] = cur;
+  }
+  function importInto(e) {
+    var p = jobById(e.projectId); if (!p || !canWrite() || !e.draft) return;
+    var imp = C.importFromJob(p, priceList()); if (!imp.count) { alert('This job has no panels with a length and width in Studio yet.'); return; }
+    var d = e.draft, hasLines = d.sections.some(function (s) { return s.lines.length; });
+    d.sections = hasLines ? d.sections.concat(imp.sections) : imp.sections;
+    d.source = imp.source; d.source.skipped = imp.skipped; d.sheetCfg = d.sheetCfg || {}; initCfgs(d, p);
+  }
+  function sourceVersion(e) { var v = e.draft || e.versions[e.versions.length - 1]; return v && v.source ? v : null; }
+  function staleChip(e) {
+    var v = sourceVersion(e), p = v && jobById(e.projectId), d = null; if (!v || !p) return '';
+    try { d = C.diffAgainstJob(v, p); } catch (x) { return ''; }
+    return d.stale ? '<span class="fiqx-chip fiqx-warn" title="The Studio design changed after these panels were copied">Studio changed</span> ' : '';
+  }
+  function diffSummary(d) { var b = []; if (d.changed.length) b.push(d.changed.length + ' changed'); if (d.added.length) b.push(d.added.length + ' new'); if (d.removed.length) b.push(d.removed.length + ' removed'); return b.join(', '); }
+  function studioCardHtml(p, v, ro) {
+    if (!p || !v) return '';
+    var src = v.source, panels = C.studioPanels(p);
+    if (!src) {
+      if (ro || !panels.length) return '';
+      return '<div class="fiqx-card fiqx-studio"><div class="fiqx-row"><strong>Studio panels</strong><span class="fiqx-sub">This job has ' + panels.length + ' panel' + (panels.length === 1 ? '' : 's') + ' in Studio, one section per room.</span><span class="fiqx-sp"></span>' +
+        '<button class="fiqx-btn fiqx-pri" data-act="studioimport"' + (canWrite() ? '' : ' disabled') + '>Copy panels from Studio</button></div><div class="fiqx-sub">A separate copy. Changing it here never changes the Studio design.</div></div>';
+    }
+    var d = C.diffAgainstJob(v, p), when = src.updatedAt || src.importedAt;
+    var head = '<strong>Panels copied from Studio</strong><span class="fiqx-sub">' + (src.panelCount || 0) + ' panels · ' + esc(new Date(when).toLocaleString()) + ' · a separate copy, Studio is never changed</span>';
+    var skipped = (src.skipped && src.skipped.length) ? '<div class="fiqx-sub">Not copied, no length or width in Studio: ' + esc(src.skipped.join(', ')) + '</div>' : '';
+    if (!d.stale) return '<div class="fiqx-card fiqx-studio"><div class="fiqx-row">' + head + '<span class="fiqx-chip fiqx-ok">Matches Studio</span></div>' + skipped + '</div>';
+    return '<div class="fiqx-card fiqx-studio fiqx-stale"><div class="fiqx-row">' + head + '</div><div class="fiqx-warnbox"><strong>The Studio design has changed.</strong> This estimate may be out of date (' + esc(diffSummary(d)) + ').</div>' +
+      (ro ? '<div class="fiqx-sub">Use Edit as new version, then review the changes.</div>' : '<button class="fiqx-btn fiqx-pri" data-act="studioreview"' + (canWrite() ? '' : ' disabled') + '>Review changes</button>') + skipped + '</div>';
+  }
+  function openDiffModal(e) {
+    var p = jobById(e.projectId), o = document.getElementById('fiqxEst'); if (!p || !o || !e.draft) return;
+    var d = C.diffAgainstJob(e.draft, p), old = document.getElementById('fiqxDiff'); if (old) old.remove();
+    var fmt = function (k, v) { return v === '' || v === undefined || v === null ? 'none' : (k === 'lengthMm' || k === 'widthMm' ? v + ' mm' : (k === 'roomId' ? 'another room' : v)); };
+    var nm = function (l) { return esc((l.src && l.src.code ? l.src.code + ' ' : '') + (l.name || '')); };
+    var changed = d.changed.map(function (c) {
+      return '<li><strong>' + nm(c.line) + '</strong>: ' + c.fields.map(function (f) { var kept = c.edited.indexOf(f) >= 0;
+        return esc(C.SRC_LABELS[f]) + ' ' + esc(fmt(f, c.line.src[f])) + ' → ' + esc(fmt(f, c.panel[f])) + (kept ? ' <span class="fiqx-ovr">(you changed this here, your value is kept)</span>' : ''); }).join('; ') + '</li>'; }).join('');
+    var added = d.added.map(function (sp) { return '<li><strong>' + esc(sp.code + ' ' + sp.name) + '</strong> × ' + sp.qty + (sp.roomName ? ' (' + esc(sp.roomName) + ')' : '') + '</li>'; }).join('');
+    var removed = d.removed.map(function (x) { return '<li><strong>' + nm(x.line) + '</strong>' + (x.edited.length ? ' <span class="fiqx-ovr">(kept, because you changed it here)</span>' : '') + '</li>'; }).join('');
+    var bg = document.createElement('div'); bg.id = 'fiqxDiff'; bg.className = 'fiqx-modal-bg';
+    bg.innerHTML = '<div class="fiqx-modal"><h3>Studio design changed</h3><div class="fiqx-sub">Nothing changes until you press Update. Studio itself is never changed.</div>' +
+      (changed ? '<h4>Changed in Studio</h4><ul>' + changed + '</ul>' : '') + (added ? '<h4>New in Studio, will be added</h4><ul>' + added + '</ul>' : '') + (removed ? '<h4>Removed in Studio</h4><ul>' + removed + '</ul>' : '') +
+      '<div class="fiqx-warnbox">Not touched by an update: sheet sizes, saw cut and trim, sheet quantities you typed, prices, markup, labour and every other cost in this estimate.</div>' +
+      '<div class="fiqx-row" style="justify-content:flex-end"><button class="fiqx-btn" data-act="studioclose">Cancel</button><button class="fiqx-btn fiqx-pri" data-act="studioapply"' + (canWrite() ? '' : ' disabled') + '>Update estimate from Studio</button></div></div>';
+    o.appendChild(bg);
+  }
+  function newEstimateFor(projectId, withImport) {
     if (!canWrite()) { alert('This Studio window is read-only.'); return null; }
     var p = jobById(projectId), n = jobEstimates(projectId).length + 1;
     var est = C.newEstimate({ projectId: projectId, customerId: p && p.customerId, customer: p && p.customer, name: 'Estimate ' + n }, priceList());
     var rooms = (p && p.rooms) || [];
     if (rooms.length) { est.draft.sections = rooms.map(function (r) { return { id: C.newId('sec'), name: r.name || 'Room', roomId: r.id, lines: [] }; }); }
+    if (withImport) { var imp = C.importFromJob(p, priceList()); if (imp.count) { est.draft.sections = imp.sections; est.draft.source = imp.source; est.draft.source.skipped = imp.skipped; est.draft.sheetCfg = {}; initCfgs(est.draft, p); } }
     writeEstimates(function (list) { list.push(est); });
     return est;
   }
@@ -158,7 +229,7 @@
       '<p class="fiqx-sub">Internal costing only. Nothing here changes the job, its Cutting List, Panel Check, supplier files or Mobile.</p>' +
       '<div class="fiqx-list">' + (list.length ? list.map(function (e) {
         var last = e.versions[e.versions.length - 1];
-        return '<button class="fiqx-item" data-act="open" data-id="' + esc(e.id) + '"><span><strong>' + esc(e.name) + '</strong> ' + statusChip(e) +
+        return '<button class="fiqx-item" data-act="open" data-id="' + esc(e.id) + '"><span><strong>' + esc(e.name) + '</strong> ' + statusChip(e) + staleChip(e) +
           '<span class="fiqx-sub"> ' + (last ? 'V' + last.n + ' · ' + money(C.suggestedOf(e)) : 'not saved yet') + (e.draft && last ? ' · draft of V' + (last.n + 1) : '') + '</span></span><span>›</span></button>';
       }).join('') : '<p class="fiqx-sub">No estimates yet.</p>') + '</div>' +
       '<button class="fiqx-btn fiqx-pri" data-act="new"' + (canWrite() ? '' : ' disabled') + '>New estimate</button></div></div></div></div>';
@@ -170,12 +241,24 @@
     var cost = '<input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(l.unitCost)) + '"' + b('unitCost') + dis + '>' +
       (l.overridden && l.listCost !== null ? '<div class="fiqx-ovr">overridden · list ' + money(l.listCost) + (canEditPrices() && l.itemId && !ro ? ' · <a href="#" data-act="aslist" data-sec="' + esc(sec.id) + '" data-id="' + esc(l.id) + '">save as list price</a>' : '') + '</div>' : '');
     var x = ro ? '' : '<button class="fiqx-x" title="Remove" data-act="rmline" data-sec="' + esc(sec.id) + '" data-id="' + esc(l.id) + '">×</button>';
-    if (l.type === 'panel') return '<tr><td>Rough panel</td><td><input class="fiqx-in" value="' + esc(l.name) + '" placeholder="e.g. Sides"' + b('name') + dis + '></td>' +
-      '<td><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(l.lengthCm)) + '"' + b('lengthCm') + dis + '> × <input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(l.widthCm)) + '"' + b('widthCm') + dis + '> cm</td>' +
-      '<td><input class="fiqx-in num" inputmode="numeric" value="' + esc(amt(l.qty)) + '"' + b('qty') + dis + '></td>' +
-      '<td colspan="2"><select class="fiqx-in" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|itemId"' + dis + '>' + itemOptions(l.itemId, function (i) { return i.category === 'sheet'; }, 'Sheet material…') + '</select> ' +
-      '<select class="fiqx-in" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|edges"' + dis + '>' + [['none', 'No edging'], ['long', 'Long edges'], ['all', 'All edges']].map(function (o) { return '<option value="' + o[0] + '"' + ((l.edges || 'none') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
-      (l.edges && l.edges !== 'none' ? ' <select class="fiqx-in" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|edgeItemId"' + dis + '>' + itemOptions(l.edgeItemId, function (i) { return i.category === 'edging'; }, 'Edging…') + '</select>' : '') + '</td><td>' + x + '</td></tr>';
+    if (l.type === 'panel') {
+      var imported = !!l.src, need = !l.itemId ? ' fiqx-need' : '', edgePred = function (i) { return i.category === 'edging'; };
+      var kind = imported ? 'Studio panel' + (l.code ? '<div class="fiqx-sub">' + esc(l.code) + '</div>' : '') + (l.removedInStudio ? '<div class="fiqx-ovr">removed in Studio</div>' : '') : 'Rough panel';
+      var edgeCell;
+      if (l.edges === 'counts') {
+        var needE = ((Number(l.edgeLong) > 0 || Number(l.edgeShort) > 0) && !l.edgeItemId) ? ' fiqx-need' : '';
+        edgeCell = '<span class="fiqx-sub">Long edges</span> <input class="fiqx-in num" style="width:46px" inputmode="numeric" value="' + esc(amt(l.edgeLong)) + '"' + b('edgeLong') + dis + '> <span class="fiqx-sub">Short edges</span> <input class="fiqx-in num" style="width:46px" inputmode="numeric" value="' + esc(amt(l.edgeShort)) + '"' + b('edgeShort') + dis + '> ' +
+          '<select class="fiqx-in' + needE + '" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|edgeItemId"' + dis + '>' + itemOptions(l.edgeItemId, edgePred, 'Edging…') + '</select>';
+      } else {
+        edgeCell = '<select class="fiqx-in" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|edges"' + dis + '>' + [['none', 'No edging'], ['long', 'Long edges'], ['all', 'All edges']].map(function (o) { return '<option value="' + o[0] + '"' + ((l.edges || 'none') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
+          (l.edges && l.edges !== 'none' ? ' <select class="fiqx-in" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|edgeItemId"' + dis + '>' + itemOptions(l.edgeItemId, edgePred, 'Edging…') + '</select>' : '');
+      }
+      return '<tr><td>' + kind + '</td><td><input class="fiqx-in" value="' + esc(l.name) + '" placeholder="e.g. Sides"' + b('name') + dis + '>' +
+        (imported && l.material ? '<div class="fiqx-sub">Studio: ' + esc(l.material) + (l.thickness ? ' ' + esc(l.thickness) + ' mm' : '') + '</div>' : '') + '</td>' +
+        '<td><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(l.lengthCm)) + '"' + b('lengthCm') + dis + '> × <input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(l.widthCm)) + '"' + b('widthCm') + dis + '> cm</td>' +
+        '<td><input class="fiqx-in num" inputmode="numeric" value="' + esc(amt(l.qty)) + '"' + b('qty') + dis + '></td>' +
+        '<td colspan="2"><select class="fiqx-in' + need + '" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|itemId"' + dis + '>' + itemOptions(l.itemId, function (i) { return i.category === 'sheet'; }, 'Sheet material…') + '</select> ' + edgeCell + '</td><td>' + x + '</td></tr>';
+    }
     var nameCell = l.type === 'custom'
       ? '<input class="fiqx-in" value="' + esc(l.name) + '" placeholder="Item name"' + b('name') + dis + '> <select class="fiqx-in" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|unit"' + dis + '>' + C.UNITS.map(function (u) { return '<option' + (u === l.unit ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select>'
       : '<select class="fiqx-in" data-s="' + esc(sec.id) + '|' + esc(l.id) + '|itemId"' + dis + '>' + itemOptions(l.itemId, l.type === 'sheets' ? function (i) { return i.category === 'sheet'; } : function (i) { return i.category !== 'sheet'; }) + '</select>';
@@ -197,9 +280,9 @@
     var name = '<input class="fiqx-in" style="font-weight:800;width:200px" value="' + esc(e.name) + '" data-eb="name">';
     var ver = '<span class="fiqx-sub">' + (last ? 'Draft of V' + (last.n + 1) : 'Draft · not saved yet') + '</span>';
     return '<div class="fiqx-win">' + topBar(p, e, name + ver + (e.versions.length ? '<button class="fiqx-btn" data-act="versions">Saved versions</button>' : '')) +
-      '<div class="fiqx-body"><div>' + d.sections.map(function (s) { return sectionHtml(p, s, false); }).join('') +
+      '<div class="fiqx-body"><div>' + studioCardHtml(p, d, false) + (d.source ? '<div class="fiqx-card" id="fiqxDerived"></div>' : '') + d.sections.map(function (s) { return sectionHtml(p, s, false); }).join('') +
       '<button class="fiqx-btn" data-act="addsec" style="margin-bottom:12px">+ Add section</button>' +
-      '<div class="fiqx-card" id="fiqxDerived"></div>' +
+      (d.source ? '' : '<div class="fiqx-card" id="fiqxDerived"></div>') +
       '<div class="fiqx-card"><h3>Other costs</h3><table class="fiqx-t"><tbody>' + (i.otherCosts || []).map(function (o, k) {
         return '<tr><td><input class="fiqx-in wide" value="' + esc(o.label) + '" placeholder="e.g. Delivery" data-ob="' + k + '|label"></td><td style="width:110px"><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(o.amount)) + '" data-ob="' + k + '|amount"></td><td style="width:30px"><button class="fiqx-x" data-act="rmother" data-k="' + k + '">×</button></td></tr>';
       }).join('') + '</tbody></table><button class="fiqx-btn" data-act="addother">+ Other cost</button>' +
@@ -217,23 +300,44 @@
       '<div class="fiqx-card"><div class="fiqx-row">' + tabs + '<span class="fiqx-sp"></span><span class="fiqx-sub">Saved ' + esc(new Date(v.savedAt).toLocaleString()) + ' · read-only</span></div>' +
       (e.wonAt ? '<p class="fiqx-sub">Won on ' + esc(new Date(e.wonAt).toLocaleDateString()) + '</p>' : '') + (e.lostAt ? '<p class="fiqx-sub">Lost on ' + esc(new Date(e.lostAt).toLocaleDateString()) + (e.lostReason ? ': ' + esc(e.lostReason) : '') + '</p>' : '') +
       '<div class="fiqx-row">' + actions + '</div></div>' +
-      v.sections.map(function (s) { return sectionHtml(p, s, true); }).join('') + derivedHtml(v, true) +
+      studioCardHtml(p, v, true) + (v.source ? derivedHtml(v, true) : '') + v.sections.map(function (s) { return sectionHtml(p, s, true); }).join('') + (v.source ? '' : derivedHtml(v, true)) +
       (v.notes ? '<div class="fiqx-card"><h3>Notes</h3><div>' + esc(v.notes) + '</div></div>' : '') +
       '</div><div class="fiqx-sum"><div class="fiqx-card">' + summaryHtml(v, r, true) + '</div></div></div></div>';
   }
   function derivedHtml(v, ro) {
-    var d = v.derived || { sheets: {}, edging: {} }, rows = [];
-    Object.keys(d.sheets || {}).forEach(function (id) { var g = d.sheets[id]; rows.push(['sheets', id, g.name, g.count + ' sheet' + (g.count === 1 ? '' : 's'), g.override, g.unitCost, g.tooBig ? '<div class="fiqx-ovr">' + g.tooBig + ' panel(s) bigger than this sheet</div>' : '', 'sheets']); });
-    Object.keys(d.edging || {}).forEach(function (id) { var g = d.edging[id]; rows.push(['edging', id, g.name, g.metres + ' m', g.override, g.unitCost, '', 'm']); });
-    var inner = '<h3>Sheets and edging from rough panels</h3>' + (rows.length ? '<table class="fiqx-t"><thead><tr><th>Item</th><th>Calculated</th><th>Use instead</th><th>Unit cost</th><th>Total</th></tr></thead><tbody>' + rows.map(function (r) {
-      var g = (d[r[0]] || {})[r[1]], q = g.override !== null && g.override !== undefined ? Number(g.override) : (r[0] === 'sheets' ? g.count : g.metres);
-      var tot = g.unitCost !== null && g.unitCost !== undefined ? money(Math.round(g.unitCost * 100 * q) / 100) : '<span class="fiqx-ovr">no price</span>';
-      return '<tr><td>' + esc(r[2]) + r[6] + '</td><td>' + esc(r[3]) + '</td><td><input class="fiqx-in num" inputmode="decimal" placeholder="—" value="' + esc(amt(r[4])) + '" data-gb="' + r[0] + '|' + esc(r[1]) + '|override"' + (ro ? ' disabled' : '') + '> ' + r[7] + '</td>' +
-        '<td><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(r[5])) + '" data-gb="' + r[0] + '|' + esc(r[1]) + '|unitCost"' + (ro ? ' disabled' : '') + '></td><td>' + tot + '</td></tr>';
-    }).join('') + '</tbody></table>' : '<p class="fiqx-sub">Add rough panels with a sheet material to calculate sheets and edging. Counts always round up to whole sheets.</p>');
+    var d = v.derived || { sheets: {}, edging: {} }, notes = d.notes || {}, rows = [];
+    Object.keys(d.sheets || {}).forEach(function (id) { rows.push(['sheets', id]); });
+    Object.keys(d.edging || {}).forEach(function (id) { rows.push(['edging', id]); });
+    var cfgIn = function (id, f, val) { return '<input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(val)) + '" data-cfg="' + esc(id) + '|' + f + '"' + (ro ? ' disabled' : '') + '>'; };
+    var itemCell = function (kind, id, g) {
+      if (kind !== 'sheets') return esc(g.name);
+      var c = g.cfg || C.cfgOf(v, id, C.findItem(priceList(), id));
+      var settings = ro
+        ? '<div class="fiqx-sub">Sheet ' + c.w + ' × ' + c.h + ' mm · saw cut ' + c.kerf + ' mm · trim ' + c.trim + ' mm · ' + (c.grain ? 'grain kept' : 'panels may be turned') + '</div>'
+        : '<div class="fiqx-cfg"><label>Sheet length ' + cfgIn(id, 'w', c.w) + ' mm</label><label>width ' + cfgIn(id, 'h', c.h) + ' mm</label><label>Saw cut ' + cfgIn(id, 'kerf', c.kerf) + ' mm</label><label>Trim ' + cfgIn(id, 'trim', c.trim) + ' mm</label>' +
+          '<label><input type="checkbox" data-cfg="' + esc(id) + '|grain"' + (c.grain ? ' checked' : '') + '> keep grain direction</label></div>';
+      var warn = g.sizeDiffers ? '<div class="fiqx-warnbox">Sheet size differs from the price list item (' + g.listW + ' × ' + g.listH + ' mm). The price per sheet is kept as it is; change the unit cost here if your supplier price is different. Only this estimate changes.</div>' : '';
+      return esc(g.name) + (g.tooBig ? '<div class="fiqx-ovr">' + g.tooBig + ' panel(s) bigger than this sheet</div>' : '') + settings + warn + (g.cuts ? '<div class="fiqx-sub">About ' + g.cuts + ' cuts for this material</div>' : '');
+    };
+    var inner = '<h3>Sheets and edging from panels</h3>' +
+      ((notes.noSheet && notes.noSheet.length) ? '<div class="fiqx-warnbox">' + notes.noSheet.length + ' panel' + (notes.noSheet.length === 1 ? ' is' : 's are') + ' not counted yet because no sheet material is chosen: ' + esc(notes.noSheet.join(', ')) + '. Choose a sheet for ' + (notes.noSheet.length === 1 ? 'it' : 'each') + ' in the panel lines above.</div>' : '') +
+      ((notes.noEdge && notes.noEdge.length) ? '<div class="fiqx-warnbox">' + notes.noEdge.length + ' panel' + (notes.noEdge.length === 1 ? ' has' : 's have') + ' edging but no edging item chosen, so the edging is not counted: ' + esc(notes.noEdge.join(', ')) + '.</div>' : '') +
+      (rows.length ? '<table class="fiqx-t"><thead><tr><th>Item</th><th>Calculated</th><th>Use instead</th><th>Unit cost</th><th>Total</th></tr></thead><tbody>' + rows.map(function (r) {
+        var g = (d[r[0]] || {})[r[1]], isSheet = r[0] === 'sheets', q = g.override !== null && g.override !== undefined ? Number(g.override) : (isSheet ? g.count : g.metres);
+        var tot = g.unitCost !== null && g.unitCost !== undefined ? money(Math.round(g.unitCost * 100 * q) / 100) : '<span class="fiqx-ovr">no price</span>';
+        return '<tr><td>' + itemCell(r[0], r[1], g) + '</td><td>' + esc(isSheet ? g.count + ' sheet' + (g.count === 1 ? '' : 's') : g.metres + ' m') + '</td><td><input class="fiqx-in num" inputmode="decimal" placeholder="—" value="' + esc(amt(g.override)) + '" data-gb="' + r[0] + '|' + esc(r[1]) + '|override"' + (ro ? ' disabled' : '') + '> ' + (isSheet ? 'sheets' : 'm') + '</td>' +
+          '<td><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(g.unitCost)) + '" data-gb="' + r[0] + '|' + esc(r[1]) + '|unitCost"' + (ro ? ' disabled' : '') + '></td><td>' + tot + '</td></tr>';
+      }).join('') + '</tbody></table>' + (notes.cuts ? '<div class="fiqx-row" style="margin-top:8px"><strong>Estimated cuts: ' + notes.cuts + '</strong><span class="fiqx-sub">from the sheet layout, edge trimming not included; your supplier decides the real cutting</span></div>' : '')
+        : '<p class="fiqx-sub">Add panels with a sheet material to calculate sheets and edging. Counts always round up to whole sheets.</p>');
     return ro ? '<div class="fiqx-card">' + inner + '</div>' : inner;
   }
-  function refreshDerived(e) { C.syncDerived(e.draft, priceList(), packFn()); var el = document.getElementById('fiqxDerived'); if (el) el.innerHTML = derivedHtml(e.draft, false); }
+  function refreshDerived(e) {
+    C.syncDerived(e.draft, priceList(), packFn());
+    var el = document.getElementById('fiqxDerived'); if (!el) return;
+    var a = document.activeElement, key = a && a.getAttribute && (a.getAttribute('data-cfg') ? ['data-cfg', a.getAttribute('data-cfg')] : (a.getAttribute('data-gb') ? ['data-gb', a.getAttribute('data-gb')] : null)), pos = a && a.selectionStart;
+    el.innerHTML = derivedHtml(e.draft, false);
+    if (key) { var again = el.querySelector('[' + key[0] + '="' + key[1] + '"]'); if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (x) {} } }
+  }
   function summaryHtml(v, r, ro) {
     var i = v.inputs, dis = ro ? ' disabled' : '';
     var markup = ro ? '<span>' + esc(i.markupPct) + '%</span>' : '<span style="display:flex;gap:4px;align-items:center"><button class="fiqx-btn" data-act="mk" data-d="-5" aria-label="Decrease markup">−</button><input class="fiqx-in num" style="width:64px" inputmode="decimal" value="' + esc(amt(i.markupPct)) + '" data-ib="markupPct" id="fiqxMarkup">%<button class="fiqx-btn" data-act="mk" data-d="5" aria-label="Increase markup">+</button></span>';
@@ -286,6 +390,7 @@
       if (a === 'allowancePct') refreshDerived(e);
     } else if ((a = t.getAttribute('data-ob'))) { var p2 = a.split('|'), o = e.draft.inputs.otherCosts[Number(p2[0])]; if (o) o[p2[1]] = p2[1] === 'amount' ? numOrNull(t.value) : t.value; }
     else if ((a = t.getAttribute('data-gb'))) { var p3 = a.split('|'), g = (e.draft.derived[p3[0]] || {})[p3[1]]; if (g) g[p3[2]] = numOrNull(t.value); }
+    else if ((a = t.getAttribute('data-cfg'))) { setCfg(e, a, t); refreshDerived(e); }
     else if ((a = t.getAttribute('data-sb'))) { var s = e.draft.sections.find(function (x) { return x.id === a.split('|')[0]; }); if (s) s.name = t.value; }
     else if (t.getAttribute('data-eb') === 'name') e.name = t.value;
     else if (t.getAttribute('data-db') === 'notes') e.draft.notes = t.value;
@@ -301,6 +406,7 @@
       if (parts[2] === 'itemId') {
         var it = C.findItem(priceList(), t.value);
         hit.line.itemId = it ? it.id : null;
+        if (it && hit.line.type === 'panel') ensureCfg(e.draft, it, hit.line, jobById(e.projectId));
         if (hit.line.type !== 'panel') { hit.line.name = it ? it.name : ''; hit.line.unit = it ? it.unit : 'each'; hit.line.unitCost = it ? it.cost : null; hit.line.listCost = it ? it.cost : null; hit.line.overridden = false; }
       } else hit.line[parts[2]] = t.value;
     } else if ((a = t.getAttribute('data-ss'))) { var s = e.draft.sections.find(function (x) { return x.id === a.split('|')[0]; }); if (s) { s.roomId = t.value || null; var r = ((jobById(e.projectId) || {}).rooms || []).find(function (x) { return x.id === t.value; }); if (r && /^Section \d+$/.test(s.name)) s.name = r.name; } }
@@ -332,7 +438,17 @@
         sec.lines.push(type === 'panel' ? C.lineFromItem('panel', null, { name: '', lengthCm: null, widthCm: null, qty: 1, edges: 'none', unitCost: null, listCost: null })
           : C.lineFromItem(type, null, { name: '', unit: type === 'sheets' ? 'sheet' : 'each', qty: 1 }));
       });
-      case 'rmline': return mutate(function () { var sec = e.draft.sections.find(function (s) { return s.id === b.getAttribute('data-sec'); }); if (sec) sec.lines = sec.lines.filter(function (l) { return l.id !== b.getAttribute('data-id'); }); });
+      case 'rmline': return mutate(function () {
+        var sec = e.draft.sections.find(function (s) { return s.id === b.getAttribute('data-sec'); }); if (!sec) return;
+        var gone = sec.lines.find(function (l) { return l.id === b.getAttribute('data-id'); });
+        // A copied panel removed on purpose is remembered, so it is not offered again as "new in Studio".
+        if (gone && gone.src && e.draft.source) { e.draft.source.dropped = e.draft.source.dropped || {}; e.draft.source.dropped[gone.src.srcId] = gone.src.fp; }
+        sec.lines = sec.lines.filter(function (l) { return l.id !== b.getAttribute('data-id'); });
+      });
+      case 'studioimport': return mutate(function () { importInto(e); });
+      case 'studioreview': return openDiffModal(e);
+      case 'studioclose': { var m = document.getElementById('fiqxDiff'); if (m) m.remove(); return; }
+      case 'studioapply': return mutate(function () { var p = jobById(e.projectId); if (!p) return; C.applyUpdate(e.draft, p, priceList()); e.draft.sheetCfg = e.draft.sheetCfg || {}; initCfgs(e.draft, p); });
       case 'addsec': return mutate(function () { e.draft.sections.push({ id: C.newId('sec'), name: 'Section ' + (e.draft.sections.length + 1), roomId: null, lines: [] }); });
       case 'rmsec': return mutate(function () { if (e.draft.sections.length > 1 && confirm('Remove this section and its lines?')) e.draft.sections = e.draft.sections.filter(function (s) { return s.id !== b.getAttribute('data-sec'); }); });
       case 'addother': return mutate(function () { e.draft.inputs.otherCosts.push({ label: '', amount: null }); });
@@ -529,6 +645,12 @@
   function openFromStudio() {
     var pid = currentJobId(); if (!pid || !jobById(pid)) { alert('Open or choose a job first.'); return; }
     ensureStyle(); loadAdmins();
+    var list = jobEstimates(pid);
+    // No estimate yet: make one with the whole job copied in, one section per room, and open it.
+    if (!list.length) { var n = newEstimateFor(pid, true); if (n) { view = { projectId: pid, mode: 'edit', estId: n.id }; render(); } return; }
+    // Otherwise open the newest estimate that already holds Studio panels; if none does, show the list.
+    var linked = list.filter(function (x) { return !!sourceVersion(x); }).sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); })[0];
+    if (linked) return openEstimator(pid, linked.id);
     openEstimator(pid);
   }
   window.fiqOpenEstimatorFromStudio = openFromStudio;

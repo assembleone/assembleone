@@ -122,6 +122,20 @@
     line.overridden = line.listCost === null || v === null ? v !== null : v !== line.listCost;
   }
 
+  // Sheet settings for one sheet item inside ONE estimate (version.sheetCfg[itemId]). They live only in the
+  // estimate: never in the price list, never in the job. Without an entry the estimate behaves exactly as it
+  // always did (size from the price list item, 4 mm saw cut, no trim, panels may be turned).
+  function legacyCfg(item) {
+    var s = item && item.sheet;
+    return { w: (s && num(s.w, 0)) || DEFAULT_SHEET.w, h: (s && num(s.h, 0)) || DEFAULT_SHEET.h, kerf: KERF_MM, trim: 0, grain: false };
+  }
+  function cfgOf(version, itemId, item) {
+    var c = version && version.sheetCfg && version.sheetCfg[itemId], d = legacyCfg(item);
+    if (!c) return d;
+    // A sheet side under 300 mm is a half-typed number, not a real sheet: keep the previous default meanwhile.
+    return { w: num(c.w, 0) >= 300 ? num(c.w, 0) : d.w, h: num(c.h, 0) >= 300 ? num(c.h, 0) : d.h,
+      kerf: Math.max(0, num(c.kerf, d.kerf)), trim: Math.max(0, num(c.trim, d.trim)), grain: c.grain === undefined || c.grain === null ? d.grain : !!c.grain };
+  }
   // Sheets from rough panels: grouped by the sheet item chosen on each panel line, packed with the
   // same engine as the Sheet Optimiser when given (packFn = window.a181Pack), always whole sheets.
   function sheetDemand(version, pl, packFn) {
@@ -136,16 +150,18 @@
     });
     var out = {};
     Object.keys(groups).forEach(function (itemId) {
-      var it = findItem(pl, itemId), sw = (it && it.sheet && num(it.sheet.w, 0)) || DEFAULT_SHEET.w, sh = (it && it.sheet && num(it.sheet.h, 0)) || DEFAULT_SHEET.h;
-      var g = groups[itemId], count = 0, tooBig = 0;
+      var it = findItem(pl, itemId), cfg = cfgOf(version, itemId, it), sw = cfg.w, sh = cfg.h;
+      var g = groups[itemId], count = 0, tooBig = 0, cuts = 0;
       if (typeof packFn === 'function' && g.pieces.length) {
-        var r = packFn(g.pieces, sw, sh, KERF_MM, true, 0);
+        var r = packFn(g.pieces, sw, sh, cfg.kerf, !cfg.grain, cfg.trim);
         count = (r && r.sheets ? r.sheets.length : 0); tooBig = (r && r.unplaced ? r.unplaced.length : 0);
+        cuts = (r && r.sheets ? r.sheets : []).reduce(function (n, s) { return n + (Number(s.cuts) || 0); }, 0);
       } else if (g.pieces.length) {
-        count = Math.ceil(g.area / (sw * sh));
-        tooBig = g.pieces.filter(function (p) { return !((p.w <= sw && p.h <= sh) || (p.h <= sw && p.w <= sh)); }).length;
+        var uw = Math.max(1, sw - 2 * cfg.trim), uh = Math.max(1, sh - 2 * cfg.trim);
+        count = Math.ceil(g.area / (uw * uh));
+        tooBig = g.pieces.filter(function (p) { return !((p.w <= uw && p.h <= uh) || (!cfg.grain && p.h <= uw && p.w <= uh)); }).length;
       }
-      out[itemId] = { count: count, tooBig: tooBig, sheetW: sw, sheetH: sh };
+      out[itemId] = { count: count, tooBig: tooBig, sheetW: sw, sheetH: sh, cuts: cuts, cfg: cfg, listW: it && it.sheet ? num(it.sheet.w, 0) : 0, listH: it && it.sheet ? num(it.sheet.h, 0) : 0 };
     });
     return out;
   }
@@ -155,7 +171,9 @@
       (s.lines || []).forEach(function (l) {
         if (l.type !== 'panel' || !l.edgeItemId || !l.edges || l.edges === 'none') return;
         var L = num(l.lengthCm, 0), W = num(l.widthCm, 0), q = Math.max(0, num(l.qty, 0));
-        var cm = l.edges === 'all' ? 2 * (L + W) : 2 * L;
+        // Panels copied from Studio carry Studio's own long and short edge counts (the same method as the Shopping List).
+        var cm = l.edges === 'counts' ? Math.max(0, num(l.edgeLong, 0)) * L + Math.max(0, num(l.edgeShort, 0)) * W
+          : l.edges === 'all' ? 2 * (L + W) : 2 * L;
         out[l.edgeItemId] = (out[l.edgeItemId] || 0) + (cm * q) / 100;
       });
     });
@@ -172,6 +190,8 @@
       var prev = version.derived.sheets[id], it = findItem(pl, id);
       sheets[id] = {
         itemId: id, name: (prev && prev.name) || (it && it.name) || 'Sheet', count: Math.ceil(sd[id].count * allow - 1e-9), tooBig: sd[id].tooBig,
+        cuts: sd[id].cuts, cfg: sd[id].cfg, listW: sd[id].listW, listH: sd[id].listH,
+        sizeDiffers: !!(sd[id].listW && sd[id].listH && !((sd[id].cfg.w === sd[id].listW && sd[id].cfg.h === sd[id].listH) || (sd[id].cfg.w === sd[id].listH && sd[id].cfg.h === sd[id].listW))),
         override: prev && prev.override !== undefined ? prev.override : null,
         unitCost: prev ? prev.unitCost : (it ? it.cost : null), listCost: prev ? prev.listCost : (it ? it.cost : null)
       };
@@ -184,8 +204,158 @@
         unitCost: prev ? prev.unitCost : (it ? it.cost : null), listCost: prev ? prev.listCost : (it ? it.cost : null)
       };
     });
-    version.derived = { sheets: sheets, edging: edging };
+    // Panel lines that cannot be counted yet, so a short total is never mistaken for a complete one.
+    var notes = { noSheet: [], noEdge: [], cuts: 0 };
+    (version.sections || []).forEach(function (s) { (s.lines || []).forEach(function (l) {
+      if (l.type !== 'panel') return;
+      var sized = num(l.lengthCm, 0) > 0 && num(l.widthCm, 0) > 0 && num(l.qty, 0) > 0;
+      if (sized && !l.itemId) notes.noSheet.push(l.name || l.code || 'Panel');
+      var hasEdges = l.edges === 'counts' ? (num(l.edgeLong, 0) > 0 || num(l.edgeShort, 0) > 0) : (l.edges && l.edges !== 'none');
+      if (sized && hasEdges && !l.edgeItemId) notes.noEdge.push(l.name || l.code || 'Panel');
+    }); });
+    Object.keys(sheets).forEach(function (id) { notes.cuts += Number(sheets[id].cuts) || 0; });
+    version.derived = { sheets: sheets, edging: edging, notes: notes };
     return version;
+  }
+
+  // ---------- Panels copied from a Studio job (snapshot) ----------
+  // The Estimator never reads a job live. Importing COPIES each panel into an estimate line together with the
+  // values it had at that moment (line.src). Nothing here writes to the job. Later changes in Studio are only
+  // reported (diffAgainstJob) and applied when the user says so (applyUpdate).
+  var SRC_FIELDS = ['name', 'lengthMm', 'widthMm', 'thickness', 'qty', 'material', 'edgeLong', 'edgeShort', 'roomId'];
+  var SRC_LABELS = { name: 'name', lengthMm: 'length', widthMm: 'width', thickness: 'thickness', qty: 'quantity', material: 'material', edgeLong: 'long edges', edgeShort: 'short edges', roomId: 'room' };
+  // A panel material is its own, else the job default, else the unit last used. (Studio materialForPanel
+  // reads whichever job is open on screen, so it is not used here.)
+  function studioMaterial(job, unit, part) { return String(part.material || job.defaultMaterial || unit.lastMaterial || '').trim(); }
+  function studioPanels(job) {
+    var rooms = (job && job.rooms) || [], out = [], skipped = [];
+    ((job && job.cabinets) || []).forEach(function (u) {
+      var room = rooms.find(function (r) { return r.id === u.roomId; });
+      (u.parts || []).forEach(function (p) {
+        var L = num(p.length, 0), W = num(p.width, 0);
+        if (!(L > 0 && W > 0)) { skipped.push(p.code || p.name || 'panel'); return; }
+        var q = Math.floor(num(p.qty, 1)); if (!(q >= 1)) q = 1;
+        out.push({ srcId: String(p.id), unitId: u.id, unitName: u.name || '', roomId: room ? room.id : null, roomName: room ? room.name : '',
+          code: p.code || '', name: p.name || '', lengthMm: L, widthMm: W, thickness: num(p.thickness, 0), qty: q,
+          material: studioMaterial(job, u, p), edgeLong: Math.max(0, num(p.edgeLong, 0)), edgeShort: Math.max(0, num(p.edgeShort, 0)) });
+      });
+    });
+    out.skipped = skipped; return out;
+  }
+  function panelFp(sp) { return SRC_FIELDS.map(function (k) { return String(sp[k] === null || sp[k] === undefined ? '' : sp[k]); }).join('|'); }
+  function srcCopy(sp) { var s = {}; SRC_FIELDS.forEach(function (k) { s[k] = sp[k]; }); s.srcId = sp.srcId; s.unitId = sp.unitId; s.code = sp.code; return s; }
+  // Price-list matching by material name and thickness. Only a single clear match is taken; anything else stays
+  // empty ("choose item") rather than guessing.
+  function itemBase(it) { return norm(String(it.name || '').replace(/\(.*?\)/g, ' ').replace(/\b\d+(\.\d+)?\s*mm\b/gi, ' ')); }
+  function nameMatches(it, material) {
+    var m = norm(material); if (!m) return false;
+    var base = itemBase(it); return norm(it.name).indexOf(m) >= 0 || (base.length >= 3 && m.indexOf(base) >= 0);
+  }
+  function matchSheetItem(pl, material, thickness) {
+    var hits = ((pl && pl.items) || []).filter(function (it) { return !it.archived && it.category === 'sheet' && it.sheet && num(it.sheet.thickness, 0) === num(thickness, 0) && nameMatches(it, material); });
+    return hits.length === 1 ? hits[0].id : null;
+  }
+  function matchEdgeItem(pl, material, thickness) {
+    var all = ((pl && pl.items) || []).filter(function (it) { return !it.archived && it.category === 'edging' && nameMatches(it, material); });
+    if (all.length > 1 && num(thickness, 0)) { var th = all.filter(function (it) { return (String(it.name).match(/\d+(\.\d+)?/g) || []).indexOf(String(num(thickness, 0))) >= 0; }); if (th.length === 1) all = th; }
+    return all.length === 1 ? all[0].id : null;
+  }
+  function lineFromStudioPanel(sp, pl) {
+    var itemId = matchSheetItem(pl, sp.material, sp.thickness), edgeItemId = (sp.edgeLong || sp.edgeShort) ? matchEdgeItem(pl, sp.material, sp.thickness) : null;
+    var l = { id: newId('ln'), type: 'panel', name: sp.name || sp.code || 'Panel', code: sp.code, material: sp.material, thickness: sp.thickness,
+      lengthCm: sp.lengthMm / 10, widthCm: sp.widthMm / 10, qty: sp.qty, itemId: itemId, edges: (sp.edgeLong || sp.edgeShort) ? 'counts' : 'none',
+      edgeLong: sp.edgeLong, edgeShort: sp.edgeShort, edgeItemId: edgeItemId, unitCost: null, listCost: null, overridden: false };
+    l.src = srcCopy(sp); l.src.itemId = itemId; l.src.edgeItemId = edgeItemId; l.src.fp = panelFp(sp);
+    return l;
+  }
+  // One section per room (rooms in the job order), then one for panels in no room.
+  function importFromJob(job, pl) {
+    var panels = studioPanels(job), sections = [], rooms = (job && job.rooms) || [];
+    rooms.forEach(function (r) { sections.push({ id: newId('sec'), name: r.name || 'Room', roomId: r.id, lines: [] }); });
+    var other = { id: newId('sec'), name: 'No room', roomId: null, lines: [] };
+    panels.forEach(function (sp) {
+      var line = lineFromStudioPanel(sp, pl), sec = sections.find(function (s) { return s.roomId && s.roomId === sp.roomId; });
+      (sec || other).lines.push(line);
+    });
+    if (other.lines.length) sections.push(other);
+    sections = sections.filter(function (s) { return s.lines.length; });
+    var all = []; sections.forEach(function (s) { s.lines.forEach(function (l) { all.push(l); }); });
+    return { sections: sections, skipped: panels.skipped, count: all.length,
+      noSheet: all.filter(function (l) { return !l.itemId; }).length, noEdge: all.filter(function (l) { return l.edges === 'counts' && !l.edgeItemId; }).length,
+      source: { projectId: job.id, importedAt: new Date().toISOString(), updatedAt: null, panelCount: all.length, dropped: {} } };
+  }
+  function importedLines(version) {
+    var out = []; (version.sections || []).forEach(function (s) { (s.lines || []).forEach(function (l) { if (l.type === 'panel' && l.src) out.push({ sec: s, line: l }); }); }); return out;
+  }
+  // Which of the Studio values on a line has the user changed inside the estimate?
+  function lineEditedFields(l) {
+    var s = l.src, out = []; if (!s) return out;
+    if (String(l.name || '') !== String(s.name || s.code || '') && String(l.name || '') !== String(s.name || '')) out.push('name');
+    if (Math.round(num(l.lengthCm, 0) * 10) !== Math.round(s.lengthMm)) out.push('lengthMm');
+    if (Math.round(num(l.widthCm, 0) * 10) !== Math.round(s.widthMm)) out.push('widthMm');
+    if (num(l.qty, 0) !== s.qty) out.push('qty');
+    if (num(l.edgeLong, 0) !== s.edgeLong) out.push('edgeLong');
+    if (num(l.edgeShort, 0) !== s.edgeShort) out.push('edgeShort');
+    return out;
+  }
+  // What changed in Studio since the snapshot, and what an update would touch.
+  function diffAgainstJob(version, job) {
+    var cur = studioPanels(job), byId = {}; cur.forEach(function (sp) { byId[sp.srcId] = sp; });
+    var lines = importedLines(version), have = {}; lines.forEach(function (x) { have[x.line.src.srcId] = x; });
+    var dropped = (version.source && version.source.dropped) || {};
+    var added = cur.filter(function (sp) { return !have[sp.srcId] && dropped[sp.srcId] !== panelFp(sp); });
+    var removed = lines.filter(function (x) { return !byId[x.line.src.srcId]; }).map(function (x) { return { line: x.line, sec: x.sec, edited: lineEditedFields(x.line) }; });
+    var changed = [];
+    lines.forEach(function (x) {
+      var sp = byId[x.line.src.srcId]; if (!sp || panelFp(sp) === x.line.src.fp) return;
+      var fields = SRC_FIELDS.filter(function (k) { return String(sp[k] === undefined ? '' : sp[k]) !== String(x.line.src[k] === undefined ? '' : x.line.src[k]); });
+      changed.push({ line: x.line, sec: x.sec, panel: sp, fields: fields, edited: lineEditedFields(x.line) });
+    });
+    return { stale: !!(added.length || removed.length || changed.length), added: added, removed: removed, changed: changed, skipped: cur.skipped };
+  }
+  function sectionFor(version, sp) {
+    var s = (version.sections || []).find(function (x) { return sp.roomId ? x.roomId === sp.roomId : (!x.roomId && x.name === 'No room'); });
+    if (!s) { s = { id: newId('sec'), name: sp.roomId ? (sp.roomName || 'Room') : 'No room', roomId: sp.roomId || null, lines: [] }; version.sections.push(s); }
+    return s;
+  }
+  // Applies an update the user has agreed to. Estimate-side edits are protected: a line the user changed keeps its
+  // own values (only its Studio reference is refreshed); sheet settings, sheet quantities and prices are never touched.
+  function applyUpdate(version, job, pl) {
+    var d = diffAgainstJob(version, job), kept = [], did = { added: 0, removed: 0, changed: 0 };
+    d.added.forEach(function (sp) { sectionFor(version, sp).lines.push(lineFromStudioPanel(sp, pl)); did.added++; });
+    d.removed.forEach(function (x) {
+      if (x.edited.length) { x.line.removedInStudio = true; kept.push({ code: x.line.src.code, name: x.line.name, why: 'removed in Studio, kept because you changed it here' }); return; }
+      x.sec.lines = x.sec.lines.filter(function (l) { return l.id !== x.line.id; }); did.removed++;
+    });
+    // Field by field: a value Studio changed is applied unless the user also changed that same value in the
+    // estimate, in which case the estimate value stays and is listed.
+    d.changed.forEach(function (c) {
+      var l = c.line, sp = c.panel, keptFields = [], applied = false;
+      c.fields.forEach(function (f) {
+        if (c.edited.indexOf(f) >= 0) { keptFields.push(f); return; }
+        applied = true;
+        if (f === 'name') l.name = sp.name || sp.code || 'Panel';
+        else if (f === 'lengthMm') l.lengthCm = sp.lengthMm / 10;
+        else if (f === 'widthMm') l.widthCm = sp.widthMm / 10;
+        else if (f === 'thickness') l.thickness = sp.thickness;
+        else if (f === 'qty') l.qty = sp.qty;
+        else if (f === 'material') l.material = sp.material;
+        else if (f === 'edgeLong') l.edgeLong = sp.edgeLong;
+        else if (f === 'edgeShort') l.edgeShort = sp.edgeShort;
+      });
+      l.code = sp.code;
+      if (c.fields.indexOf('edgeLong') >= 0 || c.fields.indexOf('edgeShort') >= 0) l.edges = (num(l.edgeLong, 0) || num(l.edgeShort, 0)) ? 'counts' : 'none';
+      // Re-match the price-list item only if the user had not chosen a different one.
+      if ((c.fields.indexOf('material') >= 0 || c.fields.indexOf('thickness') >= 0) && l.itemId === l.src.itemId) l.itemId = matchSheetItem(pl, l.material, l.thickness);
+      if ((c.fields.indexOf('material') >= 0 || c.fields.indexOf('thickness') >= 0 || c.fields.indexOf('edgeLong') >= 0 || c.fields.indexOf('edgeShort') >= 0) && l.edgeItemId === l.src.edgeItemId)
+        l.edgeItemId = (num(l.edgeLong, 0) || num(l.edgeShort, 0)) ? matchEdgeItem(pl, l.material, l.thickness) : null;
+      if (c.fields.indexOf('roomId') >= 0) { c.sec.lines = c.sec.lines.filter(function (x) { return x.id !== l.id; }); sectionFor(version, sp).lines.push(l); }
+      if (applied) did.changed++;
+      if (keptFields.length) kept.push({ code: sp.code, name: l.name, why: 'Studio changed ' + keptFields.map(function (f) { return SRC_LABELS[f]; }).join(', ') + ', but you changed ' + (keptFields.length > 1 ? 'them' : 'it') + ' in the estimate, so your ' + (keptFields.length > 1 ? 'values are' : 'value is') + ' kept' });
+      l.src = srcCopy(sp); l.src.itemId = l.itemId; l.src.edgeItemId = l.edgeItemId; l.src.fp = panelFp(sp);
+    });
+    version.source = version.source || {}; version.source.updatedAt = new Date().toISOString(); version.source.panelCount = importedLines(version).length;
+    return { did: did, kept: kept };
   }
 
   // ---------- Calculations (section 10) ----------
@@ -281,7 +451,9 @@
     emptyPriceList: emptyPriceList, normalisePriceList: normalisePriceList, makeItem: makeItem, findItem: findItem,
     importBrowserPrices: importBrowserPrices,
     emptyVersion: emptyVersion, newEstimate: newEstimate, lineFromItem: lineFromItem, setLineCost: setLineCost,
-    sheetDemand: sheetDemand, edgingDemand: edgingDemand, syncDerived: syncDerived,
+    sheetDemand: sheetDemand, edgingDemand: edgingDemand, syncDerived: syncDerived, cfgOf: cfgOf, legacyCfg: legacyCfg,
+    studioPanels: studioPanels, importFromJob: importFromJob, diffAgainstJob: diffAgainstJob, applyUpdate: applyUpdate, importedLines: importedLines,
+    lineEditedFields: lineEditedFields, matchSheetItem: matchSheetItem, matchEdgeItem: matchEdgeItem, panelFp: panelFp, SRC_LABELS: SRC_LABELS,
     compute: compute, validateForSave: validateForSave, saveVersion: saveVersion, editAsNewVersion: editAsNewVersion,
     priceDifferences: priceDifferences, applyPriceRefresh: applyPriceRefresh, suggestedOf: suggestedOf
   };
