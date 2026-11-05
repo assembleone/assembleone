@@ -75,7 +75,7 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   await page.setViewportSize({ width: 1400, height: 900 });
   const beforeS2 = await jobsSnapshot(page);
   await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxEst');
-  r.s2_opened = await page.evaluate(() => { const o = document.getElementById('fiqxEst'); return { pickerShown: !!o.querySelector('#fiqxJobSearch'), top: o.querySelector('.fiqx-top').textContent }; });
+  r.s2_opened = await page.evaluate(() => { const o = document.getElementById('fiqxEst'); return { pickerShown: !!o.querySelector('#fiqxJobSearch'), top: o.querySelector('.fiqx-title').textContent }; });
   assert.ok(!r.s2_opened.pickerShown, 'the button must not open the job picker');
   assert.ok(/Smith Family/.test(r.s2_opened.top) && /Kitchen and wardrobe/.test(r.s2_opened.top), 'customer and job shown: ' + r.s2_opened.top);
   await page.evaluate(() => window.fiqCloseEstimator());
@@ -87,17 +87,20 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   const lsBefore = await page.evaluate(() => ({ prices: localStorage.getItem('fiq_supplier_prices_v1'), sheets: localStorage.getItem('assembleone_sheet_settings') }));
   const plBefore = await page.evaluate(() => JSON.stringify((0, eval)('state').priceList));
   await page.evaluate(async () => { switchToProject('job1', 'k1'); renderAll(); show('mark'); await new Promise(x => setTimeout(x, 400)); });
-  await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxDerived');
+  await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxMaterials');
   r.s3 = await page.evaluate(() => { const e = (0, eval)('state').estimates, est = e[0], d = est.draft;
     return { count: e.length, projectId: est.projectId, customerId: est.customerId, customer: est.customer,
       sections: d.sections.map(s => [s.name, s.roomId, s.lines.length]), source: !!d.source, sourceCount: d.source && d.source.panelCount,
       unmatched: d.sections.flatMap(s => s.lines).filter(l => !l.itemId).length, rowsOnScreen: document.querySelectorAll('#fiqxEst tbody tr').length,
       studioRows: [...document.querySelectorAll('#fiqxEst tbody tr td:first-child')].filter(t => /Studio panel/.test(t.textContent)).length,
-      card: (document.querySelector('.fiqx-studio') || {}).textContent || '' }; });
+      card: (document.getElementById('fiqxPanels') || {}).textContent || '' }; });
   assert.equal(r.s3.count, 1); assert.deepEqual([r.s3.projectId, r.s3.customerId, r.s3.customer], ['job1', 'cust1', 'Smith Family']);
   assert.deepEqual(r.s3.sections, [['Kitchen', 'rk', 3], ['Bedroom', 'rb', 2]], 'whole job, one section per room');
   assert.equal(r.s3.source, true); assert.equal(r.s3.sourceCount, 5); assert.equal(r.s3.unmatched, 0, 'every panel matched one price-list sheet');
-  assert.equal(r.s3.studioRows, 5); assert.ok(/Matches Studio/.test(r.s3.card), 'card says it matches Studio');
+  assert.equal(r.s3.studioRows, 0, 'panel details are folded until opened'); assert.ok(/Matches Studio/.test(r.s3.card) && /5 panels in 2 rooms/.test(r.s3.card), 'summary: ' + r.s3.card);
+  await page.click('#fiqxEst [data-act="togglepanels"]');
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll('#fiqxEst tbody tr td:first-child')].filter(t => /Studio panel/.test(t.textContent)).length), 5, 'five Studio panels listed once opened');
+  await page.click('#fiqxEst [data-act="togglepanels"]');
   assert.ok(same(await jobsSnapshot(page), baseline), 'Stage 3: the job is untouched by the copy');
   await shot('estimator-top');
   // Reload: the snapshot is saved with the estimate.
@@ -106,11 +109,12 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   r.s3_persist = await page.evaluate(() => { const est = (0, eval)('state').estimates[0]; return { n: (0, eval)('state').estimates.length, src: !!est.draft.source, cfgKeys: Object.keys(est.draft.sheetCfg || {}).length, srcOnLines: est.draft.sections.every(s => s.lines.every(l => l.src && l.src.srcId)) }; });
   assert.deepEqual(r.s3_persist, { n: 1, src: true, cfgKeys: 2, srcOnLines: true }, JSON.stringify(r.s3_persist));
   await page.evaluate(async () => { switchToProject('job1', 'k1'); renderAll(); show('mark'); await new Promise(x => setTimeout(x, 400)); });
-  await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxDerived');
+  await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxMaterials');
   r.s3_reopen = await page.evaluate(() => (0, eval)('state').estimates.length); assert.equal(r.s3_reopen, 1, 'pressing the button again opens the same estimate, no duplicate');
 
   // ================= STAGES 4 + 5: sheet sizes, quantities, cuts, edging; match Panel Check =================
   console.error('STEP 4/5 sheets');
+  await page.click('#fiqxEst [data-act="togglesheets"]');
   const ids = await page.evaluate(() => { const pl = (0, eval)('state').priceList.items; const f = n => pl.find(i => i.name.indexOf(n) === 0).id; return { white: f('White melamine'), oak: f('Oak veneer 18'), eWhite: f('Edging White'), eOak: f('Edging Oak') }; });
   const pc = await page.evaluate(() => { // Panel Check's own calculation for the same job
     const job = (0, eval)('state').projects.find(p => p.id === 'job1'), parts = job.cabinets.flatMap(c => c.parts);
@@ -124,11 +128,11 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   assert.deepEqual([pcWhite.cfg.kerf, pcWhite.cfg.trim], [3, 5], 'Panel Check defaults are 3 mm saw cut and 5 mm trim');
   assert.equal(est0.notes.cuts, pcWhite.cuts + pcOak.cuts, 'total estimated cuts');
   assert.equal(est0.edging[ids.eWhite].metres, 17.8); assert.equal(est0.edging[ids.eOak].metres, 17.8, 'edging from Studio long and short edge counts');
-  r.s45_screen = await page.evaluate((id) => ({ w: document.querySelector('[data-cfg="' + id + '|w"]').value, h: document.querySelector('[data-cfg="' + id + '|h"]').value, kerf: document.querySelector('[data-cfg="' + id + '|kerf"]').value, trim: document.querySelector('[data-cfg="' + id + '|trim"]').value, cuts: /Estimated cuts: \d+/.test(document.getElementById('fiqxDerived').textContent) }), ids.white);
+  r.s45_screen = await page.evaluate((id) => ({ w: document.querySelector('[data-cfg="' + id + '|w"]').value, h: document.querySelector('[data-cfg="' + id + '|h"]').value, kerf: document.querySelector('[data-cfg="' + id + '|kerf"]').value, trim: document.querySelector('[data-cfg="' + id + '|trim"]').value, cuts: /About \d+ cuts/.test(document.getElementById('fiqxMaterials').textContent) }), ids.white);
   assert.deepEqual([r.s45_screen.w, r.s45_screen.h, r.s45_screen.kerf, r.s45_screen.trim, r.s45_screen.cuts], [String(pcWhite.cfg.w), String(pcWhite.cfg.h), '3', '5', true], 'sheet length and width, saw cut, trim and cuts are shown');
   // Change the sheet size inside the estimate: sheets and cost recalculate by themselves.
   await page.fill('[data-cfg="' + ids.white + '|w"]', '2440'); await page.fill('[data-cfg="' + ids.white + '|h"]', '1220');
-  const afterSize = await page.evaluate((id) => { const d = (0, eval)('state').estimates[0].draft, g = d.derived.sheets[id]; return { count: g.count, cuts: g.cuts, differs: g.sizeDiffers, listW: g.listW, unitCost: g.unitCost, cfg: d.sheetCfg[id], mat: window.FiqEstimatorCore.compute(d).materialCost, warn: /differs from the price list item/.test(document.getElementById('fiqxDerived').textContent), summary: document.getElementById('fiqxSummary').textContent }; }, ids.white);
+  const afterSize = await page.evaluate((id) => { const d = (0, eval)('state').estimates[0].draft, g = d.derived.sheets[id]; return { count: g.count, cuts: g.cuts, differs: g.sizeDiffers, listW: g.listW, unitCost: g.unitCost, cfg: d.sheetCfg[id], mat: window.FiqEstimatorCore.compute(d).materialCost, warn: /differs from the price list/.test(document.getElementById('fiqxSettingsBody').textContent), summary: document.getElementById('fiqxSummary').textContent }; }, ids.white);
   assert.deepEqual([afterSize.cfg.w, afterSize.cfg.h, afterSize.differs, afterSize.warn, afterSize.unitCost], [2440, 1220, true, true, 45], 'new size kept, warning shown, price per sheet kept');
   assert.ok(afterSize.count > pcWhite.sheets, 'a smaller sheet needs more sheets: ' + afterSize.count + ' vs ' + pcWhite.sheets);
   const expectPack = await page.evaluate((id) => { const d = (0, eval)('state').estimates[0].draft, c = d.sheetCfg[id]; const pieces = []; d.sections.forEach(s => s.lines.forEach(l => { if (l.itemId === id) for (let i = 0; i < l.qty; i++) pieces.push({ w: Math.round(l.lengthCm * 10), h: Math.round(l.widthCm * 10), code: l.id, name: l.name }); }));
@@ -138,6 +142,7 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   assert.equal(afterSize.mat, expectMat, 'material cost followed the new sheet count');
   // Price per sheet typed in this estimate only; quantity of a copied panel changed in this estimate only.
   await page.fill('[data-gb="sheets|' + ids.white + '|unitCost"]', '52');
+  await page.click('#fiqxEst [data-act="togglepanels"]');
   const firstLine = await page.evaluate(() => { const l = (0, eval)('state').estimates[0].draft.sections[0].lines[0]; return { sec: (0, eval)('state').estimates[0].draft.sections[0].id, id: l.id, qty: l.qty }; });
   await page.fill('[data-b="' + firstLine.sec + '|' + firstLine.id + '|qty"]', '12');
   const mid = await page.evaluate((id) => { const s = (0, eval)('state'); return { cost: s.estimates[0].draft.derived.sheets[id].unitCost, listCost: s.priceList.items.find(i => i.id === id).cost, jobQty: s.projects.find(p => p.id === 'job1').cabinets[0].parts[0].qty, pl: JSON.stringify(s.priceList), cfgJob: JSON.stringify(s.projects.find(p => p.id === 'job1').sheetSettings || null), ls: localStorage.getItem('assembleone_sheet_settings') }; }, ids.white);
@@ -162,7 +167,7 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
     [mat6, mk6, 800, 40, sub6, tax6, Math.round((sub6 + tax6) * 100) / 100, Math.round((mk6 + 800) * 100) / 100], 'subtotal, tax, suggested total and profit');
   assert.equal(c6.r.marginPct, Math.round((mk6 + 800) / sub6 * 1000) / 10, 'margin');
   const sumText = await page.evaluate(() => document.getElementById('fiqxSummary').textContent);
-  assert.ok(/Suggested customer total/.test(sumText) && /IVA/.test(sumText));
+  assert.ok(/suggested customer total/i.test(sumText) && /IVA/.test(sumText));
   await page.click('#fiqxEst [data-act="savev"]'); await page.waitForSelector('#fiqxEst [data-act="won"]');
   const saved6 = await page.evaluate(() => { const e = (0, eval)('state').estimates[0]; return { n: e.versions.length, same: JSON.stringify(window.FiqEstimatorCore.compute(e.versions[0])) === JSON.stringify(e.versions[0].results), src: !!e.versions[0].source, cfg: !!e.versions[0].sheetCfg }; });
   assert.deepEqual(saved6, { n: 1, same: true, src: true, cfg: true }, 'saved version keeps results, snapshot and sheet settings');
@@ -180,11 +185,12 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
     job.cabinets[0].parts = job.cabinets[0].parts.filter(p => p.id !== 'p3'); job.cabinets[1].parts.push({ id: 'p9', code: 'P-003', name: 'Back', length: 2300, width: 600, thickness: 18, qty: 1, material: 'White melamine', edgeLong: 0, edgeShort: 0 }); save(); });
   const changedJob = await jobsSnapshot(page);
   await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxEst [data-act="editnew"]');
-  r.s7_stale = await page.evaluate(() => ({ card: (document.querySelector('.fiqx-stale') || {}).textContent || '', mode: 'version', savedLine: (0, eval)('state').estimates[0].versions[0].sections[0].lines[0].qty }));
+  r.s7_stale = await page.evaluate(() => ({ card: (document.getElementById('fiqxWarn') || {}).textContent || '', mode: 'version', savedLine: (0, eval)('state').estimates[0].versions[0].sections[0].lines[0].qty }));
   assert.ok(/Studio design has changed/.test(r.s7_stale.card) && /may be out of date/.test(r.s7_stale.card), 'clear out-of-date message: ' + r.s7_stale.card);
   assert.equal(r.s7_stale.savedLine, 4, 'the saved estimate was not changed by the Studio edit');
   await page.click('#fiqxEst [data-act="editnew"]'); await page.waitForSelector('#fiqxEst [data-act="studioreview"]');
   // The user also edits a copied panel inside the estimate: the Gable quantity.
+  await page.click('#fiqxEst [data-act="togglepanels"]');
   const gb = await page.evaluate(() => { const s = (0, eval)('state').estimates[0].draft.sections[1]; const l = s.lines.find(x => x.src.srcId === 'p4'); return { sec: s.id, id: l.id }; });
   await page.fill('[data-b="' + gb.sec + '|' + gb.id + '|qty"]', '3');
   const draftBefore = await page.evaluate((id) => { const d = (0, eval)('state').estimates[0].draft; return JSON.stringify({ cfg: d.sheetCfg, white: [d.derived.sheets[id].unitCost, d.derived.sheets[id].override] }); }, ids.white);
@@ -197,7 +203,7 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   assert.equal(await page.evaluate(() => (0, eval)('state').estimates[0].draft.sections[0].lines.find(l => l.src.srcId === 'p1').qty), 4, 'nothing applied before Update');
   await page.click('#fiqxDiff [data-act="studioapply"]'); await page.waitForTimeout(400);
   r.s7_after = await page.evaluate((wid) => { const d = (0, eval)('state').estimates[0].draft, all = d.sections.flatMap(s => s.lines), g = id => all.find(l => l.src && l.src.srcId === id);
-    return { p1: g('p1').qty, p4qty: g('p4').qty, p4len: g('p4').lengthCm, p3: !!g('p3'), p9: !!g('p9'), cfg: JSON.stringify(d.sheetCfg), white: [d.derived.sheets[wid].unitCost, d.derived.sheets[wid].override], card: (document.querySelector('.fiqx-studio') || {}).textContent || '' }; }, ids.white);
+    return { p1: g('p1').qty, p4qty: g('p4').qty, p4len: g('p4').lengthCm, p3: !!g('p3'), p9: !!g('p9'), cfg: JSON.stringify(d.sheetCfg), white: [d.derived.sheets[wid].unitCost, d.derived.sheets[wid].override], card: (document.getElementById('fiqxPanels') || {}).textContent || '' }; }, ids.white);
   assert.deepEqual([r.s7_after.p1, r.s7_after.p4qty, r.s7_after.p4len, r.s7_after.p3, r.s7_after.p9], [6, 3, 240, false, true], 'Studio changes applied; the quantity edited here is protected');
   assert.ok(/Matches Studio/.test(r.s7_after.card), 'up to date again');
   assert.equal(r.s7_after.cfg, JSON.stringify(JSON.parse(draftBefore).cfg), 'sheet sizes untouched by the update');
@@ -216,7 +222,7 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   for (const [jid, unit] of [['jobE', 'ue'], ['jobF', 'uf']]) {
     await page.evaluate(async ([j, u]) => { switchToProject(j, u); renderAll(); show('mark'); await new Promise(x => setTimeout(x, 500)); save(); }, [jid, unit]);
     const pre = await jobsSnapshot(page);   // Studio has opened the job (its own tidy-up done); now only the Estimator acts
-    await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxDerived');
+    await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxMaterials');
     const got = await page.evaluate((j) => { const e = (0, eval)('state').estimates.find(x => x.projectId === j), d = e.draft; return { customer: e.customer, lines: d.sections.flatMap(s => s.lines).length, sheets: Object.values(d.derived.sheets).map(g => g.count), edge: Object.values(d.derived.edging).map(g => g.metres) }; }, jid);
     assert.deepEqual(got, { customer: 'Smith Family', lines: 1, sheets: [1], edge: [4] }, jid + ' ' + JSON.stringify(got));
     await page.evaluate(() => window.fiqCloseEstimator());
@@ -237,6 +243,106 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   r.s9 = await page.evaluate(() => ({ prices: localStorage.getItem('fiq_supplier_prices_v1'), sheets: localStorage.getItem('assembleone_sheet_settings'), pl: JSON.stringify((0, eval)('state').priceList), inJobs: /"(estimates|priceList|sheetCfg)"/.test(JSON.stringify((0, eval)('state').projects)) }));
   assert.equal(r.s9.prices, lsBefore.prices); assert.equal(r.s9.sheets, lsBefore.sheets); assert.equal(r.s9.pl, plBefore); assert.equal(r.s9.inJobs, false, 'no estimate data inside any job');
 
+
+  // ================= STAGE 10: simplified screen, fixed navigation, Back to Studio, Customer Job =================
+  console.error('STEP 10 interface');
+  await page.evaluate(() => { const s = (0, eval)('state');
+    const part = (id, code, name, l, w, q, mat, eL, eS) => ({ id, code, name, length: l, width: w, thickness: 18, qty: q, material: mat, edgeLong: eL || 0, edgeShort: eS || 0 });
+    s.projects.push({ id: 'jobUI', name: 'Interface job', customer: 'Smith Family', customerId: 'cust1', rooms: [{ id: 'ra', name: 'Kitchen' }, { id: 'rc', name: 'Bedroom' }],
+      cabinets: [{ id: 'ua', name: 'Run', roomId: 'ra', stage: 'final', parts: [part('ui1', 'P-001', 'Side', 720, 560, 4, 'White melamine', 1, 0), part('ui2', 'P-002', 'Door', 716, 396, 8, 'Oak veneer', 2, 2), part('ui3', 'P-003', 'Shelf', 764, 540, 6, 'White melamine', 1, 0)] },
+                 { id: 'uc', name: 'Wardrobe', roomId: 'rc', stage: 'estimate', parts: [part('ui4', 'P-001', 'Gable', 2380, 580, 2, 'White melamine', 1, 0), part('ui5', 'P-002', 'Shelf', 1100, 560, 5, 'White melamine', 1, 0)] }] });
+    save(); });
+  const openDrawing = async (j, u) => { await page.evaluate(async ([jj, uu]) => { switchToProject(jj, uu); renderAll(); show('mark'); await new Promise(x => setTimeout(x, 500)); save(); }, [j, u]); };
+  const where = () => page.evaluate(() => { const s = (0, eval)('state'); const a = document.querySelector('.screen.active'); return { project: s.currentProject, cabinet: s.currentCabinet, screen: a && a.id, overlay: !!document.getElementById('fiqxEst') }; });
+  const prodPanels = id => page.evaluate((jid) => (0, eval)('state').projects.find(p => p.id === jid).cabinets.map(c => [c.id, c.stage, c.parts.map(p => [p.id, p.name, p.length, p.width, p.thickness, p.qty, p.material, p.edgeLong, p.edgeShort])]), id);
+  await openDrawing('jobUI', 'ua');
+  const uiBefore = await prodPanels('jobUI');
+  await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxMaterials .fiqx-mrow');
+
+  // -- the page: order, material requirements first, detail folded
+  r.s10_layout = await page.evaluate(() => { const q = s => document.querySelector(s);
+    return { nav: [...document.querySelectorAll('.fiqx-nav .fiqx-nbtn')].map(b => b.textContent.trim()), title: q('.fiqx-title').textContent, rows: [...document.querySelectorAll('#fiqxMaterials .fiqx-mrow')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
+      panelsTable: !!q('#fiqxPanels table'), settingsBody: !!q('#fiqxSettingsBody'), panelsHead: q('#fiqxPanels').textContent.replace(/\s+/g, ' ').trim(), buttons: [...document.querySelectorAll('#fiqxPanels [data-act], #fiqxSheets [data-act]')].map(b => b.textContent.trim()),
+      order: [...document.querySelectorAll('.fiqx-main > *')].map(e => e.id || (e.className.indexOf('fiqx-head') >= 0 ? 'head' : 'card')), summary: q('#fiqxSummary').textContent.replace(/\s+/g, ' ') }; });
+  assert.deepEqual(r.s10_layout.nav, ['← BACK TO STUDIO', 'CUSTOMER JOB', 'SAVE ESTIMATE']);
+  assert.ok(/Smith Family/.test(r.s10_layout.title) && /Interface job/.test(r.s10_layout.title), 'customer and job heading');
+  assert.equal(r.s10_layout.rows.length, 2, 'one line per material: ' + JSON.stringify(r.s10_layout.rows));
+  assert.ok(r.s10_layout.rows.every(x => /\d+ sheets?/.test(x)), 'each line shows the sheets needed');
+  assert.ok(r.s10_layout.rows.some(x => /white melamine 18 mm/i.test(x)) && r.s10_layout.rows.some(x => /oak veneer 18 mm/i.test(x)), 'material names: ' + JSON.stringify(r.s10_layout.rows));
+  assert.deepEqual([r.s10_layout.panelsTable, r.s10_layout.settingsBody], [false, false], 'panel details and sheet settings are folded');
+  assert.ok(/PANELS IMPORTED FROM STUDIO/.test(r.s10_layout.panelsHead) && /5 panels in 2 rooms/.test(r.s10_layout.panelsHead), r.s10_layout.panelsHead);
+  assert.deepEqual(r.s10_layout.buttons, ['VIEW PANEL DETAILS', 'SHOW']);
+  assert.deepEqual(r.s10_layout.order.slice(0, 5), ['head', 'fiqxWarn', 'fiqxMaterialsCard', 'fiqxPanels', 'fiqxSheets'], 'order: heading, warnings, materials, panels, sheet settings, then costs');
+  assert.ok(['Material cost', 'Material markup', 'Labour', 'Other costs', 'Subtotal', 'SUGGESTED CUSTOMER TOTAL', 'ESTIMATED PROFIT'].every(w => r.s10_layout.summary.indexOf(w) >= 0), 'price summary figures: ' + r.s10_layout.summary);
+  await shot('interface-desktop');
+
+  // -- fixed navigation: still in view and still clickable after scrolling to the very bottom
+  await page.click('#fiqxEst [data-act="togglepanels"]'); await page.click('#fiqxEst [data-act="togglesheets"]');
+  const navBefore = await page.evaluate(() => document.querySelector('.fiqx-nav').getBoundingClientRect().top);
+  r.s10_fixed = await page.evaluate(async () => { const body = document.querySelector('#fiqxEst .fiqx-body'); body.scrollTop = body.scrollHeight; await new Promise(x => setTimeout(x, 200));
+    const nav = document.querySelector('.fiqx-nav'), nr = nav.getBoundingClientRect(), btn = nav.querySelector('[data-act="close"]'), br = btn.getBoundingClientRect(), hit = document.elementFromPoint(br.left + br.width / 2, br.top + br.height / 2);
+    return { scrolled: body.scrollTop, navTop: nr.top, h: br.height, w: br.width, hitIsButton: !!(hit && hit.closest('[data-act="close"]')) }; });
+  assert.ok(r.s10_fixed.scrolled > 300, 'the page really scrolled: ' + r.s10_fixed.scrolled);
+  assert.ok(Math.abs(r.s10_fixed.navTop - navBefore) < 2 && r.s10_fixed.navTop >= 0, 'top bar did not move');
+  assert.ok(r.s10_fixed.h >= 44 && r.s10_fixed.w >= 90 && r.s10_fixed.hitIsButton, 'big, reachable buttons: ' + JSON.stringify(r.s10_fixed));
+  await shot('interface-scrolled');
+  await page.evaluate(() => { document.querySelector('#fiqxEst .fiqx-body').scrollTop = 0; });
+
+  // -- warnings: one short line; an uncounted panel is named and cannot be mistaken for a finished total
+  const sec10 = await page.evaluate(() => (0, eval)('state').estimates.find(e => e.projectId === 'jobUI').draft.sections[0].id);
+  await page.click('#fiqxEst [data-act="add"][data-type="panel"][data-sec="' + sec10 + '"]');
+  const ln10 = await page.evaluate(() => { const d = (0, eval)('state').estimates.find(e => e.projectId === 'jobUI').draft; return d.sections[0].lines.slice(-1)[0].id; });
+  await page.fill('[data-b="' + sec10 + '|' + ln10 + '|name"]', 'Mystery'); await page.fill('[data-b="' + sec10 + '|' + ln10 + '|lengthCm"]', '100'); await page.fill('[data-b="' + sec10 + '|' + ln10 + '|widthCm"]', '40'); await page.fill('[data-b="' + sec10 + '|' + ln10 + '|qty"]', '2');
+  r.s10_warn = await page.evaluate(() => ({ lines: document.querySelectorAll('#fiqxWarn .fiqx-warnline').length, text: document.getElementById('fiqxWarn').textContent, summary: document.getElementById('fiqxSummary').textContent, need: !!document.querySelector('#fiqxPanels select.fiqx-need') }));
+  assert.equal(r.s10_warn.lines, 1, 'warnings grouped in one line'); assert.ok(/1 panel without sheet material/.test(r.s10_warn.text) && r.s10_warn.need, r.s10_warn.text);
+  assert.ok(/Incomplete/.test(r.s10_warn.summary), 'total marked incomplete');
+  await page.click('#fiqxWarn [data-act="fixsheet"]');
+  await page.selectOption('[data-s="' + sec10 + '|' + ln10 + '|itemId"]', { label: await page.evaluate(() => [...document.querySelectorAll('select[data-s$="|itemId"] option')].map(o => o.textContent).find(t => /^White melamine/.test(t))) });
+  r.s10_warnGone = await page.evaluate(() => document.getElementById('fiqxWarn').textContent);
+  assert.ok(!/without sheet material/.test(r.s10_warnGone), 'warning clears once a sheet is chosen');
+  // The new line was only an estimate-side panel: remove it again.
+  await page.click('#fiqxEst [data-act="rmline"][data-id="' + ln10 + '"]');
+
+  // -- Save Estimate waits for a tax rate and says why; then saves
+  r.s10_saveBlocked = await page.evaluate(() => ({ disabled: document.getElementById('fiqxSaveBtn').disabled, msg: document.getElementById('fiqxNavMsg').textContent }));
+  assert.ok(r.s10_saveBlocked.disabled && /tax/i.test(r.s10_saveBlocked.msg), JSON.stringify(r.s10_saveBlocked));
+  await page.fill('[data-ib="taxRate"]', '21'); await page.fill('[data-ib="taxLabel"]', 'IVA');
+  assert.equal(await page.evaluate(() => document.getElementById('fiqxSaveBtn').disabled), false, 'enabled once a tax rate is typed');
+  await page.click('#fiqxSaveBtn'); await page.waitForSelector('#fiqxEst [data-act="editnew"]');
+  r.s10_saved = await page.evaluate(() => { const e = (0, eval)('state').estimates.find(x => x.projectId === 'jobUI'); return { versions: e.versions.length, status: e.status, third: document.querySelector('.fiqx-nav .fiqx-npri').textContent.trim() }; });
+  assert.deepEqual(r.s10_saved, { versions: 1, status: 'saved', third: 'EDIT ESTIMATE' });
+
+  // -- Customer Job: the job page of this job, not a list
+  await page.click('#fiqxEst [data-act="custjob"]'); await page.waitForTimeout(300);
+  r.s10_custjob = await where(); assert.deepEqual(r.s10_custjob, { project: 'jobUI', cabinet: r.s10_custjob.cabinet, screen: 'screen-jobs', overlay: false }, JSON.stringify(r.s10_custjob));
+
+  // -- Back to Studio: exactly the drawing it was opened from, even if Studio moved on behind the Estimator
+  await openDrawing('jobUI', 'ua');
+  await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxEst [data-act="close"]');
+  await page.evaluate(() => { switchToProject('job1', 'k1'); show('customers'); });   // Studio wandered off behind the overlay
+  await page.click('#fiqxEst [data-act="close"]'); await page.waitForTimeout(400);
+  r.s10_back = await where(); assert.deepEqual(r.s10_back, { project: 'jobUI', cabinet: 'ua', screen: 'screen-mark', overlay: false }, 'back to the same drawing: ' + JSON.stringify(r.s10_back));
+  // From the job page it returns to the job page.
+  await page.evaluate(() => { switchToProject('jobUI', 'ua'); show('jobs'); });
+  await page.evaluate(() => window.fiqOpenEstimator('jobUI')); await page.waitForSelector('#fiqxEst [data-act="close"]');
+  await page.click('#fiqxEst [data-act="close"]'); await page.waitForTimeout(300);
+  r.s10_back2 = await where(); assert.equal(r.s10_back2.screen, 'screen-jobs'); assert.equal(r.s10_back2.overlay, false);
+
+  // -- small screen: same order, big buttons in view, nothing sideways
+  await openDrawing('jobUI', 'ua');
+  await page.setViewportSize({ width: 390, height: 800 }); await page.waitForTimeout(300);
+  await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxEst [data-act="editnew"], #fiqxEst [data-act="savev"]');
+  r.s10_small = await page.evaluate(async () => { const body = document.querySelector('#fiqxEst .fiqx-body'); body.scrollTop = body.scrollHeight; await new Promise(x => setTimeout(x, 200));
+    const btns = [...document.querySelectorAll('.fiqx-nav .fiqx-nbtn')].map(b => { const rr = b.getBoundingClientRect(); return { t: b.textContent.trim(), w: Math.round(rr.width), h: Math.round(rr.height), inView: rr.top >= 0 && rr.left >= 0 && rr.right <= innerWidth + 1 && rr.bottom <= innerHeight }; });
+    const win = document.querySelector('#fiqxEst .fiqx-win'), main = document.querySelector('.fiqx-main');
+    return { btns, pageSideways: document.documentElement.scrollWidth > innerWidth + 1, winSideways: win.scrollWidth > win.clientWidth + 1, bodySideways: body.scrollWidth > body.clientWidth + 1, banner: (document.getElementById('fiqBetaBanner') || { getBoundingClientRect: () => ({ bottom: 0 }) }).getBoundingClientRect().bottom, navTop: document.querySelector('.fiqx-nav').getBoundingClientRect().top, scrolled: body.scrollTop, mainW: Math.round(main.getBoundingClientRect().width) }; });
+  assert.equal(r.s10_small.btns.length, 3); assert.ok(r.s10_small.btns.every(b => b.h >= 44 && b.w >= 120 && b.inView), JSON.stringify(r.s10_small.btns));
+  assert.ok(!r.s10_small.winSideways && !r.s10_small.bodySideways, 'the Estimator itself does not scroll sideways (the Studio page behind it is not part of this check): ' + JSON.stringify(r.s10_small));
+  assert.ok(r.s10_small.navTop >= r.s10_small.banner - 1, 'the top bar sits below the red Beta strip, not under it: ' + r.s10_small.navTop + ' vs ' + r.s10_small.banner);
+  await shot('interface-small');
+  await page.click('#fiqxEst [data-act="close"]'); await page.waitForTimeout(300);
+  await page.setViewportSize({ width: 1400, height: 900 });
+  assert.deepEqual(await prodPanels('jobUI'), uiBefore, 'Stage 10: the Studio panels are exactly as they were');
 
   r.network = { escaped: escaped.length }; assert.equal(escaped.length, 0);
   r.pageErrors = errors; assert.equal(errors.length, 0, 'page errors: ' + errors.join(' | '));
