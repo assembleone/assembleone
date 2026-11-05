@@ -125,6 +125,8 @@
     '.fiqx-inl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.fiqx-sm{padding:3px 10px;font-size:14px}' +
     '@media(max-width:900px){.fiqx-body{grid-template-columns:minmax(0,1fr)}.fiqx-sum{position:static}}' +
     '@media(max-width:600px){.fiqx-ov{padding:0}.fiqx-win{border-radius:0}.fiqx-nav{grid-template-columns:1fr 1fr}.fiqx-nav .fiqx-npri{grid-column:1 / -1}.fiqx-title{font-size:23px}.fiqx-mbig{font-size:30px}.fiqx-mrow{grid-template-columns:minmax(0,1fr) auto}.fiqx-mcost{grid-column:1 / -1;text-align:left}.fiqx-mprice{align-items:flex-start}.fiqx-body{padding:10px}.fiqx-total b{font-size:34px}}' +
+    '.fiqx-job-est-btn{height:36px;padding:0 14px;border:2px solid #101418;background:#fff;color:#101418;border-radius:9px;font:800 14px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap}.fiqx-job-est-btn:hover{background:#eef1f5}' +
+    '.jor-top-actions .fiqx-job-est-btn{height:48px;border-radius:12px}' +
     '.fiqx-est-btn{margin-left:6px}.fiqx-cl{margin-bottom:14px}.fiqx-cl h4{margin:6px 0}.fiqx-cl .fiqx-clrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid #c9d1db;border-radius:8px;margin:4px 0;background:#fff;color:#101418;cursor:pointer;width:100%;font:inherit;text-align:left}';
   function ensureStyle() { if (document.getElementById('fiqx-style')) return; var s = document.createElement('style'); s.id = 'fiqx-style'; s.textContent = css; document.head.appendChild(s); }
 
@@ -767,7 +769,7 @@
   // never the old Cutting List route.
   document.addEventListener('click', function (ev) {
     var el = ev.target.closest && ev.target.closest('button,a,[role="button"]'); if (!el) return;
-    if (el.hasAttribute('data-fiqx-from-studio')) return; // the Drawing toolbar button has its own handler
+    if (el.hasAttribute('data-fiqx-from-studio') || el.hasAttribute('data-fiqx-job-est')) return; // these buttons have their own handlers
     if (el.hasAttribute('data-fiqx-header-estimator') || (!el.closest('#fiqxEst,#fiqxPL,.fiqx-side') && /^\W*estimator\s*$/i.test(String(el.textContent || '').trim()))) {
       ev.preventDefault(); ev.stopImmediatePropagation(); openPicker();
     }
@@ -798,17 +800,48 @@
     ev.preventDefault(); ev.stopImmediatePropagation();
     openFromStudio();
   }, true);
-  function openFromStudio() {
-    var pid = currentJobId(); if (!pid || !jobById(pid)) { alert('Open or choose a job first.'); return; }
+  // Opens the Estimator for one job: a first estimate copies the job panels in; otherwise the newest estimate that
+  // already holds Studio panels opens; otherwise the list of estimates. Used by the Drawing button and every job card.
+  function openForJob(pid) {
+    if (!pid || !jobById(pid)) { alert('Open or choose a job first.'); return; }
     ensureStyle(); loadAdmins();
     var list = jobEstimates(pid);
-    // No estimate yet: make one with the whole job copied in, one section per room, and open it.
     if (!list.length) { var n = newEstimateFor(pid, true); if (n) { view = { projectId: pid, mode: 'edit', estId: n.id }; render(); } return; }
-    // Otherwise open the newest estimate that already holds Studio panels; if none does, show the list.
     var linked = list.filter(function (x) { return !!sourceVersion(x); }).sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); })[0];
     if (linked) return openEstimator(pid, linked.id);
     openEstimator(pid);
   }
+  function openFromStudio() { openForJob(currentJobId()); }
+  // The Estimator button lives on every job card, not only on a brand new site job: Job Overview cards, and each job
+  // in the customer card (Jobs tab and Site Measurements tab). Added to the screen, never into the job itself.
+  function jobEstBtn(pid, extraClass) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'fiqx-job-est-btn' + (extraClass ? ' ' + extraClass : '');
+    b.setAttribute('data-fiqx-job-est', pid); b.textContent = '🧮 Estimator'; b.title = 'Open the Estimator for this job. The panels come with it; nothing in the design changes.'; return b;
+  }
+  function decorateJobCards() {
+    document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function (row) {
+      var box = row.querySelector('.jor-top-actions'); if (!box || box.querySelector('.fiqx-job-est-btn')) return;
+      box.insertBefore(jobEstBtn(row.getAttribute('data-open-job-card')), box.firstChild);
+    });
+    document.querySelectorAll('.customer-job-head').forEach(function (head) {
+      var box = head.querySelector('.customer-job-sheet-btns'), src = head.querySelector('[data-job-sheet]'); if (!box || !src || box.querySelector('.fiqx-job-est-btn')) return;
+      box.insertBefore(jobEstBtn(src.getAttribute('data-job-sheet')), box.firstChild);
+    });
+    document.querySelectorAll('.customer-tab-panel[data-tab-panel="site"]').forEach(function (panel) {
+      var seen = {}; panel.querySelectorAll('.customer-job-head').forEach(function (h) { var b = h.querySelector('[data-fiqx-job-est]'); if (b) seen[b.getAttribute('data-fiqx-job-est')] = true; });
+      panel.querySelectorAll('[data-open-site-room-project]').forEach(function (rowBtn) {
+        var pid = rowBtn.getAttribute('data-open-site-room-project'); if (!pid || seen[pid]) return; seen[pid] = true;
+        var j = jobById(pid), head = document.createElement('div'); head.className = 'customer-job-head';
+        var nm = document.createElement('span'); nm.textContent = (j && (j.name || j.customer)) || 'Job'; head.appendChild(nm);
+        var wrap = document.createElement('span'); wrap.className = 'customer-job-sheet-btns'; wrap.appendChild(jobEstBtn(pid)); head.appendChild(wrap);
+        rowBtn.parentNode.insertBefore(head, rowBtn);
+      });
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-fiqx-job-est]'); if (!b) return;
+    ev.preventDefault(); ev.stopImmediatePropagation(); openForJob(b.getAttribute('data-fiqx-job-est'));
+  }, true);
   window.fiqOpenEstimatorFromStudio = openFromStudio;
   queueStudioButton();
 
@@ -828,7 +861,7 @@
       if (move) move.parentNode.insertBefore(btn, move); else row.appendChild(btn);
     });
   }
-  new MutationObserver(function (muts) { for (var i = 0; i < muts.length; i++) if (muts[i].addedNodes.length) { decorateCards(); addHeaderButton(); queueStudioButton(); break; } }).observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(function (muts) { for (var i = 0; i < muts.length; i++) if (muts[i].addedNodes.length) { decorateCards(); decorateJobCards(); addHeaderButton(); queueStudioButton(); break; } }).observe(document.documentElement, { childList: true, subtree: true });
   addHeaderButton();
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-fiqx-estimate],[data-fiqx-open-est],[data-fiqx-new-est],[data-fiqx-pricelist]'); if (!b) return;

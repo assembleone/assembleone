@@ -465,6 +465,44 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   await shot('final-pricelist');
   await page.click('#fiqxPL [data-plact="close"]'); await page.evaluate(() => window.fiqCloseEstimator && window.fiqCloseEstimator());
 
+  // ================= STAGE 13: the Estimator button is on every job card, all the time =================
+  console.error('STEP 13 job cards');
+  await page.evaluate(() => { const s = (0, eval)('state');
+    s.customers.push({ id: 'cust3', name: 'Cora Card' }, { id: 'cust4', name: 'Dina Site' });
+    s.projects.push({ id: 'jobCard', name: 'Hall wardrobe', customer: 'Cora Card', customerId: 'cust3', rooms: [{ id: 'rh', name: 'Hall' }],
+      cabinets: [{ id: 'uh', name: 'Hall unit', roomId: 'rh', stage: 'estimate', jobOverviewListedAt: 1, parts: [{ id: 'hc1', code: 'P-001', name: 'Side', length: 2000, width: 500, thickness: 18, qty: 2, material: 'White melamine', edgeLong: 1, edgeShort: 0 }] }] });
+    s.projects.push({ id: 'jobSite', name: 'New Site Job', customer: 'Dina Site', customerId: 'cust4', isNewFromSite: true, siteMeasurements: [{ id: 'm1', name: 'Wall', value: '2400' }],
+      rooms: [{ id: 'rs', name: 'Bedroom', siteMeasurements: [{ id: 'm2', kind: 'Wall to wall', name: 'Wall to wall', value: '2412' }] }], cabinets: [] });
+    save(); });
+  await page.evaluate(async () => { show('jobs'); renderAll(); await new Promise(x => setTimeout(x, 800)); });
+  r.s13_overview = await page.evaluate(() => [...document.querySelectorAll('.job-overview-row[data-open-job-card]')].map(row => ({ pid: row.getAttribute('data-open-job-card'), btn: (row.querySelector('.fiqx-job-est-btn') || {}).getAttribute ? row.querySelector('.fiqx-job-est-btn').getAttribute('data-fiqx-job-est') : null, text: (row.querySelector('.fiqx-job-est-btn') || {}).textContent || '' })));
+  assert.ok(r.s13_overview.length >= 1, 'Job Overview shows cards: ' + JSON.stringify(r.s13_overview));
+  assert.ok(r.s13_overview.every(x => x.btn === x.pid && /Estimator/.test(x.text)), 'every Job Overview card has its own Estimator button: ' + JSON.stringify(r.s13_overview));
+  // Pressing it on a card with panels opens that job with its panels, and does not also open the job behind it.
+  const whereBefore = await where(); const cardBefore = await prodPanels('jobCard');
+  await page.click('.job-overview-row[data-open-job-card="jobCard"] .fiqx-job-est-btn'); await page.waitForSelector('#fiqxMaterials .fiqx-mrow');
+  r.s13_open = await page.evaluate(() => ({ title: document.querySelector('.fiqx-title').textContent, rows: document.querySelectorAll('#fiqxMaterials .fiqx-mrow').length, current: (0, eval)('state').currentProject }));
+  assert.ok(/Cora Card/.test(r.s13_open.title) && r.s13_open.rows === 1, JSON.stringify(r.s13_open)); assert.equal(r.s13_open.current, whereBefore.project, 'the card itself was not opened behind the Estimator');
+  await page.click('#fiqxEst [data-act="close"]'); await page.waitForTimeout(300);
+  assert.equal((await where()).screen, 'screen-jobs', 'Back to Studio returns to where the button was pressed');
+  // The button survives the card being redrawn.
+  await page.evaluate(async () => { renderAll(); await new Promise(x => setTimeout(x, 600)); });
+  assert.equal(await page.evaluate(() => document.querySelectorAll('.job-overview-row .fiqx-job-est-btn').length), r.s13_overview.length, 'still there after a redraw');
+  // Customer card: Jobs tab heading and Site Measurements tab both have it.
+  await page.evaluate(async () => { openCustomerCard('cust3'); await new Promise(x => setTimeout(x, 600)); });
+  r.s13_cc = await page.evaluate(() => ({ heads: [...document.querySelectorAll('#customerCardBody [data-tab-panel="jobs"] .customer-job-head .fiqx-job-est-btn')].map(b => b.getAttribute('data-fiqx-job-est')) }));
+  assert.deepEqual(r.s13_cc.heads, ['jobCard'], 'Jobs tab: ' + JSON.stringify(r.s13_cc));
+  await page.evaluate(async () => { openCustomerCard('cust4'); await new Promise(x => setTimeout(x, 400)); const t = document.querySelector('#customerCardBody [data-tab="site"]'); if (t) t.click(); await new Promise(x => setTimeout(x, 500)); });
+  r.s13_site2 = await page.evaluate(() => [...document.querySelectorAll('#customerCardBody [data-tab-panel="site"] .fiqx-job-est-btn')].map(b => b.getAttribute('data-fiqx-job-est')));
+  assert.deepEqual(r.s13_site2, ['jobSite'], 'Site Measurements tab: ' + JSON.stringify(r.s13_site2));
+  await page.click('#customerCardBody [data-tab-panel="site"] .fiqx-job-est-btn'); await page.waitForSelector('#fiqxEst .fiqx-title');
+  r.s13_site = await page.evaluate(() => ({ title: document.querySelector('.fiqx-title').textContent, sections: (0, eval)('state').estimates.find(e => e.projectId === 'jobSite').draft.sections.map(s => s.name), panelsOpen: !!document.querySelector('#fiqxPanels table') }));
+  assert.ok(/Dina Site/.test(r.s13_site.title) && r.s13_site.panelsOpen && r.s13_site.sections.includes('Bedroom'), 'a site job with no panels yet opens a blank estimate with its room: ' + JSON.stringify(r.s13_site));
+  await page.click('#fiqxEst [data-act="close"]'); await page.waitForTimeout(300);
+  assert.equal((await where()).screen, 'screen-customerCard', 'back on the customer card');
+  assert.deepEqual(await prodPanels('jobCard'), cardBefore, 'Stage 13: the Studio panels are exactly as they were');
+  await shot('final-job-card');
+
   r.network = { escaped: escaped.length }; assert.equal(escaped.length, 0);
   r.pageErrors = errors; assert.equal(errors.length, 0, 'page errors: ' + errors.join(' | '));
   console.log(JSON.stringify(r, null, 1));
