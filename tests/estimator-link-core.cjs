@@ -86,11 +86,29 @@ const makeJob = () => ({ id: 'j1', name: 'Job', rooms: [{ id: 'rk', name: 'Kitch
   const r = C.compute(v); assert.ok(r.materialCost > 0);
 }
 
-// ---- Left-out lines are named, so a short total is never read as complete.
+// ---- With no price list at all, sheets and edging are still counted by the Studio material; no material is flagged.
 {
-  const v = C.emptyVersion(pl), job = makeJob(); job.cabinets[0].parts[0].material = 'Mystery board';
-  v.sections = C.importFromJob(job, pl).sections; C.syncDerived(v, pl, stubPack);
-  assert.deepEqual(v.derived.notes.noSheet, ['Side']);
+  const empty = C.normalisePriceList({ items: [] }), job = makeJob(); job.cabinets[0].parts[0].material = '';
+  const imp = C.importFromJob(job, empty), v = C.emptyVersion(empty); v.sections = imp.sections; v.source = imp.source; C.syncDerived(v, empty, stubPack);
+  const names = Object.keys(v.derived.sheets).map(k => [k, v.derived.sheets[k].name, v.derived.sheets[k].count, v.derived.sheets[k].unitCost]).sort();
+  assert.deepEqual(names.map(n => n[1]).sort(), ['Material not set 18 mm', 'Oak veneer 18 mm', 'Oak veneer 25 mm', 'White melamine 18 mm'], 'one group per Studio material and thickness: ' + JSON.stringify(names));
+  assert.ok(names.every(n => n[2] >= 1 && n[3] === null), 'sheets counted, no price yet');
+  assert.deepEqual(v.derived.notes.noMaterial, ['Side'], 'the panel with no material is named');
+  assert.deepEqual(v.derived.notes.noSheet, [], 'nothing is silently left out');
+  assert.ok(C.compute(v).missingPrices.length >= 4, 'the missing prices are reported, so the total reads as incomplete');
+  const white = v.derived.sheets['mat:white melamine~18'];
+  assert.equal(v.derived.edging['mat:white melamine~18'].metres, 4.8, 'edging counted by material too (2 gables x 2.38 m, rounded up to 0.1)');
+  assert.equal(v.derived.edging['mat:~18'].name, 'Edging Material not set 18 mm');
+  // Typing a price on the group is enough to cost it; nothing else is needed.
+  white.unitCost = 45; C.syncDerived(v, empty, stubPack); assert.equal(v.derived.sheets['mat:white melamine~18'].unitCost, 45, 'a typed price survives recalculation');
+  // Choosing a price-list item for a line moves it into that item group.
+  const lines = v.sections.flatMap(x => x.lines); const oakLine = lines.find(l => l.material === 'Oak veneer' && l.thickness === 18);
+  oakLine.itemId = oak18; C.syncDerived(v, pl, stubPack); assert.ok(v.derived.sheets[oak18] && !v.derived.sheets['mat:oak veneer~18'], 'item chosen: grouped under the price-list item');
+}
+// ---- Hand-typed rough panels without an item are still left out loudly.
+{
+  const v = C.emptyVersion(pl); v.sections[0].lines = [{ id: 'm1', type: 'panel', name: 'Typed', lengthCm: 100, widthCm: 40, qty: 2, itemId: null, edges: 'none' }];
+  C.syncDerived(v, pl, stubPack); assert.deepEqual(v.derived.notes.noSheet, ['Typed']); assert.deepEqual(Object.keys(v.derived.sheets), []);
 }
 
 // ---- Change detection and the protected update.

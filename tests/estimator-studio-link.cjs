@@ -343,6 +343,58 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   await page.click('#fiqxEst [data-act="close"]'); await page.waitForTimeout(300);
   await page.setViewportSize({ width: 1400, height: 900 });
   assert.deepEqual(await prodPanels('jobUI'), uiBefore, 'Stage 10: the Studio panels are exactly as they were');
+  await shot('interface-before-11');
+
+  // ================= STAGE 11: no matching price-list items (a new company): the sheets still show =================
+  console.error('STEP 11 empty price list');
+  await page.evaluate(() => { const s = (0, eval)('state'), C = window.FiqEstimatorCore;
+    s.priceList = C.normalisePriceList({ items: [C.makeItem({ category: 'sheet', name: 'Birch ply 18 mm (2440 × 1220)', unit: 'sheet', cost: 70, sheet: { thickness: 18, w: 2440, h: 1220 } })] });   // nothing here matches the panels below
+    s.customers.push({ id: 'cust2', name: 'Anna' });
+    s.projects.push({ id: 'jobAnna', name: 'New Job', customer: 'Anna', customerId: 'cust2', rooms: [{ id: 'rn', name: 'Room' }],
+      cabinets: [{ id: 'un', name: 'Unit', roomId: 'rn', stage: 'estimate', parts: [
+        { id: 'an1', code: 'P-001', name: 'Panel A', length: 2000, width: 500, thickness: 18, qty: 2, material: '', edgeLong: 1, edgeShort: 0 },
+        { id: 'an2', code: 'P-002', name: 'Panel B', length: 1000, width: 400, thickness: 19, qty: 3, material: 'Oak melamine', edgeLong: 2, edgeShort: 0 }] }] });
+    save(); });
+  await openDrawing('jobAnna', 'un');
+  const annaBefore = await prodPanels('jobAnna'), plAnna = await page.evaluate(() => JSON.stringify((0, eval)('state').priceList));
+  await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxMaterials .fiqx-mrow');
+  r.s11 = await page.evaluate(() => ({ rows: [...document.querySelectorAll('#fiqxMaterials .fiqx-mrow')].map(x => x.querySelector('.fiqx-mname').textContent.trim() + ' | ' + x.querySelector('.fiqx-mbig').textContent.trim()),
+    empty: /No sheets yet/.test(document.getElementById('fiqxMaterials').textContent), warn: document.getElementById('fiqxWarn').textContent, summary: document.getElementById('fiqxSummary').textContent,
+    edgeRows: document.querySelectorAll('#fiqxMaterials .fiqx-erow').length }));
+  await shot('interface-anna');
+  assert.equal(r.s11.empty, false, 'sheets are shown even though no price-list item matches');
+  assert.equal(r.s11.rows.length, 2, JSON.stringify(r.s11.rows)); assert.ok(r.s11.rows.some(x => /^MATERIAL NOT SET 18 MM|^Material not set 18 mm/i.test(x)) && r.s11.rows.some(x => /oak melamine 19 mm/i.test(x)), JSON.stringify(r.s11.rows));
+  assert.ok(/1 panel with no material in Studio/.test(r.s11.warn) && /without a price/.test(r.s11.warn), r.s11.warn); assert.ok(/Incomplete/.test(r.s11.summary));
+  assert.equal(r.s11.edgeRows, 2, 'edging shown per material as well');
+  // Same sheet count as Panel Check for the panel that has a material.
+  const pcOakAnna = await page.evaluate(() => { const parts = (0, eval)('state').projects.find(p => p.id === 'jobAnna').cabinets[0].parts.filter(p => p.material); const g = window.a181ComputeGroups(parts)[0]; return { sheets: g.sheets.length, cuts: g.sheets.reduce((n, s) => n + (s.cuts || 0), 0), cfg: g.cfg }; });
+  const oakKey = 'mat:oak melamine~19';
+  const oakNow = await page.evaluate((k) => { const g = (0, eval)('state').estimates.find(e => e.projectId === 'jobAnna').draft.derived.sheets[k]; return { count: g.count, cuts: g.cuts, w: g.cfg.w, h: g.cfg.h, kerf: g.cfg.kerf, trim: g.cfg.trim }; }, oakKey);
+  assert.deepEqual([oakNow.count, oakNow.cuts, oakNow.w, oakNow.h, oakNow.kerf, oakNow.trim], [pcOakAnna.sheets, pcOakAnna.cuts, pcOakAnna.cfg.w, pcOakAnna.cfg.h, pcOakAnna.cfg.kerf, pcOakAnna.cfg.trim], 'matches Panel Check: ' + JSON.stringify([oakNow, pcOakAnna]));
+  // Type the price straight on the line: the cursor stays in the box while the totals follow.
+  await page.focus('[data-gb="sheets|' + oakKey + '|unitCost"]'); await page.keyboard.type('60');
+  r.s11_typed = await page.evaluate((k) => { const a = document.activeElement; return { value: a.value, stillThere: a.getAttribute('data-gb'), cost: (0, eval)('state').estimates.find(e => e.projectId === 'jobAnna').draft.derived.sheets[k].unitCost, row: document.querySelector('#fiqxMaterials').textContent }; }, oakKey);
+  assert.deepEqual([r.s11_typed.value, r.s11_typed.stillThere, r.s11_typed.cost], ['60', 'sheets|' + oakKey + '|unitCost', 60], 'typing keeps the cursor in the price box');
+  await page.fill('[data-gb="edging|' + oakKey + '|unitCost"]', '1.5');
+  await page.fill('[data-gb="sheets|mat:~18|unitCost"]', '50'); await page.fill('[data-gb="edging|mat:~18|unitCost"]', '1');
+  r.s11_priced = await page.evaluate(() => ({ warn: document.getElementById('fiqxWarn').textContent, mat: document.getElementById('fiqxSummary').textContent }));
+  assert.ok(!/without a price/.test(r.s11_priced.warn) && /1 panel with no material/.test(r.s11_priced.warn), 'only the real problem is left: ' + r.s11_priced.warn);
+  // Sheet settings for a material without a price-list item: change the size, the count follows.
+  await page.click('#fiqxEst [data-act="togglesheets"]');
+  const oldCount = oakNow.count;
+  await page.fill('[data-cfg="' + oakKey + '|w"]', '1220'); await page.fill('[data-cfg="' + oakKey + '|h"]', '600');
+  const newGroup = await page.evaluate((k) => { const g = (0, eval)('state').estimates.find(e => e.projectId === 'jobAnna').draft.derived.sheets[k]; return { count: g.count, w: g.cfg.w, h: g.cfg.h, listW: g.listW, rowText: document.getElementById('fiqxMaterials').textContent }; }, oakKey);
+  assert.deepEqual([newGroup.w, newGroup.h], [1220, 600]); assert.ok(newGroup.count > oldCount, 'smaller sheet, more sheets: ' + newGroup.count + ' vs ' + oldCount);
+  // Choose a price-list item for the panel that has no material: it moves into that item and is priced from the list.
+  await page.click('#fiqxWarn [data-act="fixsheet"]');
+  const optLabel = await page.evaluate(() => [...document.querySelectorAll('#fiqxPanels select[data-s$="|itemId"].fiqx-need option')].map(o => o.textContent).find(t => /^Birch ply/.test(t)));
+  await page.selectOption('#fiqxPanels select[data-s$="|itemId"].fiqx-need', { label: optLabel });
+  r.s11_chosen = await page.evaluate(() => ({ rows: [...document.querySelectorAll('#fiqxMaterials .fiqx-mname')].map(x => x.textContent.trim()), warn: document.getElementById('fiqxWarn').textContent }));
+  assert.ok(r.s11_chosen.rows.some(x => /birch ply 18 mm/i.test(x)) && !r.s11_chosen.rows.some(x => /material not set/i.test(x)), JSON.stringify(r.s11_chosen));
+  assert.ok(!/no material/.test(r.s11_chosen.warn), r.s11_chosen.warn);
+  assert.equal(await page.evaluate(() => JSON.stringify((0, eval)('state').priceList)), plAnna, 'the price list is not changed');
+  await page.evaluate(() => window.fiqCloseEstimator());
+  assert.deepEqual(await prodPanels('jobAnna'), annaBefore, 'Stage 11: the Studio panels are exactly as they were');
 
   r.network = { escaped: escaped.length }; assert.equal(escaped.length, 0);
   r.pageErrors = errors; assert.equal(errors.length, 0, 'page errors: ' + errors.join(' | '));

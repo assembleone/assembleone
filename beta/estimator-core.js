@@ -136,14 +136,23 @@
     return { w: num(c.w, 0) >= 300 ? num(c.w, 0) : d.w, h: num(c.h, 0) >= 300 ? num(c.h, 0) : d.h,
       kerf: Math.max(0, num(c.kerf, d.kerf)), trim: Math.max(0, num(c.trim, d.trim)), grain: c.grain === undefined || c.grain === null ? d.grain : !!c.grain };
   }
-  // Sheets from rough panels: grouped by the sheet item chosen on each panel line, packed with the
-  // same engine as the Sheet Optimiser when given (packFn = window.a181Pack), always whole sheets.
+  // Panels copied from Studio are counted by their own material even when no price-list item fits, so the sheets
+  // needed are always visible; a price can then be typed on the line, or an item chosen. A panel with no material
+  // is counted under "Material not set" (as Panel Check does) and flagged. Hand-typed rough panels still need an item.
+  function matKey(l) {
+    if (!l.src && !l.material) return null;
+    return 'mat:' + norm(l.material).replace(/\|/g, '/') + '~' + num(l.thickness, 0);
+  }
+  function matLabel(l) { var m = String(l.material || '').trim() || 'Material not set', th = num(l.thickness, 0); return m + (th ? ' ' + th + ' mm' : ''); }
+  function sheetKeyOf(l) { return l.itemId || matKey(l); }
+  // Sheets from rough panels: grouped by the sheet item chosen on each panel line (or by the Studio material),
+  // packed with the same engine as the Sheet Optimiser when given (packFn = window.a181Pack), always whole sheets.
   function sheetDemand(version, pl, packFn) {
     var groups = {};
     (version.sections || []).forEach(function (s) {
       (s.lines || []).forEach(function (l) {
-        if (l.type !== 'panel' || !l.itemId) return;
-        var g = groups[l.itemId] || (groups[l.itemId] = { pieces: [], area: 0 });
+        var key = l.type === 'panel' ? sheetKeyOf(l) : null; if (!key) return;
+        var g = groups[key] || (groups[key] = { pieces: [], area: 0, label: l.itemId ? '' : matLabel(l) });
         var w = Math.round(num(l.lengthCm, 0) * 10), h = Math.round(num(l.widthCm, 0) * 10), q = Math.max(0, Math.floor(num(l.qty, 0)));
         for (var i = 0; i < q; i++) if (w > 0 && h > 0) { g.pieces.push({ w: w, h: h, code: l.id, name: l.name || 'Panel' }); g.area += w * h; }
       });
@@ -161,22 +170,29 @@
         count = Math.ceil(g.area / (uw * uh));
         tooBig = g.pieces.filter(function (p) { return !((p.w <= uw && p.h <= uh) || (!cfg.grain && p.h <= uw && p.w <= uh)); }).length;
       }
-      out[itemId] = { count: count, tooBig: tooBig, sheetW: sw, sheetH: sh, cuts: cuts, cfg: cfg, listW: it && it.sheet ? num(it.sheet.w, 0) : 0, listH: it && it.sheet ? num(it.sheet.h, 0) : 0 };
+      out[itemId] = { label: g.label, count: count, tooBig: tooBig, sheetW: sw, sheetH: sh, cuts: cuts, cfg: cfg, listW: it && it.sheet ? num(it.sheet.w, 0) : 0, listH: it && it.sheet ? num(it.sheet.h, 0) : 0 };
+    });
+    return out;
+  }
+  function edgingGroups(version) {
+    var out = {};
+    (version.sections || []).forEach(function (s) {
+      (s.lines || []).forEach(function (l) {
+        if (l.type !== 'panel' || !l.edges || l.edges === 'none') return;
+        var key = l.edgeItemId || (l.edges === 'counts' ? matKey(l) : null); if (!key) return;
+        var L = num(l.lengthCm, 0), W = num(l.widthCm, 0), q = Math.max(0, num(l.qty, 0));
+        // Panels copied from Studio carry Studio own long and short edge counts (the same method as the Shopping List).
+        var cm = l.edges === 'counts' ? Math.max(0, num(l.edgeLong, 0)) * L + Math.max(0, num(l.edgeShort, 0)) * W
+          : l.edges === 'all' ? 2 * (L + W) : 2 * L;
+        var g = out[key] || (out[key] = { cm: 0, label: l.edgeItemId ? '' : 'Edging ' + matLabel(l) });
+        g.cm += (cm * q) / 100;
+      });
     });
     return out;
   }
   function edgingDemand(version) {
-    var out = {};
-    (version.sections || []).forEach(function (s) {
-      (s.lines || []).forEach(function (l) {
-        if (l.type !== 'panel' || !l.edgeItemId || !l.edges || l.edges === 'none') return;
-        var L = num(l.lengthCm, 0), W = num(l.widthCm, 0), q = Math.max(0, num(l.qty, 0));
-        // Panels copied from Studio carry Studio's own long and short edge counts (the same method as the Shopping List).
-        var cm = l.edges === 'counts' ? Math.max(0, num(l.edgeLong, 0)) * L + Math.max(0, num(l.edgeShort, 0)) * W
-          : l.edges === 'all' ? 2 * (L + W) : 2 * L;
-        out[l.edgeItemId] = (out[l.edgeItemId] || 0) + (cm * q) / 100;
-      });
-    });
+    var g = edgingGroups(version), out = {};
+    Object.keys(g).forEach(function (k) { out[k] = g[k].cm; });
     return out;
   }
   // Keeps version.derived in step with the panel lines: a new sheet/edging group takes its price
@@ -184,12 +200,13 @@
   function syncDerived(version, pl, packFn) {
     version.derived = version.derived || { sheets: {}, edging: {} };
     var allow = 1 + Math.max(0, num(version.inputs && version.inputs.allowancePct, 0)) / 100;
-    var sd = sheetDemand(version, pl, packFn), ed = edgingDemand(version);
+    var sd = sheetDemand(version, pl, packFn), eg = edgingGroups(version), ed = {};
+    Object.keys(eg).forEach(function (k) { ed[k] = eg[k].cm; });
     var sheets = {}, edging = {};
     Object.keys(sd).forEach(function (id) {
       var prev = version.derived.sheets[id], it = findItem(pl, id);
       sheets[id] = {
-        itemId: id, name: (prev && prev.name) || (it && it.name) || 'Sheet', count: Math.ceil(sd[id].count * allow - 1e-9), tooBig: sd[id].tooBig,
+        itemId: id, name: (prev && prev.name) || (it && it.name) || sd[id].label || 'Sheet', count: Math.ceil(sd[id].count * allow - 1e-9), tooBig: sd[id].tooBig,
         cuts: sd[id].cuts, cfg: sd[id].cfg, listW: sd[id].listW, listH: sd[id].listH,
         sizeDiffers: !!(sd[id].listW && sd[id].listH && !((sd[id].cfg.w === sd[id].listW && sd[id].cfg.h === sd[id].listH) || (sd[id].cfg.w === sd[id].listH && sd[id].cfg.h === sd[id].listW))),
         override: prev && prev.override !== undefined ? prev.override : null,
@@ -199,19 +216,20 @@
     Object.keys(ed).forEach(function (id) {
       var prev = version.derived.edging[id], it = findItem(pl, id);
       edging[id] = {
-        itemId: id, name: (prev && prev.name) || (it && it.name) || 'Edging', metres: Math.ceil(ed[id] * allow * 10 - 1e-9) / 10,
+        itemId: id, name: (prev && prev.name) || (it && it.name) || eg[id].label || 'Edging', metres: Math.ceil(ed[id] * allow * 10 - 1e-9) / 10,
         override: prev && prev.override !== undefined ? prev.override : null,
         unitCost: prev ? prev.unitCost : (it ? it.cost : null), listCost: prev ? prev.listCost : (it ? it.cost : null)
       };
     });
     // Panel lines that cannot be counted yet, so a short total is never mistaken for a complete one.
-    var notes = { noSheet: [], noEdge: [], cuts: 0 };
+    var notes = { noSheet: [], noEdge: [], noMaterial: [], cuts: 0 };
     (version.sections || []).forEach(function (s) { (s.lines || []).forEach(function (l) {
       if (l.type !== 'panel') return;
       var sized = num(l.lengthCm, 0) > 0 && num(l.widthCm, 0) > 0 && num(l.qty, 0) > 0;
-      if (sized && !l.itemId) notes.noSheet.push(l.name || l.code || 'Panel');
+      if (sized && !l.itemId && !matKey(l)) notes.noSheet.push(l.name || l.code || 'Panel');
+      if (sized && !l.itemId && l.src && !String(l.material || '').trim()) notes.noMaterial.push(l.name || l.code || 'Panel');
       var hasEdges = l.edges === 'counts' ? (num(l.edgeLong, 0) > 0 || num(l.edgeShort, 0) > 0) : (l.edges && l.edges !== 'none');
-      if (sized && hasEdges && !l.edgeItemId) notes.noEdge.push(l.name || l.code || 'Panel');
+      if (sized && hasEdges && !l.edgeItemId && !(l.edges === 'counts' && matKey(l))) notes.noEdge.push(l.name || l.code || 'Panel');
     }); });
     Object.keys(sheets).forEach(function (id) { notes.cuts += Number(sheets[id].cuts) || 0; });
     version.derived = { sheets: sheets, edging: edging, notes: notes };
@@ -451,7 +469,7 @@
     emptyPriceList: emptyPriceList, normalisePriceList: normalisePriceList, makeItem: makeItem, findItem: findItem,
     importBrowserPrices: importBrowserPrices,
     emptyVersion: emptyVersion, newEstimate: newEstimate, lineFromItem: lineFromItem, setLineCost: setLineCost,
-    sheetDemand: sheetDemand, edgingDemand: edgingDemand, syncDerived: syncDerived, cfgOf: cfgOf, legacyCfg: legacyCfg,
+    sheetDemand: sheetDemand, edgingDemand: edgingDemand, syncDerived: syncDerived, cfgOf: cfgOf, legacyCfg: legacyCfg, matKey: matKey, sheetKeyOf: sheetKeyOf,
     studioPanels: studioPanels, importFromJob: importFromJob, diffAgainstJob: diffAgainstJob, applyUpdate: applyUpdate, importedLines: importedLines,
     lineEditedFields: lineEditedFields, matchSheetItem: matchSheetItem, matchEdgeItem: matchEdgeItem, panelFp: panelFp, SRC_LABELS: SRC_LABELS,
     compute: compute, validateForSave: validateForSave, saveVersion: saveVersion, editAsNewVersion: editAsNewVersion,
