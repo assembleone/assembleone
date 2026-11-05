@@ -95,7 +95,7 @@ const canon = v => Array.isArray(v) ? '[' + v.map(canon).join(',') + ']' : (v &&
   await page.click('#fiqxEst [data-act="mkset"][data-v="30"]');
   await page.fill('[data-ib="labourDays"]', '5'); await page.fill('[data-ib="dayRate"]', '400');
   await page.click('#fiqxEst [data-act="addother"]'); await page.fill('[data-ob="0|label"]', 'Delivery'); await page.fill('[data-ob="0|amount"]', '40');
-  r.taxBlank = await page.evaluate(() => ({ disabled: document.querySelector('[data-act="savev"]').disabled, text: document.getElementById('fiqxSummary').textContent.includes('Tax rate not set') }));
+  r.taxBlank = await page.evaluate(() => ({ disabled: document.querySelector('[data-act="savev"]').disabled, text: /Tax rate not set|Enter a tax rate/.test(document.getElementById('fiqxSummary').textContent) }));
   assert.deepEqual(r.taxBlank, { disabled: true, text: true }, 'blank tax blocks saving');
   await page.fill('[data-ib="taxRate"]', '21'); await page.fill('[data-ib="taxLabel"]', 'IVA');
   r.derived = await page.evaluate(() => (0, eval)('state').estimates[0].draft.derived);

@@ -67,7 +67,7 @@
   function money(v) { return v === null || v === undefined ? '—' : '€' + Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function amt(v) { return v === null || v === undefined ? '' : String(v); }
   function jobTitle(p) { return p ? (p.customer || p.name || 'Untitled job') + (p.customer && p.name && p.name !== p.customer ? ' · ' + p.name : '') + (p.address ? ' · ' + p.address : '') : 'Job'; }
-  function statusChip(e) { var m = { draft: ['Draft', 'warn'], saved: ['Saved', 'info'], won: ['Won', 'ok'], lost: ['Lost', 'muted'] }[e.status] || [e.status, 'muted']; return '<span class="fiqx-chip fiqx-' + m[1] + '">' + m[0] + '</span>'; }
+  function statusChip(e) { var m = { draft: ['Draft', 'muted'], saved: ['Saved', 'info'], won: ['Won', 'ok'], lost: ['Lost', 'muted'] }[e.status] || [e.status, 'muted']; return '<span class="fiqx-chip fiqx-' + m[1] + '">' + m[0] + '</span>'; }
   function catLabel(k) { var c = C.CATEGORIES.find(function (x) { return x[0] === k; }); return c ? c[1] : k; }
   function activeItems(pred) { return priceList().items.filter(function (i) { return !i.archived && (!pred || pred(i)); }); }
   function itemOptions(sel, pred, blank) {
@@ -78,56 +78,54 @@
 
   // ---------- styles ----------
   var css = '' +
-    '.fiqx-ov{position:fixed;inset:0;z-index:99990;background:rgba(11,37,69,.45);display:flex;align-items:stretch;justify-content:center;padding:18px;font-family:inherit}' +
-    '.fiqx-win{background:#f6f8fb;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:min(1280px,100%);display:flex;flex-direction:column;overflow:hidden;color:#0b2545}' +
-    '.fiqx-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid #dfe5ee}' +
-    '.fiqx-top h2{font-size:16px;margin:0 8px 0 0}.fiqx-sub{color:#5b6b80;font-size:13px}.fiqx-sp{flex:1}' +
-    '.fiqx-chip{font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px}.fiqx-warn{background:#fff4d6;color:#8a5a00}.fiqx-info{background:#e3efff;color:#1d4f91}.fiqx-ok{background:#dff5e6;color:#17663a}.fiqx-muted{background:#eceff3;color:#5b6b80}' +
-    '.fiqx-internal{font-size:11px;font-weight:800;color:#8a5a00;background:#fff4d6;border:1px solid #f1d58a;padding:3px 8px;border-radius:6px}' +
-    '.fiqx-btn{border:1px solid #c9d3e0;background:#fff;color:#0b2545;border-radius:8px;padding:6px 11px;font-weight:700;font-size:13px;cursor:pointer}.fiqx-btn:hover{background:#f0f4f9}' +
-    '.fiqx-pri{background:#0b2545;color:#fff;border-color:#0b2545}.fiqx-pri:hover{background:#163a66}.fiqx-btn[disabled]{opacity:.45;cursor:not-allowed}' +
-    '.fiqx-body{flex:1;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;padding:14px}' +
+    '.fiqx-ov{position:fixed;inset:0;z-index:99990;background:rgba(16,20,24,.5);display:flex;align-items:stretch;justify-content:center;padding:18px;font-family:inherit}' +
+    '.fiqx-win{background:#f4f6f8;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:min(1280px,100%);display:flex;flex-direction:column;overflow:hidden;color:#101418;font-size:16px;line-height:1.4}' +
+    '.fiqx-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;background:#fff;border-bottom:1px solid #c9d1db}' +
+    '.fiqx-top h2{font-size:20px;margin:0 8px 0 0;color:#101418}.fiqx-sub{color:#2f3a47;font-size:14px}.fiqx-sp{flex:1}' +
+    '.fiqx-chip{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px}.fiqx-warn,.fiqx-err{background:#fdecec;color:#8e0f1a}.fiqx-info{background:#e6eef8;color:#0f2f57}.fiqx-ok{background:#e3f3e8;color:#14532d}.fiqx-muted{background:#e8ebef;color:#101418}' +
+    '.fiqx-internal{font-size:13px;font-weight:700;color:#101418;background:#fff;border:1px solid #8b95a3;padding:3px 9px;border-radius:6px}' +
+    '.fiqx-btn{border:1.5px solid #7b8696;background:#fff;color:#101418;border-radius:8px;padding:8px 14px;font-weight:700;font-size:15px;cursor:pointer}.fiqx-btn:hover{background:#eef1f5}' +
+    '.fiqx-pri{background:#101418;color:#fff;border-color:#101418}.fiqx-pri:hover{background:#2b3541}.fiqx-btn[disabled]{opacity:.45;cursor:not-allowed}' +
+    '.fiqx-body{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;padding:16px}' +
     '.fiqx-body.single{grid-template-columns:minmax(0,1fr)}' +
-    '.fiqx-card{background:#fff;border:1px solid #dfe5ee;border-radius:12px;padding:12px;margin-bottom:12px}' +
-    '.fiqx-card h3{font-size:14px;margin:0 0 8px}.fiqx-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}' +
-    '.fiqx-in{border:1px solid #c9d3e0;border-radius:7px;padding:5px 7px;font:inherit;font-size:13px;background:#fff;color:#0b2545;min-width:0}' +
-    '.fiqx-in.num{width:78px;text-align:right}.fiqx-in.wide{width:100%}.fiqx-in:disabled{background:#f3f5f8}' +
-    '.fiqx-t{width:100%;border-collapse:collapse;font-size:13px}.fiqx-t th{text-align:left;color:#5b6b80;font-weight:700;font-size:12px;padding:4px}.fiqx-t td{padding:3px 4px;border-top:1px solid #edf1f6;vertical-align:middle}' +
-    '.fiqx-x{border:0;background:none;color:#a33;font-size:16px;cursor:pointer}.fiqx-ovr{font-size:11px;color:#8a5a00}' +
-    '.fiqx-sum{position:sticky;top:0;align-self:start}.fiqx-sum .l{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px}' +
-    '.fiqx-sum .l span:first-child{color:#5b6b80}.fiqx-sum .big{font-size:18px;font-weight:800}.fiqx-sum .sep{border-top:1px solid #dfe5ee;margin:6px 0}' +
-    '.fiqx-q{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;margin:2px 0 4px}.fiqx-q button{font-size:11px;padding:2px 7px;border:1px solid #c9d3e0;border-radius:6px;background:#fff;cursor:pointer}' +
-    '.fiqx-warnbox{background:#fff4d6;border:1px solid #f1d58a;color:#7a4d00;border-radius:8px;padding:6px 8px;font-size:12px;margin:6px 0}' +
-    '.fiqx-list button.fiqx-item{display:flex;width:100%;justify-content:space-between;align-items:center;text-align:left;border:1px solid #dfe5ee;background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font:inherit}' +
-    '.fiqx-side{position:fixed;right:18px;top:70px;bottom:18px;width:360px;background:#fff;border:1px solid #dfe5ee;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.25);z-index:99995;overflow:auto;padding:12px}' +
+    '.fiqx-card{background:#fff;border:1px solid #c9d1db;border-radius:12px;padding:16px;margin-bottom:14px}' +
+    '.fiqx-card h3{font-size:16px;margin:0 0 8px;color:#101418}.fiqx-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}' +
+    '.fiqx-in{border:1.5px solid #7b8696;border-radius:7px;padding:7px 9px;font:inherit;font-size:15px;background:#fff;color:#101418;min-width:0}' +
+    '.fiqx-in::placeholder{color:#4a5563;opacity:1}.fiqx-in.num{width:84px;text-align:right}.fiqx-in.wide{width:100%}.fiqx-in:disabled{background:#eef1f5;color:#2f3a47}' +
+    '.fiqx-t{width:100%;border-collapse:collapse;font-size:15px}.fiqx-t th{text-align:left;color:#1f2933;font-weight:800;font-size:13px;padding:6px 4px}.fiqx-t td{padding:5px 4px;border-top:1px solid #d5dbe3;vertical-align:middle}' +
+    '.fiqx-x{border:0;background:none;color:#8e0f1a;font-size:20px;cursor:pointer}.fiqx-ovr{font-size:13px;color:#a4121c;font-weight:700}.fiqx-red{color:#a4121c;font-size:14px;font-weight:800}' +
+    '.fiqx-sum{position:sticky;top:0;align-self:start}.fiqx-sum .l{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;font-size:18px;color:#101418}' +
+    '.fiqx-sum .l span:first-child{color:#101418}.fiqx-sum .sep{border-top:2px solid #101418;margin:8px 0}.fiqx-sum .fiqx-in{font-size:17px}.fiqx-profit{font-size:21px!important;font-weight:800}' +
+    '.fiqx-q{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;margin:2px 0 4px}.fiqx-q button{font-size:13px;padding:3px 9px;border:1.5px solid #7b8696;border-radius:6px;background:#fff;color:#101418;cursor:pointer}' +
+    '.fiqx-warnbox{background:#fff;border:1.5px solid #7b8696;color:#101418;border-radius:8px;padding:8px 10px;font-size:14px;margin:6px 0}' +
+    '.fiqx-list button.fiqx-item{display:flex;width:100%;justify-content:space-between;align-items:center;text-align:left;border:1.5px solid #c9d1db;background:#fff;color:#101418;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;font:inherit;font-size:16px}' +
+    '.fiqx-side{position:fixed;right:18px;top:70px;bottom:18px;width:360px;background:#fff;color:#101418;border:1px solid #c9d1db;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.25);z-index:99995;overflow:auto;padding:14px}' +
     '.fiqx-side img{width:100%;border-radius:8px;margin:4px 0}' +
     '#fiqxStudioEstimatorBtn{flex-shrink:0;padding:6px 10px;font-size:11px;min-height:0;font-weight:800;background:#e8f0ff;border-color:#8fa8df;color:#0b2545}' +
     '@media(max-width:1100px){#screen-mark #fiqxStudioEstimatorBtn{grid-column:1 / -1;width:100%}}' +
-    '.fiqx-cfg{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:4px;font-size:12px;color:#5b6b80}.fiqx-cfg label{display:flex;gap:4px;align-items:center;white-space:nowrap}.fiqx-cfg .fiqx-in.num{width:62px}' +
-    '.fiqx-need{border-color:#d9822b;background:#fff7ea}.fiqx-studio{border-color:#8fa8df}.fiqx-stale{border-color:#e0a030;background:#fffaf0}' +
-    '.fiqx-modal-bg{position:fixed;inset:0;z-index:99999;background:rgba(11,37,69,.5);display:flex;align-items:center;justify-content:center;padding:18px}' +
-    '.fiqx-modal{background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.fiqx-modal h3{margin:0 0 6px}.fiqx-modal ul{margin:4px 0 10px 18px;padding:0}.fiqx-modal li{margin:3px 0;font-size:13px}' +
-    '.fiqx-nav{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid #dfe5ee;flex:0 0 auto}' +
-    '.fiqx-nbtn{min-height:48px;font:inherit;font-size:15px;font-weight:800;color:#0b2545;background:#fff;border:2px solid #c9d3e0;border-radius:10px;cursor:pointer;padding:6px 10px}.fiqx-nbtn:hover{background:#f0f4f9}' +
-    '.fiqx-nbtn.fiqx-npri{background:#0b2545;color:#fff;border-color:#0b2545}.fiqx-nbtn[disabled]{opacity:.5;cursor:not-allowed}' +
-    '.fiqx-navmsg{grid-column:1 / -1;font-size:13px;color:#8a5a00;min-height:0}.fiqx-navmsg:empty{display:none}' +
-    '.fiqx-title{font-size:24px;font-weight:800;line-height:1.25}.fiqx-head{margin:2px 0 10px}.fiqx-head .fiqx-row{margin-top:6px}' +
-    '.fiqx-h{font-size:14px;font-weight:800;letter-spacing:.05em;color:#5b6b80;margin:0 0 4px}' +
-    '.fiqx-lg{min-height:44px;font-size:14px;font-weight:800;padding:6px 14px}' +
-    '.fiqx-fold{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.fiqx-pbody{margin-top:10px;overflow-x:auto}' +
-    '.fiqx-warnline{display:flex;flex-wrap:wrap;gap:6px 16px;background:#fff4d6;border:1px solid #f1d58a;color:#7a4d00;border-radius:10px;padding:8px 12px;font-size:14px;font-weight:700;margin-bottom:12px}.fiqx-warnline a{color:#7a4d00;text-decoration:underline;font-weight:800}' +
-    '.fiqx-mrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 16px;align-items:baseline;padding:12px 0;border-top:1px solid #edf1f6}.fiqx-mrow:first-child{border-top:0}' +
-    '.fiqx-mname{font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.01em;overflow-wrap:anywhere}.fiqx-mbig{font-size:28px;font-weight:800;white-space:nowrap}.fiqx-mcost{min-width:84px;text-align:right;color:#5b6b80;font-size:15px}' +
-    '.fiqx-edging{border-top:1px solid #edf1f6;margin-top:4px;padding-top:6px}.fiqx-erow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 16px;font-size:14px;color:#5b6b80;padding:3px 0}.fiqx-erow span:nth-child(2),.fiqx-erow span:nth-child(3){text-align:right;min-width:84px}.fiqx-cuts{margin-top:4px}' +
-    '.fiqx-sg{border-top:1px solid #edf1f6;padding:10px 0}.fiqx-sg:first-child{border-top:0}.fiqx-sgname{font-size:15px;margin-bottom:6px}' +
-    '.fiqx-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px 10px;align-items:end}.fiqx-field{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:700;color:#5b6b80}.fiqx-field .fiqx-in.num{width:100%;text-align:left}.fiqx-field small{font-weight:600;color:#7a8799}.fiqx-chk{flex-direction:row;align-items:center;gap:6px;font-size:13px;min-height:32px}' +
-    '.fiqx-note{font-size:12px;color:#8a5a00;margin-top:6px}' +
-    '.fiqx-mprice{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.fiqx-mprice .fiqx-in{width:84px;text-align:right}.fiqx-pin{display:flex;gap:4px;align-items:center;white-space:nowrap}' +
-    '.fiqx-total{display:flex;justify-content:space-between;align-items:baseline;gap:8px;background:#dff5e6;color:#17663a;border-radius:10px;padding:10px 12px;margin:8px 0;font-weight:800}.fiqx-total b{font-size:26px}' +
-    '.fiqx-inl{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.fiqx-sm{padding:2px 8px;font-size:12px}' +
+    '.fiqx-need{border:2px solid #c62828;background:#fff}.fiqx-studio{border-color:#7b8696}.fiqx-stale{border-color:#c62828}' +
+    '.fiqx-modal-bg{position:fixed;inset:0;z-index:99999;background:rgba(16,20,24,.55);display:flex;align-items:center;justify-content:center;padding:18px}' +
+    '.fiqx-modal{background:#fff;color:#101418;border-radius:12px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.fiqx-modal h3{margin:0 0 6px;font-size:20px}.fiqx-modal ul{margin:4px 0 10px 18px;padding:0}.fiqx-modal li{margin:4px 0;font-size:15px}' +
+    '.fiqx-nav{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid #c9d1db;flex:0 0 auto}' +
+    '.fiqx-nbtn{min-height:52px;font:inherit;font-size:16px;font-weight:800;color:#101418;background:#fff;border:2px solid #101418;border-radius:10px;cursor:pointer;padding:6px 10px}.fiqx-nbtn:hover{background:#eef1f5}' +
+    '.fiqx-nbtn.fiqx-npri{background:#101418;color:#fff}.fiqx-nbtn[disabled]{opacity:.4;cursor:not-allowed}' +
+    '.fiqx-title{font-size:30px;font-weight:800;line-height:1.2;color:#101418}.fiqx-head{margin:2px 0 14px}.fiqx-head .fiqx-row{margin-top:8px}' +
+    '.fiqx-h{font-size:15px;font-weight:800;letter-spacing:.05em;color:#1f2933;margin:0 0 6px}' +
+    '.fiqx-lg{min-height:46px;font-size:15px;font-weight:800;padding:8px 16px}' +
+    '.fiqx-fold{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.fiqx-pbody{margin-top:12px;overflow-x:auto}' +
+    '.fiqx-warnline{display:flex;flex-wrap:wrap;gap:6px 20px;background:#fff;border:2px solid #c62828;color:#7f0a14;border-radius:10px;padding:10px 14px;font-size:16px;font-weight:700;margin-bottom:14px}.fiqx-warnline a{color:#7f0a14;text-decoration:underline;font-weight:800}' +
+    '.fiqx-mrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 20px;align-items:center;padding:16px 0;border-top:1px solid #d5dbe3}.fiqx-mrow:first-child{border-top:0}' +
+    '.fiqx-mname{font-size:21px;font-weight:800;text-transform:uppercase;letter-spacing:.01em;overflow-wrap:anywhere;color:#101418}.fiqx-mbig{font-size:40px;line-height:1;font-weight:800;white-space:nowrap;text-transform:uppercase;color:#101418}.fiqx-mcost{min-width:90px;text-align:right;color:#101418;font-size:16px}' +
+    '.fiqx-edging{border-top:1px solid #d5dbe3;margin-top:4px;padding-top:8px}.fiqx-erow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 20px;font-size:15px;color:#2f3a47;padding:4px 0;align-items:center}.fiqx-erow span:nth-child(2),.fiqx-erow span:nth-child(3){text-align:right;min-width:90px}.fiqx-cuts{margin-top:4px;font-size:15px}' +
+    '.fiqx-sg{border-top:1px solid #d5dbe3;padding:12px 0}.fiqx-sg:first-child{border-top:0}.fiqx-sgname{font-size:17px;margin-bottom:8px}' +
+    '.fiqx-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px 12px;align-items:end}.fiqx-field{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:700;color:#101418}.fiqx-field .fiqx-in.num{width:100%;text-align:left}.fiqx-field small{font-weight:600;color:#2f3a47;font-size:13px}.fiqx-chk{flex-direction:row;align-items:center;gap:8px;font-size:15px;min-height:36px}' +
+    '.fiqx-note{font-size:14px;color:#8e0f1a;font-weight:700;margin-top:8px}' +
+    '.fiqx-mprice{display:flex;flex-direction:column;align-items:flex-end;gap:3px}.fiqx-mprice .fiqx-in{width:92px;text-align:right}.fiqx-pin{display:flex;gap:6px;align-items:center;white-space:nowrap}' +
+    '.fiqx-total{display:flex;flex-direction:column;gap:2px;background:#e3f3e8;color:#0b4a24;border-radius:12px;padding:14px 16px;margin:12px 0;font-weight:800}.fiqx-total span{font-size:16px;letter-spacing:.02em}.fiqx-total b{font-size:40px;line-height:1.1}' +
+    '.fiqx-inl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.fiqx-sm{padding:3px 10px;font-size:14px}' +
     '@media(max-width:900px){.fiqx-body{grid-template-columns:minmax(0,1fr)}.fiqx-sum{position:static}}' +
-    '@media(max-width:600px){.fiqx-ov{padding:0}.fiqx-win{border-radius:0}.fiqx-nav{grid-template-columns:1fr 1fr}.fiqx-nav .fiqx-npri{grid-column:1 / -1}.fiqx-title{font-size:19px}.fiqx-mbig{font-size:22px}.fiqx-body{padding:10px}}' +
-    '.fiqx-est-btn{margin-left:6px}.fiqx-cl{margin-bottom:14px}.fiqx-cl h4{margin:6px 0}.fiqx-cl .fiqx-clrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 8px;border:1px solid #dfe5ee;border-radius:8px;margin:4px 0;background:#fff;cursor:pointer;width:100%;font:inherit;text-align:left}';
+    '@media(max-width:600px){.fiqx-ov{padding:0}.fiqx-win{border-radius:0}.fiqx-nav{grid-template-columns:1fr 1fr}.fiqx-nav .fiqx-npri{grid-column:1 / -1}.fiqx-title{font-size:23px}.fiqx-mbig{font-size:30px}.fiqx-mrow{grid-template-columns:minmax(0,1fr) auto}.fiqx-mcost{grid-column:1 / -1;text-align:left}.fiqx-mprice{align-items:flex-start}.fiqx-body{padding:10px}.fiqx-total b{font-size:34px}}' +
+    '.fiqx-est-btn{margin-left:6px}.fiqx-cl{margin-bottom:14px}.fiqx-cl h4{margin:6px 0}.fiqx-cl .fiqx-clrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid #c9d1db;border-radius:8px;margin:4px 0;background:#fff;color:#101418;cursor:pointer;width:100%;font:inherit;text-align:left}';
   function ensureStyle() { if (document.getElementById('fiqx-style')) return; var s = document.createElement('style'); s.id = 'fiqx-style'; s.textContent = css; document.head.appendChild(s); }
 
   // ---------- Estimator ----------
@@ -218,7 +216,7 @@
   function staleChip(e) {
     var v = sourceVersion(e), p = v && jobById(e.projectId), d = null; if (!v || !p) return '';
     try { d = C.diffAgainstJob(v, p); } catch (x) { return ''; }
-    return d.stale ? '<span class="fiqx-chip fiqx-warn" title="The Studio design changed after these panels were copied">Studio changed</span> ' : '';
+    return d.stale ? '<span class="fiqx-chip fiqx-err" title="The Studio design changed after these panels were copied">Studio changed</span> ' : '';
   }
   function diffSummary(d) { var b = []; if (d.changed.length) b.push(d.changed.length + ' changed'); if (d.added.length) b.push(d.added.length + ' new'); if (d.removed.length) b.push(d.removed.length + ' removed'); return b.join(', '); }
   function openDiffModal(e) {
@@ -370,7 +368,7 @@
     var lines = panelLines(v), secs = (v.sections || []).filter(function (s) { return (s.lines || []).some(function (l) { return l.type === 'panel'; }); }), src = v.source, open = view.open.panels;
     var d = src && p ? C.diffAgainstJob(v, p) : null, stale = d && d.stale;
     var summary = lines.length ? plural(lines.length, 'panel') + (secs.length > 1 ? ' in ' + secs.length + ' rooms' : '') : 'No panels yet';
-    var status = src ? (stale ? '<span class="fiqx-chip fiqx-warn">Studio changed</span>' : '<span class="fiqx-chip fiqx-ok">Matches Studio</span>') : '';
+    var status = src ? (stale ? '<span class="fiqx-chip fiqx-err">Studio changed</span>' : '<span class="fiqx-chip fiqx-ok">Matches Studio</span>') : '';
     var canCopy = !src && !ro && p && C.studioPanels(p).length > 0;
     var head = '<div class="fiqx-fold"><div><h3 class="fiqx-h">' + (src ? 'PANELS IMPORTED FROM STUDIO' : 'PANELS') + '</h3><div class="fiqx-sub">' + esc(summary) + ' ' + status + '</div></div><div class="fiqx-row">' +
       (canCopy ? '<button class="fiqx-btn fiqx-lg fiqx-pri" data-act="studioimport"' + (canWrite() ? '' : ' disabled') + '>COPY PANELS FROM STUDIO</button>' : '') +
@@ -410,7 +408,7 @@
   }
   function sheetsCardHtml(v, ro) {
     var open = view.open.sheets;
-    return '<div class="fiqx-card" id="fiqxSheets"><div class="fiqx-fold"><div><h3 class="fiqx-h">SHEET SETTINGS</h3><div class="fiqx-sub">Size, quantity, price, saw cut, trim, grain</div></div>' +
+    return '<div class="fiqx-card" id="fiqxSheets"><div class="fiqx-fold"><div><h3 class="fiqx-h">SHEET SETTINGS</h3></div>' +
       '<button class="fiqx-btn fiqx-lg" data-act="togglesheets">' + (open ? 'HIDE' : 'SHOW') + '</button></div>' +
       (open ? '<div class="fiqx-pbody" id="fiqxSettingsBody">' + (ro ? settingsBodyHtml(v, true) : '') + '</div>' : '') + '</div>';
   }
@@ -420,19 +418,24 @@
     var secAttr = first ? ' data-sec="' + esc(first.id) + '"' : '';
     var r = ro ? (v.results || C.compute(v)) : C.compute(v);
     return '<div class="fiqx-card"><h3 class="fiqx-h">ADDITIONAL COSTS</h3>' +
-      '<div class="fiqx-sub" style="margin-bottom:4px">Hardware, hinges, drawers, LED lighting and other materials</div>' +
       (extra.length ? '<div style="overflow-x:auto"><table class="fiqx-t"><thead><tr><th>Type</th><th colspan="2">Item</th><th>Qty</th><th>Unit cost</th><th>Total</th><th></th></tr></thead><tbody>' + extra.join('') + '</tbody></table></div>' : '') +
       (ro ? '' : '<div class="fiqx-row" style="margin:6px 0 12px"><button class="fiqx-btn fiqx-lg" data-act="add" data-type="item"' + secAttr + '>+ Price list item</button><button class="fiqx-btn fiqx-lg" data-act="add" data-type="custom"' + secAttr + '>+ Custom item</button><button class="fiqx-btn" data-act="add" data-type="sheets"' + secAttr + '>+ Extra sheets</button></div>') +
       '<div class="fiqx-sub" style="margin-top:8px">Labour</div><div class="fiqx-row"><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(i.labourDays)) + '" data-ib="labourDays"' + dis + '> days × € <input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(i.dayRate)) + '" data-ib="dayRate"' + dis + '> per day <strong id="fiqxLabourTotal">' + money(r.labourCharged) + '</strong></div>' +
       '<div class="fiqx-sub" style="margin-top:12px">Transport and other costs</div><table class="fiqx-t"><tbody>' + (i.otherCosts || []).map(function (o, k) {
         return '<tr><td><input class="fiqx-in wide" value="' + esc(o.label) + '" placeholder="e.g. Transport" data-ob="' + k + '|label"' + dis + '></td><td style="width:110px"><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(o.amount)) + '" data-ob="' + k + '|amount"' + dis + '></td><td style="width:30px">' + (ro ? '' : '<button class="fiqx-x" data-act="rmother" data-k="' + k + '">×</button>') + '</td></tr>';
       }).join('') + '</tbody></table>' + (ro ? '' : '<button class="fiqx-btn fiqx-lg" data-act="addother">+ Other cost</button>') +
-      '<div class="fiqx-sub" style="margin-top:12px">Notes</div><textarea class="fiqx-in wide" rows="2" data-db="notes"' + dis + '>' + esc(v.notes || '') + '</textarea></div>';
+      '</div>';
+  }
+  // Notes stay closed until wanted.
+  function notesCardHtml(v, ro) {
+    var open = view.open.notes, has = String(v.notes || '').trim();
+    return '<div class="fiqx-card"><div class="fiqx-fold"><div><h3 class="fiqx-h" style="margin:0">NOTES</h3>' + (has && !open ? '<div class="fiqx-sub">Has a note</div>' : '') + '</div><button class="fiqx-btn fiqx-lg" data-act="togglenotes">' + (open ? 'HIDE' : 'SHOW') + '</button></div>' +
+      (open ? '<div class="fiqx-pbody"><textarea class="fiqx-in wide" rows="3" data-db="notes"' + (ro ? ' disabled' : '') + '>' + esc(v.notes || '') + '</textarea></div>' : '') + '</div>';
   }
   function navHtml(ro) {
     return '<div class="fiqx-nav"><button class="fiqx-nbtn" data-act="close">← BACK TO STUDIO</button><button class="fiqx-nbtn" data-act="custjob">CUSTOMER JOB</button>' +
       (ro ? '<button class="fiqx-nbtn fiqx-npri" data-act="editnew"' + (canWrite() ? '' : ' disabled') + '>EDIT ESTIMATE</button>' : '<button class="fiqx-nbtn fiqx-npri" data-act="savev" id="fiqxSaveBtn">SAVE ESTIMATE</button>') +
-      '<div class="fiqx-navmsg" id="fiqxNavMsg"></div></div>';
+      '</div>';
   }
   function headHtml(p, e, v, ro) {
     var title = p ? ((p.customer || p.name || 'Untitled job') + (p.customer && p.name && p.name !== p.customer ? ' · ' + p.name : '')) : 'Job', last = e.versions[e.versions.length - 1];
@@ -440,10 +443,11 @@
     var verText = ro ? 'V' + v.n + ' · saved ' + esc(new Date(v.savedAt).toLocaleString()) + ' · read-only' : (last ? 'Draft of V' + (last.n + 1) : 'Draft · not saved yet');
     var tabs = ro ? e.versions.map(function (x) { return '<button class="fiqx-btn' + (x.n === v.n ? ' fiqx-pri' : '') + '" data-act="showv" data-n="' + x.n + '">V' + x.n + '</button>'; }).join(' ') : '';
     var acts = ro && canWrite() ? '<button class="fiqx-btn" data-act="won">Mark Won</button> <button class="fiqx-btn" data-act="lost">Mark Lost</button> <button class="fiqx-btn" data-act="dup">Duplicate</button> <button class="fiqx-btn" data-act="archive">Archive</button>' : '';
-    return '<div class="fiqx-head"><div class="fiqx-title">' + esc(title) + '</div>' + (p && p.address ? '<div class="fiqx-sub">' + esc(p.address) + '</div>' : '') +
+    return '<div class="fiqx-head"><div class="fiqx-title">' + esc(title) + '</div>' +
       '<div class="fiqx-row">' + nameEl + statusChip(e) + staleChip(e) + '<span class="fiqx-sub">' + verText + '</span><span class="fiqx-internal">Internal estimate · not for production</span><span class="fiqx-sub" id="fiqxAutosave"></span></div>' +
       (ro && (e.wonAt || e.lostAt) ? '<div class="fiqx-sub">' + (e.wonAt ? 'Won on ' + esc(new Date(e.wonAt).toLocaleDateString()) : '') + (e.lostAt ? 'Lost on ' + esc(new Date(e.lostAt).toLocaleDateString()) + (e.lostReason ? ': ' + esc(e.lostReason) : '') : '') + '</div>' : '') +
-      '<div class="fiqx-row">' + tabs + (!ro && e.versions.length ? '<button class="fiqx-btn" data-act="versions">Saved versions</button>' : '') + acts + '<button class="fiqx-btn" data-act="site">Site measurements</button><button class="fiqx-btn" data-act="pricelist">Price list</button></div></div>';
+      '<div class="fiqx-row">' + tabs + (!ro && e.versions.length ? '<button class="fiqx-btn" data-act="versions">Saved versions</button>' : '') + acts + '<button class="fiqx-btn" data-act="togglecust">' + (view.open.cust ? 'Hide customer details' : 'Customer details') + '</button><button class="fiqx-btn" data-act="site">Site measurements</button><button class="fiqx-btn" data-act="pricelist">Price list</button></div>' +
+      (view.open.cust && p ? '<div class="fiqx-card" style="margin:10px 0 0"><div><strong>' + esc(p.customer || '') + '</strong></div>' + (p.address ? '<div>' + esc(p.address) + '</div>' : '') + (p.phone ? '<div>' + esc(p.phone) + '</div>' : '') + (!p.address && !p.phone ? '<div class="fiqx-sub">No address or phone saved.</div>' : '') + '</div>' : '') + '</div>';
   }
   function pageHtml(p, e, v, ro) {
     var r = ro ? (v.results || C.compute(v)) : C.compute(v);
@@ -451,7 +455,7 @@
       '<div class="fiqx-body"><div class="fiqx-main">' + headHtml(p, e, v, ro) +
       '<div id="fiqxWarn">' + (ro ? warningsHtml(p, v, true) : '') + '</div>' +
       '<div class="fiqx-card" id="fiqxMaterialsCard"><h3 class="fiqx-h">MATERIAL REQUIREMENTS</h3><div id="fiqxMaterials">' + (ro ? materialsHtml(v) : '') + '</div></div>' +
-      panelsCardHtml(p, e, v, ro) + sheetsCardHtml(v, ro) + extrasCardHtml(p, e, v, ro) +
+      panelsCardHtml(p, e, v, ro) + sheetsCardHtml(v, ro) + extrasCardHtml(p, e, v, ro) + notesCardHtml(v, ro) +
       '</div><div class="fiqx-sum"><div class="fiqx-card" id="fiqxSummary">' + (ro ? summaryHtml(v, r, true) : '') + '</div></div></div></div>';
   }
   function editorHtml(p, e) { return pageHtml(p, e, e.draft, false); }
@@ -476,8 +480,8 @@
   function summaryHtml(v, r, ro) {
     var i = v.inputs, dis = ro ? ' disabled' : '', notes = (v.derived && v.derived.notes) || {};
     var incomplete = (r.missingPrices && r.missingPrices.length) || (notes.noSheet && notes.noSheet.length);
-    var markup = ro ? '<span>' + esc(i.markupPct) + '%</span>' : '<span class="fiqx-inl"><button class="fiqx-btn fiqx-sm" data-act="mk" data-d="-5" aria-label="Decrease markup">−</button><input class="fiqx-in num" style="width:60px" inputmode="decimal" value="' + esc(amt(i.markupPct)) + '" data-ib="markupPct" id="fiqxMarkup">%<button class="fiqx-btn fiqx-sm" data-act="mk" data-d="5" aria-label="Increase markup">+</button></span>';
-    var need = !r.taxSet && !ro ? ' fiqx-need' : '';
+    var markup = ro ? '<span>' + esc(i.markupPct) + '%</span>' : '<span class="fiqx-inl"><button class="fiqx-btn fiqx-sm" data-act="mk" data-d="-5" aria-label="Decrease markup">−</button><input class="fiqx-in num" style="width:68px" inputmode="decimal" value="' + esc(amt(i.markupPct)) + '" data-ib="markupPct" id="fiqxMarkup">%<button class="fiqx-btn fiqx-sm" data-act="mk" data-d="5" aria-label="Increase markup">+</button></span>';
+    var taxUnset = !r.taxSet && !ro, taxName = esc(i.taxLabel || 'Tax');
     return '<h3 class="fiqx-h">PRICE SUMMARY</h3>' +
       '<div class="l"><span>Material cost</span><span>' + money(r.materialCost) + '</span></div>' +
       '<div class="l"><span>Material markup</span>' + markup + '</div>' +
@@ -486,10 +490,12 @@
       '<div class="l"><span>Labour</span><span>' + money(r.labourCharged) + '</span></div>' +
       '<div class="l"><span>Other costs</span><span>' + money(r.otherCosts) + '</span></div><div class="sep"></div>' +
       '<div class="l"><span><strong>Subtotal</strong></span><span><strong>' + money(r.subtotal) + '</strong></span></div>' +
-      '<div class="l"><span>Tax rate % and label</span><span class="fiqx-inl"><input class="fiqx-in num' + need + '" style="width:60px" inputmode="decimal" placeholder="rate" value="' + esc(amt(i.taxRate)) + '" data-ib="taxRate"' + dis + '><input class="fiqx-in" style="width:64px" placeholder="IVA" value="' + esc(i.taxLabel || '') + '" data-ib="taxLabel"' + dis + '></span></div>' +
-      '<div class="l"><span>' + esc(i.taxLabel || 'Tax') + '</span><span>' + (r.taxSet ? money(r.taxAmount) : '<span class="fiqx-ovr">Tax rate not set</span>') + '</span></div>' +
-      '<div class="fiqx-total"><span>SUGGESTED CUSTOMER TOTAL</span><b>' + (r.taxSet ? money(r.suggestedTotal) : '—') + '</b></div>' + (incomplete ? '<div class="fiqx-ovr" style="margin:-2px 0 6px">Incomplete: some prices or sheet materials are missing.</div>' : '') +
-      '<div class="l"><span><strong>ESTIMATED PROFIT</strong></span><span style="color:#17663a;font-weight:800">' + money(r.profit) + ' <span class="fiqx-sub">(' + r.marginPct.toFixed(1) + '%)</span></span></div>';
+      '<div class="l"><span>Tax rate</span><span class="fiqx-inl"><input class="fiqx-in num' + (taxUnset ? ' fiqx-need' : '') + '" style="width:76px" inputmode="decimal" aria-label="Tax rate percent" placeholder="0" value="' + esc(amt(i.taxRate)) + '" data-ib="taxRate"' + dis + '> %</span></div>' +
+      '<div class="l"><span>Tax name</span><span class="fiqx-inl"><input class="fiqx-in" style="width:110px" aria-label="Tax name" placeholder="e.g. VAT" value="' + esc(i.taxLabel || '') + '" data-ib="taxLabel"' + dis + '></span></div>' +
+      (taxUnset ? '<div class="fiqx-red" style="text-align:right">Enter a tax rate (0 is fine)</div>' : '') +
+      '<div class="l"><span>' + taxName + '</span><span>' + (r.taxSet ? money(r.taxAmount) : '—') + '</span></div>' +
+      '<div class="fiqx-total"><span>SUGGESTED CUSTOMER TOTAL</span><b>' + (r.taxSet ? money(r.suggestedTotal) : '—') + '</b></div>' + (incomplete ? '<div class="fiqx-red" style="margin:-4px 0 8px">Incomplete: some prices or sheet materials are missing.</div>' : '') +
+      '<div class="l fiqx-profit"><span>ESTIMATED PROFIT</span><span style="color:#0b4a24">' + money(r.profit) + ' <span class="fiqx-sub">(' + r.marginPct.toFixed(1) + '%)</span></span></div>';
   }
   function refreshSummary(e) {
     var el = document.getElementById('fiqxSummary'); if (!el) return;
@@ -500,9 +506,8 @@
     var lab = document.getElementById('fiqxLabourTotal'); if (lab) lab.textContent = money(r.labourCharged);
     var w = document.getElementById('fiqxWarn'); if (w) w.innerHTML = warningsHtml(jobById(e.projectId), e.draft, false);
     // Save is only possible with a tax rate; say so right beside the button.
-    var problems = C.validateForSave(e.draft), sb = document.getElementById('fiqxSaveBtn'), nm = document.getElementById('fiqxNavMsg');
-    if (sb) sb.disabled = !!problems.length || !canWrite();
-    if (nm) nm.textContent = problems.length ? problems.join('. ') + '. Enter a rate (0 is allowed) to save.' : '';
+    var problems = C.validateForSave(e.draft), sb = document.getElementById('fiqxSaveBtn');
+    if (sb) { sb.disabled = !!problems.length || !canWrite(); sb.title = problems.length ? 'Enter a tax rate first (0 is allowed)' : ''; }
   }
 
   // ---------- events ----------
@@ -562,6 +567,8 @@
       case 'custjob': return toCustomerJob();
       case 'togglepanels': view.open.panels = !view.open.panels; return render();
       case 'togglesheets': view.open.sheets = !view.open.sheets; return render();
+      case 'togglecust': view.open.cust = !view.open.cust; return render();
+      case 'togglenotes': view.open.notes = !view.open.notes; return render();
       case 'opensheets': view.open.sheets = true; render(); { var sg = document.getElementById('fiqxSheets'); if (sg) sg.scrollIntoView({ block: 'start' }); } return;
       case 'fixsheet': case 'fixedge': {
         view.open.panels = true; render();
@@ -682,7 +689,7 @@
           '<p class="fiqx-sub">No other active members yet.</p>') + '</div>' : '') +
       '<div class="fiqx-card"><h3>Estimate defaults for new estimates</h3><div class="fiqx-row"><span class="fiqx-sub">Markup %</span><input class="fiqx-in num" value="' + esc(amt(pl.defaults.markupPct)) + '" data-pld="markupPct"' + dis + '>' +
       '<span class="fiqx-sub">Tax rate %</span><input class="fiqx-in num" placeholder="blank" value="' + esc(amt(pl.defaults.taxRate)) + '" data-pld="taxRate"' + dis + '>' +
-      '<span class="fiqx-sub">Tax label</span><input class="fiqx-in" style="width:90px" placeholder="e.g. IVA" value="' + esc(pl.defaults.taxLabel) + '" data-pld="taxLabel"' + dis + '></div></div>' +
+      '<span class="fiqx-sub">Tax label</span><input class="fiqx-in" style="width:90px" placeholder="e.g. VAT" value="' + esc(pl.defaults.taxLabel) + '" data-pld="taxLabel"' + dis + '></div></div>' +
       '<div class="fiqx-card"><table class="fiqx-t"><thead><tr><th>Category</th><th>Name</th><th>Unit</th><th>Cost €</th><th>Sheet size</th><th>Supplier</th><th>Updated</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="8" class="fiqx-sub">No items yet.</td></tr>') + '</tbody></table>' +
       (edit ? '<button class="fiqx-btn fiqx-pri" data-plact="add" style="margin-top:8px">+ Add item</button>' : '') + '</div></div></div></div>';
   }

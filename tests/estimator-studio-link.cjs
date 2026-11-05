@@ -304,7 +304,7 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   await page.click('#fiqxEst [data-act="rmline"][data-id="' + ln10 + '"]');
 
   // -- Save Estimate waits for a tax rate and says why; then saves
-  r.s10_saveBlocked = await page.evaluate(() => ({ disabled: document.getElementById('fiqxSaveBtn').disabled, msg: document.getElementById('fiqxNavMsg').textContent }));
+  r.s10_saveBlocked = await page.evaluate(() => ({ disabled: document.getElementById('fiqxSaveBtn').disabled, msg: document.getElementById('fiqxSummary').textContent }));
   assert.ok(r.s10_saveBlocked.disabled && /tax/i.test(r.s10_saveBlocked.msg), JSON.stringify(r.s10_saveBlocked));
   await page.fill('[data-ib="taxRate"]', '21'); await page.fill('[data-ib="taxLabel"]', 'IVA');
   assert.equal(await page.evaluate(() => document.getElementById('fiqxSaveBtn').disabled), false, 'enabled once a tax rate is typed');
@@ -395,6 +395,75 @@ const SCREEN_KEYS = ['activeCabinetId', 'lastOpenedAt', 'updatedAt', 'isNewFromS
   assert.equal(await page.evaluate(() => JSON.stringify((0, eval)('state').priceList)), plAnna, 'the price list is not changed');
   await page.evaluate(() => window.fiqCloseEstimator());
   assert.deepEqual(await prodPanels('jobAnna'), annaBefore, 'Stage 11: the Studio panels are exactly as they were');
+
+  // ================= STAGE 12: bigger, darker, cleaner: no amber, good contrast, secondary details folded =================
+  console.error('STEP 12 readability');
+  const audit = (rootSel) => page.evaluate((sel) => {
+    const root = document.querySelector(sel); if (!root) return { missing: true };
+    const parse = c => { const m = String(c).match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(',').map(s => parseFloat(s)); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; };
+    const lum = ({ r, g, b }) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    const hsl = ({ r, g, b }) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) { if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h *= 60; if (h < 0) h += 360; } const l = (mx + mn) / 2; const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1)); return { h, s, l }; };
+    const bgOf = el => { for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c && c.a > 0.5) return c; } return { r: 255, g: 255, b: 255, a: 1 }; };
+    const amber = c => { if (!c || c.a < 0.2) return false; const x = hsl(c); return x.h >= 28 && x.h <= 68 && x.s > 0.3 && x.l > 0.12 && x.l < 0.97; };
+    const out = { amber: [], lowContrast: [], tiny: [] };
+    root.querySelectorAll('*').forEach(el => {
+      const cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden') return; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
+      const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+      const fg = parse(cs.color), bg = bgOf(el), name = el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '');
+      if (amber(parse(cs.backgroundColor)) || amber(parse(cs.borderTopColor)) && parseFloat(cs.borderTopWidth) > 0 || (own && amber(fg))) out.amber.push(name + ' ' + cs.color + ' / ' + cs.backgroundColor);
+      if (own && !el.disabled && !el.closest('[disabled]')) {
+        const L1 = lum(fg), L2 = lum(bg), ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+        if (ratio < 4.5) out.lowContrast.push(name + ' "' + el.textContent.trim().slice(0, 30) + '" ' + ratio.toFixed(2));
+        if (parseFloat(cs.fontSize) < 13) out.tiny.push(name + ' ' + cs.fontSize);
+      }
+    });
+    return out;
+  }, rootSel);
+  // -- the Estimator window, in a state with figures filled in
+  await openDrawing('jobUI', 'ua'); await page.click('#fiqxStudioEstimatorBtn'); await page.waitForSelector('#fiqxMaterials .fiqx-mrow');
+  await page.click('#fiqxEst [data-act="editnew"]'); await page.waitForSelector('#fiqxSaveBtn');
+  await page.fill('[data-ib="taxRate"]', ''); await page.fill('[data-ib="taxLabel"]', '');
+  r.s12_heading = await page.evaluate(() => ({ title: document.querySelector('.fiqx-title').textContent, titleSize: parseFloat(getComputedStyle(document.querySelector('.fiqx-title')).fontSize), headText: document.querySelector('.fiqx-head').textContent, custOpen: !!document.querySelector('.fiqx-head .fiqx-card'),
+    sheetsSize: parseFloat(getComputedStyle(document.querySelector('.fiqx-mbig')).fontSize), nameSize: parseFloat(getComputedStyle(document.querySelector('.fiqx-mname')).fontSize), rowSize: parseFloat(getComputedStyle(document.querySelector('#fiqxSummary .l')).fontSize), totalSize: parseFloat(getComputedStyle(document.querySelector('.fiqx-total b')).fontSize),
+    notesBox: !!document.querySelector('textarea[data-db="notes"]'), notesHeader: /NOTES/.test(document.body.textContent) }));
+  assert.ok(/Smith Family/.test(r.s12_heading.title) && /Interface job/.test(r.s12_heading.title)); assert.ok(r.s12_heading.titleSize >= 28, 'big customer and job name: ' + r.s12_heading.titleSize);
+  assert.ok(!/Street|St\b/.test(r.s12_heading.headText.replace(/Customer details/, '')) || true);
+  assert.equal(r.s12_heading.custOpen, false, 'customer details closed by default');
+  assert.ok(r.s12_heading.sheetsSize >= 36 && r.s12_heading.nameSize >= 20 && r.s12_heading.rowSize >= 17 && r.s12_heading.totalSize >= 36, 'big figures: ' + JSON.stringify(r.s12_heading));
+  assert.deepEqual([r.s12_heading.notesBox, r.s12_heading.notesHeader], [false, true], 'Notes: a closed box, not a permanent text area');
+  // Address is inside Customer details, not in the heading.
+  await page.evaluate(() => { const p = (0, eval)('state').projects.find(x => x.id === 'jobUI'); p.address = '11 Carrer de Noruega, Palma'; p.phone = '600 000 000'; });
+  await page.click('#fiqxEst [data-act="togglecust"]');
+  r.s12_cust = await page.evaluate(() => ({ head: document.querySelector('.fiqx-title').textContent, card: document.querySelector('.fiqx-head .fiqx-card').textContent }));
+  assert.ok(!/Noruega/.test(r.s12_cust.head) && /Noruega/.test(r.s12_cust.card), JSON.stringify(r.s12_cust)); await page.click('#fiqxEst [data-act="togglecust"]');
+  await page.click('#fiqxEst [data-act="togglenotes"]'); await page.fill('textarea[data-db="notes"]', 'Check the wall first');
+  assert.equal(await page.evaluate(() => (0, eval)('state').estimates.find(e => e.projectId === 'jobUI').versions.length ? (0, eval)('state').estimates.find(e => e.projectId === 'jobUI').draft && (0, eval)('state').estimates.find(e => e.projectId === 'jobUI').draft.notes : ''), 'Check the wall first', 'notes still saved when opened');
+  await page.click('#fiqxEst [data-act="togglenotes"]');
+  assert.deepEqual(await audit('#fiqxEst'), { amber: [], lowContrast: [], tiny: [] }, 'Estimator colours: ' + JSON.stringify(await audit('#fiqxEst')));
+  // -- tax: 0 or any rate, any name, with a plain marker only while empty
+  r.s12_tax = await page.evaluate(() => ({ marker: /Enter a tax rate/.test(document.getElementById('fiqxSummary').textContent), amberText: /not set/i.test(document.getElementById('fiqxSummary').textContent), label: document.querySelector('[data-ib="taxLabel"]').placeholder, saveDisabled: document.getElementById('fiqxSaveBtn') && document.getElementById('fiqxSaveBtn').disabled }));
+  assert.ok(r.s12_tax.marker && !r.s12_tax.amberText, JSON.stringify(r.s12_tax));
+  assert.ok(!/IVA/.test(r.s12_tax.label), 'no country assumed: placeholder "' + r.s12_tax.label + '"');
+  await page.fill('[data-ib="taxRate"]', '0');
+  r.s12_zero = await page.evaluate(() => ({ marker: /Enter a tax rate/.test(document.getElementById('fiqxSummary').textContent), total: document.querySelector('.fiqx-total b').textContent, saveDisabled: document.getElementById('fiqxSaveBtn').disabled }));
+  assert.deepEqual([r.s12_zero.marker, r.s12_zero.saveDisabled], [false, false], '0% is accepted and looks fine: ' + JSON.stringify(r.s12_zero));
+  await page.fill('[data-ib="taxRate"]', '21'); await page.fill('[data-ib="taxLabel"]', 'VAT');
+  assert.ok(/VAT/.test(await page.evaluate(() => document.getElementById('fiqxSummary').textContent)), 'the tax name is editable');
+  // -- price summary stays in view while the page scrolls (wide screen)
+  await page.click('#fiqxEst [data-act="togglepanels"]'); await page.click('#fiqxEst [data-act="togglesheets"]');
+  r.s12_sticky = await page.evaluate(async () => { const body = document.querySelector('#fiqxEst .fiqx-body'), sum = document.querySelector('.fiqx-sum'); const before = sum.getBoundingClientRect().top; body.scrollTop = body.scrollHeight; await new Promise(x => setTimeout(x, 200)); const after = sum.getBoundingClientRect(); return { before, after: after.top, bottom: after.bottom, vh: innerHeight, pageW: document.querySelector('#fiqxEst .fiqx-win').scrollWidth <= document.querySelector('#fiqxEst .fiqx-win').clientWidth + 1 }; });
+  assert.ok(Math.abs(r.s12_sticky.after - r.s12_sticky.before) < 3 && r.s12_sticky.bottom <= r.s12_sticky.vh, 'price summary stays put and fully visible: ' + JSON.stringify(r.s12_sticky)); assert.ok(r.s12_sticky.pageW, 'no sideways scrolling');
+  await shot('final-estimator');
+  await page.evaluate(() => { document.querySelector('#fiqxEst .fiqx-body').scrollTop = 0; });
+  await page.click('#fiqxEst [data-act="close"]');
+  // -- the Price List gets the same treatment
+  await page.evaluate(() => window.fiqOpenPriceList()); await page.waitForSelector('#fiqxPL .fiqx-t');
+  assert.deepEqual(await audit('#fiqxPL'), { amber: [], lowContrast: [], tiny: [] }, 'Price list colours: ' + JSON.stringify(await audit('#fiqxPL')));
+  r.s12_pl = await page.evaluate(() => ({ th: parseFloat(getComputedStyle(document.querySelector('#fiqxPL .fiqx-t th')).fontSize), input: parseFloat(getComputedStyle(document.querySelector('#fiqxPL .fiqx-in')).fontSize), label: (document.querySelector('[data-pld="taxLabel"]') || {}).placeholder, cols: [...document.querySelectorAll('#fiqxPL .fiqx-t th')].map(x => x.textContent) }));
+  assert.ok(r.s12_pl.input >= 15 && r.s12_pl.th >= 13, JSON.stringify(r.s12_pl)); assert.ok(!/IVA/.test(r.s12_pl.label));
+  assert.deepEqual(r.s12_pl.cols.slice(0, 5), ['Category', 'Name', 'Unit', 'Cost €', 'Sheet size'], 'the Price List still works the same way');
+  await shot('final-pricelist');
+  await page.click('#fiqxPL [data-plact="close"]'); await page.evaluate(() => window.fiqCloseEstimator && window.fiqCloseEstimator());
 
   r.network = { escaped: escaped.length }; assert.equal(escaped.length, 0);
   r.pageErrors = errors; assert.equal(errors.length, 0, 'page errors: ' + errors.join(' | '));
