@@ -28,7 +28,9 @@
       var cm=function(n,mod){return '<script'+(mod?' type="module"':'')+' src="cloud-master/'+n+'?build=91&ts='+stamp+'"><\/script>'};
       var cloud='<script>window.FIQ_CLOUD_ENV="production"<\/script>'+cm('fiq-cloud-copy.js')+cm('backup-schedule.js')+cm('fiq-cloud-restore.js')+cm('studio-cloud-copy.js',true);
       var bodyClose=html.toLowerCase().lastIndexOf('</body>');
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+html.slice(bodyClose);
+      // FittersIQ Estimator (spec v1.1): internal costing only, its own data (state.estimates, state.priceList).
+      var estimator='<script src="estimator-core.js?build=92&ts='+stamp+'"><\/script><script src="estimator-studio.js?build=92&ts='+stamp+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);

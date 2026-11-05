@@ -3,7 +3,12 @@
 // estimates they are included, and restore puts them back (fiq-cloud-restore reads any state: key).
 const assert = require('node:assert/strict'), path = require('node:path');
 const dir = process.env.FIQ_EST_DIR || 'staging';
-const before = require(path.join(__dirname, '..', 'cloud-master', 'fiq-cloud-copy.js'));
+// "Before" is always the published Production copier (c294580, 1 Nov 2026), read from git history,
+// so the comparison stays meaningful once the release itself has changed cloud-master/.
+const os = require('node:os'), fs = require('node:fs'), { execFileSync } = require('node:child_process');
+const baseFile = path.join(os.tmpdir(), 'fiq-cloud-copy.c294580.js');
+fs.writeFileSync(baseFile, execFileSync('git', ['show', 'c294580:cloud-master/fiq-cloud-copy.js'], { cwd: path.join(__dirname, '..') }));
+const before = require(baseFile);
 const after = require(path.join(__dirname, '..', dir === '.' ? '' : dir, 'cloud-master', 'fiq-cloud-copy.js'));
 (async () => {
   const net = new Proxy({}, { get: (t, k) => () => { throw new Error('network not used: ' + String(k)); } });
