@@ -88,8 +88,8 @@ async function makeUser(email, { verified = true, claims = null, name } = {}) {
   // fail closed: the same member, but the Academy rules are not live yet
   await env.clearFirestore(); await initializeTestEnvironment({ projectId: 'demo-fiq-academy', firestore: { host: '127.0.0.1', port: 8085, rules: withoutAcademy } }).then(async (e2) => {
     await e2.withSecurityRulesDisabled(async (ctx) => { const db = ctx.firestore(); await setDoc(doc(db, 'companies/A'), { name: 'Co A', status: 'active' }); await setDoc(doc(db, 'companies/A/members/' + ids.member), { role: 'fitter', status: 'active' }); await setDoc(doc(db, 'academyMembers/' + ids.member), { status: 'active' }); }); });
-  { const { ctx, p } = await openHub(); await signIn(p, 'member@test.fiq'); await p.waitForFunction(() => /not available right now/.test(document.getElementById('app').innerText), null, { timeout: 15000 });
-    assert.equal(await p.locator('.tile').count(), 0, 'no private content when the rules are not live'); R.failClosed = 'door stays closed when the Academy rules are not published'; await ctx.close(); }
+  { const { ctx, p } = await openHub(); await signIn(p, 'member@test.fiq'); await p.waitForFunction(() => /opening soon/.test(document.getElementById('app').innerText), null, { timeout: 15000 });
+    assert.equal(await p.locator('.tile').count(), 0, 'no private content when the rules are not live'); R.failClosed = 'door stays closed, and says opening soon, while the Academy rules are not published'; await ctx.close(); }
 
   // phone: one column, big buttons
   await env.clearFirestore(); await initializeTestEnvironment({ projectId: 'demo-fiq-academy', firestore: { host: '127.0.0.1', port: 8085, rules: withAcademy } }).then(async (e3) => {

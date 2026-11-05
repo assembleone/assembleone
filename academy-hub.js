@@ -56,7 +56,8 @@ function show(state, data) {
   if (state === "nocompany") return card('<h1>Finish your FittersIQ account</h1><p>Your FittersIQ account needs setting up before you can join the Academy.</p><a class="btn" href="account.html">Go to my account</a>');
   if (state === "paused") return card('<h1>Your FittersIQ account is paused</h1><p>The Academy is open to people with an active FittersIQ subscription. Once your account is active again, you are back in.</p><a class="btn" href="account.html">Go to my account</a><a class="btn line" href="' + SUPPORT + '">Contact FittersIQ</a>');
   if (state === "nomembership") return card('<h1>Join FittersIQ Academy</h1><p>You are signed in as <strong>' + esc(data.who) + '</strong>. The Academy is a private community for FittersIQ customers, with a small additional monthly membership.</p><p class="muted">Each person has their own membership. Tell us you would like to join and we will switch it on.</p><a class="btn" href="' + SUPPORT + '">Ask about Academy membership</a><a class="btn line" href="https://fittersiq.com/academy.html">What is the Academy?</a>');
-  if (state === "closed" || state === "error") return card('<h1>The Academy is not available right now</h1><p>We could not check your membership just now. Nothing is wrong with your account. Please try again in a moment.</p><button class="btn" id="retry" type="button">Try again</button>');
+  if (state === "soon") return card('<h1>The Academy is opening soon</h1><p>We are putting the finishing touches to FittersIQ Academy. Nothing is wrong with your account, and there is nothing you need to do.</p><a class="btn line" href="https://fittersiq.com/academy.html">What is the Academy?</a>');
+  if (state === "error") return card('<h1>The Academy is not available right now</h1><p>We could not check your membership just now. Nothing is wrong with your account. Please try again in a moment.</p><button class="btn" id="retry" type="button">Try again</button>');
   if (state === "member") return dashboard(data);
 }
 function dashboard(d) {
@@ -86,7 +87,7 @@ async function evaluate(user) {
   try { mem = await getDoc(doc(db, "companies", companyId, "members", user.uid)); } catch (e) { return { state: e && e.code === "permission-denied" ? "paused" : "error" }; }
   if (!mem.exists() || mem.data().status !== "active") return { state: "paused" };
   let ent;
-  try { ent = await getDoc(doc(db, "academyMembers", user.uid)); } catch (e) { return { state: "closed" }; }   // rules not live yet, or offline: closed
+  try { ent = await getDoc(doc(db, "academyMembers", user.uid)); } catch (e) { return { state: e && e.code === "permission-denied" ? "soon" : "error" }; }   // rules not published yet = opening soon; anything else: closed
   if (!ent.exists() || ent.data().status !== "active") return { state: "nomembership", who };
   return { state: "member", name: ent.data().displayName || user.displayName || "" };
 }
