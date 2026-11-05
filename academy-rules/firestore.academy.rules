@@ -1,0 +1,24 @@
+    // ===== FittersIQ Academy (stage 2) =====================================================
+    // Inserted into the existing rules before the final catch-all. Nothing existing is changed.
+    //
+    // Academy membership is per person: one document academyMembers/{uid} with status "active".
+    // The backend (admin tools, later Stripe) writes it; no customer app can create or change it, and a
+    // person can only read their own. Academy content, added in the next stages, is open only to
+    // academyMember(): a signed-in person with an ACTIVE membership of a FittersIQ company (the existing
+    // system suspends every member of a company whose trial ended or payment stopped, so an unpaid
+    // company loses Academy access by itself) AND an active Academy membership of their own.
+    function academyMember() {
+      return signedIn()
+             && request.auth.token.companyId is string
+             && isCompanyMember(request.auth.token.companyId)
+             && exists(/databases/$(database)/documents/academyMembers/$(request.auth.uid))
+             && get(/databases/$(database)/documents/academyMembers/$(request.auth.uid)).data.status == 'active';
+    }
+
+    match /academyMembers/{uid} {
+      allow read: if isFittersIQAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if isFittersIQAdmin();
+      allow delete: if false;
+    }
+    // ===== end FittersIQ Academy ===========================================================
+
