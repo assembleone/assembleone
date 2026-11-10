@@ -77,7 +77,8 @@ window.FIQ_FIREBASE_CONFIG={
     var banner='<div id="fiqStagingBanner" style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#6d28d9;color:#fff;font:800 11px/1.6 Inter,Arial,sans-serif;text-align:center;letter-spacing:.04em;pointer-events:none;padding-top:env(safe-area-inset-top)">STAGING TEST COPY - FITTERSIQ-STAGING - TEST ACCOUNTS ONLY<\/div>';
     var retitle='<script>document.title="STAGING "+String(document.title).replace(/^STAGING /,"")<\/script>';
     var guard='<script>(function(){var n=0;function check(){var a=window.fiqApp||(window.fiqFirestore&&window.fiqFirestore.app);if(!a){if(++n<150)setTimeout(check,200);return}if(a.options.projectId!=="'+STAGING_PROJECT+'"){document.documentElement.innerHTML="<body style=\\"font-family:Arial;padding:40px;background:#7f1d1d;color:#fff\\"><h1>Stopped</h1><p>This staging page was connected to the wrong Firebase project and has been stopped.</p></body>"}}check()})()<\/script>';
-    var inject=cleanup+(await scriptTag('mobile-build83-cleanup.js'))+(await scriptTag('mobile-build86-scan-fix.js'))+(await scriptTag('mobile-build88-jobs-cleanup.js'))+banner+retitle+guard;
+    // FittersIQ Academy in Mobile (Stage 4, Staging only): the Academy button in the top bar and its page. Its own file; it changes no Mobile data.
+    var inject=cleanup+(await scriptTag('mobile-build83-cleanup.js'))+(await scriptTag('mobile-build86-scan-fix.js'))+(await scriptTag('mobile-build88-jobs-cleanup.js'))+(await scriptTag('academy-mobile.js'))+banner+retitle+guard;
     // Position found after the edits above (the Beta loader's known offset bug is not repeated here).
     var bodyClose=html.toLowerCase().lastIndexOf('</body>');
     html=html.slice(0,bodyClose)+inject+html.slice(bodyClose);

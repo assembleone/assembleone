@@ -91,7 +91,9 @@ window.FIQ_FIREBASE_CONFIG={
       // FittersIQ Estimator (spec v1.1): internal costing only, its own data (state.estimates, state.priceList).
       var estimator='<script src="'+scriptUrl('estimator-core.js',await exists('estimator-core.js'))+'"><\/script>'+
                     '<script src="'+scriptUrl('estimator-studio.js',await exists('estimator-studio.js'))+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+banner+retitle+guard+html.slice(bodyClose);
+      // FittersIQ Academy in Studio (Stage 3, Staging only): the Academy button under Cutting List and its page. Its own file; it changes no Studio data.
+      var academy='<script src="'+scriptUrl('academy-studio.js',await exists('academy-studio.js'))+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+banner+retitle+guard+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
