@@ -30,7 +30,9 @@
       var bodyClose=html.toLowerCase().lastIndexOf('</body>');
       // FittersIQ Estimator (spec v1.1): internal costing only, its own data (state.estimates, state.priceList).
       var estimator='<script src="estimator-core.js?build=92&ts='+stamp+'"><\/script><script src="estimator-studio.js?build=92&ts='+stamp+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+html.slice(bodyClose);
+      // FittersIQ Academy in Studio: the Academy button under Cutting List and its page (its own file; it changes no Studio data).
+      var academy='<script src="academy-studio.js?build=93&ts='+stamp+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);

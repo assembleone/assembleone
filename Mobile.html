@@ -25,7 +25,9 @@
     var scanFix='<script src="mobile-build86-scan-fix.js?build=89&ts='+stamp+'"><\/script>';
     var jobsCleanup='<script src="mobile-build88-jobs-cleanup.js?build=89&ts='+stamp+'"><\/script>';
     var cleanup='<style id="fiq-build89-cleanup">.panel-check-complete-banner{display:none!important}<\/style>';
-    var inject=cleanup+patch+scanFix+jobsCleanup;
+    // FittersIQ Academy in Mobile: the Academy button in the top bar and its page (its own file; it changes no Mobile data).
+    var academy='<script src="academy-mobile.js?build=90&ts='+stamp+'"><\/script>';
+    var inject=cleanup+patch+scanFix+jobsCleanup+academy;
     var bodyClose=lower.lastIndexOf('</body>');
     html=html.slice(0,bodyClose)+inject+html.slice(bodyClose);
     html=html.replace('BUILD 2026-08-30-REBUILD-1','');
