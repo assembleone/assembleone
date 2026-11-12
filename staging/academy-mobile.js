@@ -25,6 +25,10 @@
       '#fiqAcademyPanel .fiqa-top{display:flex;align-items:center;gap:8px;margin:0 0 6px}' +
       '#fiqAcademyPanel .fiqa-back{min-height:44px;padding:8px 14px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;color:#0b2545;font:700 15px Inter,Segoe UI,Arial,sans-serif;cursor:pointer}' +
       '#fiqAcademyPanel .fiqa-loading{color:#475569;font:15px Inter,Segoe UI,Arial,sans-serif;padding:16px 4px}' +
+      // the whole Academy inside Mobile (12 Nov 2026): the members area fills the page under the Back button, signed in with the same login
+      '#fiqAcademyPanel.fiqa-full{overflow:hidden;display:flex;flex-direction:column;padding-left:0;padding-right:0;padding-bottom:0}' +
+      '#fiqAcademyPanel.fiqa-full .fiqa-top{padding:0 14px}#fiqAcademyPanel.fiqa-full .fiqa-host{flex:1;min-height:0;display:flex}' +
+      '#fiqAcademyPanel .fiqa-frame{flex:1;width:100%;height:100%;border:0;background:#fff}' +
       'body.fiq-academy-open{overflow:hidden}';
     document.head.appendChild(s);
   }
@@ -36,12 +40,22 @@
     var host = panel.querySelector('.fiqa-host');
     host.innerHTML = '<div class="fiqa-loading">Opening FittersIQ Academy&hellip;</div>';
     if (navigator.onLine === false) { host.innerHTML = '<div class="fiqa-loading">The Academy needs an internet connection. Your work in FittersIQ Mobile is not affected and keeps working offline. Please try again when you have signal.</div><button class="fiqa-back" type="button" data-again>Try again</button>'; host.querySelector('[data-again]').onclick = draw; return; }
+    panel.classList.remove('fiqa-full');
     loadView().then(function (m) {
-      return m.renderIncluded(host, { app: 'mobile', mode: 'app', academyHref: HREF, call: m.appCaller(window.fiqAuth), openAcademy: function (href) { window.open(href, '_blank', 'noopener'); } });
+      // Someone with Academy access (a member, or the FittersIQ team) gets the WHOLE Academy right here, inside Mobile (12 Nov 2026, Mads):
+      // a separate window would leave the app and, on an iPhone home-screen app, would not even share the sign-in.
+      return m.renderIncluded(host, { app: 'mobile', mode: 'app', academyHref: HREF, call: m.appCaller(window.fiqAuth), openAcademy: function (href) { showFull(href); } })
+        .then(function (d) { if (d && (d.member || d.staff) && openState) showFull(HREF); });
     }).catch(function () {
       host.innerHTML = '<div class="fiqa-loading">The Academy could not be opened just now. Your work in FittersIQ Mobile is not affected. Please try again in a moment.</div><button class="fiqa-back" type="button" data-again>Try again</button>';
       host.querySelector('[data-again]').onclick = draw;
     });
+  }
+  // The members area in a frame on the same address: same login, nothing to sign in again; Library, Gallery, Community, Training, all of it.
+  function showFull(href) {
+    var host = panel.querySelector('.fiqa-host');
+    panel.classList.add('fiqa-full');
+    host.innerHTML = '<iframe class="fiqa-frame" title="FittersIQ Academy" src="' + String(href || HREF).replace(/"/g, '') + '" allow="autoplay; fullscreen; picture-in-picture"></iframe>';
   }
   function open() {
     if (openState) return;
@@ -49,7 +63,9 @@
       panel = document.createElement('div'); panel.id = 'fiqAcademyPanel'; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'FittersIQ Academy'); panel.hidden = true;
       panel.innerHTML = '<div class="fiqa-top"><button class="fiqa-back" type="button" data-close>&larr; Back to FittersIQ Mobile</button></div><div class="fiqa-host"></div>';
       document.body.appendChild(panel);
-      panel.querySelector('[data-close]').onclick = function () { if (history.state && history.state.fiqAcademy) history.back(); else close(); };
+      // With the whole Academy shown, pages opened inside it are in the phone's history too, so a history step would only go back inside the Academy:
+      // the button then closes it directly (the phone's own Back button still steps back through the Academy pages first).
+      panel.querySelector('[data-close]').onclick = function () { if (!panel.classList.contains('fiqa-full') && history.state && history.state.fiqAcademy) history.back(); else close(); };
     }
     // on Staging the purple test banner sits on top of everything: start the page below it (on Production there is no banner)
     var sb = document.getElementById('fiqStagingBanner'); panel.style.paddingTop = 'calc(env(safe-area-inset-top) + ' + ((sb && sb.offsetHeight) ? sb.offsetHeight + 10 : 18) + 'px)';
