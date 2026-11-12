@@ -18,7 +18,9 @@
     if (document.getElementById('fiq-academy-studio-css')) return;
     var s = document.createElement('style'); s.id = 'fiq-academy-studio-css';
     s.textContent = '.nav-btn.fiq-academy-nav .nav-colour-icon{display:inline-grid;place-items:center}.nav-btn.fiq-academy-nav svg{display:block}' +
-      '#screen-academy{padding:18px 22px 40px}#screen-academy .fiqa-loading{color:#475569;font:15px Inter,Segoe UI,Arial,sans-serif;padding:20px}';
+      '#screen-academy{padding:18px 22px 40px}#screen-academy .fiqa-loading{color:#475569;font:15px Inter,Segoe UI,Arial,sans-serif;padding:20px}' +
+      // the whole Academy inside Studio (12 Nov 2026, Mads): the members area fills the Academy screen, signed in with the same login
+      '#screen-academy.fiqa-full{padding:8px 10px 10px}#screen-academy .fiqa-frame{display:block;width:100%;height:calc(100vh - 150px);min-height:520px;border:0;border-radius:14px;background:#fff;box-shadow:0 2px 10px rgba(11,37,69,.08)}';
     document.head.appendChild(s);
   }
   function loadView() {
@@ -30,13 +32,22 @@
     if (!force && renderedAt && Date.now() - renderedAt < 60000 && host.firstChild) return;   // reopening within a minute keeps the page (and a playing video) as it was
     renderedAt = Date.now();
     host.innerHTML = '<div class="fiqa-loading">Opening FittersIQ Academy&hellip;</div>';
+    var sec = document.getElementById('screen-academy'); if (sec) sec.classList.remove('fiqa-full');
     loadView().then(function (m) {
-      return m.renderIncluded(host, { app: 'studio', mode: 'app', academyHref: HREF, call: m.appCaller(window.fiqAuth), openAcademy: function (href) { window.open(href, '_blank', 'noopener'); } });
+      // Someone with Academy access (a member, or the FittersIQ team) gets the WHOLE Academy right here in Studio, like Mobile (12 Nov 2026, Mads).
+      return m.renderIncluded(host, { app: 'studio', mode: 'app', academyHref: HREF, call: m.appCaller(window.fiqAuth), openAcademy: function (href) { showFull(href); } })
+        .then(function (d) { if (d && (d.member || d.staff)) showFull(HREF); });
     }).catch(function () {
       renderedAt = 0;
       host.innerHTML = '<div class="fiqa-loading">The Academy could not be opened just now. Your Studio work is not affected. Please check the internet connection and try again. <button type="button" id="fiqAcademyRetry">Try again</button></div>';
       var r = document.getElementById('fiqAcademyRetry'); if (r) r.onclick = function () { render(true); };
     });
+  }
+  // The members area in a frame on the same address: same login; Library, Gallery, Community, Training videos, all of it, without leaving Studio.
+  function showFull(href) {
+    var host = document.getElementById('fiqAcademyHost'), sec = document.getElementById('screen-academy'); if (!host) return;
+    if (sec) sec.classList.add('fiqa-full');
+    host.innerHTML = '<iframe class="fiqa-frame" title="FittersIQ Academy" src="' + String(href || HREF).replace(/"/g, '') + '" allow="autoplay; fullscreen; picture-in-picture"></iframe>';
   }
   function init() {
     var side = document.querySelector('aside.sidebar'), cut = side && side.querySelector('.nav-btn[data-screen="cutting"]'), main = document.querySelector('main.main');
