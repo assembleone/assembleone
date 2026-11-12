@@ -32,7 +32,9 @@
       var estimator='<script src="estimator-core.js?build=92&ts='+stamp+'"><\/script><script src="estimator-studio.js?build=92&ts='+stamp+'"><\/script>';
       // FittersIQ Academy in Studio: the Academy button under Cutting List and its page (its own file; it changes no Studio data).
       var academy='<script src="academy-studio.js?build=93&ts='+stamp+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+html.slice(bodyClose);
+      // Compact header for narrow windows (Mads, 12 Nov 2026): one row; How It Works, account and language fold out under a menu button. Its own file; the core is untouched.
+      var header='<script src="studio-header-compact.js?build=94&ts='+stamp+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
