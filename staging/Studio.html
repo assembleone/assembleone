@@ -93,7 +93,9 @@ window.FIQ_FIREBASE_CONFIG={
                     '<script src="'+scriptUrl('estimator-studio.js',await exists('estimator-studio.js'))+'"><\/script>';
       // FittersIQ Academy in Studio (Stage 3, Staging only): the Academy button under Cutting List and its page. Its own file; it changes no Studio data.
       var academy='<script src="'+scriptUrl('academy-studio.js',await exists('academy-studio.js'))+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+banner+retitle+guard+html.slice(bodyClose);
+      // Compact header for narrow windows (12 Nov): one row, the rest folds out under a menu button. Its own file; the Studio core is untouched.
+      var header='<script src="'+scriptUrl('studio-header-compact.js',await exists('studio-header-compact.js'))+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+banner+retitle+guard+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
