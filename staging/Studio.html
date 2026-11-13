@@ -95,7 +95,9 @@ window.FIQ_FIREBASE_CONFIG={
       var academy='<script src="'+scriptUrl('academy-studio.js',await exists('academy-studio.js'))+'"><\/script>';
       // Compact header for narrow windows (12 Nov): one row, the rest folds out under a menu button. Its own file; the Studio core is untouched.
       var header='<script src="'+scriptUrl('studio-header-compact.js',await exists('studio-header-compact.js'))+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+banner+retitle+guard+html.slice(bodyClose);
+      // Estimate, or straight to the job (13 Nov): asked once when a new, empty design is opened. Its own file; the Estimate rules are untouched.
+      var stageChoice='<script src="'+scriptUrl('studio-estimate-choice.js',await exists('studio-estimate-choice.js'))+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+banner+retitle+guard+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
