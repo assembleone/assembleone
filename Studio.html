@@ -34,7 +34,9 @@
       var academy='<script src="academy-studio.js?build=93&ts='+stamp+'"><\/script>';
       // Compact header for narrow windows (Mads, 12 Nov 2026): one row; How It Works, account and language fold out under a menu button. Its own file; the core is untouched.
       var header='<script src="studio-header-compact.js?build=94&ts='+stamp+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+html.slice(bodyClose);
+      // Estimate, or straight to the job (Mads, 14 Nov 2026): asked once when a new, empty design is opened. Its own file; the Estimate rules are untouched.
+      var stageChoice='<script src="studio-estimate-choice.js?build=95&ts='+stamp+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
