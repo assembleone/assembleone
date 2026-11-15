@@ -10,7 +10,7 @@
     '<path d="M16 8 4.5 13 16 18l11.5-5z" fill="#fff"/><path d="M9 15.3v4.4c0 1.8 3.1 3.3 7 3.3s7-1.5 7-3.3v-4.4L16 18.4z" fill="#fff" opacity=".85"/>' +
     '<rect x="21.5" y="21.5" width="3" height="3" fill="#22c55e"/><rect x="25.5" y="21.5" width="3" height="3" fill="#22c55e"/><rect x="25.5" y="25.5" width="3" height="3" fill="#22c55e"/></svg>';
   var HREF = '/academy/members/';
-  var viewMod = null, panel = null, openState = false;
+  var viewMod = null, panel = null, openState = false, leaving = false, leaveTimer = 0;
 
   function css() {
     if (document.getElementById('fiq-academy-mobile-css')) return;
@@ -21,7 +21,7 @@
       '.fiq-academy-btn svg{display:block}.fiq-academy-btn:active{background:#dcfce7}' +
       '@media(max-width:370px){.fiq-academy-btn{width:44px}.fiq-academy-btn .fiq-ab-word{font-size:8.5px}}' +
       '#fiqAcademyPanel{position:fixed;inset:0;z-index:2147483000;background:#f4f7fb;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top) + 18px) 14px calc(env(safe-area-inset-bottom) + 24px)}' +
-      '#fiqAcademyPanel[hidden]{display:none}' +
+      '#fiqAcademyPanel[hidden]{display:none!important}' +
       '#fiqAcademyPanel .fiqa-top{display:flex;align-items:center;gap:8px;margin:0 0 6px}' +
       '#fiqAcademyPanel .fiqa-back{min-height:44px;padding:8px 14px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;color:#0b2545;font:700 15px Inter,Segoe UI,Arial,sans-serif;cursor:pointer}' +
       '#fiqAcademyPanel .fiqa-loading{color:#475569;font:15px Inter,Segoe UI,Arial,sans-serif;padding:16px 4px}' +
@@ -65,7 +65,7 @@
       document.body.appendChild(panel);
       // With the whole Academy shown, pages opened inside it are in the phone's history too, so a history step would only go back inside the Academy:
       // the button then closes it directly (the phone's own Back button still steps back through the Academy pages first).
-      panel.querySelector('[data-close]').onclick = function () { if (!panel.classList.contains('fiqa-full') && history.state && history.state.fiqAcademy) history.back(); else close(); };
+      panel.querySelector('[data-close]').onclick = leave;
     }
     // on Staging the purple test banner sits on top of everything: start the page below it (on Production there is no banner)
     var sb = document.getElementById('fiqStagingBanner'); panel.style.paddingTop = 'calc(env(safe-area-inset-top) + ' + ((sb && sb.offsetHeight) ? sb.offsetHeight + 10 : 18) + 'px)';
@@ -74,12 +74,27 @@
     draw();
   }
   function close() {
-    if (!openState) return;
-    openState = false; panel.hidden = true; document.body.classList.remove('fiq-academy-open');
+    clearTimeout(leaveTimer); leaving = false;
+    if (!panel) return;
+    // (15 Nov 2026 fix) the page is always fully hidden and emptied, also when the whole Academy was shown: before, an empty page with only the
+    // Back button stayed on top of Mobile and nothing could be pressed.
+    openState = false; panel.hidden = true; panel.style.visibility = ''; panel.classList.remove('fiqa-full'); document.body.classList.remove('fiq-academy-open');
     panel.querySelector('.fiqa-host').innerHTML = '';   // stops a playing video
   }
-  // The phone's Back button: our page closes and Mobile is where it was (Mobile's own Back handling sees the same step and simply stays on its screen).
-  window.addEventListener('popstate', function (e) { if (openState && !(e.state && e.state.fiqAcademy)) close(); });
+  // "Back to FittersIQ Mobile": one press, straight back to Mobile. The page disappears at once; behind the scenes the Academy pages visited are
+  // stepped back out of the phone's history, so the phone's own Back button afterwards works in Mobile as before (no "dead" presses).
+  function leave() {
+    if (!openState || leaving) return;
+    if (!(history.state && history.state.fiqAcademy)) return close();
+    leaving = true; panel.style.visibility = 'hidden'; document.body.classList.remove('fiq-academy-open');
+    var frame = panel.querySelector('.fiqa-frame'), w = null; try { w = frame && frame.contentWindow; } catch (e) { w = null; }
+    var step = function () { clearTimeout(leaveTimer); leaveTimer = setTimeout(close, 1500); history.back(); };
+    // each step back inside the Academy shows up as a change in the Academy page: then take the next step, until Mobile's own page is reached (popstate below)
+    if (w) { try { w.addEventListener('hashchange', function () { if (leaving) step(); }); } catch (e) { /* not reachable: the time limit closes it */ } }
+    step();
+  }
+  // The phone's Back button: steps back through the Academy pages first, then our page closes and Mobile is where it was.
+  window.addEventListener('popstate', function (e) { if ((openState || leaving) && !(e.state && e.state.fiqAcademy)) close(); });
   function init() {
     var header = document.querySelector('header.fitters-header'), brand = header && header.querySelector('.brand');
     if (!header || !brand) return setTimeout(init, 300);

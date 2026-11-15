@@ -60,7 +60,10 @@
     cut.insertAdjacentElement('afterend', btn);
     var sec = document.createElement('section'); sec.className = 'screen'; sec.id = 'screen-academy'; sec.innerHTML = '<div id="fiqAcademyHost"></div>';
     main.appendChild(sec);
-    btn.onclick = function () { window.show('academy'); };
+    // Remember the Studio screen before the Academy, so the Academy's "Back to Studio" button returns there (14 Nov 2026).
+    var before = 'jobs';
+    btn.onclick = function () { try { if (state && state.screen && state.screen !== 'academy') before = state.screen; } catch (e) { /* no state yet */ } window.show('academy'); };
+    window.fiqLeaveAcademy = function () { window.show(before || 'jobs'); };
     // Studio's own show() switches the screen (button, Back, Forward, a reload that remembers the screen); the page is drawn whenever it becomes visible.
     new MutationObserver(function () { if (sec.classList.contains('active')) render(false); }).observe(sec, { attributes: true, attributeFilter: ['class'] });
     try { if (typeof state !== 'undefined' && state && state.screen === 'academy') window.show('academy'); } catch (e) { /* no saved screen */ }
