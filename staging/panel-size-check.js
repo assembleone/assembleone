@@ -202,6 +202,20 @@
       '#fiqSizeDialog .fiq-sz-actions button.fiq-sz-okbtn{background:#0b2545;border-color:#0b2545;color:#fff}' +
       '#fiqSizeDialog .fiq-sz-actions button[disabled]{opacity:.45;cursor:not-allowed}' +
       '#fiqSizeDialog .fiq-sz-note{color:#475569;font-size:13px;margin:6px 0 0}' +
+      // Normal 'not checked yet' (every new panel): calm pale box with a small amber dot, no red triangle (Mads, 17 Nov 2026).
+      '#screen-parts .panel-review-warning{background:#f4f7fb!important;border:1.5px solid #cfd9e6!important;color:#334155!important;box-shadow:none!important;animation:none!important;min-height:92px}' +
+      '#screen-parts .panel-review-warning:hover{background:#eaf1f9!important;border-color:#9fb3cc!important}' +
+      '#screen-parts .panel-review-warning .review-icon{font-size:0!important;line-height:0!important;color:transparent!important;display:block}' +
+      '#screen-parts .panel-review-warning .review-icon::before{content:"";display:block;width:14px;height:14px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 5px rgba(245,158,11,.18);margin:4px auto 2px}' +
+      '#screen-parts .panel-review-warning .review-title{color:#1e293b!important;font-size:18px!important;font-weight:800!important;margin-top:9px}' +
+      '#screen-parts .panel-review-warning .review-help{color:#64748b!important;font-size:13px!important;font-weight:600!important}' +
+      '#screen-parts .panel-check-card:not(.fiq-sz-flag) .panel-missing-chip{background:#fff8eb!important;border:1px solid #f5d9a8!important;color:#8a5a00!important;font-weight:700!important}' +
+      // A real size doubt stays strong red, so it is never confused with an ordinary unchecked panel.
+      '#screen-parts .panel-check-card.fiq-sz-flag .panel-review-warning{background:#fff!important;border:3px solid #dc2626!important;color:#991b1b!important}' +
+      '#screen-parts .panel-check-card.fiq-sz-flag .panel-review-warning .review-icon{font-size:46px!important;line-height:1!important;color:#dc2626!important}' +
+      '#screen-parts .panel-check-card.fiq-sz-flag .panel-review-warning .review-icon::before{content:none;display:none}' +
+      '#screen-parts .panel-check-card.fiq-sz-flag .panel-review-warning .review-title{color:#b91c1c!important;font-size:20px!important}' +
+      '#screen-parts .panel-check-card.fiq-sz-flag .panel-review-warning .review-help{color:#7f1d1d!important}' +
       '.fiq-sz-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:2147482001;background:#0b2545;color:#fff;border-radius:12px;padding:12px 18px;font:700 15px Inter,Segoe UI,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3)}';
     document.head.appendChild(s);
   }
@@ -245,6 +259,13 @@
         tr.classList.add('fiq-sz-flag'); tr.dataset.fiqSz = ref.id; tr.title = 'Size looks wrong. Double-click this row to see why.';
         rec.issues.forEach(function (is) { var i = tr.querySelector('[data-pc-edit="' + is.field + '"]'); if (i) i.classList.add('fiq-sz-cell'); });
         if (!chip) { chip = document.createElement('span'); chip.className = 'fiq-sz-chip fiq-sz-why'; chip.textContent = '⚠ Size?'; tr.firstElementChild.appendChild(chip); }
+      });
+      // wording of the check box: 'Not checked yet' for an ordinary panel, 'Check size first' for a panel with a size doubt (English)
+      screen.querySelectorAll('.panel-review-warning .review-title').forEach(function (el) {
+        if (!el.dataset.fiqOrig) el.dataset.fiqOrig = el.textContent;
+        if (el.dataset.fiqOrig !== 'Panel not checked') return;
+        var want = el.closest('.fiq-sz-flag') ? 'Check size first' : 'Not checked yet';
+        if (el.textContent !== want) el.textContent = want;
       });
       // one summary line at the top of Panel Check
       var sum = document.getElementById('fiqSizeSummary');
