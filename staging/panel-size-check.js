@@ -1,4 +1,4 @@
-/* FittersIQ Studio: Panel Check size check (Mads, 17 Nov 2026). STAGING ONLY for now (loaded by staging/Studio.html).
+/* FittersIQ Studio: Panel Check size check (Mads, 17 Nov 2026). Live since 17 Nov 2026 (loaded by Studio.html and staging/Studio.html).
    Catches typing mistakes such as 130 instead of 1300 before panels are approved for the supplier, inside the existing Panel Check:
    - A panel whose size looks wrong is marked strongly (whole card / whole table row) with the size in doubt named.
    - Double-clicking a marked panel opens an information window INSTEAD of approving it (the same way the edging safety check works):
