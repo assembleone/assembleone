@@ -135,8 +135,35 @@
         if (!seen[f3]) { var s3 = d3 / 10; issues.push({ rule: 3, field: f3, value: d3, suggest: (s3 >= 10 && s3 <= MAX_LONG) ? round(s3) : null,
           text: 'This panel (' + x.L + ' × ' + x.W + ' mm) is bigger than the largest sheets (' + MAX_LONG + ' × ' + MAX_SHORT + ' mm).' + ((s3 >= 10) ? ' An extra zero?' : '') }); }
       }
+      // ---------- Rule 4 (amber, "worth a look", Mads 18 Nov 2026): same kind of panel in the SAME wardrobe, very different size ----------
+      // e.g. Side 2450 x 454 and Side 340 x 670 in one wardrobe. No suggestion (the right size cannot be guessed), only a look.
+      // The LONG side is compared (long with long, so a panel drawn turned, 454 x 2450, is not a difference).
+      // Fillers / infills / spacers vary by nature and are left out. The middle (upper median) size of the group is the reference,
+      // so with two panels the smaller one is asked about.
+      if (!issues.length && x.kind && x.kind !== 'filler' && x.L > 0 && x.W > 0) {
+        var grp = all.filter(function (y) { return y.c === x.c && y.kind === x.kind && y.L > 0 && y.W > 0; });
+        if (grp.length >= 2) {
+          var med = function (arr) { arr = arr.slice().sort(function (a, b) { return a - b; }); return arr[Math.floor(arr.length / 2)]; };
+          var xl = Math.max(x.L, x.W), xs = Math.min(x.L, x.W);
+          var ml = med(grp.map(function (y) { return Math.max(y.L, y.W); })), ms = med(grp.map(function (y) { return Math.min(y.L, y.W); }));
+          var far = function (a, m) { return a > 0 && m > 0 && (a / m >= 3 || m / a >= 3); };
+          var which = far(xl, ml) ? 'long' : '';   // the long side only: narrow strips named Side or Top (2420 x 25) are usually deliberate, so depth is not compared
+          if (which) {
+            var others = grp.filter(function (y) { return y !== x; });
+            var refL = which === 'long' ? ml : ms, mine = which === 'long' ? xl : xs;
+            var fld = (which === 'long') === (x.L >= x.W) ? 'length' : 'width';
+            issues.push({ rule: 4, level: 'amber', kind: x.kind, refValue: refL, field: fld, value: mine, suggest: null,
+              refs: others.slice(0, 6).map(function (y) { return refText(y, x.c); }), moreRefs: Math.max(0, others.length - 6),
+              text: 'This ' + x.kind + ' is ' + x.L + ' × ' + x.W + ' mm, but ' + (others.length === 1 ? 'the other ' + x.kind + ' in ' : 'the other ' + x.kind + ' panels in ') + (x.c.name || 'this unit') + ' (' +
+                others.slice(0, 6).map(function (y) { return refText(y, x.c) + ' ' + y.L + ' × ' + y.W; }).join(', ') + (others.length > 6 ? ', …' : '') + ' mm) ' +
+                (others.length === 1 ? 'is' : 'are') + ' about ' + refL + ' mm on the ' + (which === 'long' ? 'long' : 'short') + ' side: ' + (mine < refL ? 'more than 3 times smaller' : 'more than 3 times bigger') +
+                '. Worth a look: is this the right size, or the right name?' });
+          }
+        }
+      }
+      issues.forEach(function (is) { if (!is.level) is.level = 'red'; });
       var ok = !!(x.p.sizeCheckOk && x.p.sizeCheckOk === sizeKey(x.p));
-      var rec = { panel: x.p, cabinet: x.c, key: sizeKey(x.p), ok: ok, issues: issues };
+      var rec = { panel: x.p, cabinet: x.c, key: sizeKey(x.p), ok: ok, issues: issues, level: issues.some(function (is) { return is.level === 'red'; }) ? 'red' : (issues.length ? 'amber' : '') };
       out.byId[x.p.id] = rec;
       if (issues.length && !ok) out.flagged.push(rec);
     });
@@ -216,6 +243,22 @@
       '#screen-parts .panel-check-card.fiq-sz-flag .panel-review-warning .review-icon::before{content:none;display:none}' +
       '#screen-parts .panel-check-card.fiq-sz-flag .panel-review-warning .review-title{color:#b91c1c!important;font-size:20px!important}' +
       '#screen-parts .panel-check-card.fiq-sz-flag .panel-review-warning .review-help{color:#7f1d1d!important}' +
+      // amber = worth a look (very different from the same kind of panel), clearly calmer than red
+      '#screen-parts .panel-check-card.fiq-sz-flag.fiq-sz-amber,#screen-parts .panel-check-card.fiq-sz-flag.fiq-sz-amber.incomplete,#screen-parts .panel-check-card.fiq-sz-flag.fiq-sz-amber.complete{border:3px solid #d97706!important;border-left:12px solid #d97706!important;background:#fffbeb!important;animation:none}' +
+      '#screen-parts .panel-check-card.fiq-sz-amber .fiq-sz-banner{background:#b45309}#screen-parts .panel-check-card.fiq-sz-amber .fiq-sz-banner .fiq-sz-why{color:#b45309}' +
+      '#screen-parts .panel-check-card.fiq-sz-flag.fiq-sz-amber .panel-review-warning{border-color:#d97706!important;color:#92400e!important}' +
+      '#screen-parts .panel-check-card.fiq-sz-flag.fiq-sz-amber .panel-review-warning .review-icon{color:#d97706!important}' +
+      '#screen-parts .panel-check-card.fiq-sz-flag.fiq-sz-amber .panel-review-warning .review-title{color:#b45309!important}' +
+      '#screen-parts .panel-check-card.fiq-sz-flag.fiq-sz-amber .panel-review-warning .review-help{color:#78350f!important}' +
+      'tr.fiq-sz-flag.fiq-sz-amber>td{background:#fef3c7!important;border-top-color:#d97706!important;border-bottom-color:#d97706!important}tr.fiq-sz-flag.fiq-sz-amber>td:first-child{border-left-color:#d97706!important;color:#b45309}' +
+      'tr.fiq-sz-amber input.fiq-sz-cell{outline-color:#d97706;color:#b45309}tr.fiq-sz-amber .fiq-sz-chip{background:#d97706}' +
+      '#fiqSizeSummary.fiq-sz-amber{background:#b45309}#fiqSizeSummary.fiq-sz-amber button{color:#b45309}#fiqSizeSummary .fiq-sz-line{flex-basis:100%}' +
+      '#fiqSizeSummary .fiq-sz-line-amber{background:#fff7ed;color:#9a3412;border-radius:8px;padding:6px 10px;font-size:15px}#fiqSizeSummary .fiq-sz-line-amber button{color:#9a3412;border:1px solid #fdba74}' +
+      '#fiqSizeDialog .fiq-sz-box.fiq-sz-amber .fiq-sz-head{background:#b45309}' +
+      '#screen-parts .panel-check-card.fiq-sz-amber .panel-missing-chip{background:#fff7ed!important;border:1px solid #fdba74!important;color:#9a3412!important}' +
+      '#fiqSizeDialog table{table-layout:fixed!important;width:100%!important;min-width:0!important;max-width:100%!important}#fiqSizeDialog th,#fiqSizeDialog td{white-space:normal!important;word-break:break-word}' +
+      '#fiqSizeDialog .fiq-sz-box.fiq-sz-amber tr.fiq-sz-doubt td{background:#fef3c7;color:#b45309}' +
+      '.fiq-sz-unitline{margin:6px 0 2px;font:600 13.5px/1.35 Inter,Segoe UI,Arial,sans-serif;color:#475569;background:#f1f5f9;border-radius:8px;padding:5px 9px;display:inline-block}' +
       '.fiq-sz-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:2147482001;background:#0b2545;color:#fff;border-radius:12px;padding:12px 18px;font:700 15px Inter,Segoe UI,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3)}';
     document.head.appendChild(s);
   }
@@ -231,6 +274,17 @@
   }
   function recFor(ref) { if (!ref || !ref.pr) return null; var res = resultFor(ref.pr); var rec = res && res.byId[ref.id]; return rec && rec.issues.length && !rec.ok ? rec : null; }
 
+  // The card always shows millimetres (exactly what goes into the Cutting List and to the supplier). When Drawing is set to cm or
+  // inches, a small line under the measurements also shows the sizes in that unit, to compare with what was typed (Mads, 18 Nov 2026).
+  function unitLine(card, ref) {
+    var u = screenUnit(), line = card.querySelector('.fiq-sz-unitline');
+    var res = ref && ref.pr ? resultFor(ref.pr) : null, rec = res && res.byId[ref.id];
+    if (u === 'mm' || !rec) { if (line) line.remove(); return; }
+    var p = rec.panel, t = 'Same sizes in ' + (u === 'in' ? 'inches' : u) + ' (as in Drawing): ' + ['length', 'width', 'thickness'].map(function (f) { return inUnit(num(p[f])).replace(/ (cm|in)$/, ''); }).join(' × ') + ' ' + u + '. The Cutting List and the supplier get the mm.';
+    var meta = card.querySelector('.panel-check-meta'); if (!meta) return;
+    if (!line) { line = document.createElement('div'); line.className = 'fiq-sz-unitline'; meta.insertAdjacentElement('afterend', line); }
+    if (line.textContent !== t) line.textContent = t;
+  }
   var decorating = false;
   function decorate() {
     var screen = document.getElementById('screen-parts'); if (!screen) return;
@@ -240,12 +294,15 @@
       var flaggedHere = [];
       screen.querySelectorAll('.panel-check-card').forEach(function (card) {
         var ref = refOf(card), rec = recFor(ref);
+        unitLine(card, ref);
         var old = card.querySelector(':scope > .fiq-sz-banner');
-        if (!rec) { card.classList.remove('fiq-sz-flag'); if (old) old.remove(); return; }
+        if (!rec) { card.classList.remove('fiq-sz-flag', 'fiq-sz-amber'); if (old) old.remove(); return; }
         flaggedHere.push({ rec: rec, ref: ref, el: card });
-        card.classList.add('fiq-sz-flag'); card.dataset.fiqSz = ref.id;
+        card.classList.add('fiq-sz-flag'); card.classList.toggle('fiq-sz-amber', rec.level === 'amber'); card.dataset.fiqSz = ref.id;
         var first = rec.issues[0];
-        var html = '<span>⚠ CHECK SIZE: ' + esc(FIELD_WORD[first.field]) + ' ' + esc(first.value) + ' mm' + (first.suggest != null ? ' (did you mean ' + esc(first.suggest) + '?)' : '') + '</span>' +
+        var html = (rec.level === 'amber'
+          ? '<span>⚠ WORTH A LOOK: ' + esc(FIELD_WORD[first.field]) + ' ' + esc(first.value) + ' mm is very different from the other ' + esc(first.kind || 'panels') + ' in this unit</span>'
+          : '<span>⚠ CHECK SIZE: ' + esc(FIELD_WORD[first.field]) + ' ' + esc(first.value) + ' mm' + (first.suggest != null ? ' (did you mean ' + esc(first.suggest) + '?)' : '') + '</span>') +
           (rec.issues.length > 1 ? '<small>+' + (rec.issues.length - 1) + ' more</small>' : '') + '<small>Double-click this panel to see why</small><button type="button" class="fiq-sz-why">See why</button>';
         if (!old) { old = document.createElement('div'); old.className = 'fiq-sz-banner'; card.insertBefore(old, card.firstChild); }
         if (old.innerHTML !== html) old.innerHTML = html;
@@ -254,9 +311,10 @@
         var ref = refOf(tr), rec = recFor(ref);
         tr.querySelectorAll('.fiq-sz-cell').forEach(function (i) { i.classList.remove('fiq-sz-cell'); });
         var chip = tr.querySelector('.fiq-sz-chip');
-        if (!rec) { tr.classList.remove('fiq-sz-flag'); if (chip) chip.remove(); return; }
+        if (!rec) { tr.classList.remove('fiq-sz-flag', 'fiq-sz-amber'); if (chip) chip.remove(); return; }
         flaggedHere.push({ rec: rec, ref: ref, el: tr });
-        tr.classList.add('fiq-sz-flag'); tr.dataset.fiqSz = ref.id; tr.title = 'Size looks wrong. Double-click this row to see why.';
+        tr.classList.add('fiq-sz-flag'); tr.classList.toggle('fiq-sz-amber', rec.level === 'amber'); tr.dataset.fiqSz = ref.id;
+        tr.title = rec.level === 'amber' ? 'Size is very different from the same kind of panel. Double-click this row to see why.' : 'Size looks wrong. Double-click this row to see why.';
         rec.issues.forEach(function (is) { var i = tr.querySelector('[data-pc-edit="' + is.field + '"]'); if (i) i.classList.add('fiq-sz-cell'); });
         if (!chip) { chip = document.createElement('span'); chip.className = 'fiq-sz-chip fiq-sz-why'; chip.textContent = '⚠ Size?'; tr.firstElementChild.appendChild(chip); }
       });
@@ -275,9 +333,12 @@
       else if (head && head.parentNode) {
         if (!sum) { sum = document.createElement('div'); sum.id = 'fiqSizeSummary'; sum.setAttribute('role', 'alert'); }
         if (head.nextSibling !== sum) head.parentNode.insertBefore(sum, head.nextSibling);
-        var h = '⚠ ' + (uniq.length === 1 ? '1 panel has a size that looks wrong:' : uniq.length + ' panels have a size that looks wrong:') + ' ' +
-          uniq.slice(0, 12).map(function (f) { return '<button type="button" data-fiq-sz-go="' + esc(f.ref.id) + '">' + esc(f.rec.panel.code || '?') + '</button>'; }).join(' ') + (uniq.length > 12 ? ' …' : '') +
-          '<span class="fiq-sz-help">Check these before approving them for the supplier. Double-click a red panel to see why and what it was compared with. Nothing is changed unless you choose to.</span>';
+        var reds = uniq.filter(function (f) { return f.rec.level !== 'amber'; }), ambers = uniq.filter(function (f) { return f.rec.level === 'amber'; });
+        var btns = function (list) { return list.slice(0, 12).map(function (f) { return '<button type="button" data-fiq-sz-go="' + esc(f.ref.id) + '">' + esc(f.rec.panel.code || '?') + '</button>'; }).join(' ') + (list.length > 12 ? ' …' : ''); };
+        sum.classList.toggle('fiq-sz-amber', !reds.length);
+        var h = (reds.length ? '<span class="fiq-sz-line">⚠ ' + (reds.length === 1 ? '1 panel has a size that looks wrong:' : reds.length + ' panels have a size that looks wrong:') + ' ' + btns(reds) + '</span>' : '') +
+          (ambers.length ? '<span class="fiq-sz-line' + (reds.length ? ' fiq-sz-line-amber' : '') + '">⚠ ' + (ambers.length === 1 ? '1 panel is worth a look (very different from the same kind of panel):' : ambers.length + ' panels are worth a look (very different from the same kind of panel):') + ' ' + btns(ambers) + '</span>' : '') +
+          '<span class="fiq-sz-help">Check these before approving them for the supplier. Double-click a marked panel to see why and what it was compared with. Nothing is changed unless you choose to.</span>';
         if (sum.innerHTML !== h) sum.innerHTML = h;
       }
     } finally { decorating = false; }
@@ -304,7 +365,7 @@
     }).join('');
     var fixes = rec.issues.filter(function (is) { return is.suggest != null; });
     var d = document.createElement('div'); d.id = 'fiqSizeDialog'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
-    d.innerHTML = '<div class="fiq-sz-box"><div class="fiq-sz-head">⚠ Check the size of ' + esc(p.code || '') + ' ' + esc(p.name || '') +
+    d.innerHTML = '<div class="fiq-sz-box' + (rec.level === 'amber' ? ' fiq-sz-amber' : '') + '"><div class="fiq-sz-head">⚠ ' + (rec.level === 'amber' ? 'Worth a look: ' : 'Check the size of ') + esc(p.code || '') + ' ' + esc(p.name || '') +
       '<small>' + esc(rec.cabinet && rec.cabinet.name || '') + (pr && pr !== currentProject() ? ' · ' + esc(pr.name || '') : '') + ' · ' + esc(matFor(p) || '') + ' · Qty ' + esc(p.qty || 1) + '</small></div>' +
       '<div class="fiq-sz-body"><table><thead><tr><th>Size</th><th>' + (u === 'mm' ? 'Entered and stored (mm)' : 'On screen (' + esc(u) + ')') + '</th>' + (u !== 'mm' ? '<th>Stored (mm)</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>' +
       rec.issues.map(function (is) { return '<div class="fiq-sz-reason"><b>Why:</b> ' + esc(is.text) + '</div>'; }).join('') +

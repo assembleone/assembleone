@@ -37,7 +37,7 @@
       // Estimate, or straight to the job (Mads, 14 Nov 2026): asked once when a new, empty design is opened. Its own file; the Estimate rules are untouched.
       var stageChoice='<script src="studio-estimate-choice.js?build=95&ts='+stamp+'"><\/script>';
       // Panel Check size check (Mads, 17 Nov 2026): marks sizes that look like typing mistakes (130 instead of 1300) and gives ordinary unchecked panels a calm look. Its own file; the core is untouched.
-      var sizeCheck='<script src="panel-size-check.js?build=96&ts='+stamp+'"><\/script>';
+      var sizeCheck='<script src="panel-size-check.js?build=97&ts='+stamp+'"><\/script>';
       html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+sizeCheck+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
