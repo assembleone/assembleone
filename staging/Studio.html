@@ -97,7 +97,9 @@ window.FIQ_FIREBASE_CONFIG={
       var header='<script src="'+scriptUrl('studio-header-compact.js',await exists('studio-header-compact.js'))+'"><\/script>';
       // Estimate, or straight to the job (13 Nov): asked once when a new, empty design is opened. Its own file; the Estimate rules are untouched.
       var stageChoice='<script src="'+scriptUrl('studio-estimate-choice.js',await exists('studio-estimate-choice.js'))+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+banner+retitle+guard+html.slice(bodyClose);
+      // Panel Check size check (Mads, 17 Nov 2026): marks sizes that look like typing mistakes (130 instead of 1300); its own file, the core is untouched.
+      var sizeCheck='<script src="'+scriptUrl('panel-size-check.js',await exists('panel-size-check.js'))+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+sizeCheck+banner+retitle+guard+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
