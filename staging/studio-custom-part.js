@@ -6,7 +6,7 @@
      with no panel selected the next dot placed gets the name. The panel then gets its sizes in the normal boxes.
    - The name is only the panel's normal name (p.name), so the Cutting List, Panel Check, the phone and every supplier export show it
      with no change anywhere else. First letter capitalised ("plinth" -> "Plinth"); extra spaces removed.
-   - Voice uses the browser's own speech recognition (Chrome / Edge): the spoken word is turned into text by the browser maker's service.
+   - Voice (18 Nov 2026 change): Studio records the few spoken seconds itself and FittersIQ's own cloud (fiqSpeechToText, Google, EU) turns them into text; works in any browser that can record.
      Windows' own dictation (Windows key + H) works too, in the same field. Nothing is saved from voice alone: the name still needs "Use name". */
 (function () {
   'use strict';
@@ -70,29 +70,77 @@
     document.head.appendChild(s);
   }
 
-  // ---------- voice: only listens after the microphone is pressed ----------
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null, rec = null, listening = false;
-  function stopListening() { listening = false; try { if (rec) rec.abort(); } catch (e) {} rec = null; var m = document.querySelector('#fiqCustomPartBox .fiq-cp-mic'); if (m) { m.classList.remove('listening'); m.setAttribute('aria-pressed', 'false'); } }
+  // ---------- voice: FittersIQ records the spoken name itself, only after the microphone is pressed ----------
+  // (18 Nov 2026) The browser's own speech recognition fails in many browsers ("network"). So Studio records the few seconds
+  // spoken (it stops by itself after a short pause, or when the microphone is pressed again, at most 6 seconds) and sends them
+  // to FittersIQ's own cloud (fiqSpeechToText, Google speech service, EU), which sends back the text. Nothing is kept.
+  var CAN_RECORD = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  var LANGS = { en: 'en-GB', da: 'da-DK', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', nl: 'nl-NL', sv: 'sv-SE', nb: 'nb-NO', no: 'nb-NO', it: 'it-IT', pl: 'pl-PL', pt: 'pt-PT' };
+  var HINTS = ['Plinth', 'Filler', 'Spacer', 'Rail', 'Kicker', 'Scribe', 'Infill', 'Batten', 'Pelmet', 'Cornice', 'Divider', 'Shelf', 'Drawer front', 'Drawer side', 'Drawer back', 'Drawer bottom', 'Door', 'Gable', 'Upright', 'Partition', 'Rail', 'Hanging rail', 'Top', 'Bottom', 'Back', 'Side'];
+  var listening = false, recState = null;
+  function speechLang() { var l = String(document.documentElement.lang || 'en').toLowerCase().split('-')[0]; return LANGS[l] || 'en-GB'; }
+  function setMic(on) { var m = document.querySelector('#fiqCustomPartBox .fiq-cp-mic'); if (m) { m.classList.toggle('listening', on); m.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
+  function stopListening(send) {
+    var st = recState; recState = null; listening = false; setMic(false);
+    if (!st) return;
+    st.send = !!send; clearInterval(st.timer);
+    try { if (st.mr && st.mr.state !== 'inactive') st.mr.stop(); else st.done(); } catch (e) { st.done(); }
+  }
+  function callSpeech(payload) {
+    if (typeof window.fiqSpeechCall === 'function') return window.fiqSpeechCall(payload);   // tests
+    var fns = window.fiqAuthFns, functions = window.fiqFunctions;
+    if (!fns || !functions) return Promise.reject(new Error('signin'));
+    return fns.httpsCallable(functions, 'fiqSpeechToText')(payload).then(function (r) { return r.data || {}; });
+  }
+  function blobToB64(blob) { return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(String(fr.result).split(',')[1] || ''); }; fr.onerror = rej; fr.readAsDataURL(blob); }); }
   function startListening(box) {
-    if (!SR || listening) { stopListening(); return; }
-    var input = box.querySelector('input'), status = box.querySelector('.fiq-cp-status'), mic = box.querySelector('.fiq-cp-mic');
-    try {
-      rec = new SR(); rec.lang = document.documentElement.lang || navigator.language || 'en-GB'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-    } catch (e) { status.textContent = 'The microphone is not available in this browser. Type the name, or press Windows key + H.'; status.className = 'fiq-cp-status error'; return; }
-    listening = true; mic.classList.add('listening'); mic.setAttribute('aria-pressed', 'true');
-    status.className = 'fiq-cp-status'; status.textContent = 'Listening… say the part name.';
-    rec.onresult = function (ev) {
-      var txt = ''; for (var i = ev.resultIndex; i < ev.results.length; i++) txt += ev.results[i][0].transcript;
-      input.value = tidy(txt.replace(/[.!?]+$/, '')); updateUse(box);
-      if (ev.results[ev.results.length - 1].isFinal) status.textContent = 'Heard "' + input.value + '". Press Use name, or change it first.';
-    };
-    rec.onerror = function (ev) {
-      status.className = 'fiq-cp-status error';
-      status.textContent = ev.error === 'not-allowed' || ev.error === 'service-not-allowed' ? 'Microphone blocked. Allow the microphone for FittersIQ in the browser, or press Windows key + H.'
-        : ev.error === 'no-speech' ? 'Nothing heard. Press the microphone and try again.' : 'Voice did not work just now (' + ev.error + '). Type the name, or press Windows key + H.';
-    };
-    rec.onend = function () { var keep = status.textContent; stopListening(); if (/^Listening/.test(keep)) status.textContent = ''; input.focus(); };
-    try { rec.start(); } catch (e) { stopListening(); }
+    if (listening) { stopListening(true); return; }   // pressed again: stop and use what was said
+    var input = box.querySelector('input'), status = box.querySelector('.fiq-cp-status');
+    var say = function (t, err) { status.className = 'fiq-cp-status' + (err ? ' error' : ''); status.textContent = t; };
+    if (!CAN_RECORD) { say('This browser cannot record. Type the name, or press Windows key + H.', true); return; }
+    listening = true; setMic(true); say('Starting the microphone…');
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+      if (!listening) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+      var mime = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/webm'].find(function (m) { return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m); }) || '';
+      var mr; try { mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); } catch (e) { stream.getTracks().forEach(function (t) { t.stop(); }); listening = false; setMic(false); say('This browser cannot record. Type the name, or press Windows key + H.', true); return; }
+      var chunks = [], st = { mr: mr, send: true, timer: 0, heard: false };
+      var ctx = null, an = null, buf = null;
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); an = ctx.createAnalyser(); an.fftSize = 1024; ctx.createMediaStreamSource(stream).connect(an); buf = new Float32Array(an.fftSize); } catch (e) { ctx = null; }
+      st.done = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); }); try { if (ctx) ctx.close(); } catch (e) {}
+        if (st.finished) return; st.finished = true;
+        if (!st.send) { say(''); return; }
+        if (ctx && !st.heard) { say('Nothing heard. Press the microphone and say the name.', true); input.focus(); return; }
+        var blob = new Blob(chunks, { type: mr.mimeType || mime || 'audio/webm' });
+        if (!blob.size) { say('Nothing was recorded. Press the microphone and try again.', true); return; }
+        say('Working out the word…');
+        blobToB64(blob).then(function (b64) {
+          return callSpeech({ audio: b64, mime: blob.type, lang: speechLang(), phrases: window.fiqCustomPartNames().slice(0, 40).concat(HINTS) });
+        }).then(function (r) {
+          var text = tidy(String(r && r.text || '').replace(/[.!?]+$/, ''));
+          if (!document.getElementById('fiqCustomPartBox')) return;
+          if (!text) { say('Nothing understood. Press the microphone and try again, or type the name.', true); return; }
+          input.value = text; updateUse(box); say('Heard "' + text + '". Press Use name, or change it first.'); input.focus();
+        }).catch(function (e) {
+          var msg = String(e && (e.message || e.code) || '');
+          say(/signin/.test(msg) ? 'Sign in to FittersIQ to use voice. Or press Windows key + H.' : /resource-exhausted|a lot/.test(msg) ? 'Voice has been used a lot in the last hour. Type the name, or try again later.' : 'Voice did not work just now. Check the internet, then try again, or press Windows key + H.', true);
+        });
+      };
+      mr.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+      mr.onstop = function () { st.done(); };
+      recState = st; mr.start(200); say('Listening… say the part name.');
+      // stop by itself: after a short pause once something was said, after 4 s of nothing, or at 6 s
+      var began = Date.now(), lastLoud = 0;
+      st.timer = setInterval(function () {
+        var now = Date.now();
+        if (an) { an.getFloatTimeDomainData(buf); var sum = 0; for (var i = 0; i < buf.length; i++) sum += buf[i] * buf[i]; var rms = Math.sqrt(sum / buf.length); if (rms > 0.02) { st.heard = true; lastLoud = now; } }
+        if ((st.heard && now - lastLoud > 900) || (!st.heard && now - began > 4000) || now - began > 6000) stopListening(true);
+      }, 100);
+    }).catch(function (e) {
+      listening = false; setMic(false);
+      say(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError') ? 'Microphone blocked. Allow the microphone for FittersIQ in the browser (the icon in the address bar), or press Windows key + H.'
+        : e && e.name === 'NotFoundError' ? 'No microphone found on this computer. Type the name, or press Windows key + H.' : 'The microphone could not start. Type the name, or press Windows key + H.', true);
+    });
   }
 
   // ---------- the box ----------
@@ -123,10 +171,10 @@
     var selected = null; try { selected = typeof part === 'function' ? part() : null; } catch (e) {}
     box.innerHTML = '<div class="fiq-cp-title">' + (selected ? 'Rename ' + esc(selected.code || 'the selected panel') + ' to:' : 'Name for the next dot you place:') + '</div>' +
       '<div class="fiq-cp-entry"><input type="text" autocomplete="off" spellcheck="true" maxlength="60" placeholder="e.g. Plinth, Filler, Spacer, Rail" aria-label="Custom part name">' +
-      (SR ? '<button type="button" class="fiq-cp-mic" aria-pressed="false" title="Press, then say the part name" aria-label="Say the part name"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>' : '') + '</div>' +
+      (CAN_RECORD ? '<button type="button" class="fiq-cp-mic" aria-pressed="false" title="Press, then say the part name" aria-label="Say the part name"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>' : '') + '</div>' +
       '<div class="fiq-cp-status" aria-live="polite"></div><div class="fiq-cp-recent-wrap"></div>' +
       '<div class="fiq-cp-actions"><button type="button" class="fiq-cp-cancel">Cancel</button><button type="button" class="fiq-cp-use" disabled>Use name</button></div>' +
-      '<div class="fiq-cp-hint">' + (SR ? 'Tip: you can also' : 'To speak the name,') + ' click the box and press <kbd>Windows</kbd> + <kbd>H</kbd> to dictate.</div>';
+      '<div class="fiq-cp-hint">' + (CAN_RECORD ? 'Tip: you can also' : 'To speak the name,') + ' click the box and press <kbd>Windows</kbd> + <kbd>H</kbd> to dictate.</div>';
     document.body.appendChild(box); drawRecent(box); place(box);
     btn.setAttribute('aria-expanded', 'true');
     var input = box.querySelector('input'); input.focus();
