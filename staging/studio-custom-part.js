@@ -52,6 +52,8 @@
       '#fiqCustomPartBox .fiq-cp-mic{flex:0 0 44px;min-height:40px;border:1.5px solid #a5b4d3;border-radius:9px;background:#f4f7ff;color:#0b4bd6;cursor:pointer;display:inline-grid;place-items:center}' +
       '#fiqCustomPartBox .fiq-cp-mic.listening{background:#dc2626;border-color:#dc2626;color:#fff;animation:fiqCpPulse 1s ease-in-out infinite}' +
       '@keyframes fiqCpPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 7px rgba(220,38,38,0)}}' +
+      '#fiqCustomPartBox .fiq-cp-langrow{display:flex;align-items:center;gap:6px;margin:6px 2px 0;font-size:12.5px;color:#475569;font-weight:600}' +
+      '#fiqCustomPartBox .fiq-cp-lang{min-height:28px;border:1px solid #a5b4d3;border-radius:7px;padding:2px 6px;font:700 13px Inter,Segoe UI,Arial,sans-serif;color:#0b2545;background:#f4f7ff;cursor:pointer}' +
       '#fiqCustomPartBox .fiq-cp-status{min-height:18px;margin:5px 2px 0;font-size:12.5px;color:#475569}' +
       '#fiqCustomPartBox .fiq-cp-status.error{color:#b91c1c}' +
       '#fiqCustomPartBox .fiq-cp-recent-head{margin:8px 0 5px;font-size:12px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.03em}' +
@@ -78,7 +80,13 @@
   var LANGS = { en: 'en-GB', da: 'da-DK', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', nl: 'nl-NL', sv: 'sv-SE', nb: 'nb-NO', no: 'nb-NO', it: 'it-IT', pl: 'pl-PL', pt: 'pt-PT' };
   var HINTS = ['Plinth', 'Filler', 'Spacer', 'Rail', 'Kicker', 'Scribe', 'Infill', 'Batten', 'Pelmet', 'Cornice', 'Divider', 'Shelf', 'Drawer front', 'Drawer side', 'Drawer back', 'Drawer bottom', 'Door', 'Gable', 'Upright', 'Partition', 'Rail', 'Hanging rail', 'Top', 'Bottom', 'Back', 'Side'];
   var listening = false, recState = null;
-  function speechLang() { var l = String(document.documentElement.lang || 'en').toLowerCase().split('-')[0]; return LANGS[l] || 'en-GB'; }
+  // The language the microphone listens in: chosen in the box, remembered on this computer (Mads, 18 Nov 2026: any name in any language).
+  // Until one is chosen it follows Studio's own language.
+  var VOICE_LANGS = [['en-GB', 'English'], ['da-DK', 'Dansk'], ['es-ES', 'Español'], ['de-DE', 'Deutsch'], ['fr-FR', 'Français'], ['nl-NL', 'Nederlands'], ['sv-SE', 'Svenska'], ['nb-NO', 'Norsk'], ['it-IT', 'Italiano'], ['pl-PL', 'Polski'], ['pt-PT', 'Português']];
+  var LANG_KEY = 'fiq_custom_part_voice_lang_v1';
+  function studioLang() { var l = String(document.documentElement.lang || 'en').toLowerCase().split('-')[0]; return LANGS[l] || 'en-GB'; }
+  function speechLang() { var v = ''; try { v = localStorage.getItem(LANG_KEY) || ''; } catch (e) {} return VOICE_LANGS.some(function (x) { return x[0] === v; }) ? v : studioLang(); }
+  function setSpeechLang(v) { try { localStorage.setItem(LANG_KEY, v); } catch (e) { /* still used for this box */ } }
   function setMic(on) { var m = document.querySelector('#fiqCustomPartBox .fiq-cp-mic'); if (m) { m.classList.toggle('listening', on); m.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
   function stopListening(send) {
     var st = recState; recState = null; listening = false; setMic(false);
@@ -115,7 +123,7 @@
         if (!blob.size) { say('Nothing was recorded. Press the microphone and try again.', true); return; }
         say('Working out the word…');
         blobToB64(blob).then(function (b64) {
-          return callSpeech({ audio: b64, mime: blob.type, lang: speechLang(), phrases: window.fiqCustomPartNames().slice(0, 40).concat(HINTS) });
+          return callSpeech({ audio: b64, mime: blob.type, lang: speechLang(), phrases: window.fiqCustomPartNames().slice(0, 40).concat(/^en/.test(speechLang()) ? HINTS : []) });   // the English part words only help English
         }).then(function (r) {
           var text = tidy(String(r && r.text || '').replace(/[.!?]+$/, ''));
           if (!document.getElementById('fiqCustomPartBox')) return;
@@ -172,6 +180,7 @@
     box.innerHTML = '<div class="fiq-cp-title">' + (selected ? 'Rename ' + esc(selected.code || 'the selected panel') + ' to:' : 'Name for the next dot you place:') + '</div>' +
       '<div class="fiq-cp-entry"><input type="text" autocomplete="off" spellcheck="true" maxlength="60" placeholder="e.g. Plinth, Filler, Spacer, Rail" aria-label="Custom part name">' +
       (CAN_RECORD ? '<button type="button" class="fiq-cp-mic" aria-pressed="false" title="Press, then say the part name" aria-label="Say the part name"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>' : '') + '</div>' +
+      (CAN_RECORD ? '<label class="fiq-cp-langrow">Microphone listens in <select class="fiq-cp-lang" aria-label="Microphone language">' + VOICE_LANGS.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === speechLang() ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></label>' : '') +
       '<div class="fiq-cp-status" aria-live="polite"></div><div class="fiq-cp-recent-wrap"></div>' +
       '<div class="fiq-cp-actions"><button type="button" class="fiq-cp-cancel">Cancel</button><button type="button" class="fiq-cp-use" disabled>Use name</button></div>' +
       '<div class="fiq-cp-hint">' + (CAN_RECORD ? 'Tip: you can also' : 'To speak the name,') + ' click the box and press <kbd>Windows</kbd> + <kbd>H</kbd> to dictate.</div>';
@@ -179,6 +188,8 @@
     btn.setAttribute('aria-expanded', 'true');
     var input = box.querySelector('input'); input.focus();
     input.addEventListener('input', function () { updateUse(box); });
+    var langSel = box.querySelector('.fiq-cp-lang');
+    if (langSel) langSel.addEventListener('change', function () { setSpeechLang(langSel.value); var st = box.querySelector('.fiq-cp-status'); st.className = 'fiq-cp-status'; st.textContent = 'The microphone now listens in ' + langSel.options[langSel.selectedIndex].text + ' (remembered on this computer).'; input.focus(); });
     box.addEventListener('click', function (e) {
       var t = e.target;
       if (t.closest('.fiq-cp-mic')) return startListening(box);
