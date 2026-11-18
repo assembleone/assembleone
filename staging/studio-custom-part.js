@@ -141,7 +141,7 @@
       var began = Date.now(), lastLoud = 0;
       st.timer = setInterval(function () {
         var now = Date.now();
-        if (an) { an.getFloatTimeDomainData(buf); var sum = 0; for (var i = 0; i < buf.length; i++) sum += buf[i] * buf[i]; var rms = Math.sqrt(sum / buf.length); if (rms > 0.02) { st.heard = true; lastLoud = now; } }
+        if (an) { an.getFloatTimeDomainData(buf); var sum = 0; for (var i = 0; i < buf.length; i++) sum += buf[i] * buf[i]; var rms = Math.sqrt(sum / buf.length); if (rms > 0.01) { st.heard = true; lastLoud = now; } }   // a quiet voice counts too; a noisy room just records until the 6-second limit
         if ((st.heard && now - lastLoud > 900) || (!st.heard && now - began > 4000) || now - began > 6000) stopListening(true);
       }, 100);
     }).catch(function (e) {
