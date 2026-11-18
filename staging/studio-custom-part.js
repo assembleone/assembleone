@@ -1,4 +1,4 @@
-/* FittersIQ Studio Drawing: "+ Custom Part" (Mads, 18 Nov 2026). STAGING ONLY for now (loaded by staging/Studio.html).
+/* FittersIQ Studio Drawing: "+ Custom Part" (Mads, 18 Nov 2026). Live since 18 Nov 2026 (loaded by Studio.html and staging/Studio.html).
    - A 4th quick button after Side, Top / Bottom and Back, in the same style. Chosen Parts is unchanged.
    - It opens a small box: type a name, or press the microphone and say it (only listens while pressed / until the word is heard),
      or pick one of the names used before on this computer (most used first, up to 60 kept, × forgets one).

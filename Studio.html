@@ -38,7 +38,9 @@
       var stageChoice='<script src="studio-estimate-choice.js?build=95&ts='+stamp+'"><\/script>';
       // Panel Check size check (Mads, 17 Nov 2026): marks sizes that look like typing mistakes (130 instead of 1300) and gives ordinary unchecked panels a calm look. Its own file; the core is untouched.
       var sizeCheck='<script src="panel-size-check.js?build=97&ts='+stamp+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+sizeCheck+html.slice(bodyClose);
+      // Drawing "+ Custom Part" (Mads, 18 Nov 2026): type or say your own part name; works exactly like Side / Top / Bottom / Back. Its own file; the core is untouched.
+      var customPart='<script src="studio-custom-part.js?build=98&ts='+stamp+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+sizeCheck+customPart+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
