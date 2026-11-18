@@ -52,8 +52,8 @@
       '#fiqCustomPartBox .fiq-cp-mic{flex:0 0 44px;min-height:40px;border:1.5px solid #a5b4d3;border-radius:9px;background:#f4f7ff;color:#0b4bd6;cursor:pointer;display:inline-grid;place-items:center}' +
       '#fiqCustomPartBox .fiq-cp-mic.listening{background:#dc2626;border-color:#dc2626;color:#fff;animation:fiqCpPulse 1s ease-in-out infinite}' +
       '@keyframes fiqCpPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 7px rgba(220,38,38,0)}}' +
-      '#fiqCustomPartBox .fiq-cp-langrow{display:flex;align-items:center;gap:6px;margin:6px 2px 0;font-size:12.5px;color:#475569;font-weight:600}' +
-      '#fiqCustomPartBox .fiq-cp-lang{min-height:28px;border:1px solid #a5b4d3;border-radius:7px;padding:2px 6px;font:700 13px Inter,Segoe UI,Arial,sans-serif;color:#0b2545;background:#f4f7ff;cursor:pointer}' +
+      '#fiqCustomPartBox .fiq-cp-langrow{display:flex;align-items:center;gap:6px;white-space:nowrap;margin:6px 2px 0;font-size:12.5px;color:#475569;font-weight:600}' +
+      '#fiqCustomPartBox .fiq-cp-lang{width:auto!important;flex:0 0 auto;min-width:0;min-height:28px;border:1px solid #a5b4d3;border-radius:7px;padding:2px 6px;font:700 13px Inter,Segoe UI,Arial,sans-serif;color:#0b2545;background:#f4f7ff;cursor:pointer}' +
       '#fiqCustomPartBox .fiq-cp-status{min-height:18px;margin:5px 2px 0;font-size:12.5px;color:#475569}' +
       '#fiqCustomPartBox .fiq-cp-status.error{color:#b91c1c}' +
       '#fiqCustomPartBox .fiq-cp-recent-head{margin:8px 0 5px;font-size:12px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.03em}' +
