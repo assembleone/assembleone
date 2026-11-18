@@ -99,7 +99,9 @@ window.FIQ_FIREBASE_CONFIG={
       var stageChoice='<script src="'+scriptUrl('studio-estimate-choice.js',await exists('studio-estimate-choice.js'))+'"><\/script>';
       // Panel Check size check (Mads, 17 Nov 2026): marks sizes that look like typing mistakes (130 instead of 1300); its own file, the core is untouched.
       var sizeCheck='<script src="'+scriptUrl('panel-size-check.js',await exists('panel-size-check.js'))+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+sizeCheck+banner+retitle+guard+html.slice(bodyClose);
+      // Drawing "+ Custom Part" (Mads, 18 Nov 2026): type or say your own part name; works exactly like Side / Top / Bottom / Back. Its own file, the core is untouched.
+      var customPart='<script src="'+scriptUrl('studio-custom-part.js',await exists('studio-custom-part.js'))+'"><\/script>';
+      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+sizeCheck+customPart+banner+retitle+guard+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);
