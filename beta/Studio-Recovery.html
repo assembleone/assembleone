@@ -9732,15 +9732,20 @@ body.fiq-locked .app{display:none!important}
     return {materialLabel:materialLabel,thickness:thickness,cfg:cfg,sheets:res.sheets,unplaced:res.unplaced,wastePct:wastePct,sheetArea:sheetArea,usedArea:usedArea,turned:turnedCodes};
   }
 
+  // Custom Sheets (Beta, 21 Nov 2026): the company's saved sheet sizes (made in the Estimator's Custom Sheets manager) are offered here too.
+  function savedSheetList(){try{return(window.fiqCustomSheets&&window.fiqCustomSheets.list&&window.fiqCustomSheets.list())||[]}catch(e){return[]}}
   function sheetSizeHtml(g,idx){
     var cfg=g.cfg,pre=presetsFor(g.materialLabel);
     var match=pre.list.findIndex(function(d){return d[0]===cfg.w&&d[1]===cfg.h});
-    var custom=cfg.custom||match<0;
+    var saved=savedSheetList(),smatch=saved.findIndex(function(x){return x.w===cfg.w&&x.h===cfg.h});
+    var custom=cfg.custom||(match<0&&smatch<0);
     var opts=pre.list.map(function(d,i){return '<option value="'+d[0]+'x'+d[1]+'"'+(!custom&&i===match?' selected':'')+'>'+d[0]+' × '+d[1]+' mm'+(i===0?' (default)':'')+'</option>'}).join('')+
+      (saved.length?'<optgroup label="My saved sheets">'+saved.map(function(x,i){return '<option value="'+x.w+'x'+x.h+'"'+(!custom&&match<0&&i===smatch?' selected':'')+'>'+safe(x.name)+' · '+x.w+' × '+x.h+' mm</option>'}).join('')+'</optgroup>':'')+
       '<option value="custom"'+(custom?' selected':'')+'>Custom…</option>';
+    var tools=window.fiqOpenCustomSheets?'<span class="sheet-size-custom"><button type="button" class="sheet-optim-recalc" data-sheet-save="'+idx+'">Save this size…</button><button type="button" class="sheet-optim-recalc" data-sheet-manage="'+idx+'">My sheets…</button></span>':'';
     return '<label class="sheet-size-pick">Sheet size'+(pre.type?' <small>'+pre.type+'</small>':'')+'<select data-sheet-preset="'+idx+'">'+opts+'</select></label>'+
       (custom?'<span class="sheet-size-custom"><label>'+t("studio.supplier.sheetLengthLabel")+'<small>'+t("studio.supplier.grainDirectionHint")+'</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
-      '<label>'+t("studio.supplier.sheetWidthLabel")+'<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label></span>':'');
+      '<label>'+t("studio.supplier.sheetWidthLabel")+'<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label></span>':'')+tools;
   }
 
   function renderGroupHtml(g,idx){
@@ -9864,6 +9869,13 @@ body.fiq-locked .app{display:none!important}
         if(typeof window.fiqRenderCustomerSheets==='function')window.fiqRenderCustomerSheets();
       });
     });
+    box.querySelectorAll('[data-sheet-save],[data-sheet-manage]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var idx=Number(b.dataset.sheetSave??b.dataset.sheetManage),g=groups[idx];
+        if(!window.fiqOpenCustomSheets)return;
+        window.fiqOpenCustomSheets(b.dataset.sheetSave!=null&&g?{w:g.cfg.w,h:g.cfg.h}:undefined);
+      })});
+    if(box.id==='sheetOptimiserBody')lastGroups=groups;
     return groups;
   }
 
@@ -9882,6 +9894,10 @@ body.fiq-locked .app{display:none!important}
   }
 
   var toggleBtn=document.getElementById('sheetOptimiserToggleBtn'),card=document.getElementById('sheetOptimiserCard');
+  document.addEventListener('fiq-sheets-changed',function(){try{
+    // A size typed in "Custom…" that has just been saved (or already matches a saved sheet) switches to that saved sheet.
+    var sv=savedSheetList();(lastGroups||[]).forEach(function(g){if(g.cfg.custom&&sv.some(function(x){return x.w===g.cfg.w&&x.h===g.cfg.h})){var cur=cfgFor(loadSettings(),g.materialLabel,g.thickness);cur.custom=false;saveSetting(cur.key,cur)}});
+    if(card&&!card.hidden)render()}catch(e){console.error(e)}});
   // The toggle button's text depends on open/closed state, not just language, so it can't
   // use a static data-i18n attribute (applyI18n() would always reset it to the closed-state
   // text on every language switch, even while the card is open). Refreshing it here, on

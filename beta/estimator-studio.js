@@ -911,7 +911,7 @@
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('#fiqxCS [data-csact]'); if (!b) return; ev.preventDefault();
     var act = b.getAttribute('data-csact'), id = b.getAttribute('data-id');
-    if (act === 'close') { var o = document.getElementById('fiqxCS'); if (o) o.remove(); var pl = document.getElementById('fiqxPL'); if (pl) renderPriceList(); else if (view) render(); return; }
+    if (act === 'close') { var o = document.getElementById('fiqxCS'); if (o) o.remove(); try { document.dispatchEvent(new Event('fiq-sheets-changed')); } catch (x) {} var pl = document.getElementById('fiqxPL'); if (pl) renderPriceList(); else if (view) render(); return; }
     if (act === 'betacloud' && window.fiqBetaGuard) {
       var on = !window.fiqBetaGuard.sheetsCloud();
       if (on && !confirm('Turn ON cloud saving for Custom Sheets on this Beta computer?\n\nThis writes to your real company data (only the Custom Sheets list). Only do this after the Firestore rule has been checked. Use sheet names starting with TEST.')) return;
