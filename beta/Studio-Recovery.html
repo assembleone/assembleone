@@ -12580,12 +12580,20 @@ body.fiq-locked .app{display:none!important}
  // The Customer Library's Cutting List button opens the job's REAL cutting list (same job, same drawing, same panels) and
  // leaves a way back. Only when the job has no unit to open does it fall back to the read-only saved copy.
  function openLiveCutting(projectId,roomId,cabinetId){
-  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+  const p=state.projects.find(x=>x.id===projectId);
+  if(!p){if(window.fiqLibNav)window.fiqLibNav.clear();alert('This job is no longer in Studio, so its Cutting List cannot be opened. Nothing has been changed.');return}
   const cab=(cabinetId&&(p.cabinets||[]).find(c=>c.id===cabinetId))||(roomId?(p.cabinets||[]).find(c=>c.roomId===roomId):(p.cabinets||[])[0]);
+  // A job with no drawing unit has no live list to open: show the saved copy instead of doing nothing.
   if(!cab)return openJobPage(projectId,roomId,cabinetId,'cutting');
   const key=jobKeyFor(roomId||'',cab.id),n=versionsOf(p,key).length;
   if(window.fiqLibNav)window.fiqLibNav.note(n?'Cutting List · saved as V'+n:'Cutting List',jobTitle(p,key));
   openCuttingListForRoom(projectId,roomId||'',cab.id);
+  // Verify we really landed on that job's list; if anything redirected us, fall back to the saved copy rather than a wrong job.
+  if(state.screen!=='cutting'||state.currentProject!==projectId||state.currentCabinet!==cab.id){
+   console.warn('Customer Library: live Cutting List did not open as expected',state.screen,state.currentProject,state.currentCabinet);
+   if(window.fiqLibNav)window.fiqLibNav.clear();
+   openJobPage(projectId,roomId,cabinetId,'cutting');
+  }
  }
  window.fiqOpenSentCuttingList=(projectId,roomId,cabinetId)=>{if(window.fiqLibNav)window.fiqLibNav.set(projectId);openLiveCutting(projectId,roomId,cabinetId)};
  window.fiqOpenSavedCuttingVersions=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'cutting');
@@ -12612,12 +12620,17 @@ body.fiq-locked .app{display:none!important}
     b.querySelector('[data-lib-back]').onclick=back;
   }
   function back(){
-    const c=ctx&&customerOf(ctx.projectId);ctx=null;
+    const c=ctx&&customerOf(ctx.projectId);ctx=null;keep();
     try{save()}catch(e){}
     if(c){openCustomerCard(c.id)}else{show('customers');if(typeof renderAll==='function')renderAll()}
     bar();
   }
-  window.fiqLibNav={set(pid){ctx={projectId:pid,label:'',job:''};bar()},note(label,job){if(ctx){ctx.label=label;ctx.job=job;}},active:()=>!!ctx,clear(){ctx=null;bar()},back,render:bar,state:()=>ctx};
+  const KEY='fiqLibReturnCtx';
+  const keep=()=>{try{if(ctx)sessionStorage.setItem(KEY,JSON.stringify(ctx));else sessionStorage.removeItem(KEY)}catch(e){}};
+  window.fiqLibNav={set(pid){ctx={projectId:pid,label:'',job:''};keep();bar()},note(label,job){if(ctx){ctx.label=label;ctx.job=job;keep()}},active:()=>!!ctx,clear(){ctx=null;keep();bar()},back,render:bar,state:()=>ctx};
+  // After a reload on the job's own screen the way back is still offered (the session remembers it; it is never saved to the job).
+  const restore=()=>{try{const x=JSON.parse(sessionStorage.getItem(KEY)||'null');if(!ctx&&x&&x.projectId&&state.projects.some(p=>p.id===x.projectId)){ctx=x;bar()}}catch(e){}};
+  window.addEventListener('load',()=>{setTimeout(restore,1200);setTimeout(restore,3500)});
   const orig=window.show;
   window.show=function(name){const r=orig.apply(this,arguments);try{bar()}catch(e){}return r};
   const css=document.createElement('style');css.textContent='#fiqLibBar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9500;display:flex;gap:10px;align-items:center;background:#0b1730;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 8px 6px 6px;box-shadow:0 6px 22px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}#fiqLibBar .btn{border-radius:999px;white-space:nowrap}#fiqLibBar .fiq-lib-where{font-size:13px;opacity:.9;padding-right:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media print{#fiqLibBar{display:none!important}}';

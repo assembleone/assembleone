@@ -1,0 +1,30 @@
+// Firestore rules test for Custom Sheets. Needs the Firebase emulator: npx firebase emulators:exec --only firestore --project demo-fiq "node tests/firestore-rules-estimator-sheets.cjs" (with @firebase/rules-unit-testing installed). Not run in the build container: the emulator download is blocked there.
+const {initializeTestEnvironment,assertSucceeds,assertFails}=require('@firebase/rules-unit-testing');const fs=require('fs');
+(async()=>{
+ const env=await initializeTestEnvironment({projectId:'demo-fiq',firestore:{rules:fs.readFileSync(''+require('path').resolve(__dirname,'..','firestore.rules')+'','utf8'),host:'127.0.0.1',port:8080}});
+ await env.withSecurityRulesDisabled(async c=>{const d=c.firestore();
+  await d.doc('companies/A/members/alice').set({status:'active',role:'company_owner'});
+  await d.doc('companies/A/members/gone').set({status:'inactive',role:'fitter'});
+  await d.doc('companies/B/members/bob').set({status:'active',role:'company_owner'});
+  await d.doc('companies/A/estimatorSheets/s0').set({name:'Existing',w:2800,h:2070});});
+ const sheet={name:'Standard Melamine',w:2800,h:2070,createdAt:'x',updatedAt:'y',updatedBy:'alice'};
+ const alice=env.authenticatedContext('alice').firestore(),bob=env.authenticatedContext('bob').firestore(),gone=env.authenticatedContext('gone').firestore(),anon=env.unauthenticatedContext().firestore();
+ const R=[];const t=async(n,p)=>{try{await p;R.push('PASS '+n)}catch(e){R.push('FAIL '+n);process.exitCode=1}};
+ await t('member reads own company sheets',assertSucceeds(alice.collection('companies/A/estimatorSheets').get()));
+ await t('member writes sheet',assertSucceeds(alice.doc('companies/A/estimatorSheets/s1').set(sheet)));
+ await t('member edits sheet',assertSucceeds(alice.doc('companies/A/estimatorSheets/s1').set({...sheet,w:3050})));
+ await t('member deletes sheet',assertSucceeds(alice.doc('companies/A/estimatorSheets/s1').delete()));
+ await t('other company cannot read',assertFails(bob.collection('companies/A/estimatorSheets').get()));
+ await t('other company cannot write',assertFails(bob.doc('companies/A/estimatorSheets/x').set(sheet)));
+ await t('other company cannot delete',assertFails(bob.doc('companies/A/estimatorSheets/s0').delete()));
+ await t('inactive member cannot read',assertFails(gone.collection('companies/A/estimatorSheets').get()));
+ await t('signed-out cannot read',assertFails(anon.collection('companies/A/estimatorSheets').get()));
+ await t('signed-out cannot write',assertFails(anon.doc('companies/A/estimatorSheets/x').set(sheet)));
+ await t('bad size refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,w:-5})));
+ await t('text size refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,w:'2800'})));
+ await t('extra field refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,evil:1})));
+ await t('empty name refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,name:''})));
+ await t('existing jobs rule unchanged: member can read jobs',assertSucceeds(alice.collection('companies/A/jobs').get()));
+ await t('existing jobs rule unchanged: other company cannot',assertFails(bob.collection('companies/A/jobs').get()));
+ console.log(R.join('\n'));await env.cleanup();
+})();

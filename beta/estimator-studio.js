@@ -759,9 +759,9 @@
 
 
   // ---------- Custom sheets: the company's own named sheet sizes (21 Nov 2026) ----------
-  // Kept in state.customSheets (this computer) and in the company's cloud storage (companies/{companyId}/estimatorSheets, one small
-  // file per sheet, readable and writable by the company's members under the existing storage rules), so they follow the login to any
-  // computer. A sheet typed while offline stays here and is uploaded on the next sync; nothing is lost if the cloud cannot be reached.
+  // Kept in state.customSheets (this computer) and in the company's private cloud data (Firestore: companies/{companyId}/estimatorSheets/{id}),
+  // which only the company's active members can read or write (see firestore.rules), so they follow the login to any computer.
+  // A sheet typed while offline, or before the cloud rule is published, stays here and is uploaded on the next sync.
   // An estimate copies a size as plain numbers: editing or deleting a saved sheet never changes an estimate that used it.
   var cs = { editing: null, error: '', form: { name: '', w: '', h: '' }, edit: { name: '', w: '', h: '' } };
   var csSync = { running: false, again: false, state: 'idle', message: '', p: null };
@@ -774,32 +774,35 @@
   function stripSheet(x) { return { id: x.id, name: x.name, w: x.w, h: x.h, createdAt: x.createdAt, updatedAt: x.updatedAt, updatedBy: x.updatedBy || null }; }
   function sheetBackend() {
     if (window.fiqCustomSheetsBackend) return window.fiqCustomSheetsBackend;
-    var u = user(), fns = window.fiqStorageFns, storage = window.fiqStorage;
-    if (!u || !u.companyId || !fns || !storage || !fns.ref || !fns.uploadString || !fns.listAll || !fns.deleteObject) return null;
-    var base = 'companies/' + u.companyId + '/estimatorSheets';
-    var meta = function (itemRef) {
-      if (fns.getMetadata) return fns.getMetadata(itemRef);
-      return import('https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js').then(function (m) { return m.getMetadata(itemRef); });
-    };
+    var u = user(), f = fsFns();
+    if (!u || !u.uid || !u.companyId || !f || !f.setDoc || !f.deleteDoc || !f.getDocs || !f.collection || !f.doc) return null;
+    var db = window.fiqFirestore, col = function () { return f.collection(db, 'companies', u.companyId, 'estimatorSheets'); };
     return {
       list: function () {
-        return fns.listAll(fns.ref(storage, base)).then(function (res) {
-          return Promise.all(res.items.map(function (it) { return meta(it).then(function (m) {
-            var c = (m && m.customMetadata) || {}, id = String(it.name || '').replace(/\.json$/, '');
-            var w = Number(c.w), h = Number(c.h); if (!id || !c.name || !isFinite(w) || !isFinite(h)) return null;
-            return { id: id, name: c.name, w: w, h: h, createdAt: c.createdAt || c.updatedAt || '', updatedAt: c.updatedAt || '', updatedBy: c.updatedBy || null };
-          }); })).then(function (all) { return all.filter(Boolean); });
+        return f.getDocs(col()).then(function (q) {
+          return q.docs.map(function (d) {
+            var x = d.data() || {}, w = Number(x.w), h = Number(x.h); if (!x.name || !isFinite(w) || !isFinite(h)) return null;
+            return { id: d.id, name: String(x.name), w: w, h: h, createdAt: x.createdAt || x.updatedAt || '', updatedAt: x.updatedAt || '', updatedBy: x.updatedBy || null };
+          }).filter(function (x) { return x && !/^_cloudcheck_/.test(x.id); });
         });
       },
-      put: function (sh) {
-        var x = stripSheet(sh);
-        return fns.uploadString(fns.ref(storage, base + '/' + x.id + '.json'), JSON.stringify(x), 'raw', { contentType: 'application/json',
-          customMetadata: { name: x.name, w: String(x.w), h: String(x.h), createdAt: String(x.createdAt || ''), updatedAt: String(x.updatedAt || ''), updatedBy: String(x.updatedBy || '') } });
-      },
-      remove: function (id) {
-        return fns.deleteObject(fns.ref(storage, base + '/' + id + '.json')).catch(function (e) { if (e && /object-not-found/.test(String(e.code || e.message))) return; throw e; });
-      }
+      put: function (sh) { var x = stripSheet(sh); return f.setDoc(f.doc(db, 'companies', u.companyId, 'estimatorSheets', x.id), { name: x.name, w: x.w, h: x.h, createdAt: String(x.createdAt || ''), updatedAt: String(x.updatedAt || ''), updatedBy: x.updatedBy || '' }); },
+      remove: function (id) { return f.deleteDoc(f.doc(db, 'companies', u.companyId, 'estimatorSheets', id)); }
     };
+  }
+  // Real-account check for testing: who is signed in, which company, and a write/read/delete round trip on a throw-away document.
+  function cloudCheck() {
+    var u = user(), f = fsFns(), out = [];
+    out.push('Signed in: ' + (u && u.uid ? 'yes' : 'no') + (u && u.role ? ' (role: ' + u.role + ')' : ''));
+    out.push('Company: ' + (u && u.companyId ? u.companyId : 'none'));
+    if (window.fiqCustomSheetsBackend) { out.push('Test backend in use (not the real cloud).'); return Promise.resolve(out.join('\n')); }
+    if (!u || !u.uid || !u.companyId || !f) return Promise.resolve(out.concat('Cannot test: sign in with a company account first.').join('\n'));
+    var ref = f.doc(window.fiqFirestore, 'companies', u.companyId, 'estimatorSheets', '_cloudcheck_' + u.uid.slice(0, 8));
+    return f.setDoc(ref, { name: '_cloud check (safe to ignore)', w: 1, h: 1, createdAt: '', updatedAt: new Date().toISOString(), updatedBy: u.uid })
+      .then(function () { out.push('Write: OK'); return f.getDoc(ref); })
+      .then(function (snap) { out.push('Read: ' + (snap && snap.exists() ? 'OK' : 'FAILED (missing)')); return f.deleteDoc(ref); })
+      .then(function () { out.push('Delete: OK'); out.push('Result: the company cloud is working for your account.'); return out.join('\n'); })
+      .catch(function (e) { out.push('Result: NOT working (' + ((e && (e.code || e.message)) || 'unknown') + '). If this says permission-denied, the Custom Sheets rule has not been published yet.'); return out.join('\n'); });
   }
   function sheetStatusText() {
     if (csSync.state === 'cloud') return { ok: true, text: '✓ ' + csSync.message };
@@ -883,7 +886,7 @@
     }).join('');
     o.innerHTML = '<div class="fiqx-win"><div class="fiqx-top"><h2>Custom Sheets</h2><span class="fiqx-sub">Your own sheet sizes. Choose one in any estimate instead of typing the size again.</span><span class="fiqx-sp"></span><button class="fiqx-btn" data-csact="close">Close</button></div>' +
       '<div class="fiqx-body single"><div>' +
-      '<div class="fiqx-card"><div id="fiqxCSStatus" class="' + (z.ok ? 'fiqx-csok' : 'fiqx-cswarn') + '">' + esc(z.text) + '</div>' + (can ? '' : '<div class="fiqx-sub">This Studio window is read-only, so sheets cannot be changed here.</div>') + '</div>' +
+      '<div class="fiqx-card"><div id="fiqxCSStatus" class="' + (z.ok ? 'fiqx-csok' : 'fiqx-cswarn') + '">' + esc(z.text) + '</div><div class="fiqx-row" style="margin-top:8px"><button class="fiqx-btn" data-csact="check">Test company cloud</button></div><pre id="fiqxCSCheck" class="fiqx-sub" style="white-space:pre-wrap;margin:8px 0 0"></pre>' + (can ? '' : '<div class="fiqx-sub">This Studio window is read-only, so sheets cannot be changed here.</div>') + '</div>' +
       '<div class="fiqx-card"><h3>Saved sheets</h3>' + (list.length ? '<table class="fiqx-t" id="fiqxCSTable"><thead><tr><th>Name</th><th>Length mm</th><th>Width mm</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="fiqx-sub">No saved sheets yet. Add your first one below, for example Standard Melamine 2800 × 2070.</p>') +
       (cs.editing !== null && cs.error ? '<div class="fiqx-cserr">' + esc(cs.error) + '</div>' : '') + '</div>' +
       '<div class="fiqx-card"><h3>Add a sheet</h3><div class="fiqx-csform">' +
@@ -907,6 +910,7 @@
     var b = ev.target.closest && ev.target.closest('#fiqxCS [data-csact]'); if (!b) return; ev.preventDefault();
     var act = b.getAttribute('data-csact'), id = b.getAttribute('data-id');
     if (act === 'close') { var o = document.getElementById('fiqxCS'); if (o) o.remove(); var pl = document.getElementById('fiqxPL'); if (pl) renderPriceList(); else if (view) render(); return; }
+    if (act === 'check') { var pre = document.getElementById('fiqxCSCheck'); if (pre) pre.textContent = 'Testing…'; return cloudCheck().then(function (t) { var q = document.getElementById('fiqxCSCheck'); if (q) q.textContent = t; }); }
     if (!canWrite()) return;
     if (act === 'add') {
       var v = C.validateSheet(cs.form, sheets()); if (!v.ok) { cs.error = v.problems.join(' '); return renderSheetManager(); }

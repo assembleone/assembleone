@@ -5,7 +5,7 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
 (async()=>{
  const server=http.createServer((req,res)=>{const f=path.join(root,decodeURIComponent(req.url.split('?')[0]));if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){res.statusCode=404;return res.end()}res.setHeader('Content-Type',types[path.extname(f)]||'application/octet-stream');res.end(fs.readFileSync(f))});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch();const ctx=await browser.newContext({viewport:{width:1400,height:900}});const page=await ctx.newPage();
- const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));let msg='';page.on('dialog',d=>{msg=d.message();d.accept()});await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());
  const url=`http://127.0.0.1:${server.address().port}${process.env.FIQ_PAGE||'/beta/Studio.html'}`;
  async function open(){await page.goto(url);await page.waitForFunction(()=>typeof openCuttingListForRoom==='function'&&typeof save==='function');await page.waitForTimeout(800);await page.evaluate(()=>{document.body.classList.remove('fiq-locked');const g=document.getElementById('fiqAuthGate');if(g)g.style.display='none'})}
  await open();
@@ -54,9 +54,20 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
  // Job Overview hub use never shows the bar
  await page.evaluate(()=>window.fiqOpenJobPage('pB','rB','kB'));await page.locator('[data-job-go="cutting"]').click();
  assert.equal(await where(),'cutting|pB|kB');assert.equal(await page.locator('#fiqLibBar').count(),0,'bar only when you came from the Library');
+ // Reload while on the job: the way back survives, data intact
+ await page.evaluate(()=>{show('customers');openCustomerCard('cA')});await page.locator('[data-open-cutting-list-project="pA"]').click();await page.waitForTimeout(600);await page.evaluate(()=>save());await page.waitForTimeout(800);
+ await open();await page.waitForTimeout(1800);
+ assert.equal(await where(),'cutting|pA|kA','reload lands on the same job and list');
+ assert.equal(await page.locator('#fiqLibBar').count(),1,'way back still offered after reload');
+ await page.locator('#fiqLibBar [data-lib-back]').click();assert.equal(await page.evaluate(()=>state.currentCustomerCard),'cA','back to Anna after reload');
+ // A job whose unit is gone falls back to the saved copy instead of doing nothing; a job that is gone says so
+ await page.evaluate(()=>{state.projects.push({id:'pC',name:'No unit',customer:'Anna Jensen',customerId:'cA',rooms:[{id:'rC',name:'Hall'}],cabinets:[],jobLog:[],updatedAt:Date.now()});window.fiqOpenSentCuttingList('pC','rC','')});
+ assert.equal(await page.locator('[data-sent-view]').count(),1,'saved copy shown when no live unit');await page.locator('[data-job-close]').click();
+ msg='';await page.evaluate(()=>window.fiqOpenSentCuttingList('gone','x','y'));
+ assert.match(msg,/no longer in Studio/,'clear message for a missing job');
  // reload keeps data
  await page.evaluate(()=>{show('jobs');save()});await open();
- const re=await snap();assert.equal(re.projects.length,2);assert.equal(re.projects.find(p=>p.id==='pA').cabinets[0].parts[0].notes,'Edited in job');
+ const re=await snap();assert.equal(re.projects.length,3);assert.equal(re.projects.find(p=>p.id==='pA').cabinets[0].parts[0].notes,'Edited in job');
  assert.deepEqual(errors,[],'no page errors: '+errors.join('|'));
  console.log('PASS studio-library-navigation');await browser.close();server.close();
 })().catch(e=>{console.error('FAIL',e.message);process.exit(1)});

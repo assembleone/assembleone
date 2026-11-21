@@ -107,6 +107,7 @@ const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'applic
   await page.evaluate(() => window.fiqOpenCustomSheets()); await page.waitForSelector('#fiqxCS');
   await page.fill('[data-csin="name"]', 'Special Order'); await page.fill('[data-csin="w"]', '2440'); await page.fill('[data-csin="h"]', '1220'); await page.click('[data-csact="add"]');
   assert.ok(/this computer/i.test(await page.innerText('#fiqxCSStatus')), 'honest local-only status');
+  await page.waitForTimeout(800); // Studio writes to the browser database a moment after save()
   await page.close(); page = await open({});
   assert.equal(await page.evaluate(() => window.fiqCustomSheets.list().length), 1, 'locally saved sheet persists across reload');
   assert.deepEqual(errors, [], 'no page errors: ' + errors.join(' | '));
