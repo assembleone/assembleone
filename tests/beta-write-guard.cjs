@@ -13,7 +13,10 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
   window.fiqAuthFns={doc:ref,collection:ref,setDoc:mk('setDoc'),updateDoc:mk('updateDoc'),addDoc:mk('addDoc'),deleteDoc:mk('deleteDoc'),getDoc:mk('getDoc'),getDocs:mk('getDocs'),onSnapshot:mk('onSnapshot'),
    runTransaction:async(db,fn)=>fn({get:mk('tx.get'),set:mk('tx.set'),update:mk('tx.update'),delete:mk('tx.delete')}),httpsCallable:()=>()=>{real.push('CALLABLE REAL');return Promise.resolve({})}};
   window.fiqStorageFns={ref:(s,p)=>({path:p}),uploadString:mk('upload'),deleteObject:mk('delStorage'),getDownloadURL:mk('url'),listAll:mk('list')};
-  const F=window.fiqAuthFns,out={};const t=async(k,p)=>{try{await p;out[k]='ok'}catch(e){out[k]=e.code||'ERR:'+e.message}};
+  const F=window.fiqAuthFns,out={};
+  window.fiqBetaGuard.setSheetsCloud(false);const t=async(k,p)=>{try{await p;out[k]='ok'}catch(e){out[k]=e.code||'ERR:'+e.message}};
+  await t('sheetWriteOff',F.setDoc(F.doc(0,'companies','c1','estimatorSheets','s0'),{}));
+  window.fiqBetaGuard.setSheetsCloud(true);
   await t('sheetWrite',F.setDoc(F.doc(0,'companies','c1','estimatorSheets','s1'),{}));
   await t('sheetDelete',F.deleteDoc(F.doc(0,'companies','c1','estimatorSheets','s1')));
   await t('betaBackup',F.setDoc(F.doc(0,'companies','c1','fiqMaster','beta','jobs','j'),{}));
@@ -35,13 +38,21 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
   await t('readJobs',F.getDocs(F.collection(0,'companies','c1','jobs')));
   await t('readDoc',F.getDoc(F.doc(0,'companies','c1')));
   await t('listen',F.onSnapshot(F.collection(0,'companies','c1','jobs')));
+  localStorage.setItem('fiq_cloud_copy_enabled_v1','on');out.cloudCopyOn=localStorage.getItem('fiq_cloud_copy_enabled_v1');
   await t('readStorage',window.fiqStorageFns.getDownloadURL({path:'x'}));
-  return {out,real,blocked:window.fiqBetaGuard.blocked.length};
+  await new Promise(r=>setTimeout(r,1000));
+  const b=document.getElementById('fiqBetaBanner'),fr=document.getElementById('fiqBetaFrame'),ic=document.querySelector('link[rel~="icon"]');
+  return {out,real,blocked:window.fiqBetaGuard.blocked.length,banners:document.querySelectorAll('#fiqBetaBanner').length,banner:b&&b.textContent,frame:!!fr&&getComputedStyle(fr).borderTopColor,icon:ic&&ic.href.slice(0,40),title:document.title};
  });
  const o=r.out;
+ assert.equal(o.sheetWriteOff,'beta-write-blocked','Custom Sheets cloud writes are blocked until the switch is on');
+ assert.notEqual(o.cloudCopyOn,'on','the automatic cloud copy cannot be switched on in Beta');
+ assert.equal(r.banners,1,'exactly one Beta banner');assert.match(r.banner,/LIVE-DATA WRITES OFF/);assert.match(r.banner,/CUSTOM SHEETS CLOUD ON/,'banner shows when cloud saving is on');
+ assert.equal(r.frame,'rgb(185, 28, 28)','red frame round the window');assert.match(r.icon||'', /^data:image\/svg\+xml/,'red BETA tab icon');assert.match(r.title,/^BETA /,'tab title starts with BETA');
  ['sheetWrite','sheetDelete','betaBackup','txSheet','readJobs','readDoc','listen','readStorage','quietLog','quietUser'].forEach(k=>assert.equal(o[k],'ok',k+' should pass: '+o[k]));
  ['prodBackup','jobWrite','jobReceipt','jobAdd','jobDelete','company','fitter','member','callable','txJob','upload','storageDelete'].forEach(k=>assert.equal(o[k],'beta-write-blocked',k+' must be blocked: '+o[k]));
  assert.ok(!r.real.some(x=>/^(updateDoc|addDoc|upload|delStorage|CALLABLE|tx\.update|tx\.delete)/.test(x)),'no other write reached Firebase: '+JSON.stringify(r.real));
+ assert.ok(!r.real.some(x=>/estimatorSheets\/s0/.test(x)),'nothing reached Firebase while the switch was off');
  assert.deepEqual(r.real.filter(x=>/^(setDoc|deleteDoc|tx\.set)/.test(x)).sort(),['deleteDoc companies/c1/estimatorSheets/s1','setDoc companies/c1/estimatorSheets/s1','setDoc companies/c1/fiqMaster/beta/jobs/j','tx.set companies/c1/estimatorSheets/s'].sort(),'only Custom Sheets and Beta backup writes got through');
  assert.deepEqual(errors,[],errors.join('|'));
  console.log('PASS beta-write-guard',JSON.stringify(o));await browser.close();server.close();

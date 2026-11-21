@@ -54,6 +54,28 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
  // Job Overview hub use never shows the bar
  await page.evaluate(()=>window.fiqOpenJobPage('pB','rB','kB'));await page.locator('[data-job-go="cutting"]').click();
  assert.equal(await where(),'cutting|pB|kB');assert.equal(await page.locator('#fiqLibBar').count(),0,'bar only when you came from the Library');
+ // Sent version label, two wardrobes in one room, a job moved to the Library: each opens its OWN real unit and drawing
+ await page.evaluate(()=>{
+  const dr=c=>'data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><text x="5" y="50">'+c+'</text></svg>');
+  const mk=(id,n,l)=>{const p={id,code:'P-'+id,name:n,length:l,width:400,thickness:18,qty:1,material:'Birch',edgeLong:0,edgeShort:0,notes:'',status:'ready',x:20,y:30,copies:[]};p.reviewSignature=window.panelReviewSignature(p);return p};
+  state.projects.push({id:'pD',name:'Bedroom job',customer:'Anna Jensen',customerId:'cA',rooms:[{id:'rD',name:'Bedroom'},{id:'rE',name:'Hall'}],cabinets:[
+   {id:'kD1',roomId:'rD',name:'Wardrobe 1',drawing:dr('D1'),parts:[mk('d1','Door',2000)]},
+   {id:'kD2',roomId:'rD',name:'Wardrobe 2',drawing:dr('D2'),parts:[mk('d2','Shelf',900),mk('d3','Rail',880)]},
+   {id:'kE',roomId:'rE',name:'Hall shelf',drawing:dr('E'),parts:[mk('e1','Board',1100)],movedToLibraryAt:Date.now()}],jobLog:[],updatedAt:Date.now()});
+  window.fiqRecordSentCuttingList(state.projects.find(x=>x.id==='pD'),'rD','kD1');save();show('customers');openCustomerCard('cA')});
+ assert.match(await page.locator('[data-open-cutting-list-cabinet="kD1"]').innerText(),/V1/,'sent version shown on the button');
+ assert.match(await page.locator('[data-open-cutting-list-cabinet="kD2"]').innerText(),/V1/,'a room\'s units share the room\'s saved list');
+ assert.doesNotMatch(await page.locator('[data-open-cutting-list-cabinet="kE"]').innerText(),/V\d/,'a room never sent has no version');
+ for(const [cab,names,tag] of [['kD1',['Door'],'D1'],['kD2',['Shelf','Rail'],'D2'],['kE',['Board'],'E']]){
+  await page.locator(`[data-open-cutting-list-project="pD"][data-open-cutting-list-cabinet="${cab}"]`).click();
+  assert.equal(await page.evaluate(()=>state.currentCabinet),cab,'opens unit '+cab);
+  assert.deepEqual(await page.evaluate(()=>cabinet().parts.map(p=>p.name)),names,'its own panels');
+  const txt=await page.locator('#screen-cutting').innerText();names.forEach(n=>assert(txt.includes(n),cab+' list shows '+n));
+  assert.equal(await page.evaluate(()=>atob(cabinet().drawing.split(',')[1]).match(/>([^<]+)</)[1]),tag,'its own original drawing');
+  await page.evaluate(()=>show('mark'));assert.equal(await page.locator('#fiqLibBar').count(),1);
+  await page.locator('#fiqLibBar [data-lib-back]').click();assert.equal(await page.evaluate(()=>state.currentCustomerCard),'cA');
+ }
+ assert.deepEqual(await page.evaluate(()=>state.projects.find(x=>x.id==='pD').cabinets.map(c=>c.parts.map(p=>[p.name,p.length]))),[[['Door',2000]],[['Shelf',900],['Rail',880]],[['Board',1100]]],'nothing changed by opening them');
  // Reload while on the job: the way back survives, data intact
  await page.evaluate(()=>{show('customers');openCustomerCard('cA')});await page.locator('[data-open-cutting-list-project="pA"]').click();await page.waitForTimeout(600);await page.evaluate(()=>save());await page.waitForTimeout(800);
  await open();await page.waitForTimeout(1800);
@@ -67,7 +89,7 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
  assert.match(msg,/no longer in Studio/,'clear message for a missing job');
  // reload keeps data
  await page.evaluate(()=>{show('jobs');save()});await open();
- const re=await snap();assert.equal(re.projects.length,3);assert.equal(re.projects.find(p=>p.id==='pA').cabinets[0].parts[0].notes,'Edited in job');
+ const re=await snap();assert.equal(re.projects.length,4);assert.equal(re.projects.find(p=>p.id==='pA').cabinets[0].parts[0].notes,'Edited in job');
  assert.deepEqual(errors,[],'no page errors: '+errors.join('|'));
  console.log('PASS studio-library-navigation');await browser.close();server.close();
 })().catch(e=>{console.error('FAIL',e.message);process.exit(1)});

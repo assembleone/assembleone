@@ -774,6 +774,7 @@
   function stripSheet(x) { return { id: x.id, name: x.name, w: x.w, h: x.h, createdAt: x.createdAt, updatedAt: x.updatedAt, updatedBy: x.updatedBy || null }; }
   function sheetBackend() {
     if (window.fiqCustomSheetsBackend) return window.fiqCustomSheetsBackend;
+    if (window.fiqBetaGuard && !window.fiqBetaGuard.sheetsCloud()) return null; // Beta: cloud saving is off until switched on on this computer
     var u = user(), f = fsFns();
     if (!u || !u.uid || !u.companyId || !f || !f.setDoc || !f.deleteDoc || !f.getDocs || !f.collection || !f.doc) return null;
     var db = window.fiqFirestore, col = function () { return f.collection(db, 'companies', u.companyId, 'estimatorSheets'); };
@@ -796,6 +797,7 @@
     out.push('Signed in: ' + (u && u.uid ? 'yes' : 'no') + (u && u.role ? ' (role: ' + u.role + ')' : ''));
     out.push('Company: ' + (u && u.companyId ? u.companyId : 'none'));
     if (window.fiqCustomSheetsBackend) { out.push('Test backend in use (not the real cloud).'); return Promise.resolve(out.join('\n')); }
+    if (window.fiqBetaGuard && !window.fiqBetaGuard.sheetsCloud()) return Promise.resolve(out.concat('Cloud saving is switched OFF on this Beta computer. Turn it on first (button above), then test again.').join('\n'));
     if (!u || !u.uid || !u.companyId || !f) return Promise.resolve(out.concat('Cannot test: sign in with a company account first.').join('\n'));
     var ref = f.doc(window.fiqFirestore, 'companies', u.companyId, 'estimatorSheets', '_cloudcheck_' + u.uid.slice(0, 8));
     return f.setDoc(ref, { name: '_cloud check (safe to ignore)', w: 1, h: 1, createdAt: '', updatedAt: new Date().toISOString(), updatedBy: u.uid })
@@ -819,7 +821,7 @@
   }
   function syncSheets() {
     var be = sheetBackend();
-    if (!be) { csSync.state = 'local'; csSync.message = user() && user().uid ? 'The company cloud is not ready. Your sheets are saved on this computer.' : 'Saved on this computer only. Sign in to keep them in your company cloud.'; refreshSheetUi(); return Promise.resolve(); }
+    if (!be) { csSync.state = 'local'; csSync.message = (window.fiqBetaGuard && !window.fiqBetaGuard.sheetsCloud()) ? 'Cloud saving is switched OFF on this Beta computer, so sheets are saved on this computer only. Turn it on below once the company rule has been checked.' : user() && user().uid ? 'The company cloud is not ready. Your sheets are saved on this computer.' : 'Saved on this computer only. Sign in to keep them in your company cloud.'; refreshSheetUi(); return Promise.resolve(); }
     if (csSync.running) { csSync.again = true; return csSync.p; }
     csSync.running = true;
     csSync.p = be.list().then(function (cloud) {
@@ -886,7 +888,7 @@
     }).join('');
     o.innerHTML = '<div class="fiqx-win"><div class="fiqx-top"><h2>Custom Sheets</h2><span class="fiqx-sub">Your own sheet sizes. Choose one in any estimate instead of typing the size again.</span><span class="fiqx-sp"></span><button class="fiqx-btn" data-csact="close">Close</button></div>' +
       '<div class="fiqx-body single"><div>' +
-      '<div class="fiqx-card"><div id="fiqxCSStatus" class="' + (z.ok ? 'fiqx-csok' : 'fiqx-cswarn') + '">' + esc(z.text) + '</div><div class="fiqx-row" style="margin-top:8px"><button class="fiqx-btn" data-csact="check">Test company cloud</button></div><pre id="fiqxCSCheck" class="fiqx-sub" style="white-space:pre-wrap;margin:8px 0 0"></pre>' + (can ? '' : '<div class="fiqx-sub">This Studio window is read-only, so sheets cannot be changed here.</div>') + '</div>' +
+      '<div class="fiqx-card"><div id="fiqxCSStatus" class="' + (z.ok ? 'fiqx-csok' : 'fiqx-cswarn') + '">' + esc(z.text) + '</div><div class="fiqx-row" style="margin-top:8px"><button class="fiqx-btn" data-csact="check">Test company cloud</button>' + (window.fiqBetaGuard ? '<button class="fiqx-btn" data-csact="betacloud">' + (window.fiqBetaGuard.sheetsCloud() ? 'Turn cloud saving OFF (this Beta computer)' : 'Turn cloud saving ON (this Beta computer)') + '</button>' : '') + '</div><pre id="fiqxCSCheck" class="fiqx-sub" style="white-space:pre-wrap;margin:8px 0 0"></pre>' + (can ? '' : '<div class="fiqx-sub">This Studio window is read-only, so sheets cannot be changed here.</div>') + '</div>' +
       '<div class="fiqx-card"><h3>Saved sheets</h3>' + (list.length ? '<table class="fiqx-t" id="fiqxCSTable"><thead><tr><th>Name</th><th>Length mm</th><th>Width mm</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="fiqx-sub">No saved sheets yet. Add your first one below, for example Standard Melamine 2800 × 2070.</p>') +
       (cs.editing !== null && cs.error ? '<div class="fiqx-cserr">' + esc(cs.error) + '</div>' : '') + '</div>' +
       '<div class="fiqx-card"><h3>Add a sheet</h3><div class="fiqx-csform">' +
@@ -910,6 +912,11 @@
     var b = ev.target.closest && ev.target.closest('#fiqxCS [data-csact]'); if (!b) return; ev.preventDefault();
     var act = b.getAttribute('data-csact'), id = b.getAttribute('data-id');
     if (act === 'close') { var o = document.getElementById('fiqxCS'); if (o) o.remove(); var pl = document.getElementById('fiqxPL'); if (pl) renderPriceList(); else if (view) render(); return; }
+    if (act === 'betacloud' && window.fiqBetaGuard) {
+      var on = !window.fiqBetaGuard.sheetsCloud();
+      if (on && !confirm('Turn ON cloud saving for Custom Sheets on this Beta computer?\n\nThis writes to your real company data (only the Custom Sheets list). Only do this after the Firestore rule has been checked. Use sheet names starting with TEST.')) return;
+      window.fiqBetaGuard.setSheetsCloud(on); csSync.state = 'idle'; renderSheetManager(); return syncSheets();
+    }
     if (act === 'check') { var pre = document.getElementById('fiqxCSCheck'); if (pre) pre.textContent = 'Testing…'; return cloudCheck().then(function (t) { var q = document.getElementById('fiqxCSCheck'); if (q) q.textContent = t; }); }
     if (!canWrite()) return;
     if (act === 'add') {

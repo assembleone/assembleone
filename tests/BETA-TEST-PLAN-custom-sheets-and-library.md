@@ -9,6 +9,7 @@ Never deploy the whole `firestore.rules` file. Beta has a write guard: only Cust
 Mobile etc. is refused on Beta by design. Start every test sheet name with "TEST" and delete them afterwards.
 
 ## A. Cloud check (computer 1, Beta, signed in with the company account)
+0. Only after the rule has been added and checked (see RULES-ADDITION-estimatorSheets.md): Estimator, Price list, Custom sheets, press **Turn cloud saving ON (this Beta computer)** and confirm. It is OFF by default on every Beta computer; do this on each computer you test.
 1. Estimator, Price list, Custom sheets, press **Test company cloud**. Expected: Signed in yes, your company id, Write OK, Read OK, Delete OK.
    "permission-denied" means the rule is not published yet.
 2. Add "TEST Standard" 2800 x 2070 and "TEST Large" 3050 x 1300. Status line should say "Saved in your company cloud".

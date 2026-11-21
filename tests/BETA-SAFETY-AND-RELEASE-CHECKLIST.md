@@ -4,10 +4,11 @@ Beta (`/beta/`) separates only the **browser** (its own saved jobs, databases an
 Beta, Staging Studio and Production Studio all use the same Firebase project (assembleone-fabac): the same accounts, the same company data.
 
 ## Protection added on this branch: the Beta write guard (`beta/beta-write-guard.js`, Beta only)
-With it, a real account signed in on Beta can READ company data but cannot change it. Writes are allowed only to Custom Sheets
-(`companies/{id}/estimatorSheets`) and Beta's own backup area (`companies/{id}/fiqMaster/beta`). Refused: sending jobs to Mobile, marking phone
+With it, a real account signed in on Beta can READ company data but cannot change it. Writes are allowed only to Beta's own backup area
+(`companies/{id}/fiqMaster/beta`) and to Custom Sheets (`companies/{id}/estimatorSheets`) **and the Custom Sheets part stays OFF on each Beta computer until you press
+"Turn cloud saving ON" in the Custom Sheets screen** (the banner then adds "CUSTOM SHEETS CLOUD ON"). The automatic cloud copy cannot be switched on in Beta (it would bypass the guard). Refused: sending jobs to Mobile, marking phone
 updates as received, switching Mobile jobs on/off, team and fitter changes, device approval, price-list admin changes, photo uploads/deletes,
-cloud functions. Usage-log, user-record and support-ticket writes are quietly skipped. The red Beta banner says "LIVE-DATA WRITES OFF". Tested with
+cloud functions. Usage-log, user-record and support-ticket writes are quietly skipped. Beta is unmistakable: red frame around the whole window, red "BETA" tab icon, tab title starting "BETA", and a banner reading "BETA TEST COPY - NOT YOUR NORMAL FITTERSIQ STUDIO - LIVE-DATA WRITES OFF". Normal Studio has none of these. Tested with
 fake Firebase functions (`tests/beta-write-guard.cjs`); not yet seen with a real sign-in.
 
 ## Safe (local to your browser, even with your real account)

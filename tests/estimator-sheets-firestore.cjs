@@ -7,7 +7,7 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
  const server=http.createServer((req,res)=>{const f=path.join(root,decodeURIComponent(req.url.split('?')[0]));if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){res.statusCode=404;return res.end()}res.setHeader('Content-Type',types[path.extname(f)]||'application/octet-stream');res.end(fs.readFileSync(f))});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch();
  const store={};let denyWrites=false;
- async function computer(company,uid){
+ async function computer(company,uid,cloudOn=true){
   const ctx=await browser.newContext({viewport:{width:1300,height:800}});const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());
   await page.exposeFunction('fsSet',(p,d)=>{if(denyWrites){const e=new Error('denied');e.code='permission-denied';throw e}store[p]=JSON.parse(JSON.stringify(d))});
@@ -15,13 +15,20 @@ const root=path.resolve(__dirname,'..');const types={'.html':'text/html','.js':'
   await page.exposeFunction('fsList',c=>Object.keys(store).filter(k=>k.startsWith(c+'/')&&!k.slice(c.length+1).includes('/')).map(k=>({id:k.split('/').pop(),data:store[k]})));
   await page.goto(`http://127.0.0.1:${server.address().port}/beta/Studio.html`);
   await page.waitForFunction(()=>typeof save==='function'&&window.fiqEditor&&window.fiqEditor.role==='editor'&&typeof window.fiqOpenCustomSheets==='function',null,{timeout:60000});
-  await page.evaluate(([company,uid])=>{document.body.classList.remove('fiq-locked');const g=document.getElementById('fiqAuthGate');if(g)g.style.display='none';
+  await page.evaluate(([company,uid,cloudOn])=>{document.body.classList.remove('fiq-locked');const g=document.getElementById('fiqAuthGate');if(g)g.style.display='none';
    window.fiqFirestore={};const j=(db,...s)=>({path:s.join('/')});
    window.fiqAuthFns={doc:j,collection:j,setDoc:(r,d)=>window.fsSet(r.path,d),deleteDoc:r=>window.fsDel(r.path),getDoc:async r=>({exists:()=>false}),
      getDocs:async c=>({docs:(await window.fsList(c.path)).map(x=>({id:x.id,data:()=>x.data}))})};
-   window.fittersiqUser={uid,companyId:company,role:'company_owner'};},[company,uid]);
+   window.fittersiqUser={uid,companyId:company,role:'company_owner'};window.fiqBetaGuard.setSheetsCloud(cloudOn);},[company,uid,cloudOn]);
   return {page,errors};
  }
+ // Beta default: cloud saving OFF -> nothing leaves the computer, honest message, button offered
+ const OFF=await computer('coA','u0',false);await OFF.page.evaluate(()=>window.fiqOpenCustomSheets());await OFF.page.waitForSelector('#fiqxCS');
+ await OFF.page.fill('[data-csin="name"]','Local only');await OFF.page.fill('[data-csin="w"]','2000');await OFF.page.fill('[data-csin="h"]','1000');await OFF.page.click('[data-csact="add"]');await OFF.page.waitForTimeout(500);
+ assert.equal(Object.keys(store).length,0,'nothing written while cloud saving is off');assert.match(await OFF.page.innerText('#fiqxCSStatus'),/switched OFF/);
+ assert.match(await OFF.page.innerText('#fiqxCS'),/Turn cloud saving ON/);
+ await OFF.page.click('[data-csact="betacloud"]');await OFF.page.waitForTimeout(700);
+ assert.equal(Object.keys(store).length,1,'after switching on, the local sheet uploads');await OFF.page.click('[data-csact="delete"]');await OFF.page.waitForTimeout(500);assert.equal(Object.keys(store).length,0);
  const A1=await computer('coA','u1');
  await A1.page.evaluate(()=>window.fiqOpenCustomSheets());await A1.page.waitForSelector('#fiqxCS');
  await A1.page.fill('[data-csin="name"]','Standard Melamine');await A1.page.fill('[data-csin="w"]','2800');await A1.page.fill('[data-csin="h"]','2070');await A1.page.click('[data-csact="add"]');
