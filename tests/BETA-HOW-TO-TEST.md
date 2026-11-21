@@ -1,6 +1,6 @@
 # How to open Beta and test it with your real account (simple steps)
 
-**Do not do this until the checklist in `BETA-SAFETY-AND-RELEASE-CHECKLIST.md` says Beta has been published.** Nothing has been published yet.
+**Do not do this until the checklist in `BETA-SAFETY-AND-RELEASE-CHECKLIST.md` says Beta has been published.** Nothing has been published yet. The Beta address below is inferred, not verified: if it shows a 404, Beta has not been released or the address differs.
 
 ## 1. Open Beta (and know you are in Beta)
 - Open the address you normally use for Studio, then change the last part: where it ends `Studio.html`, make it end `beta/Studio.html`.
