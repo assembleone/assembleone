@@ -68,15 +68,9 @@
       var bodyClose=html.toLowerCase().lastIndexOf('</body>');
       // FittersIQ Estimator (spec v1.1): internal costing only, its own data (state.estimates, state.priceList).
       var estimator='<script src="'+here+'estimator-core.js?beta=1&ts='+stamp+'"><\/script><script src="'+here+'estimator-studio.js?beta=1&ts='+stamp+'"><\/script>';
-      // Brought level with Production (21 Nov 2026) so Beta shows the same Studio as the live one plus the changes being tested:
-      // Academy button, compact header, Estimate-or-job choice, Panel Check size check and Custom Part. These are Production's own files
-      // (found through the site-root <base> above), so nothing here is copied or changed.
-      var academy='<script src="academy-studio.js?build=93&beta=1&ts='+stamp+'"><\/script>';
-      var header='<script src="studio-header-compact.js?build=94&beta=1&ts='+stamp+'"><\/script>';
-      var stageChoice='<script src="studio-estimate-choice.js?build=95&beta=1&ts='+stamp+'"><\/script>';
-      var sizeCheck='<script src="panel-size-check.js?build=97&beta=1&ts='+stamp+'"><\/script>';
-      var customPart='<script src="studio-custom-part.js?build=100&beta=1&ts='+stamp+'"><\/script>';
-      html=html.slice(0,bodyClose)+patch+hardening+snapshot+cloud+estimator+academy+header+stageChoice+sizeCheck+customPart+banner+retitle+html.slice(bodyClose);
+      // Beta write guard: Beta shares the live Firebase project, so live-data writes are refused (see beta-write-guard.js). Runs first.
+      var guard='<script src="'+here+'beta-write-guard.js?beta=1&ts='+stamp+'"><\/script>';
+      html=html.slice(0,bodyClose)+guard+patch+hardening+snapshot+cloud+estimator+banner+retitle+html.slice(bodyClose);
       document.open();document.write(html);document.close();
     }catch(e){
       console.error(e);

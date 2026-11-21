@@ -1,7 +1,7 @@
 // Firestore rules test for Custom Sheets. Needs the Firebase emulator: npx firebase emulators:exec --only firestore --project demo-fiq "node tests/firestore-rules-estimator-sheets.cjs" (with @firebase/rules-unit-testing installed). Not run in the build container: the emulator download is blocked there.
 const {initializeTestEnvironment,assertSucceeds,assertFails}=require('@firebase/rules-unit-testing');const fs=require('fs');
 (async()=>{
- const env=await initializeTestEnvironment({projectId:'demo-fiq',firestore:{rules:fs.readFileSync(''+require('path').resolve(__dirname,'..','firestore.rules')+'','utf8'),host:'127.0.0.1',port:8080}});
+ const env=await initializeTestEnvironment({projectId:'demo-fiq',firestore:{rules:require('./firestore-rules-addition-check.cjs').compose().merged,host:'127.0.0.1',port:8080}});
  await env.withSecurityRulesDisabled(async c=>{const d=c.firestore();
   await d.doc('companies/A/members/alice').set({status:'active',role:'company_owner'});
   await d.doc('companies/A/members/gone').set({status:'inactive',role:'fitter'});

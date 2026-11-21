@@ -3,10 +3,10 @@
 Do not publish anything to Production. Beta shares the live Firebase project, so Custom Sheets made on Beta are real company data:
 **start every test sheet name with "TEST"** and delete them afterwards.
 
-## Before you can test Custom Sheets in the cloud (one-time, needs Mads or whoever deploys Firebase)
-The new rule in `firestore.rules` (block `estimatorSheets`) must be published to the Firebase project. It only adds a new private
-area; nothing existing changes. Until it is published, Custom Sheets still work but only on that one computer, and the screen says so.
-Publish with: `firebase deploy --only firestore:rules` (project assembleone-fabac). Not done by Claude.
+## Before you can test Custom Sheets in the cloud
+Read `RULES-ADDITION-estimatorSheets.md` (exact block, where it goes, Rules Playground checks, rollback) and `BETA-SAFETY-AND-RELEASE-CHECKLIST.md`.
+Never deploy the whole `firestore.rules` file. Beta has a write guard: only Custom Sheets can be written to the live company; sending jobs to
+Mobile etc. is refused on Beta by design. Start every test sheet name with "TEST" and delete them afterwards.
 
 ## A. Cloud check (computer 1, Beta, signed in with the company account)
 1. Estimator, Price list, Custom sheets, press **Test company cloud**. Expected: Signed in yes, your company id, Write OK, Read OK, Delete OK.
