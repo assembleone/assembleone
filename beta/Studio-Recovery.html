@@ -1480,7 +1480,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <button class="nav-btn" data-screen="parts" title="Panel Check" aria-label="Panel Check" data-i18n-title="studio.panelCheck.screenTitle" data-i18n-aria="studio.panelCheck.screenTitle"><span class="nav-colour-icon">🧩</span><span class="nav-word" data-i18n="studio.panelCheck.screenTitle">Panel Check</span></button>
 <button class="nav-btn" data-screen="qr" title="QR and Scan" aria-label="QR and Scan" data-i18n-title="studio.nav.qrAndScanTab" data-i18n-aria="studio.nav.qrAndScanTab"><span class="nav-colour-icon">📲</span><span class="nav-word" data-i18n="studio.nav.qrAndScanTab">QR and Scan</span></button>
 <button class="nav-btn" data-screen="cutting" title="Cutting List" aria-label="Cutting List" data-i18n-title="detail.cuttingList" data-i18n-aria="detail.cuttingList"><span class="nav-colour-icon">📋</span><span class="nav-word" data-i18n="detail.cuttingList">Cutting List</span></button>
-<small>Studio</small>
 </aside>
 <main class="main">
 <header class="header">
@@ -3860,7 +3859,7 @@ function renderCustomerCard(){
      `<span class="customer-tab-row-chevron">›</span>`+
    `</button>`;
    const sentVersions=typeof window.fiqSentVersionCount==='function'?window.fiqSentVersionCount(p.id,room?room.id:"",cabinet.id):0;
-   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn${sentVersions?' has-sent':''}" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" data-open-cutting-list-cabinet="${safe(cabinet.id)}" title="${sentVersions?'Sent Cutting List, version '+sentVersions:'No Cutting List sent yet'}">📋 ${t("detail.cuttingList")}${sentVersions?' · V'+sentVersions:''}</button>`;
+   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn${sentVersions?' has-sent':''}" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" data-open-cutting-list-cabinet="${safe(cabinet.id)}" title="${sentVersions?'Open this job\'s Cutting List (saved as version '+sentVersions+')':'Open this job\'s Cutting List (not sent yet)'}">📋 ${t("detail.cuttingList")}${sentVersions?' · V'+sentVersions:''}</button>`;
    const evidenceCount=typeof window.fiqJobEvidenceCount==='function'?window.fiqJobEvidenceCount(p.id,room?room.id:"",cabinet.id):0;
    const evidenceBtn=evidenceCount?`<button type="button" class="customer-cutting-list-btn customer-evidence-btn" data-open-job-evidence="${safe(room?room.id:"")}" data-open-job-evidence-project="${safe(p.id)}" data-open-job-evidence-cabinet="${safe(cabinet.id)}" title="Photos and notes kept with this job">📷 ${evidenceCount}</button>`:"";
    const overflowHtml=`<div class="customer-row-overflow"><button type="button" class="customer-row-overflow-btn" data-overflow-toggle title="${t("studio.customerLibrary.jobOptionsMenuTitle")}">⋮</button><div class="customer-row-overflow-menu" hidden><button type="button" class="customer-row-overflow-item" data-delete-customer-job="${safe(p.id)}">🗑 ${t("detail.delete")}</button></div></div>`;
@@ -3909,6 +3908,7 @@ function renderCustomerCard(){
  body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=e=>{
   // The green "Cutting List sent" label opens the saved list itself; the rest of the row keeps its menu.
   if(e&&e.target&&e.target.closest("[data-chip-open-list]")){window.fiqOpenSentCuttingList(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet);return}
+  if(window.fiqLibNav)window.fiqLibNav.set(el.dataset.openJobDesignProject);
   window.fiqOpenJobPage(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet)});
  body.querySelectorAll("[data-job-sheet],[data-job-labels]").forEach(el=>el.onclick=e=>{e.stopPropagation();const id=el.dataset.jobSheet||el.dataset.jobLabels,pr=state.projects.find(x=>x.id===id),fn=el.dataset.jobLabels?window.fiqDownloadLabelFile:window.fiqDownloadJobSheet;if(pr&&typeof fn==="function"){const r=fn(pr);if(!r)alert("No panels in "+(pr.name||"this job")+" are ready for the supplier yet.")}});
  body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>window.fiqOpenSentCuttingList(el.dataset.openCuttingListProject,el.dataset.openCuttingList,el.dataset.openCuttingListCabinet));
@@ -12510,6 +12510,7 @@ body.fiq-locked .app{display:none!important}
     '<button type="button" class="btn" data-job-go="overview">Overview</button>'+
     '<button type="button" class="btn" data-job-go="drawing">Drawing</button>'+
     '<button type="button" class="btn primary" data-job-go="cutting">Cutting List</button>'+
+    '<button type="button" class="btn" data-job-go="saved">Saved versions</button>'+
     '<button type="button" class="btn" data-job-go="panelcheck">Panel Check</button>'+
     '<button type="button" class="btn" data-job-go="site"'+(hasSite?'':' disabled')+'>Site Measure</button>'+
     '<button type="button" class="btn" data-job-go="notes">Notes</button>'+
@@ -12544,9 +12545,10 @@ body.fiq-locked .app{display:none!important}
    const back=o.querySelector('[data-job-back]');if(back)back.onclick=home;
    o.querySelectorAll('[data-job-go]').forEach(b=>b.onclick=()=>{
     const go=b.dataset.jobGo;
-    if(go==='cutting')return cutting(true);
+    if(go==='saved')return cutting(true);
     if(go==='evidence')return evidence(true);
     close();
+    if(go==='cutting'){ if(!cab)return cutting(false); return openLiveCutting(p.id,roomId||'',cab.id); }
     if(go==='drawing')return openJobDesignForRoom(p.id,roomId||'',cab&&cab.id);
     if(go==='panelcheck'){if(!cab)return;switchToProject(p.id,cab.id);renderAll();save();return show('parts')}
     if(go==='site')return openSiteRoomDetails(p.id,roomId);
@@ -12575,7 +12577,51 @@ body.fiq-locked .app{display:none!important}
  window.fiqSentVersionCount=(projectId,roomId,cabinetId)=>{const p=state.projects.find(x=>x.id===projectId);return p?versionsOf(p,jobKeyFor(roomId||'',cabinetId||'')).length:0};
  window.fiqOpenJobPage=openJobPage;
  window.fiqOpenJobEvidence=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'evidence');
- window.fiqOpenSentCuttingList=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'cutting');
+ // The Customer Library's Cutting List button opens the job's REAL cutting list (same job, same drawing, same panels) and
+ // leaves a way back. Only when the job has no unit to open does it fall back to the read-only saved copy.
+ function openLiveCutting(projectId,roomId,cabinetId){
+  const p=state.projects.find(x=>x.id===projectId);if(!p)return;
+  const cab=(cabinetId&&(p.cabinets||[]).find(c=>c.id===cabinetId))||(roomId?(p.cabinets||[]).find(c=>c.roomId===roomId):(p.cabinets||[])[0]);
+  if(!cab)return openJobPage(projectId,roomId,cabinetId,'cutting');
+  const key=jobKeyFor(roomId||'',cab.id),n=versionsOf(p,key).length;
+  if(window.fiqLibNav)window.fiqLibNav.note(n?'Cutting List · saved as V'+n:'Cutting List',jobTitle(p,key));
+  openCuttingListForRoom(projectId,roomId||'',cab.id);
+ }
+ window.fiqOpenSentCuttingList=(projectId,roomId,cabinetId)=>{if(window.fiqLibNav)window.fiqLibNav.set(projectId);openLiveCutting(projectId,roomId,cabinetId)};
+ window.fiqOpenSavedCuttingVersions=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'cutting');
+})();
+</script>
+<script id="fiq-library-return-script">
+(function(){
+  // Way back to the Customer Library (21 Nov 2026). Opening a job from a customer's card remembers that card; while the job's
+  // Drawing, Cutting List or Panel Check is open a small bar returns to the same customer. It is only a pointer: it saves nothing,
+  // changes nothing, and is dropped when the person reaches the Library, Job Overview or Home by any route.
+  let ctx=null;
+  const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function customerOf(pid){const p=state.projects.find(x=>x.id===pid);if(!p)return null;return state.customers.find(c=>c.id===p.customerId)||state.customers.find(c=>c.name&&c.name===p.customer)||null}
+  function bar(){
+    let b=document.getElementById('fiqLibBar');
+    const scr=state.screen;
+    if(ctx&&['customers','jobs','home'].includes(scr))ctx=null;
+    const hide=!ctx||scr==='customerCard';
+    if(hide){if(b)b.remove();return}
+    if(!b){b=document.createElement('div');b.id='fiqLibBar';b.setAttribute('role','navigation');document.body.appendChild(b)}
+    const c=customerOf(ctx.projectId),p=state.projects.find(x=>x.id===ctx.projectId);
+    b.innerHTML='<button type="button" class="btn primary" data-lib-back>← '+(c?'Back to '+esc(c.name):'Back to Customer Library')+'</button>'+
+      '<span class="fiq-lib-where">'+(ctx.label?'<b>'+esc(ctx.label)+'</b>':'')+(ctx.job||p?' · '+esc(ctx.job||(p&&p.name)||''):'')+'</span>';
+    b.querySelector('[data-lib-back]').onclick=back;
+  }
+  function back(){
+    const c=ctx&&customerOf(ctx.projectId);ctx=null;
+    try{save()}catch(e){}
+    if(c){openCustomerCard(c.id)}else{show('customers');if(typeof renderAll==='function')renderAll()}
+    bar();
+  }
+  window.fiqLibNav={set(pid){ctx={projectId:pid,label:'',job:''};bar()},note(label,job){if(ctx){ctx.label=label;ctx.job=job;}},active:()=>!!ctx,clear(){ctx=null;bar()},back,render:bar,state:()=>ctx};
+  const orig=window.show;
+  window.show=function(name){const r=orig.apply(this,arguments);try{bar()}catch(e){}return r};
+  const css=document.createElement('style');css.textContent='#fiqLibBar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9500;display:flex;gap:10px;align-items:center;background:#0b1730;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 8px 6px 6px;box-shadow:0 6px 22px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}#fiqLibBar .btn{border-radius:999px;white-space:nowrap}#fiqLibBar .fiq-lib-where{font-size:13px;opacity:.9;padding-right:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media print{#fiqLibBar{display:none!important}}';
+  document.head.appendChild(css);
 })();
 </script>
 <script id="a222-cutting-list-return-script">

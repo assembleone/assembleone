@@ -18,7 +18,7 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  page.on('dialog',d=>d.accept());
  await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,r=>r.abort());
- const url=`http://127.0.0.1:${server.address().port}/Studio.html`;
+ const url=`http://127.0.0.1:${server.address().port}${process.env.FIQ_PAGE||'/Studio.html'}`;
  async function open(){
   await page.goto(url);
   await page.waitForFunction(()=>typeof finishDesignToCard==='function'&&typeof openCuttingListForRoom==='function');
@@ -79,11 +79,11 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  await libraryButton.click();
  assert.equal(await page.evaluate(()=>[state.screen,state.currentProject,state.currentCabinet].join('|')),'cutting|p1|c1');
  const listText=await page.locator('#screen-cutting').innerText();
- ['P-001','P-002','P-003'].forEach(code=>assert(listText.includes(code),'Cutting List shows '+code));
+ ['Side','Shelf','Top','720','1200','Walnut','Grain up'].forEach(t=>assert(listText.includes(t),'Cutting List shows '+t));
  const download=page.waitForEvent('download');
- await page.locator('#exportSupplierCsvBtn').click();
+ await page.evaluate(()=>document.getElementById('exportSupplierCsvBtn').click());
  const csv=fs.readFileSync(await (await download).path(),'utf8');
- assert.match(csv,/P-001/);assert.match(csv,/1200/);assert.match(csv,/Walnut/);
+ assert.match(csv,/KT1/);assert.match(csv,/1200/);assert.match(csv,/Walnut/);
  await page.evaluate(()=>{const pt=state.projects.find(x=>x.id==='p1').cabinets[0].parts.find(x=>x.id==='pt-top');pt.notes='Check wall';pt.reviewSignature=window.panelReviewSignature(pt);save()});
  await page.evaluate(()=>{show('jobs');renderAll()});
  assert.equal(await page.evaluate(()=>state.projects.filter(x=>x.id==='p1').length),1,'editing from the Library changes the one record, no duplicate job');
@@ -154,12 +154,12 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
  assert.equal(await page.evaluate(()=>state.customers.filter(c=>customerKeyFor(c.name)==='anna jensen').length),1,'no duplicate customer');
  await open();
  await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
- for(const [cab,codes] of [['c2a',['P-001']],['c2b',['P-001','P-002']],['c2c',['P-001']]]){
+ for(const [cab,codes] of [['c2a',['Door']],['c2b',['Shelf','Rail']],['c2c',['Board']]]){
   const btn=page.locator(`[data-open-cutting-list-project="p2"][data-open-cutting-list-cabinet="${cab}"]`);
   assert.equal(await btn.count(),1,'Library has a Cutting List button for unit '+cab);
   await btn.click();
   assert.equal(await page.evaluate(()=>state.currentCabinet),cab,'opens that unit');
-  assert.deepEqual(await page.evaluate(()=>cabinet().parts.map(p=>p.code)),codes);
+  assert.deepEqual(await page.evaluate(()=>cabinet().parts.map(p=>p.name)),codes,'that unit\'s own panels');
   await page.evaluate(()=>{show('customers');openCustomerCard('cust-anna')});
  }
  const libText=await page.locator('#customerCardBody').innerText();
