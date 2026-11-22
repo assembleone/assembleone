@@ -763,7 +763,7 @@
   // which only the company's active members can read or write (see firestore.rules), so they follow the login to any computer.
   // A sheet typed while offline, or before the cloud rule is published, stays here and is uploaded on the next sync.
   // An estimate copies a size as plain numbers: editing or deleting a saved sheet never changes an estimate that used it.
-  var cs = { editing: null, error: '', form: { name: '', w: '', h: '' }, edit: { name: '', w: '', h: '' } };
+  var cs = { editing: null, error: '', form: { name: '', w: '', h: '', t: '' }, edit: { name: '', w: '', h: '', t: '' } };
   var csSync = { running: false, again: false, state: 'idle', message: '', p: null };
   function sheets() { var s = st(); return C.sortSheets((s && Array.isArray(s.customSheets)) ? s.customSheets : []); }
   function writeSheets(fn) {
@@ -771,7 +771,7 @@
     if (!Array.isArray(s.customSheets)) s.customSheets = []; if (!Array.isArray(s.customSheetsDeleted)) s.customSheetsDeleted = [];
     fn(s); persist(true); return true;
   }
-  function stripSheet(x) { return { id: x.id, name: x.name, w: x.w, h: x.h, createdAt: x.createdAt, updatedAt: x.updatedAt, updatedBy: x.updatedBy || null }; }
+  function stripSheet(x) { var o = { id: x.id, name: x.name, w: x.w, h: x.h, createdAt: x.createdAt, updatedAt: x.updatedAt, updatedBy: x.updatedBy || null }; if (x.t) o.t = x.t; return o; }
   function sheetBackend() {
     if (window.fiqCustomSheetsBackend) return window.fiqCustomSheetsBackend;
     if (window.fiqBetaGuard && !window.fiqBetaGuard.sheetsCloud()) return null; // Beta: cloud saving is off until switched on on this computer
@@ -783,11 +783,11 @@
         return f.getDocs(col()).then(function (q) {
           return q.docs.map(function (d) {
             var x = d.data() || {}, w = Number(x.w), h = Number(x.h); if (!x.name || !isFinite(w) || !isFinite(h)) return null;
-            return { id: d.id, name: String(x.name), w: w, h: h, createdAt: x.createdAt || x.updatedAt || '', updatedAt: x.updatedAt || '', updatedBy: x.updatedBy || null };
+            var r = { id: d.id, name: String(x.name), w: w, h: h, createdAt: x.createdAt || x.updatedAt || '', updatedAt: x.updatedAt || '', updatedBy: x.updatedBy || null }; if (Number(x.t) > 0) r.t = Number(x.t); return r;
           }).filter(function (x) { return x && !/^_cloudcheck_/.test(x.id); });
         });
       },
-      put: function (sh) { var x = stripSheet(sh); return f.setDoc(f.doc(db, 'companies', u.companyId, 'estimatorSheets', x.id), { name: x.name, w: x.w, h: x.h, createdAt: String(x.createdAt || ''), updatedAt: String(x.updatedAt || ''), updatedBy: x.updatedBy || '' }); },
+      put: function (sh) { var x = stripSheet(sh), d = { name: x.name, w: x.w, h: x.h, createdAt: String(x.createdAt || ''), updatedAt: String(x.updatedAt || ''), updatedBy: x.updatedBy || '' }; if (x.t) d.t = x.t; return f.setDoc(f.doc(db, 'companies', u.companyId, 'estimatorSheets', x.id), d); },
       remove: function (id) { return f.deleteDoc(f.doc(db, 'companies', u.companyId, 'estimatorSheets', id)); }
     };
   }
@@ -873,7 +873,7 @@
   function openSheetManager(prefill) {
     ensureStyle(); var o = overlay('fiqxCS'); o.style.zIndex = 99998; padForBanner(o);
     cs.editing = null; cs.error = '';
-    cs.form = prefill && prefill.w ? { name: '', w: String(prefill.w), h: String(prefill.h) } : { name: '', w: '', h: '' };
+    cs.form = prefill && prefill.w ? { name: '', w: String(prefill.w), h: String(prefill.h), t: prefill.t ? String(prefill.t) : '' } : { name: '', w: '', h: '', t: '' };
     renderSheetManager(); syncSheets();
     if (prefill && prefill.w) { var n = o.querySelector('[data-csin="name"]'); if (n) n.focus(); }
   }
@@ -881,20 +881,21 @@
     var o = document.getElementById('fiqxCS'); if (!o) return;
     var list = sheets(), can = canWrite(), dis = can ? '' : ' disabled', z = sheetStatusText();
     var rows = list.map(function (x) {
-      if (cs.editing === x.id) return '<tr><td><input class="fiqx-in wide" value="' + esc(cs.edit.name) + '" data-csedit="name" aria-label="Sheet name"></td><td><input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.edit.w) + '" data-csedit="w" aria-label="Length mm"></td><td><input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.edit.h) + '" data-csedit="h" aria-label="Width mm"></td>' +
+      if (cs.editing === x.id) return '<tr><td><input class="fiqx-in wide" value="' + esc(cs.edit.name) + '" data-csedit="name" aria-label="Sheet name"></td><td><input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.edit.w) + '" data-csedit="w" aria-label="Length mm"></td><td><input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.edit.h) + '" data-csedit="h" aria-label="Width mm"></td><td><input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.edit.t) + '" data-csedit="t" aria-label="Thickness mm"></td>' +
         '<td><button class="fiqx-btn fiqx-pri" data-csact="save" data-id="' + esc(x.id) + '">Save</button> <button class="fiqx-btn" data-csact="cancel">Cancel</button></td></tr>';
-      return '<tr data-sheet-row="' + esc(x.id) + '"><td><strong>' + esc(x.name) + '</strong>' + (x.synced === false ? ' <span class="fiqx-sub">(not in the cloud yet)</span>' : '') + '</td><td>' + x.w + '</td><td>' + x.h + '</td>' +
+      return '<tr data-sheet-row="' + esc(x.id) + '"><td><strong>' + esc(x.name) + '</strong>' + (x.synced === false ? ' <span class="fiqx-sub">(not in the cloud yet)</span>' : '') + '</td><td>' + x.w + '</td><td>' + x.h + '</td><td>' + (x.t || '') + '</td>' +
         '<td><button class="fiqx-btn" data-csact="edit" data-id="' + esc(x.id) + '"' + dis + '>Edit</button> <button class="fiqx-btn" data-csact="delete" data-id="' + esc(x.id) + '"' + dis + '>Delete</button></td></tr>';
     }).join('');
     o.innerHTML = '<div class="fiqx-win"><div class="fiqx-top"><h2>Custom Sheets</h2><span class="fiqx-sub">Your own sheet sizes. Choose one in any estimate instead of typing the size again.</span><span class="fiqx-sp"></span><button class="fiqx-btn" data-csact="close">Close</button></div>' +
       '<div class="fiqx-body single"><div>' +
       '<div class="fiqx-card"><div id="fiqxCSStatus" class="' + (z.ok ? 'fiqx-csok' : 'fiqx-cswarn') + '">' + esc(z.text) + '</div><div class="fiqx-row" style="margin-top:8px"><button class="fiqx-btn" data-csact="check">Test company cloud</button>' + (window.fiqBetaGuard ? '<button class="fiqx-btn" data-csact="betacloud">' + (window.fiqBetaGuard.sheetsCloud() ? 'Turn cloud saving OFF (this Beta computer)' : 'Turn cloud saving ON (this Beta computer)') + '</button>' : '') + '</div><pre id="fiqxCSCheck" class="fiqx-sub" style="white-space:pre-wrap;margin:8px 0 0"></pre>' + (can ? '' : '<div class="fiqx-sub">This Studio window is read-only, so sheets cannot be changed here.</div>') + '</div>' +
-      '<div class="fiqx-card"><h3>Saved sheets</h3>' + (list.length ? '<table class="fiqx-t" id="fiqxCSTable"><thead><tr><th>Name</th><th>Length mm</th><th>Width mm</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="fiqx-sub">No saved sheets yet. Add your first one below, for example Standard Melamine 2800 × 2070.</p>') +
+      '<div class="fiqx-card"><h3>Saved sheets</h3>' + (list.length ? '<table class="fiqx-t" id="fiqxCSTable"><thead><tr><th>Name</th><th>Length mm</th><th>Width mm</th><th>Thickness mm</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="fiqx-sub">No saved sheets yet. Add your first one below, for example Standard Melamine 2800 × 2070.</p>') +
       (cs.editing !== null && cs.error ? '<div class="fiqx-cserr">' + esc(cs.error) + '</div>' : '') + '</div>' +
       '<div class="fiqx-card"><h3>Add a sheet</h3><div class="fiqx-csform">' +
       field('Name', '<input class="fiqx-in" value="' + esc(cs.form.name) + '" placeholder="e.g. Standard Melamine" data-csin="name"' + dis + '>') +
       field('Length mm', '<input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.form.w) + '" placeholder="2800" data-csin="w"' + dis + '>') +
       field('Width mm', '<input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.form.h) + '" placeholder="2070" data-csin="h"' + dis + '>') +
+      field('Thickness mm', '<input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.form.t) + '" placeholder="optional" data-csin="t"' + dis + '>') +
       '<button class="fiqx-btn fiqx-pri" data-csact="add"' + dis + '>Save sheet</button></div>' +
       (cs.editing === null && cs.error ? '<div class="fiqx-cserr">' + esc(cs.error) + '</div>' : '') + '</div></div></div></div>';
   }
@@ -921,9 +922,9 @@
     if (!canWrite()) return;
     if (act === 'add') {
       var v = C.validateSheet(cs.form, sheets()); if (!v.ok) { cs.error = v.problems.join(' '); return renderSheetManager(); }
-      addSheet(v.sheet); cs.form = { name: '', w: '', h: '' }; cs.error = ''; return renderSheetManager();
+      addSheet(v.sheet); cs.form = { name: '', w: '', h: '', t: '' }; cs.error = ''; return renderSheetManager();
     }
-    if (act === 'edit') { var x = sheets().find(function (y) { return y.id === id; }); if (!x) return; cs.editing = id; cs.error = ''; cs.edit = { name: x.name, w: String(x.w), h: String(x.h) }; return renderSheetManager(); }
+    if (act === 'edit') { var x = sheets().find(function (y) { return y.id === id; }); if (!x) return; cs.editing = id; cs.error = ''; cs.edit = { name: x.name, w: String(x.w), h: String(x.h), t: x.t ? String(x.t) : '' }; return renderSheetManager(); }
     if (act === 'cancel') { cs.editing = null; cs.error = ''; return renderSheetManager(); }
     if (act === 'save') {
       var v2 = C.validateSheet(cs.edit, sheets().filter(function (y) { return y.id !== id; })); if (!v2.ok) { cs.error = v2.problems.join(' '); return renderSheetManager(); }
@@ -936,10 +937,10 @@
     }
   });
   window.fiqOpenCustomSheets = openSheetManager;
-  window.fiqCustomSheets = { list: sheets, sync: syncSheets, status: function () { return { state: csSync.state, message: csSync.message }; } };
+  window.fiqCustomSheets = { list: sheets, add: function (f) { if (!canWrite()) return { ok: false, problems: ['This Studio window is view only.'] }; var v = C.validateSheet(f, sheets()); if (!v.ok) return v; addSheet(v.sheet); return v; }, remove: function (id) { return canWrite() && deleteSheet(id); }, sync: syncSheets, status: function () { return { state: csSync.state, message: csSync.message }; } };
   function sheetsCss() {
     return '.fiqx-cspick{margin:0 0 10px;gap:8px;flex-wrap:wrap;align-items:center}.fiqx-cspick .fiqx-in{min-width:220px;max-width:100%}' +
-      '.fiqx-cur{display:inline-flex;gap:6px;align-items:center}.fiqx-csform{display:grid;grid-template-columns:minmax(160px,2fr) 1fr 1fr auto;gap:10px;align-items:end}' +
+      '.fiqx-cur{display:inline-flex;gap:6px;align-items:center}.fiqx-csform{display:grid;grid-template-columns:minmax(160px,2fr) 1fr 1fr 1fr auto;gap:10px;align-items:end}' +
       '.fiqx-csok{color:#0b4a24;font-weight:800}.fiqx-cswarn{color:#7a4b00;font-weight:800}.fiqx-cserr{color:#8e0f1a;font-weight:800;margin-top:10px}' +
       '@media(max-width:700px){.fiqx-csform{grid-template-columns:1fr 1fr}.fiqx-csform .fiqx-pri{grid-column:1 / -1}}';
   }

@@ -3,9 +3,10 @@
       match /estimatorSheets/{sheetId} {
         allow read, delete: if isFittersIQAdmin() || isCompanyMember(companyId);
         allow create, update: if (isFittersIQAdmin() || isCompanyMember(companyId))
-          && request.resource.data.keys().hasOnly(['name', 'w', 'h', 'createdAt', 'updatedAt', 'updatedBy'])
+          && request.resource.data.keys().hasOnly(['name', 'w', 'h', 't', 'createdAt', 'updatedAt', 'updatedBy'])
           && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
           && request.resource.data.w is number && request.resource.data.w > 0 && request.resource.data.w <= 20000
-          && request.resource.data.h is number && request.resource.data.h > 0 && request.resource.data.h <= 20000;
+          && request.resource.data.h is number && request.resource.data.h > 0 && request.resource.data.h <= 20000
+          && (!('t' in request.resource.data) || (request.resource.data.t is number && request.resource.data.t > 0 && request.resource.data.t <= 500));
       }
 

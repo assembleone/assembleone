@@ -24,6 +24,9 @@ const {initializeTestEnvironment,assertSucceeds,assertFails}=require('@firebase/
  await t('text size refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,w:'2800'})));
  await t('extra field refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,evil:1})));
  await t('empty name refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,name:''})));
+ await t('thickness accepted',assertSucceeds(alice.doc('companies/A/estimatorSheets/t1').set({...sheet,t:19})));
+ await t('bad thickness refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,t:-1})));
+ await t('text thickness refused',assertFails(alice.doc('companies/A/estimatorSheets/x').set({...sheet,t:'19'})));
  await t('existing jobs rule unchanged: member can read jobs',assertSucceeds(alice.collection('companies/A/jobs').get()));
  await t('existing jobs rule unchanged: other company cannot',assertFails(bob.collection('companies/A/jobs').get()));
  console.log(R.join('\n'));await env.cleanup();

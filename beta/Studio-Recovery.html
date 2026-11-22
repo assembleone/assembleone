@@ -9552,6 +9552,7 @@ body.fiq-locked .app{display:none!important}
 .sheet-optim-sheet{border:1px solid var(--line);border-radius:10px;padding:8px;background:#fafcff;width:340px}
 .sheet-optim-sheet svg{display:block;width:100%;height:auto;border-radius:4px}
 .sheet-optim-sheet .sheet-caption{font-size:12px;font-weight:800;margin-top:6px;color:#3a4658}
+.my-sheets{margin:10px 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fbfcff}.my-sheets h4{margin:0 0 8px;font-size:17px}.my-sheets-table{border-collapse:collapse;margin:0 0 10px;font-size:13px}.my-sheets-table th,.my-sheets-table td{text-align:left;padding:4px 14px 4px 0}.my-sheets-form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.my-sheets-form label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:800;color:#5c5668}.my-sheets-form input{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit;width:110px}.my-sheets-form input[data-mysheet-in=name]{width:190px}
 .sheet-optim-recalc{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer}
 </style>
 <script id="a181-sheet-optimiser-script">
@@ -9740,9 +9741,9 @@ body.fiq-locked .app{display:none!important}
     var saved=savedSheetList(),smatch=saved.findIndex(function(x){return x.w===cfg.w&&x.h===cfg.h});
     var custom=cfg.custom||(match<0&&smatch<0);
     var opts=pre.list.map(function(d,i){return '<option value="'+d[0]+'x'+d[1]+'"'+(!custom&&i===match?' selected':'')+'>'+d[0]+' × '+d[1]+' mm'+(i===0?' (default)':'')+'</option>'}).join('')+
-      (saved.length?'<optgroup label="My saved sheets">'+saved.map(function(x,i){return '<option value="'+x.w+'x'+x.h+'"'+(!custom&&match<0&&i===smatch?' selected':'')+'>'+safe(x.name)+' · '+x.w+' × '+x.h+' mm</option>'}).join('')+'</optgroup>':'')+
+      (saved.length?'<optgroup label="My saved sheets">'+saved.map(function(x,i){return '<option value="'+x.w+'x'+x.h+'"'+(!custom&&match<0&&i===smatch?' selected':'')+'>'+safe(x.name)+' · '+x.w+' × '+x.h+' mm'+(x.t?' · '+x.t+' mm thick':'')+'</option>'}).join('')+'</optgroup>':'')+
       '<option value="custom"'+(custom?' selected':'')+'>Custom…</option>';
-    var tools=window.fiqOpenCustomSheets?'<span class="sheet-size-custom"><button type="button" class="sheet-optim-recalc" data-sheet-save="'+idx+'">Save this size…</button><button type="button" class="sheet-optim-recalc" data-sheet-manage="'+idx+'">My sheets…</button></span>':'';
+    var tools=window.fiqCustomSheets?'<span class="sheet-size-custom"><button type="button" class="sheet-optim-recalc" data-sheet-save="'+idx+'">Save this size…</button></span>':'';
     return '<label class="sheet-size-pick">Sheet size'+(pre.type?' <small>'+pre.type+'</small>':'')+'<select data-sheet-preset="'+idx+'">'+opts+'</select></label>'+
       (custom?'<span class="sheet-size-custom"><label>'+t("studio.supplier.sheetLengthLabel")+'<small>'+t("studio.supplier.grainDirectionHint")+'</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
       '<label>'+t("studio.supplier.sheetWidthLabel")+'<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label></span>':'')+tools;
@@ -9869,11 +9870,12 @@ body.fiq-locked .app{display:none!important}
         if(typeof window.fiqRenderCustomerSheets==='function')window.fiqRenderCustomerSheets();
       });
     });
-    box.querySelectorAll('[data-sheet-save],[data-sheet-manage]').forEach(function(b){
+    box.querySelectorAll('[data-sheet-save]').forEach(function(b){
       b.addEventListener('click',function(){
-        var idx=Number(b.dataset.sheetSave??b.dataset.sheetManage),g=groups[idx];
-        if(!window.fiqOpenCustomSheets)return;
-        window.fiqOpenCustomSheets(b.dataset.sheetSave!=null&&g?{w:g.cfg.w,h:g.cfg.h}:undefined);
+        var g=groups[Number(b.dataset.sheetSave)];if(!g)return;
+        mySheetsDraft={name:'',w:String(g.cfg.w),h:String(g.cfg.h),t:String(Number(g.thickness)||'')};mySheetsError='';renderMySheets();
+        var el=document.getElementById('fiqMySheets'),n=el&&el.querySelector('[data-mysheet-in="name"]');
+        if(el)el.scrollIntoView({block:'center'});if(n)n.focus();
       })});
     if(box.id==='sheetOptimiserBody')lastGroups=groups;
     return groups;
@@ -9885,6 +9887,7 @@ body.fiq-locked .app{display:none!important}
     var jprA=(typeof project==='function')?project():null;
     var jobD=(window.__fiqCutScope!=='unit'&&jprA&&(jprA.cabinets||[]).length>1&&typeof window.fiqWholeJobCollect==='function')?window.fiqWholeJobCollect():null;
     var parts=jobD?jobD.panels.map(function(x){return x.copy}):((typeof supplierParts==='function')?supplierParts():[]);
+    renderMySheets();
     lastGroups=renderInto(box,parts,t("studio.supplier.sheetOptimEmptySupplier"));
     if(!parts.length){window.a181SheetOptimPrintHtml=function(){return ''};return}
     var pr=(typeof project==='function')?project():null,unit=(typeof cabinet==='function')?cabinet():null;
@@ -9894,10 +9897,40 @@ body.fiq-locked .app{display:none!important}
   }
 
   var toggleBtn=document.getElementById('sheetOptimiserToggleBtn'),card=document.getElementById('sheetOptimiserCard');
+  // ---- My Custom Sheets (Beta, 22 Nov 2026): a small section at the top of the Sheet Optimiser ----
+  var mySheetsDraft={name:'',w:'',h:'',t:''},mySheetsError='';
+  function mySheetsEl(){
+    var el=document.getElementById('fiqMySheets');if(el)return el;
+    var body=document.getElementById('sheetOptimiserBody');if(!body||!body.parentNode)return null;
+    el=document.createElement('div');el.id='fiqMySheets';el.className='my-sheets';body.parentNode.insertBefore(el,body);return el;
+  }
+  function renderMySheets(){
+    var el=mySheetsEl();if(!el)return;
+    var api=window.fiqCustomSheets;
+    if(!api){el.innerHTML='';return}
+    var list=savedSheetList(),d=mySheetsDraft;
+    el.innerHTML='<h4>My Custom Sheets</h4>'+
+     (list.length?'<table class="my-sheets-table"><thead><tr><th>Name</th><th>Length mm</th><th>Width mm</th><th>Thickness mm</th><th></th></tr></thead><tbody>'+list.map(function(x){return '<tr><td><b>'+safe(x.name)+'</b></td><td>'+x.w+'</td><td>'+x.h+'</td><td>'+(x.t||'')+'</td><td><button type="button" class="sheet-optim-recalc" data-mysheet-remove="'+safe(x.id)+'">Remove</button></td></tr>'}).join('')+'</tbody></table>':'<div class="muted">No custom sheets saved yet.</div>')+
+     '<div class="my-sheets-form"><label>Sheet name<input type="text" maxlength="60" data-mysheet-in="name" value="'+safe(d.name)+'" placeholder="e.g. Supplier oak"></label>'+
+     '<label>Length (mm)<input type="number" inputmode="numeric" data-mysheet-in="w" value="'+safe(d.w)+'" placeholder="2800"></label>'+
+     '<label>Width (mm)<input type="number" inputmode="numeric" data-mysheet-in="h" value="'+safe(d.h)+'" placeholder="2070"></label>'+
+     '<label>Thickness (mm)<input type="number" inputmode="numeric" data-mysheet-in="t" value="'+safe(d.t)+'" placeholder="19"></label>'+
+     '<button type="button" class="btn primary" data-mysheet-save>Save Sheet</button></div>'+
+     (mySheetsError?'<div class="sheet-optim-warn-list" data-mysheet-error>'+safe(mySheetsError)+'</div>':'');
+  }
+  document.addEventListener('input',function(ev){var k=ev.target&&ev.target.getAttribute&&ev.target.getAttribute('data-mysheet-in');if(k)mySheetsDraft[k]=ev.target.value},true);
+  document.addEventListener('click',function(ev){
+    var rm=ev.target.closest&&ev.target.closest('[data-mysheet-remove]'),sv=ev.target.closest&&ev.target.closest('[data-mysheet-save]');
+    if(rm){ev.preventDefault();window.fiqCustomSheets&&window.fiqCustomSheets.remove(rm.getAttribute('data-mysheet-remove'));mySheetsError='';document.dispatchEvent(new Event('fiq-sheets-changed'));return}
+    if(sv){ev.preventDefault();var r=window.fiqCustomSheets.add(mySheetsDraft);
+      if(!r.ok){mySheetsError=r.problems.join(' ');renderMySheets();return}
+      mySheetsDraft={name:'',w:'',h:'',t:''};mySheetsError='';document.dispatchEvent(new Event('fiq-sheets-changed'))}
+  },true);
+  document.addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target&&ev.target.getAttribute&&ev.target.getAttribute('data-mysheet-in')){ev.preventDefault();var b=document.querySelector('[data-mysheet-save]');if(b)b.click()}},true);
   document.addEventListener('fiq-sheets-changed',function(){try{
     // A size typed in "Custom…" that has just been saved (or already matches a saved sheet) switches to that saved sheet.
     var sv=savedSheetList();(lastGroups||[]).forEach(function(g){if(g.cfg.custom&&sv.some(function(x){return x.w===g.cfg.w&&x.h===g.cfg.h})){var cur=cfgFor(loadSettings(),g.materialLabel,g.thickness);cur.custom=false;saveSetting(cur.key,cur)}});
-    if(card&&!card.hidden)render()}catch(e){console.error(e)}});
+    renderMySheets();if(card&&!card.hidden)render()}catch(e){console.error(e)}});
   // The toggle button's text depends on open/closed state, not just language, so it can't
   // use a static data-i18n attribute (applyI18n() would always reset it to the closed-state
   // text on every language switch, even while the card is open). Refreshing it here, on

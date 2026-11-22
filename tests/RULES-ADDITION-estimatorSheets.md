@@ -22,18 +22,20 @@ Firebase Console, project assembleone-fabac, Firestore Database, Rules tab. Find
       match /invitations/{inviteId} {          <-- insert the block on the empty line ABOVE this line
 ```
 
-## The block (11 lines; paste exactly, same indentation, nothing else changes)
+## The block (12 lines; paste exactly, same indentation, nothing else changes)
 ```
       // Estimator Custom Sheets (named sheet sizes). Private to the company: only its active members (or a FittersIQ admin)
       // can read or write them. Additive rule: nothing else in the rules changes.
       match /estimatorSheets/{sheetId} {
         allow read, delete: if isFittersIQAdmin() || isCompanyMember(companyId);
         allow create, update: if (isFittersIQAdmin() || isCompanyMember(companyId))
-          && request.resource.data.keys().hasOnly(['name', 'w', 'h', 'createdAt', 'updatedAt', 'updatedBy'])
+          && request.resource.data.keys().hasOnly(['name', 'w', 'h', 't', 'createdAt', 'updatedAt', 'updatedBy'])
           && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
           && request.resource.data.w is number && request.resource.data.w > 0 && request.resource.data.w <= 20000
-          && request.resource.data.h is number && request.resource.data.h > 0 && request.resource.data.h <= 20000;
+          && request.resource.data.h is number && request.resource.data.h > 0 && request.resource.data.h <= 20000
+          && (!('t' in request.resource.data) || (request.resource.data.t is number && request.resource.data.t > 0 && request.resource.data.t <= 500));
       }
+
 ```
 It needs the helper functions `isFittersIQAdmin()` and `isCompanyMember(companyId)` that already exist in the repo file. If the live rules do not
 have them, the Console shows a red error and nothing can be published.
@@ -42,7 +44,7 @@ have them, the Console shows a red error and nothing can be published.
 - Only the path `companies/{company}/estimatorSheets/{sheet}` is affected. In Firestore, a new `match` block can only grant access to its own path;
   it cannot take access away from, or add access to, any other path. No existing code uses this path.
 - Only an active member of that same company (or a FittersIQ admin) can read, create, edit or delete. Other companies, inactive members and
-  signed-out users cannot. Sheets must have a name of 1 to 80 characters, numeric size between 0 and 20000, and only the expected fields.
+  signed-out users cannot. Sheets must have a name of 1 to 80 characters, numeric size between 0 and 20000, an optional thickness above 0 up to 500, and only the expected fields (name, w, h, t, createdAt, updatedAt, updatedBy).
 - Jobs, members, fitters, invitations, licences, Academy, support, Mobile photos (Storage, a separate service) are untouched.
 
 ## Check it BEFORE publishing (no emulator needed): Rules Playground
@@ -58,6 +60,6 @@ In the Console's Rules editor press **Rules Playground**; it tests the draft wit
 Before editing, copy the whole current rules text into a safe file. To undo: paste it back and Publish (the Console also keeps a rules history).
 
 ## Verified here (container)
-- `node tests/firestore-rules-addition-check.cjs`: against the repo's rules file, exactly these 11 lines are added, 0 changed, 0 removed, braces balance, placement is inside the companies block before `invitations`.
+- `node tests/firestore-rules-addition-check.cjs`: against the repo's rules file, exactly these 12 lines are added, 0 changed, 0 removed, braces balance, placement is inside the companies block before `invitations`.
 - Not verified here: how the rule behaves when evaluated. The Firebase emulator could not be downloaded in the build environment. `tests/firestore-rules-estimator-sheets.cjs`
   does that check on any computer with Java and node (it composes the repo file plus this block), but it has NOT been run yet.

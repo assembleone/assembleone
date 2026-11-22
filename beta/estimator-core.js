@@ -67,20 +67,24 @@
   var SHEET_LIMITS = { min: 300, max: 10000 };
   function validateSheet(fields, others) {
     var f = fields || {}, name = String(f.name || '').trim().replace(/\s+/g, ' '), w = parseAmount(f.w), h = parseAmount(f.h), problems = [];
+    var tRaw = (f.t === undefined || f.t === null) ? '' : String(f.t).trim(), t = null;
+    if (tRaw !== '') { t = parseAmount(tRaw); if (t === null || t < 1 || t > 200) problems.push('Thickness must be a number from 1 to 200 mm (or leave it empty).'); }
     if (!name) problems.push('Give the sheet a name.');
     else if (name.length > 60) problems.push('The name is too long (60 characters at most).');
     else if ((others || []).some(function (o) { return norm(o.name) === norm(name); })) problems.push('A saved sheet called "' + name + '" already exists.');
     [['Length', w], ['Width', h]].forEach(function (x) {
       if (x[1] === null || x[1] < SHEET_LIMITS.min || x[1] > SHEET_LIMITS.max) problems.push(x[0] + ' must be a number from ' + SHEET_LIMITS.min + ' to ' + SHEET_LIMITS.max + ' mm.');
     });
-    return { ok: !problems.length, problems: problems, sheet: problems.length ? null : { name: name, w: Math.round(w), h: Math.round(h) } };
+    var sheet = null; if (!problems.length) { sheet = { name: name, w: Math.round(w), h: Math.round(h) }; if (t !== null) sheet.t = Math.round(t * 10) / 10; }
+    return { ok: !problems.length, problems: problems, sheet: sheet };
   }
   function newSheet(fields, who, now) {
-    var at = now || new Date().toISOString();
-    return { id: newId('shs'), name: fields.name, w: fields.w, h: fields.h, createdAt: at, updatedAt: at, updatedBy: who || null, synced: false };
+    var at = now || new Date().toISOString(), o = { id: newId('shs'), name: fields.name, w: fields.w, h: fields.h, createdAt: at, updatedAt: at, updatedBy: who || null, synced: false };
+    if (fields.t !== undefined && fields.t !== null) o.t = fields.t; return o;
   }
   function editSheet(sheet, fields, who, now) {
-    var out = clone(sheet); out.name = fields.name; out.w = fields.w; out.h = fields.h; out.updatedAt = now || new Date().toISOString(); out.updatedBy = who || null; out.synced = false; return out;
+    var out = clone(sheet); out.name = fields.name; out.w = fields.w; out.h = fields.h; if (fields.t !== undefined && fields.t !== null) out.t = fields.t; else delete out.t;
+    out.updatedAt = now || new Date().toISOString(); out.updatedBy = who || null; out.synced = false; return out;
   }
   function sortSheets(list) { return (list || []).slice().sort(function (a, b) { return String(a.name).toLowerCase().localeCompare(String(b.name).toLowerCase()) || String(a.id).localeCompare(String(b.id)); }); }
   // local: saved list (synced:false = not yet in the cloud), tombs: [{id,at}] deleted here but maybe not yet in the cloud, cloud: what the cloud holds.

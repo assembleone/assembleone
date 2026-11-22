@@ -37,7 +37,7 @@ fake Firebase functions (`tests/beta-write-guard.cjs`); not yet seen with a real
 # Final checklist before anything is published (nothing below has been done)
 1. [ ] Read `tests/RULES-ADDITION-estimatorSheets.md`. Decide who applies the rule (Console paste only; never `firebase deploy` of the whole file).
 2. [ ] In the Console, copy the current live rules to a safe file (rollback). Compare them with the repo's `firestore.rules`; note differences (expected: Academy, fiqMaster, health).
-3. [ ] Paste the 11-line block. Run the 4 Rules Playground checks. Publish only if all pass.
+3. [ ] Paste the 12-line block. Run the 4 Rules Playground checks. Publish only if all pass.
 4. [ ] Review the branch diff `origin/main..claude/studio-estimator-five`: it should list only `beta/*` and `tests/*`. (`git diff --name-only origin/main..claude/studio-estimator-five`)
 5. [ ] **Release method found (see `BETA-RELEASE-PROCEDURE.md`).** Beta lives in the `beta/` folder on GitHub Pages and is published by a `beta/`-only commit to `main`. The Production app (`app.fittersiq.com`, Firebase Hosting) is built by `hosting-production/build.cjs`, which leaves out `beta/`, and is only uploaded when `deploy-new-home.cjs` is run by hand. Do NOT run `release-app.cjs` or `deploy-new-home.cjs`. After publishing, run `node tests/compare-with-live.cjs https://assembleone.github.io/assembleone` (read-only): it must report "Production files that would change: 0".
 6. [ ] Custom Sheets cloud saving is OFF by default on every computer. It only turns on after the "Turn on cloud saving" button is confirmed, and only after the Firestore rule block has been pasted and checked (step 3). Before that, Custom Sheets stay on that computer only.
