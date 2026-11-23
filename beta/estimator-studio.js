@@ -772,9 +772,13 @@
     fn(s); persist(true); return true;
   }
   function stripSheet(x) { var o = { id: x.id, name: x.name, w: x.w, h: x.h, createdAt: x.createdAt, updatedAt: x.updatedAt, updatedBy: x.updatedBy || null }; if (x.t) o.t = x.t; return o; }
+  // Cloud saving of Custom Sheets. Beta: the per-computer switch of the Beta write guard. The live app: OFF until the company rule
+  // (tests/firestore-rules-addition.txt) has been published and checked; then this constant is set to true in a later, separate release.
+  var SHEETS_CLOUD_IN_LIVE_APP = false;
+  function sheetsCloudOn() { return window.fiqBetaGuard ? !!window.fiqBetaGuard.sheetsCloud() : SHEETS_CLOUD_IN_LIVE_APP; }
   function sheetBackend() {
     if (window.fiqCustomSheetsBackend) return window.fiqCustomSheetsBackend;
-    if (window.fiqBetaGuard && !window.fiqBetaGuard.sheetsCloud()) return null; // Beta: cloud saving is off until switched on on this computer
+    if (!sheetsCloudOn()) return null; // cloud saving is off until it is switched on (Beta: per computer; live app: after the company rule is published)
     var u = user(), f = fsFns();
     if (!u || !u.uid || !u.companyId || !f || !f.setDoc || !f.deleteDoc || !f.getDocs || !f.collection || !f.doc) return null;
     var db = window.fiqFirestore, col = function () { return f.collection(db, 'companies', u.companyId, 'estimatorSheets'); };
@@ -797,7 +801,7 @@
     out.push('Signed in: ' + (u && u.uid ? 'yes' : 'no') + (u && u.role ? ' (role: ' + u.role + ')' : ''));
     out.push('Company: ' + (u && u.companyId ? u.companyId : 'none'));
     if (window.fiqCustomSheetsBackend) { out.push('Test backend in use (not the real cloud).'); return Promise.resolve(out.join('\n')); }
-    if (window.fiqBetaGuard && !window.fiqBetaGuard.sheetsCloud()) return Promise.resolve(out.concat('Cloud saving is switched OFF on this Beta computer. Turn it on first (button above), then test again.').join('\n'));
+    if (!sheetsCloudOn()) return Promise.resolve(out.concat(window.fiqBetaGuard ? 'Cloud saving is switched OFF on this Beta computer. Turn it on first (button above), then test again.' : 'Cloud saving of Custom Sheets is not switched on yet. Your sheets are saved on this computer.').join('\n'));
     if (!u || !u.uid || !u.companyId || !f) return Promise.resolve(out.concat('Cannot test: sign in with a company account first.').join('\n'));
     var ref = f.doc(window.fiqFirestore, 'companies', u.companyId, 'estimatorSheets', '_cloudcheck_' + u.uid.slice(0, 8));
     return f.setDoc(ref, { name: '_cloud check (safe to ignore)', w: 1, h: 1, createdAt: '', updatedAt: new Date().toISOString(), updatedBy: u.uid })
@@ -821,7 +825,7 @@
   }
   function syncSheets() {
     var be = sheetBackend();
-    if (!be) { csSync.state = 'local'; csSync.message = (window.fiqBetaGuard && !window.fiqBetaGuard.sheetsCloud()) ? 'Cloud saving is switched OFF on this Beta computer, so sheets are saved on this computer only. Turn it on below once the company rule has been checked.' : user() && user().uid ? 'The company cloud is not ready. Your sheets are saved on this computer.' : 'Saved on this computer only. Sign in to keep them in your company cloud.'; refreshSheetUi(); return Promise.resolve(); }
+    if (!be) { csSync.state = 'local'; csSync.message = !sheetsCloudOn() ? (window.fiqBetaGuard ? 'Cloud saving is switched OFF on this Beta computer, so sheets are saved on this computer only. Turn it on below once the company rule has been checked.' : 'Your sheets are saved on this computer. Saving them in the company cloud is not switched on yet.') : user() && user().uid ? 'The company cloud is not ready. Your sheets are saved on this computer.' : 'Saved on this computer only. Sign in to keep them in your company cloud.'; refreshSheetUi(); return Promise.resolve(); }
     if (csSync.running) { csSync.again = true; return csSync.p; }
     csSync.running = true;
     csSync.p = be.list().then(function (cloud) {
