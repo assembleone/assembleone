@@ -9842,7 +9842,7 @@ body.fiq-locked .app{display:none!important}
   // never drift into two different implementations of the same feature.
   function renderInto(box,parts,emptyMsg){
     if(!box)return [];
-    if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">'+(emptyMsg||t("studio.supplier.sheetOptimEmptyGeneric"))+'</div>';return []}
+    if(!parts.length){box.innerHTML='<div class="my-sheets fiq-my-sheets"></div><div class="sheet-optim-empty">'+(emptyMsg||t("studio.supplier.sheetOptimEmptyGeneric"))+'</div>';renderMySheets();return []}
     var groups=computeGroups(parts);
     var order='<div class="sheet-order" data-sheet-order><div class="sheet-order-title">Sheets to order</div>'+groups.map(function(g,i){
       return '<div class="sheet-order-row"><span><span class="sheet-optim-swatch" style="background:'+colorForGroup(i)+'"></span>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</span><b>'+g.sheets.length+' sheet'+(g.sheets.length===1?'':'s')+' of '+g.cfg.w+' × '+g.cfg.h+'</b></div>'+
@@ -9850,7 +9850,8 @@ body.fiq-locked .app{display:none!important}
        (g.cfg.leastWaste?'<div class="sheet-order-note">'+g.cfg.w+' × '+g.cfg.h+' chosen for least waste: '+fmt(g.cfg.leastWaste.nowM2)+' m² of board instead of '+fmt(g.cfg.leastWaste.m2)+' m² ('+g.cfg.leastWaste.sheets+' sheets of '+g.cfg.leastWaste.w+' × '+g.cfg.leastWaste.h+')</div>':'')+
        (g.cfg.auto&&!g.cfg.leastWaste?'<div class="sheet-order-note">'+g.cfg.w+' × '+g.cfg.h+' used because a panel is too big for '+g.cfg.auto.w+' × '+g.cfg.auto.h+'</div>':'')+
        (g.unplaced.length?'<div class="sheet-order-warn">⚠ Too big for every standard sheet, not counted: '+unplacedSummaryText(g.unplaced)+'</div>':'')}).join('')+'</div>';
-    box.innerHTML=order+groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
+    box.innerHTML='<div class="my-sheets fiq-my-sheets"></div>'+order+groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
+    renderMySheets();
     box.querySelectorAll('[data-sheet-preset],[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
       el.addEventListener('change',function(){
         var idx=Number(el.dataset.sheetPreset??el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetTrim??el.dataset.sheetGrain);
@@ -9874,7 +9875,7 @@ body.fiq-locked .app{display:none!important}
       b.addEventListener('click',function(){
         var g=groups[Number(b.dataset.sheetSave)];if(!g)return;
         mySheetsDraft={name:'',w:String(g.cfg.w),h:String(g.cfg.h),t:String(Number(g.thickness)||'')};mySheetsError='';renderMySheets();
-        var el=document.getElementById('fiqMySheets'),n=el&&el.querySelector('[data-mysheet-in="name"]');
+        var el=box.querySelector('.fiq-my-sheets'),n=el&&el.querySelector('[data-mysheet-in="name"]');
         if(el)el.scrollIntoView({block:'center'});if(n)n.focus();
       })});
     if(box.id==='sheetOptimiserBody')lastGroups=groups;
@@ -9899,17 +9900,15 @@ body.fiq-locked .app{display:none!important}
   var toggleBtn=document.getElementById('sheetOptimiserToggleBtn'),card=document.getElementById('sheetOptimiserCard');
   // ---- My Custom Sheets (Beta, 22 Nov 2026): a small section at the top of the Sheet Optimiser ----
   var mySheetsDraft={name:'',w:'',h:'',t:''},mySheetsError='';
-  function mySheetsEl(){
-    var el=document.getElementById('fiqMySheets');if(el)return el;
-    var body=document.getElementById('sheetOptimiserBody');if(!body||!body.parentNode)return null;
-    el=document.createElement('div');el.id='fiqMySheets';el.className='my-sheets';body.parentNode.insertBefore(el,body);return el;
-  }
   function renderMySheets(){
-    var el=mySheetsEl();if(!el)return;
+    var els=document.querySelectorAll('.fiq-my-sheets');if(!els.length)return;
+    var html=mySheetsInner();els.forEach(function(el){el.innerHTML=html});
+  }
+  function mySheetsInner(){
     var api=window.fiqCustomSheets;
-    if(!api){el.innerHTML='';return}
-    var list=savedSheetList(),d=mySheetsDraft;
-    el.innerHTML='<h4>My Custom Sheets</h4>'+
+    if(!api)return '';
+    var list=savedSheetList(),d=mySheetsDraft||{name:'',w:'',h:'',t:''};
+    return '<h4>My Custom Sheets</h4>'+
      (list.length?'<table class="my-sheets-table"><thead><tr><th>Name</th><th>Length mm</th><th>Width mm</th><th>Thickness mm</th><th></th></tr></thead><tbody>'+list.map(function(x){return '<tr><td><b>'+safe(x.name)+'</b></td><td>'+x.w+'</td><td>'+x.h+'</td><td>'+(x.t||'')+'</td><td><button type="button" class="sheet-optim-recalc" data-mysheet-remove="'+safe(x.id)+'">Remove</button></td></tr>'}).join('')+'</tbody></table>':'<div class="muted">No custom sheets saved yet.</div>')+
      '<div class="my-sheets-form"><label>Sheet name<input type="text" maxlength="60" data-mysheet-in="name" value="'+safe(d.name)+'" placeholder="e.g. Supplier oak"></label>'+
      '<label>Length (mm)<input type="number" inputmode="numeric" data-mysheet-in="w" value="'+safe(d.w)+'" placeholder="2800"></label>'+

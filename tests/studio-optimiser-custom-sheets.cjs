@@ -28,10 +28,10 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
    });
    await page.evaluate(()=>{switchToProject('p1','c1');renderAll();show('cutting')});
    await page.locator('#sheetOptimiserToggleBtn').click();
-   await page.locator('#fiqMySheets').waitFor();
+   await page.locator('#sheetOptimiserBody .fiq-my-sheets').waitFor();
   }
   await open(true);
-  const S=page.locator('#fiqMySheets');
+  const S=page.locator('#sheetOptimiserBody .fiq-my-sheets');
   assert.match(await S.innerText(),/No custom sheets saved yet/);
   // validation: nothing typed
   await S.locator('[data-mysheet-save]').click();
@@ -42,9 +42,12 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   await S.locator('[data-mysheet-in="h"]').fill('1335');
   await S.locator('[data-mysheet-in="t"]').fill('19');
   await S.locator('[data-mysheet-save]').click();
-  await page.waitForFunction(()=>/Supplier oak/.test(document.getElementById('fiqMySheets').innerText));
+  await page.waitForFunction(()=>/Supplier oak/.test(document.querySelector('#sheetOptimiserBody .fiq-my-sheets').innerText));
   assert.match(await S.innerText(),/Supplier oak\s+3050\s+1335\s+19/);
   assert.equal(await S.locator('[data-mysheet-in="name"]').inputValue(),'','form is cleared after saving');
+  // the same section is wherever sheet sizes are chosen (Panel Check 'Sheet count' too), not only on the Supplier screen
+  assert.ok(await page.locator('#estimatedMaterialsBody .fiq-my-sheets').count()>=1,'also in the Panel Check sheet count');
+  assert.match(await page.locator('#estimatedMaterialsBody .fiq-my-sheets').first().innerText(),/Supplier oak/);
   // separate from the standard sizes: it sits in its own group of the sheet size box
   const sel=page.locator('#sheetOptimiserBody select[data-sheet-preset="0"]');
   assert.equal(await sel.locator('optgroup[label="My saved sheets"] option').count(),1);
@@ -64,13 +67,13 @@ const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   // persistence: close Studio (reload) and open the Optimiser again
   await page.waitForTimeout(800);
   await open(false);
-  assert.match(await page.locator('#fiqMySheets').innerText(),/Supplier oak\s+3050\s+1335\s+19/,'still there after reopening');
+  assert.match(await page.locator('#sheetOptimiserBody .fiq-my-sheets').innerText(),/Supplier oak\s+3050\s+1335\s+19/,'still there after reopening');
   // Remove
-  await page.locator('#fiqMySheets [data-mysheet-remove]').click();
-  await page.waitForFunction(()=>/No custom sheets saved yet/.test(document.getElementById('fiqMySheets').innerText));
+  await page.locator('#sheetOptimiserBody .fiq-my-sheets [data-mysheet-remove]').click();
+  await page.waitForFunction(()=>/No custom sheets saved yet/.test(document.querySelector('#sheetOptimiserBody .fiq-my-sheets').innerText));
   assert.equal(await page.locator('#sheetOptimiserBody select[data-sheet-preset="0"] optgroup').count(),0);
   await page.waitForTimeout(800);await open(false);
-  assert.match(await page.locator('#fiqMySheets').innerText(),/No custom sheets saved yet/,'removal also persists');
+  assert.match(await page.locator('#sheetOptimiserBody .fiq-my-sheets').innerText(),/No custom sheets saved yet/,'removal also persists');
   assert.deepEqual(errors,[],'no page errors');
   console.log('PASS studio-optimiser-custom-sheets');
  }finally{if(browser)await browser.close();server.close()}
