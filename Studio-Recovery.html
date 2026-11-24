@@ -1480,7 +1480,6 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 <button class="nav-btn" data-screen="parts" title="Panel Check" aria-label="Panel Check" data-i18n-title="studio.panelCheck.screenTitle" data-i18n-aria="studio.panelCheck.screenTitle"><span class="nav-colour-icon">🧩</span><span class="nav-word" data-i18n="studio.panelCheck.screenTitle">Panel Check</span></button>
 <button class="nav-btn" data-screen="qr" title="QR and Scan" aria-label="QR and Scan" data-i18n-title="studio.nav.qrAndScanTab" data-i18n-aria="studio.nav.qrAndScanTab"><span class="nav-colour-icon">📲</span><span class="nav-word" data-i18n="studio.nav.qrAndScanTab">QR and Scan</span></button>
 <button class="nav-btn" data-screen="cutting" title="Cutting List" aria-label="Cutting List" data-i18n-title="detail.cuttingList" data-i18n-aria="detail.cuttingList"><span class="nav-colour-icon">📋</span><span class="nav-word" data-i18n="detail.cuttingList">Cutting List</span></button>
-<small>Studio</small>
 </aside>
 <main class="main">
 <header class="header">
@@ -3860,7 +3859,7 @@ function renderCustomerCard(){
      `<span class="customer-tab-row-chevron">›</span>`+
    `</button>`;
    const sentVersions=typeof window.fiqSentVersionCount==='function'?window.fiqSentVersionCount(p.id,room?room.id:"",cabinet.id):0;
-   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn${sentVersions?' has-sent':''}" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" data-open-cutting-list-cabinet="${safe(cabinet.id)}" title="${sentVersions?'Sent Cutting List, version '+sentVersions:'No Cutting List sent yet'}">📋 ${t("detail.cuttingList")}${sentVersions?' · V'+sentVersions:''}</button>`;
+   const cuttingListBtn=`<button type="button" class="customer-cutting-list-btn${sentVersions?' has-sent':''}" data-open-cutting-list="${safe(room?room.id:"")}" data-open-cutting-list-project="${safe(p.id)}" data-open-cutting-list-cabinet="${safe(cabinet.id)}" title="${sentVersions?'Open this job\'s Cutting List (saved as version '+sentVersions+')':'Open this job\'s Cutting List (not sent yet)'}">📋 ${t("detail.cuttingList")}${sentVersions?' · V'+sentVersions:''}</button>`;
    const evidenceCount=typeof window.fiqJobEvidenceCount==='function'?window.fiqJobEvidenceCount(p.id,room?room.id:"",cabinet.id):0;
    const evidenceBtn=evidenceCount?`<button type="button" class="customer-cutting-list-btn customer-evidence-btn" data-open-job-evidence="${safe(room?room.id:"")}" data-open-job-evidence-project="${safe(p.id)}" data-open-job-evidence-cabinet="${safe(cabinet.id)}" title="Photos and notes kept with this job">📷 ${evidenceCount}</button>`:"";
    const overflowHtml=`<div class="customer-row-overflow"><button type="button" class="customer-row-overflow-btn" data-overflow-toggle title="${t("studio.customerLibrary.jobOptionsMenuTitle")}">⋮</button><div class="customer-row-overflow-menu" hidden><button type="button" class="customer-row-overflow-item" data-delete-customer-job="${safe(p.id)}">🗑 ${t("detail.delete")}</button></div></div>`;
@@ -3909,6 +3908,7 @@ function renderCustomerCard(){
  body.querySelectorAll("[data-open-job-design]").forEach(el=>el.onclick=e=>{
   // The green "Cutting List sent" label opens the saved list itself; the rest of the row keeps its menu.
   if(e&&e.target&&e.target.closest("[data-chip-open-list]")){window.fiqOpenSentCuttingList(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet);return}
+  if(window.fiqLibNav)window.fiqLibNav.set(el.dataset.openJobDesignProject);
   window.fiqOpenJobPage(el.dataset.openJobDesignProject,el.dataset.openJobDesign,el.dataset.openJobDesignCabinet)});
  body.querySelectorAll("[data-job-sheet],[data-job-labels]").forEach(el=>el.onclick=e=>{e.stopPropagation();const id=el.dataset.jobSheet||el.dataset.jobLabels,pr=state.projects.find(x=>x.id===id),fn=el.dataset.jobLabels?window.fiqDownloadLabelFile:window.fiqDownloadJobSheet;if(pr&&typeof fn==="function"){const r=fn(pr);if(!r)alert("No panels in "+(pr.name||"this job")+" are ready for the supplier yet.")}});
  body.querySelectorAll("[data-open-cutting-list]").forEach(el=>el.onclick=()=>window.fiqOpenSentCuttingList(el.dataset.openCuttingListProject,el.dataset.openCuttingList,el.dataset.openCuttingListCabinet));
@@ -9552,6 +9552,7 @@ body.fiq-locked .app{display:none!important}
 .sheet-optim-sheet{border:1px solid var(--line);border-radius:10px;padding:8px;background:#fafcff;width:340px}
 .sheet-optim-sheet svg{display:block;width:100%;height:auto;border-radius:4px}
 .sheet-optim-sheet .sheet-caption{font-size:12px;font-weight:800;margin-top:6px;color:#3a4658}
+.my-sheets{margin:10px 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fbfcff}.my-sheets h4{margin:0 0 8px;font-size:17px}.my-sheets-table{border-collapse:collapse;margin:0 0 10px;font-size:13px}.my-sheets-table th,.my-sheets-table td{text-align:left;padding:4px 14px 4px 0}.my-sheets-form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.my-sheets-form label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:800;color:#5c5668}.my-sheets-form input{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit;width:110px}.my-sheets-form input[data-mysheet-in=name]{width:190px}
 .sheet-optim-recalc{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer}
 </style>
 <script id="a181-sheet-optimiser-script">
@@ -9732,15 +9733,20 @@ body.fiq-locked .app{display:none!important}
     return {materialLabel:materialLabel,thickness:thickness,cfg:cfg,sheets:res.sheets,unplaced:res.unplaced,wastePct:wastePct,sheetArea:sheetArea,usedArea:usedArea,turned:turnedCodes};
   }
 
+  // Custom Sheets (Beta, 21 Nov 2026): the company's saved sheet sizes (made in the Estimator's Custom Sheets manager) are offered here too.
+  function savedSheetList(){try{return(window.fiqCustomSheets&&window.fiqCustomSheets.list&&window.fiqCustomSheets.list())||[]}catch(e){return[]}}
   function sheetSizeHtml(g,idx){
     var cfg=g.cfg,pre=presetsFor(g.materialLabel);
     var match=pre.list.findIndex(function(d){return d[0]===cfg.w&&d[1]===cfg.h});
-    var custom=cfg.custom||match<0;
+    var saved=savedSheetList(),smatch=saved.findIndex(function(x){return x.w===cfg.w&&x.h===cfg.h});
+    var custom=cfg.custom||(match<0&&smatch<0);
     var opts=pre.list.map(function(d,i){return '<option value="'+d[0]+'x'+d[1]+'"'+(!custom&&i===match?' selected':'')+'>'+d[0]+' × '+d[1]+' mm'+(i===0?' (default)':'')+'</option>'}).join('')+
+      (saved.length?'<optgroup label="My saved sheets">'+saved.map(function(x,i){return '<option value="'+x.w+'x'+x.h+'"'+(!custom&&match<0&&i===smatch?' selected':'')+'>'+safe(x.name)+' · '+x.w+' × '+x.h+' mm'+(x.t?' · '+x.t+' mm thick':'')+'</option>'}).join('')+'</optgroup>':'')+
       '<option value="custom"'+(custom?' selected':'')+'>Custom…</option>';
+    var tools=window.fiqCustomSheets?'<span class="sheet-size-custom"><button type="button" class="sheet-optim-recalc" data-sheet-save="'+idx+'">Save this size…</button></span>':'';
     return '<label class="sheet-size-pick">Sheet size'+(pre.type?' <small>'+pre.type+'</small>':'')+'<select data-sheet-preset="'+idx+'">'+opts+'</select></label>'+
       (custom?'<span class="sheet-size-custom"><label>'+t("studio.supplier.sheetLengthLabel")+'<small>'+t("studio.supplier.grainDirectionHint")+'</small><input type="number" min="300" max="4000" step="10" data-sheet-w="'+idx+'" value="'+cfg.w+'"></label>'+
-      '<label>'+t("studio.supplier.sheetWidthLabel")+'<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label></span>':'');
+      '<label>'+t("studio.supplier.sheetWidthLabel")+'<input type="number" min="300" max="4000" step="10" data-sheet-h="'+idx+'" value="'+cfg.h+'"></label></span>':'')+tools;
   }
 
   function renderGroupHtml(g,idx){
@@ -9836,7 +9842,7 @@ body.fiq-locked .app{display:none!important}
   // never drift into two different implementations of the same feature.
   function renderInto(box,parts,emptyMsg){
     if(!box)return [];
-    if(!parts.length){box.innerHTML='<div class="sheet-optim-empty">'+(emptyMsg||t("studio.supplier.sheetOptimEmptyGeneric"))+'</div>';return []}
+    if(!parts.length){box.innerHTML='<div class="my-sheets fiq-my-sheets"></div><div class="sheet-optim-empty">'+(emptyMsg||t("studio.supplier.sheetOptimEmptyGeneric"))+'</div>';renderMySheets();return []}
     var groups=computeGroups(parts);
     var order='<div class="sheet-order" data-sheet-order><div class="sheet-order-title">Sheets to order</div>'+groups.map(function(g,i){
       return '<div class="sheet-order-row"><span><span class="sheet-optim-swatch" style="background:'+colorForGroup(i)+'"></span>'+safe(g.materialLabel)+' · '+safe(g.thickness)+'mm</span><b>'+g.sheets.length+' sheet'+(g.sheets.length===1?'':'s')+' of '+g.cfg.w+' × '+g.cfg.h+'</b></div>'+
@@ -9844,7 +9850,8 @@ body.fiq-locked .app{display:none!important}
        (g.cfg.leastWaste?'<div class="sheet-order-note">'+g.cfg.w+' × '+g.cfg.h+' chosen for least waste: '+fmt(g.cfg.leastWaste.nowM2)+' m² of board instead of '+fmt(g.cfg.leastWaste.m2)+' m² ('+g.cfg.leastWaste.sheets+' sheets of '+g.cfg.leastWaste.w+' × '+g.cfg.leastWaste.h+')</div>':'')+
        (g.cfg.auto&&!g.cfg.leastWaste?'<div class="sheet-order-note">'+g.cfg.w+' × '+g.cfg.h+' used because a panel is too big for '+g.cfg.auto.w+' × '+g.cfg.auto.h+'</div>':'')+
        (g.unplaced.length?'<div class="sheet-order-warn">⚠ Too big for every standard sheet, not counted: '+unplacedSummaryText(g.unplaced)+'</div>':'')}).join('')+'</div>';
-    box.innerHTML=order+groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
+    box.innerHTML='<div class="my-sheets fiq-my-sheets"></div>'+order+groups.map(function(g,i){return renderGroupHtml(g,i)}).join('');
+    renderMySheets();
     box.querySelectorAll('[data-sheet-preset],[data-sheet-w],[data-sheet-h],[data-sheet-kerf],[data-sheet-trim],[data-sheet-grain]').forEach(function(el){
       el.addEventListener('change',function(){
         var idx=Number(el.dataset.sheetPreset??el.dataset.sheetW??el.dataset.sheetH??el.dataset.sheetKerf??el.dataset.sheetTrim??el.dataset.sheetGrain);
@@ -9864,6 +9871,14 @@ body.fiq-locked .app{display:none!important}
         if(typeof window.fiqRenderCustomerSheets==='function')window.fiqRenderCustomerSheets();
       });
     });
+    box.querySelectorAll('[data-sheet-save]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var g=groups[Number(b.dataset.sheetSave)];if(!g)return;
+        mySheetsDraft={name:'',w:String(g.cfg.w),h:String(g.cfg.h),t:String(Number(g.thickness)||'')};mySheetsError='';renderMySheets();
+        var el=box.querySelector('.fiq-my-sheets'),n=el&&el.querySelector('[data-mysheet-in="name"]');
+        if(el)el.scrollIntoView({block:'center'});if(n)n.focus();
+      })});
+    if(box.id==='sheetOptimiserBody')lastGroups=groups;
     return groups;
   }
 
@@ -9873,6 +9888,7 @@ body.fiq-locked .app{display:none!important}
     var jprA=(typeof project==='function')?project():null;
     var jobD=(window.__fiqCutScope!=='unit'&&jprA&&(jprA.cabinets||[]).length>1&&typeof window.fiqWholeJobCollect==='function')?window.fiqWholeJobCollect():null;
     var parts=jobD?jobD.panels.map(function(x){return x.copy}):((typeof supplierParts==='function')?supplierParts():[]);
+    renderMySheets();
     lastGroups=renderInto(box,parts,t("studio.supplier.sheetOptimEmptySupplier"));
     if(!parts.length){window.a181SheetOptimPrintHtml=function(){return ''};return}
     var pr=(typeof project==='function')?project():null,unit=(typeof cabinet==='function')?cabinet():null;
@@ -9882,6 +9898,38 @@ body.fiq-locked .app{display:none!important}
   }
 
   var toggleBtn=document.getElementById('sheetOptimiserToggleBtn'),card=document.getElementById('sheetOptimiserCard');
+  // ---- My Custom Sheets (Beta, 22 Nov 2026): a small section at the top of the Sheet Optimiser ----
+  var mySheetsDraft={name:'',w:'',h:'',t:''},mySheetsError='';
+  function renderMySheets(){
+    var els=document.querySelectorAll('.fiq-my-sheets');if(!els.length)return;
+    var html=mySheetsInner();els.forEach(function(el){el.innerHTML=html});
+  }
+  function mySheetsInner(){
+    var api=window.fiqCustomSheets;
+    if(!api)return '';
+    var list=savedSheetList(),d=mySheetsDraft||{name:'',w:'',h:'',t:''};
+    return '<h4>My Custom Sheets</h4>'+
+     (list.length?'<table class="my-sheets-table"><thead><tr><th>Name</th><th>Length mm</th><th>Width mm</th><th>Thickness mm</th><th></th></tr></thead><tbody>'+list.map(function(x){return '<tr><td><b>'+safe(x.name)+'</b></td><td>'+x.w+'</td><td>'+x.h+'</td><td>'+(x.t||'')+'</td><td><button type="button" class="sheet-optim-recalc" data-mysheet-remove="'+safe(x.id)+'">Remove</button></td></tr>'}).join('')+'</tbody></table>':'<div class="muted">No custom sheets saved yet.</div>')+
+     '<div class="my-sheets-form"><label>Sheet name<input type="text" maxlength="60" data-mysheet-in="name" value="'+safe(d.name)+'" placeholder="e.g. Supplier oak"></label>'+
+     '<label>Length (mm)<input type="number" inputmode="numeric" data-mysheet-in="w" value="'+safe(d.w)+'" placeholder="2800"></label>'+
+     '<label>Width (mm)<input type="number" inputmode="numeric" data-mysheet-in="h" value="'+safe(d.h)+'" placeholder="2070"></label>'+
+     '<label>Thickness (mm)<input type="number" inputmode="numeric" data-mysheet-in="t" value="'+safe(d.t)+'" placeholder="19"></label>'+
+     '<button type="button" class="btn primary" data-mysheet-save>Save Sheet</button></div>'+
+     (mySheetsError?'<div class="sheet-optim-warn-list" data-mysheet-error>'+safe(mySheetsError)+'</div>':'');
+  }
+  document.addEventListener('input',function(ev){var k=ev.target&&ev.target.getAttribute&&ev.target.getAttribute('data-mysheet-in');if(k)mySheetsDraft[k]=ev.target.value},true);
+  document.addEventListener('click',function(ev){
+    var rm=ev.target.closest&&ev.target.closest('[data-mysheet-remove]'),sv=ev.target.closest&&ev.target.closest('[data-mysheet-save]');
+    if(rm){ev.preventDefault();window.fiqCustomSheets&&window.fiqCustomSheets.remove(rm.getAttribute('data-mysheet-remove'));mySheetsError='';document.dispatchEvent(new Event('fiq-sheets-changed'));return}
+    if(sv){ev.preventDefault();var r=window.fiqCustomSheets.add(mySheetsDraft);
+      if(!r.ok){mySheetsError=r.problems.join(' ');renderMySheets();return}
+      mySheetsDraft={name:'',w:'',h:'',t:''};mySheetsError='';document.dispatchEvent(new Event('fiq-sheets-changed'))}
+  },true);
+  document.addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target&&ev.target.getAttribute&&ev.target.getAttribute('data-mysheet-in')){ev.preventDefault();var b=document.querySelector('[data-mysheet-save]');if(b)b.click()}},true);
+  document.addEventListener('fiq-sheets-changed',function(){try{
+    // A size typed in "Custom…" that has just been saved (or already matches a saved sheet) switches to that saved sheet.
+    var sv=savedSheetList();(lastGroups||[]).forEach(function(g){if(g.cfg.custom&&sv.some(function(x){return x.w===g.cfg.w&&x.h===g.cfg.h})){var cur=cfgFor(loadSettings(),g.materialLabel,g.thickness);cur.custom=false;saveSetting(cur.key,cur)}});
+    renderMySheets();if(card&&!card.hidden)render()}catch(e){console.error(e)}});
   // The toggle button's text depends on open/closed state, not just language, so it can't
   // use a static data-i18n attribute (applyI18n() would always reset it to the closed-state
   // text on every language switch, even while the card is open). Refreshing it here, on
@@ -12510,6 +12558,7 @@ body.fiq-locked .app{display:none!important}
     '<button type="button" class="btn" data-job-go="overview">Overview</button>'+
     '<button type="button" class="btn" data-job-go="drawing">Drawing</button>'+
     '<button type="button" class="btn primary" data-job-go="cutting">Cutting List</button>'+
+    '<button type="button" class="btn" data-job-go="saved">Saved versions</button>'+
     '<button type="button" class="btn" data-job-go="panelcheck">Panel Check</button>'+
     '<button type="button" class="btn" data-job-go="site"'+(hasSite?'':' disabled')+'>Site Measure</button>'+
     '<button type="button" class="btn" data-job-go="notes">Notes</button>'+
@@ -12544,9 +12593,10 @@ body.fiq-locked .app{display:none!important}
    const back=o.querySelector('[data-job-back]');if(back)back.onclick=home;
    o.querySelectorAll('[data-job-go]').forEach(b=>b.onclick=()=>{
     const go=b.dataset.jobGo;
-    if(go==='cutting')return cutting(true);
+    if(go==='saved')return cutting(true);
     if(go==='evidence')return evidence(true);
     close();
+    if(go==='cutting'){ if(!cab)return cutting(false); return openLiveCutting(p.id,roomId||'',cab.id); }
     if(go==='drawing')return openJobDesignForRoom(p.id,roomId||'',cab&&cab.id);
     if(go==='panelcheck'){if(!cab)return;switchToProject(p.id,cab.id);renderAll();save();return show('parts')}
     if(go==='site')return openSiteRoomDetails(p.id,roomId);
@@ -12575,7 +12625,64 @@ body.fiq-locked .app{display:none!important}
  window.fiqSentVersionCount=(projectId,roomId,cabinetId)=>{const p=state.projects.find(x=>x.id===projectId);return p?versionsOf(p,jobKeyFor(roomId||'',cabinetId||'')).length:0};
  window.fiqOpenJobPage=openJobPage;
  window.fiqOpenJobEvidence=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'evidence');
- window.fiqOpenSentCuttingList=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'cutting');
+ // The Customer Library's Cutting List button opens the job's REAL cutting list (same job, same drawing, same panels) and
+ // leaves a way back. Only when the job has no unit to open does it fall back to the read-only saved copy.
+ function openLiveCutting(projectId,roomId,cabinetId){
+  const p=state.projects.find(x=>x.id===projectId);
+  if(!p){if(window.fiqLibNav)window.fiqLibNav.clear();alert('This job is no longer in Studio, so its Cutting List cannot be opened. Nothing has been changed.');return}
+  const cab=(cabinetId&&(p.cabinets||[]).find(c=>c.id===cabinetId))||(roomId?(p.cabinets||[]).find(c=>c.roomId===roomId):(p.cabinets||[])[0]);
+  // A job with no drawing unit has no live list to open: show the saved copy instead of doing nothing.
+  if(!cab)return openJobPage(projectId,roomId,cabinetId,'cutting');
+  const key=jobKeyFor(roomId||'',cab.id),n=versionsOf(p,key).length;
+  if(window.fiqLibNav)window.fiqLibNav.note(n?'Cutting List · saved as V'+n:'Cutting List',jobTitle(p,key));
+  openCuttingListForRoom(projectId,roomId||'',cab.id);
+  // Verify we really landed on that job's list; if anything redirected us, fall back to the saved copy rather than a wrong job.
+  if(state.screen!=='cutting'||state.currentProject!==projectId||state.currentCabinet!==cab.id){
+   console.warn('Customer Library: live Cutting List did not open as expected',state.screen,state.currentProject,state.currentCabinet);
+   if(window.fiqLibNav)window.fiqLibNav.clear();
+   openJobPage(projectId,roomId,cabinetId,'cutting');
+  }
+ }
+ window.fiqOpenSentCuttingList=(projectId,roomId,cabinetId)=>{if(window.fiqLibNav)window.fiqLibNav.set(projectId);openLiveCutting(projectId,roomId,cabinetId)};
+ window.fiqOpenSavedCuttingVersions=(projectId,roomId,cabinetId)=>openJobPage(projectId,roomId,cabinetId,'cutting');
+})();
+</script>
+<script id="fiq-library-return-script">
+(function(){
+  // Way back to the Customer Library (21 Nov 2026). Opening a job from a customer's card remembers that card; while the job's
+  // Drawing, Cutting List or Panel Check is open a small bar returns to the same customer. It is only a pointer: it saves nothing,
+  // changes nothing, and is dropped when the person reaches the Library, Job Overview or Home by any route.
+  let ctx=null;
+  const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function customerOf(pid){const p=state.projects.find(x=>x.id===pid);if(!p)return null;return state.customers.find(c=>c.id===p.customerId)||state.customers.find(c=>c.name&&c.name===p.customer)||null}
+  function bar(){
+    let b=document.getElementById('fiqLibBar');
+    const scr=state.screen;
+    if(ctx&&['customers','jobs','home'].includes(scr))ctx=null;
+    const hide=!ctx||scr==='customerCard';
+    if(hide){if(b)b.remove();return}
+    if(!b){b=document.createElement('div');b.id='fiqLibBar';b.setAttribute('role','navigation');document.body.appendChild(b)}
+    const c=customerOf(ctx.projectId),p=state.projects.find(x=>x.id===ctx.projectId);
+    b.innerHTML='<button type="button" class="btn primary" data-lib-back>← '+(c?'Back to '+esc(c.name):'Back to Customer Library')+'</button>'+
+      '<span class="fiq-lib-where">'+(ctx.label?'<b>'+esc(ctx.label)+'</b>':'')+(ctx.job||p?' · '+esc(ctx.job||(p&&p.name)||''):'')+'</span>';
+    b.querySelector('[data-lib-back]').onclick=back;
+  }
+  function back(){
+    const c=ctx&&customerOf(ctx.projectId);ctx=null;keep();
+    try{save()}catch(e){}
+    if(c){openCustomerCard(c.id)}else{show('customers');if(typeof renderAll==='function')renderAll()}
+    bar();
+  }
+  const KEY='fiqLibReturnCtx';
+  const keep=()=>{try{if(ctx)sessionStorage.setItem(KEY,JSON.stringify(ctx));else sessionStorage.removeItem(KEY)}catch(e){}};
+  window.fiqLibNav={set(pid){ctx={projectId:pid,label:'',job:''};keep();bar()},note(label,job){if(ctx){ctx.label=label;ctx.job=job;keep()}},active:()=>!!ctx,clear(){ctx=null;keep();bar()},back,render:bar,state:()=>ctx};
+  // After a reload on the job's own screen the way back is still offered (the session remembers it; it is never saved to the job).
+  const restore=()=>{try{const x=JSON.parse(sessionStorage.getItem(KEY)||'null');if(!ctx&&x&&x.projectId&&state.projects.some(p=>p.id===x.projectId)){ctx=x;bar()}}catch(e){}};
+  window.addEventListener('load',()=>{setTimeout(restore,1200);setTimeout(restore,3500)});
+  const orig=window.show;
+  window.show=function(name){const r=orig.apply(this,arguments);try{bar()}catch(e){}return r};
+  const css=document.createElement('style');css.textContent='#fiqLibBar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9500;display:flex;gap:10px;align-items:center;background:#0b1730;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 8px 6px 6px;box-shadow:0 6px 22px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}#fiqLibBar .btn{border-radius:999px;white-space:nowrap}#fiqLibBar .fiq-lib-where{font-size:13px;opacity:.9;padding-right:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media print{#fiqLibBar{display:none!important}}';
+  document.head.appendChild(css);
 })();
 </script>
 <script id="a222-cutting-list-return-script">

@@ -64,7 +64,11 @@
 
   // ---------- helpers ----------
   function esc(v) { return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function money(v) { return v === null || v === undefined ? '—' : '€' + Number(v).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  // Currency (21 Nov 2026): a label only, never a conversion. pageCur is the currency of what is on screen (the open estimate or
+  // saved version, or the price list while it is open); the estimate lists pass each estimate's own currency.
+  var pageCur = 'EUR';
+  function money(v, code) { return C.formatMoney(v, code || pageCur); }
+  function sym(code) { return C.currencySymbol(code || pageCur); }
   function amt(v) { return v === null || v === undefined ? '' : String(v); }
   function jobTitle(p) { return p ? (p.customer || p.name || 'Untitled job') + (p.customer && p.name && p.name !== p.customer ? ' · ' + p.name : '') + (p.address ? ' · ' + p.address : '') : 'Job'; }
   function statusChip(e) { var m = { draft: ['Draft', 'muted'], saved: ['Saved', 'info'], won: ['Won', 'ok'], lost: ['Lost', 'muted'] }[e.status] || [e.status, 'muted']; return '<span class="fiqx-chip fiqx-' + m[1] + '">' + m[0] + '</span>'; }
@@ -125,8 +129,10 @@
     '.fiqx-inl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.fiqx-sm{padding:3px 10px;font-size:14px}' +
     '@media(max-width:900px){.fiqx-body{grid-template-columns:minmax(0,1fr)}.fiqx-sum{position:static}}' +
     '@media(max-width:600px){.fiqx-ov{padding:0}.fiqx-win{border-radius:0}.fiqx-nav{grid-template-columns:1fr 1fr}.fiqx-nav .fiqx-npri{grid-column:1 / -1}.fiqx-title{font-size:23px}.fiqx-mbig{font-size:30px}.fiqx-mrow{grid-template-columns:minmax(0,1fr) auto}.fiqx-mcost{grid-column:1 / -1;text-align:left}.fiqx-mprice{align-items:flex-start}.fiqx-body{padding:10px}.fiqx-total b{font-size:34px}}' +
+    '.fiqx-job-est-btn{height:36px;padding:0 14px;border:2px solid #101418;background:#fff;color:#101418;border-radius:9px;font:800 14px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap}.fiqx-job-est-btn:hover{background:#eef1f5}' +
+    '.jor-top-actions .fiqx-job-est-btn{height:48px;border-radius:12px}' +
     '.fiqx-est-btn{margin-left:6px}.fiqx-cl{margin-bottom:14px}.fiqx-cl h4{margin:6px 0}.fiqx-cl .fiqx-clrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid #c9d1db;border-radius:8px;margin:4px 0;background:#fff;color:#101418;cursor:pointer;width:100%;font:inherit;text-align:left}';
-  function ensureStyle() { if (document.getElementById('fiqx-style')) return; var s = document.createElement('style'); s.id = 'fiqx-style'; s.textContent = css; document.head.appendChild(s); }
+  function ensureStyle() { if (document.getElementById('fiqx-style')) return; var s = document.createElement('style'); s.id = 'fiqx-style'; s.textContent = css + sheetsCss(); document.head.appendChild(s); }
 
   // ---------- Estimator ----------
   var view = null; // {projectId, mode:'choose'|'edit'|'version', estId, n}
@@ -165,6 +171,7 @@
     if (!projectId && typeof window.project === 'function') { var cur = window.project(); projectId = cur && cur.id; }
     if (!projectId) { try { var c = (0, eval)('typeof project==="function"&&project()'); projectId = c && c.id; } catch (e) {} }
     if (!projectId || !jobById(projectId)) { alert('Open or choose a job first, then press Estimate.'); return; }
+    syncSheets();
     if (estId) view = { projectId: projectId, mode: estById(estId) && estById(estId).draft ? 'edit' : 'version', estId: estId };
     else view = { projectId: projectId, mode: 'choose' };
     if (view.mode === 'version') { var e = estById(estId); view.n = e.versions.length ? e.versions[e.versions.length - 1].n : null; }
@@ -264,7 +271,7 @@
   }
   function topBar(p, e, extra) {
     return '<div class="fiqx-top"><h2>Estimator</h2><span class="fiqx-sub">' + esc(jobTitle(p)) + '</span>' + (e ? statusChip(e) : '') +
-      '<span class="fiqx-internal">Internal estimate · not for production</span><span class="fiqx-sp"></span>' + (extra || '') +
+      '<span class="fiqx-internal">Internal estimate · not for production</span>' + '<span class="fiqx-sp"></span>' + (extra || '') +
       '<button class="fiqx-btn" data-act="site">Site measurements</button><button class="fiqx-btn" data-act="pricelist">Price list</button>' +
       '<button class="fiqx-btn" data-act="close">Close</button></div>';
   }
@@ -275,7 +282,7 @@
       '<div class="fiqx-list">' + (list.length ? list.map(function (e) {
         var last = e.versions[e.versions.length - 1];
         return '<button class="fiqx-item" data-act="open" data-id="' + esc(e.id) + '"><span><strong>' + esc(e.name) + '</strong> ' + statusChip(e) + staleChip(e) +
-          '<span class="fiqx-sub"> ' + (last ? 'V' + last.n + ' · ' + money(C.suggestedOf(e)) : 'not saved yet') + (e.draft && last ? ' · draft of V' + (last.n + 1) : '') + '</span></span><span>›</span></button>';
+          '<span class="fiqx-sub"> ' + (last ? 'V' + last.n + ' · ' + money(C.suggestedOf(e), C.currencyOf(e, last)) : 'not saved yet') + (e.draft && last ? ' · draft of V' + (last.n + 1) : '') + '</span></span><span>›</span></button>';
       }).join('') : '<p class="fiqx-sub">No estimates yet.</p>') + '</div>' +
       '<button class="fiqx-btn fiqx-pri" data-act="new"' + (canWrite() ? '' : ' disabled') + '>New estimate</button></div></div></div></div>';
   }
@@ -328,7 +335,7 @@
     var costCell = cost;
     if (priceKey && !viewReadOnly) {
       var sheetPrice = priceKey.indexOf('sheets|') === 0, noPrice = unit === null || unit === undefined;
-      costCell = '<div class="fiqx-mprice"><span class="fiqx-pin">€ <input class="fiqx-in num' + (noPrice ? ' fiqx-need' : '') + '" inputmode="decimal" placeholder="price" aria-label="' + (sheetPrice ? 'Price per sheet' : 'Price per metre') + '" value="' + esc(amt(unit)) + '" data-gb="' + esc(priceKey) + '"> <span class="fiqx-sub">' + (sheetPrice ? 'per sheet' : 'per metre') + '</span></span>' + (noPrice ? '' : '<span class="fiqx-sub">= ' + lineCost(unit, q) + '</span>') + '</div>';
+      costCell = '<div class="fiqx-mprice"><span class="fiqx-pin">' + esc(sym()) + ' <input class="fiqx-in num' + (noPrice ? ' fiqx-need' : '') + '" inputmode="decimal" placeholder="price" aria-label="' + (sheetPrice ? 'Price per sheet' : 'Price per metre') + '" value="' + esc(amt(unit)) + '" data-gb="' + esc(priceKey) + '"> <span class="fiqx-sub">' + (sheetPrice ? 'per sheet' : 'per metre') + '</span></span>' + (noPrice ? '' : '<span class="fiqx-sub">= ' + lineCost(unit, q) + '</span>') + '</div>';
     }
     return '<div class="fiqx-mrow"><div class="fiqx-mname">' + esc(name) + (tag ? ' <span class="fiqx-sub">(' + esc(tag) + ')</span>' : '') + '</div><div class="fiqx-mbig">' + esc(big) + '</div><div class="fiqx-mcost">' + costCell + '</div></div>';
   }
@@ -345,7 +352,7 @@
     Object.keys(d.edging || {}).forEach(function (id) {
       var g = d.edging[id], q = g.override !== null && g.override !== undefined ? Number(g.override) : g.metres;
       var inlineEdge = String(id).indexOf('mat:') === 0 && !viewReadOnly;
-      edge.push('<div class="fiqx-erow"><span>Edging, ' + esc(matName(g.name).replace(/^Edging\s*/i, '')) + '</span><span>' + q + ' m</span><span>' + (inlineEdge ? '€ <input class="fiqx-in num' + (g.unitCost === null || g.unitCost === undefined ? ' fiqx-need' : '') + '" style="width:76px" inputmode="decimal" placeholder="per m" value="' + esc(amt(g.unitCost)) + '" data-gb="edging|' + esc(id) + '|unitCost"> ' : '') + (g.unitCost === null || g.unitCost === undefined ? (inlineEdge ? '' : lineCost(g.unitCost, q)) : lineCost(g.unitCost, q)) + '</span></div>');
+      edge.push('<div class="fiqx-erow"><span>Edging, ' + esc(matName(g.name).replace(/^Edging\s*/i, '')) + '</span><span>' + q + ' m</span><span>' + (inlineEdge ? esc(sym()) + ' <input class="fiqx-in num' + (g.unitCost === null || g.unitCost === undefined ? ' fiqx-need' : '') + '" style="width:76px" inputmode="decimal" placeholder="per m" value="' + esc(amt(g.unitCost)) + '" data-gb="edging|' + esc(id) + '|unitCost"> ' : '') + (g.unitCost === null || g.unitCost === undefined ? (inlineEdge ? '' : lineCost(g.unitCost, q)) : lineCost(g.unitCost, q)) + '</span></div>');
     });
     return (rows.length ? rows.join('') : '<p class="fiqx-sub">No sheets yet. Copy the panels from Studio, or open Panel details and add panels.</p>') +
       (edge.length ? '<div class="fiqx-edging">' + edge.join('') + '</div>' : '') + (notes.cuts ? '<div class="fiqx-sub fiqx-cuts">About ' + notes.cuts + ' cuts (estimate)</div>' : '');
@@ -388,10 +395,10 @@
     var inp = function (attr, val, ph) { return '<input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(val)) + '"' + (ph !== undefined ? ' placeholder="' + esc(ph) + '"' : '') + ' ' + attr + dis + '>'; };
     var sheets = Object.keys(d.sheets || {}).map(function (id) {
       var g = d.sheets[id], c = g.cfg || C.cfgOf(v, id, C.findItem(priceList(), id)), e2 = esc(id);
-      return '<div class="fiqx-sg"><div class="fiqx-mname fiqx-sgname">' + esc(matName(g.name)) + '</div><div class="fiqx-fields">' +
+      return '<div class="fiqx-sg"><div class="fiqx-mname fiqx-sgname">' + esc(matName(g.name)) + '</div>' + (ro ? '' : sheetPickerHtml(id, c)) + '<div class="fiqx-fields">' +
         field('Sheet length mm', inp('data-cfg="' + e2 + '|w"', c.w)) + field('Sheet width mm', inp('data-cfg="' + e2 + '|h"', c.h)) +
         field('Sheets to buy', inp('data-gb="sheets|' + e2 + '|override"', g.override, String(g.count)), 'calculated ' + g.count) +
-        field('Price per sheet €', inp('data-gb="sheets|' + e2 + '|unitCost"', g.unitCost)) +
+        field('Price per sheet ' + esc(sym()), inp('data-gb="sheets|' + e2 + '|unitCost"', g.unitCost)) +
         field('Saw cut mm', inp('data-cfg="' + e2 + '|kerf"', c.kerf)) + field('Trim mm', inp('data-cfg="' + e2 + '|trim"', c.trim)) +
         '<label class="fiqx-field fiqx-chk"><input type="checkbox" data-cfg="' + e2 + '|grain"' + (c.grain ? ' checked' : '') + dis + '> Keep grain direction</label></div>' +
         (g.sizeDiffers ? '<div class="fiqx-note">Size differs from the price list (' + g.listW + ' × ' + g.listH + ' mm). Price per sheet kept.</div>' : '') +
@@ -400,7 +407,7 @@
     var edging = Object.keys(d.edging || {}).map(function (id) {
       var g = d.edging[id], e2 = esc(id);
       return '<div class="fiqx-sg"><div class="fiqx-mname fiqx-sgname">' + esc(matName(g.name)) + '</div><div class="fiqx-fields">' +
-        field('Metres to buy', inp('data-gb="edging|' + e2 + '|override"', g.override, String(g.metres)), 'calculated ' + g.metres + ' m') + field('Price per metre €', inp('data-gb="edging|' + e2 + '|unitCost"', g.unitCost)) + '</div></div>';
+        field('Metres to buy', inp('data-gb="edging|' + e2 + '|override"', g.override, String(g.metres)), 'calculated ' + g.metres + ' m') + field('Price per metre ' + esc(sym()), inp('data-gb="edging|' + e2 + '|unitCost"', g.unitCost)) + '</div></div>';
     });
     var allow = '<div class="fiqx-sg"><div class="fiqx-fields">' + field('Extra for waste %', inp('data-ib="allowancePct"', v.inputs && v.inputs.allowancePct), 'added to sheets and edging, 0 if sizes are already rounded up') + '</div></div>';
     return (sheets.length || edging.length ? sheets.join('') + edging.join('') : '<p class="fiqx-sub">Settings appear once panels have a sheet material.</p>') + allow +
@@ -420,7 +427,7 @@
     return '<div class="fiqx-card"><h3 class="fiqx-h">ADDITIONAL COSTS</h3>' +
       (extra.length ? '<div style="overflow-x:auto"><table class="fiqx-t"><thead><tr><th>Type</th><th colspan="2">Item</th><th>Qty</th><th>Unit cost</th><th>Total</th><th></th></tr></thead><tbody>' + extra.join('') + '</tbody></table></div>' : '') +
       (ro ? '' : '<div class="fiqx-row" style="margin:6px 0 12px"><button class="fiqx-btn fiqx-lg" data-act="add" data-type="item"' + secAttr + '>+ Price list item</button><button class="fiqx-btn fiqx-lg" data-act="add" data-type="custom"' + secAttr + '>+ Custom item</button><button class="fiqx-btn" data-act="add" data-type="sheets"' + secAttr + '>+ Extra sheets</button></div>') +
-      '<div class="fiqx-sub" style="margin-top:8px">Labour</div><div class="fiqx-row"><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(i.labourDays)) + '" data-ib="labourDays"' + dis + '> days × € <input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(i.dayRate)) + '" data-ib="dayRate"' + dis + '> per day <strong id="fiqxLabourTotal">' + money(r.labourCharged) + '</strong></div>' +
+      '<div class="fiqx-sub" style="margin-top:8px">Labour</div><div class="fiqx-row"><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(i.labourDays)) + '" data-ib="labourDays"' + dis + '> days × ' + esc(sym()) + ' <input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(i.dayRate)) + '" data-ib="dayRate"' + dis + '> per day <strong id="fiqxLabourTotal">' + money(r.labourCharged) + '</strong></div>' +
       '<div class="fiqx-sub" style="margin-top:12px">Transport and other costs</div><table class="fiqx-t"><tbody>' + (i.otherCosts || []).map(function (o, k) {
         return '<tr><td><input class="fiqx-in wide" value="' + esc(o.label) + '" placeholder="e.g. Transport" data-ob="' + k + '|label"' + dis + '></td><td style="width:110px"><input class="fiqx-in num" inputmode="decimal" value="' + esc(amt(o.amount)) + '" data-ob="' + k + '|amount"' + dis + '></td><td style="width:30px">' + (ro ? '' : '<button class="fiqx-x" data-act="rmother" data-k="' + k + '">×</button>') + '</td></tr>';
       }).join('') + '</tbody></table>' + (ro ? '' : '<button class="fiqx-btn fiqx-lg" data-act="addother">+ Other cost</button>') +
@@ -437,6 +444,14 @@
       (ro ? '<button class="fiqx-nbtn fiqx-npri" data-act="editnew"' + (canWrite() ? '' : ' disabled') + '>EDIT ESTIMATE</button>' : '<button class="fiqx-nbtn fiqx-npri" data-act="savev" id="fiqxSaveBtn">SAVE ESTIMATE</button>') +
       '</div>';
   }
+  function currencyControlHtml(e, v, ro) {
+    var cur = ro ? C.currencyOf(e, v) : C.currencyOf(e);
+    if (ro) return '<span class="fiqx-chip" title="The currency this version was saved in">' + esc(cur) + '</span>';
+    var plc = C.currencyCode(priceList().currency);
+    return '<label class="fiqx-cur"><span class="fiqx-sub">Currency</span><select class="fiqx-in" data-eb="currency" aria-label="Estimate currency"' + (canWrite() ? '' : ' disabled') + '>' +
+      C.CURRENCIES.map(function (c) { return '<option value="' + c[0] + '"' + (c[0] === cur ? ' selected' : '') + '>' + c[0] + ' \u2013 ' + esc(c[1]) + '</option>'; }).join('') + '</select></label>' +
+      (cur !== plc ? '<span class="fiqx-sub" title="The company price list is kept in ' + plc + '. Its prices are used as typed; nothing is converted.">Price list is in ' + plc + ': prices are used as typed, not converted.</span>' : '');
+  }
   function headHtml(p, e, v, ro) {
     var title = p ? ((p.customer || p.name || 'Untitled job') + (p.customer && p.name && p.name !== p.customer ? ' · ' + p.name : '')) : 'Job', last = e.versions[e.versions.length - 1];
     var nameEl = ro ? '<strong>' + esc(e.name) + '</strong>' : '<input class="fiqx-in" style="font-weight:800;width:190px" value="' + esc(e.name) + '" data-eb="name">';
@@ -444,12 +459,13 @@
     var tabs = ro ? e.versions.map(function (x) { return '<button class="fiqx-btn' + (x.n === v.n ? ' fiqx-pri' : '') + '" data-act="showv" data-n="' + x.n + '">V' + x.n + '</button>'; }).join(' ') : '';
     var acts = ro && canWrite() ? '<button class="fiqx-btn" data-act="won">Mark Won</button> <button class="fiqx-btn" data-act="lost">Mark Lost</button> <button class="fiqx-btn" data-act="dup">Duplicate</button> <button class="fiqx-btn" data-act="archive">Archive</button>' : '';
     return '<div class="fiqx-head"><div class="fiqx-title">' + esc(title) + '</div>' +
-      '<div class="fiqx-row">' + nameEl + statusChip(e) + staleChip(e) + '<span class="fiqx-sub">' + verText + '</span><span class="fiqx-internal">Internal estimate · not for production</span><span class="fiqx-sub" id="fiqxAutosave"></span></div>' +
+      '<div class="fiqx-row">' + nameEl + statusChip(e) + staleChip(e) + '<span class="fiqx-sub">' + verText + '</span><span class="fiqx-internal">Internal estimate · not for production</span>' + currencyControlHtml(e, v, ro) + '<span class="fiqx-sub" id="fiqxAutosave"></span></div>' +
       (ro && (e.wonAt || e.lostAt) ? '<div class="fiqx-sub">' + (e.wonAt ? 'Won on ' + esc(new Date(e.wonAt).toLocaleDateString()) : '') + (e.lostAt ? 'Lost on ' + esc(new Date(e.lostAt).toLocaleDateString()) + (e.lostReason ? ': ' + esc(e.lostReason) : '') : '') + '</div>' : '') +
       '<div class="fiqx-row">' + tabs + (!ro && e.versions.length ? '<button class="fiqx-btn" data-act="versions">Saved versions</button>' : '') + acts + '<button class="fiqx-btn" data-act="togglecust">' + (view.open.cust ? 'Hide customer details' : 'Customer details') + '</button><button class="fiqx-btn" data-act="site">Site measurements</button><button class="fiqx-btn" data-act="pricelist">Price list</button></div>' +
       (view.open.cust && p ? '<div class="fiqx-card" style="margin:10px 0 0"><div><strong>' + esc(p.customer || '') + '</strong></div>' + (p.address ? '<div>' + esc(p.address) + '</div>' : '') + (p.phone ? '<div>' + esc(p.phone) + '</div>' : '') + (!p.address && !p.phone ? '<div class="fiqx-sub">No address or phone saved.</div>' : '') + '</div>' : '') + '</div>';
   }
   function pageHtml(p, e, v, ro) {
+    pageCur = ro ? C.currencyOf(e, v) : C.currencyOf(e);
     var r = ro ? (v.results || C.compute(v)) : C.compute(v);
     return '<div class="fiqx-win">' + navHtml(ro) +
       '<div class="fiqx-body"><div class="fiqx-main">' + headHtml(p, e, v, ro) +
@@ -466,6 +482,7 @@
   }
   // Recalculate sheets and edging, then refresh everything that shows them. Keeps the cursor where it was.
   function refreshDerived(e) {
+    pageCur = C.currencyOf(e);
     C.syncDerived(e.draft, priceList(), packFn());
     var a = document.activeElement, key = null, host = null, pos = a && a.selectionStart;
     if (a && a.getAttribute) {
@@ -498,6 +515,7 @@
       '<div class="l fiqx-profit"><span>ESTIMATED PROFIT</span><span style="color:#0b4a24">' + money(r.profit) + ' <span class="fiqx-sub">(' + r.marginPct.toFixed(1) + '%)</span></span></div>';
   }
   function refreshSummary(e) {
+    pageCur = C.currencyOf(e);
     var el = document.getElementById('fiqxSummary'); if (!el) return;
     var active = document.activeElement, inSum = !!(active && el.contains(active)), key = inSum && active.getAttribute && active.getAttribute('data-ib'), pos = inSum && active.selectionStart;
     var r = C.compute(e.draft);
@@ -516,7 +534,7 @@
   function numOrNull(v) { var n = C.parseAmount(v); return n; }
   document.addEventListener('input', function (ev) {
     var t = ev.target; if (!t.closest || !t.closest('#fiqxEst')) return;
-    var e = currentEst(); if (!e || !e.draft || !canWrite()) return;
+    var e = currentEst(); if (!e || !e.draft || !canWrite()) return; pageCur = C.currencyOf(e);
     var a;
     if ((a = t.getAttribute('data-b'))) {
       var parts = a.split('|'), f = parts[2], hit = findLine(e, parts[0], parts[1]); if (!hit.line) return;
@@ -538,7 +556,7 @@
   }, true);
   document.addEventListener('change', function (ev) {
     var t = ev.target; if (!t.closest || !t.closest('#fiqxEst')) return;
-    var e = currentEst(); if (!e || !e.draft || !canWrite()) return;
+    var e = currentEst(); if (!e || !e.draft || !canWrite()) return; pageCur = C.currencyOf(e);
     var a;
     if ((a = t.getAttribute('data-s'))) {
       var parts = a.split('|'), hit = findLine(e, parts[0], parts[1]); if (!hit.line) return;
@@ -549,6 +567,8 @@
         if (hit.line.type !== 'panel') { hit.line.name = it ? it.name : ''; hit.line.unit = it ? it.unit : 'each'; hit.line.unitCost = it ? it.cost : null; hit.line.listCost = it ? it.cost : null; hit.line.overridden = false; }
       } else hit.line[parts[2]] = t.value;
     } else if ((a = t.getAttribute('data-ss'))) { var s = e.draft.sections.find(function (x) { return x.id === a.split('|')[0]; }); if (s) { s.roomId = t.value || null; var r = ((jobById(e.projectId) || {}).rooms || []).find(function (x) { return x.id === t.value; }); if (r && /^Section \d+$/.test(s.name)) s.name = r.name; } }
+    else if (t.getAttribute('data-eb') === 'currency') { e.currency = C.currencyCode(t.value); pageCur = e.currency; }
+    else if ((a = t.getAttribute('data-csel'))) { if (!applySavedSheet(e, a, t.value)) return; }
     else return;
     persist(); render();
   }, true);
@@ -560,10 +580,12 @@
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('#fiqxEst [data-act], .fiqx-side [data-act]'); if (!b) return;
     ev.preventDefault();
-    var act = b.getAttribute('data-act'), e = currentEst();
+    var act = b.getAttribute('data-act'), e = currentEst(); if (e) pageCur = C.currencyOf(e, view && view.mode === 'version' ? e.versions.find(function (x) { return x.n === view.n; }) : null);
     var mutate = function (fn) { if (!canWrite()) return; fn(); persist(); render(); };
     switch (act) {
       case 'close': return backToStudio();
+      case 'managesheets': return openSheetManager();
+      case 'savesheet': { if (!e || !e.draft) return; var sid = b.getAttribute('data-id'), sc = (e.draft.sheetCfg && e.draft.sheetCfg[sid]) || C.cfgOf(e.draft, sid, C.findItem(priceList(), sid)); return openSheetManager({ w: sc.w, h: sc.h }); }
       case 'custjob': return toCustomerJob();
       case 'togglepanels': view.open.panels = !view.open.panels; return render();
       case 'togglesheets': view.open.sheets = !view.open.sheets; return render();
@@ -634,7 +656,7 @@
       case 'won': return mutate(function () { e.status = 'won'; e.wonAt = new Date().toISOString(); e.lostAt = null; });
       case 'lost': return mutate(function () { var r = prompt('Lost: optional reason', e.lostReason || ''); if (r === null) return; e.status = 'lost'; e.lostAt = new Date().toISOString(); e.lostReason = r; e.wonAt = null; });
       case 'dup': return mutate(function () {
-        var copy = C.newEstimate({ projectId: e.projectId, customerId: e.customerId, customer: e.customer, name: e.name + ' (copy)' }, priceList());
+        var copy = C.newEstimate({ projectId: e.projectId, customerId: e.customerId, customer: e.customer, name: e.name + ' (copy)', currency: C.currencyOf(e) }, priceList());
         copy.draft = C.clone(e.draft || e.versions[e.versions.length - 1]); ['n', 'savedAt', 'savedBy', 'results'].forEach(function (k) { delete copy.draft[k]; });
         estimates().push(copy); view = { projectId: e.projectId, mode: 'edit', estId: copy.id };
       });
@@ -666,7 +688,7 @@
   function browserPricesRaw() { try { return localStorage.getItem('fiq_supplier_prices_v1'); } catch (e) { return null; } }
   function renderPriceList() {
     var o = document.getElementById('fiqxPL'); if (!o) return;
-    var pl = priceList(), edit = canEditPrices(), dis = edit ? '' : ' disabled';
+    var pl = priceList(), edit = canEditPrices(), dis = edit ? '' : ' disabled'; pageCur = C.currencyCode(pl.currency);
     var raw = browserPricesRaw(), pending = raw ? C.importBrowserPrices(raw, pl.items, who()).items.length : 0;
     var rows = pl.items.slice().sort(function (a, b) { return (a.archived - b.archived) || String(a.category).localeCompare(b.category) || String(a.name).localeCompare(b.name); }).map(function (i) {
       var b = function (f) { return ' data-pl="' + esc(i.id) + '|' + f + '"'; };
@@ -680,17 +702,20 @@
         '<td>' + (edit ? '<button class="fiqx-btn" data-plact="' + (i.archived ? 'unarchive' : 'archive') + '" data-id="' + esc(i.id) + '">' + (i.archived ? 'Restore' : 'Archive') + '</button>' : '') + '</td></tr>';
     }).join('');
     o.innerHTML = '<div class="fiqx-win"><div class="fiqx-top"><h2>Material Price List</h2><span class="fiqx-sub">Company prices, excluding tax. New estimate lines copy these prices; saved estimates never change.</span><span class="fiqx-sp"></span>' +
-      (edit ? '' : '<span class="fiqx-chip fiqx-muted">View only: the company owner or an administrator can edit</span>') + '<button class="fiqx-btn" data-plact="close">Close</button></div>' +
+      (edit ? '' : '<span class="fiqx-chip fiqx-muted">View only: the company owner or an administrator can edit</span>') + '<button class="fiqx-btn" data-plact="sheets">Custom sheets…</button><button class="fiqx-btn" data-plact="close">Close</button></div>' +
       '<div class="fiqx-body single"><div>' +
       (edit && pending ? '<div class="fiqx-warnbox">' + pending + ' price' + (pending === 1 ? '' : 's') + ' saved in the Shopping List on this computer can be copied into the company price list. The Shopping List keeps its own prices unchanged. <button class="fiqx-btn" data-plact="import">Review and import</button></div>' : '') +
       (isOwner() && fsFns() ? '<div class="fiqx-card"><h3>Who can edit prices</h3><p class="fiqx-sub">You (the owner) always can. Tick anyone else in the company who should manage prices. Everyone signed in can use the prices in estimates.</p>' +
         (!admins.loaded ? '<p class="fiqx-sub">Loading…</p>' : admins.error ? '<div class="fiqx-warnbox">Could not load the company members: ' + esc(admins.error) + '</div>' : admins.members.length ?
           admins.members.map(function (m) { return '<label class="fiqx-row" style="padding:3px 0"><input type="checkbox" data-pladmin="' + esc(m.uid) + '"' + (admins.list.indexOf(m.uid) >= 0 ? ' checked' : '') + '> ' + esc(m.label) + ' <span class="fiqx-sub">(' + esc(m.role || 'member') + ')</span></label>'; }).join('') :
           '<p class="fiqx-sub">No other active members yet.</p>') + '</div>' : '') +
+      '<div class="fiqx-card"><h3>Currency</h3><div class="fiqx-row"><select class="fiqx-in" data-plcur="1" aria-label="Price list currency"' + dis + '>' +
+        C.CURRENCIES.map(function (c) { return '<option value="' + c[0] + '"' + (c[0] === pageCur ? ' selected' : '') + '>' + c[0] + ' \u2013 ' + esc(c[1]) + '</option>'; }).join('') + '</select>' +
+        '<span class="fiqx-sub">The currency the prices below are in, and the starting currency of new estimates. Changing it only changes the label: nothing is converted.</span></div></div>' +
       '<div class="fiqx-card"><h3>Estimate defaults for new estimates</h3><div class="fiqx-row"><span class="fiqx-sub">Markup %</span><input class="fiqx-in num" value="' + esc(amt(pl.defaults.markupPct)) + '" data-pld="markupPct"' + dis + '>' +
       '<span class="fiqx-sub">Tax rate %</span><input class="fiqx-in num" placeholder="blank" value="' + esc(amt(pl.defaults.taxRate)) + '" data-pld="taxRate"' + dis + '>' +
       '<span class="fiqx-sub">Tax label</span><input class="fiqx-in" style="width:90px" placeholder="e.g. VAT" value="' + esc(pl.defaults.taxLabel) + '" data-pld="taxLabel"' + dis + '></div></div>' +
-      '<div class="fiqx-card"><table class="fiqx-t"><thead><tr><th>Category</th><th>Name</th><th>Unit</th><th>Cost €</th><th>Sheet size</th><th>Supplier</th><th>Updated</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="8" class="fiqx-sub">No items yet.</td></tr>') + '</tbody></table>' +
+      '<div class="fiqx-card"><table class="fiqx-t"><thead><tr><th>Category</th><th>Name</th><th>Unit</th><th>Cost ' + esc(sym()) + '</th><th>Sheet size</th><th>Supplier</th><th>Updated</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="8" class="fiqx-sub">No items yet.</td></tr>') + '</tbody></table>' +
       (edit ? '<button class="fiqx-btn fiqx-pri" data-plact="add" style="margin-top:8px">+ Add item</button>' : '') + '</div></div></div></div>';
   }
   document.addEventListener('input', function (ev) {
@@ -712,12 +737,14 @@
   document.addEventListener('change', function (ev) {
     var t = ev.target; if (!t.closest || !t.closest('#fiqxPL')) return;
     if (t.hasAttribute('data-pladmin')) return setAdmin(t.getAttribute('data-pladmin'), t.checked);
+    if (t.hasAttribute('data-plcur')) { if (canEditPrices()) writePriceList(function (pl) { pl.currency = C.currencyCode(t.value); }); return renderPriceList(); }
     if (t.tagName === 'SELECT') renderPriceList();
   }, true);
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('#fiqxPL [data-plact]'); if (!b) return; ev.preventDefault();
     var act = b.getAttribute('data-plact');
     if (act === 'close') { var o = document.getElementById('fiqxPL'); if (o) o.remove(); if (view) render(); return; }
+    if (act === 'sheets') return openSheetManager();
     if (!canEditPrices()) return;
     if (act === 'add') { writePriceList(function (pl) { pl.items.push(C.makeItem({ category: 'hardware', name: 'New item', unit: 'each' }, who())); }); return renderPriceList(); }
     if (act === 'archive' || act === 'unarchive') { writePriceList(function (pl) { var it = pl.items.find(function (i) { return i.id === b.getAttribute('data-id'); }); if (it) it.archived = act === 'archive'; }); return renderPriceList(); }
@@ -729,6 +756,198 @@
       return renderPriceList();
     }
   });
+
+
+  // ---------- Custom sheets: the company's own named sheet sizes (21 Nov 2026) ----------
+  // Kept in state.customSheets (this computer) and in the company's private cloud data (Firestore: companies/{companyId}/estimatorSheets/{id}),
+  // which only the company's active members can read or write (see firestore.rules), so they follow the login to any computer.
+  // A sheet typed while offline, or before the cloud rule is published, stays here and is uploaded on the next sync.
+  // An estimate copies a size as plain numbers: editing or deleting a saved sheet never changes an estimate that used it.
+  var cs = { editing: null, error: '', form: { name: '', w: '', h: '', t: '' }, edit: { name: '', w: '', h: '', t: '' } };
+  var csSync = { running: false, again: false, state: 'idle', message: '', p: null };
+  function sheets() { var s = st(); return C.sortSheets((s && Array.isArray(s.customSheets)) ? s.customSheets : []); }
+  function writeSheets(fn) {
+    var s = st(); if (!s || !canWrite()) return false;
+    if (!Array.isArray(s.customSheets)) s.customSheets = []; if (!Array.isArray(s.customSheetsDeleted)) s.customSheetsDeleted = [];
+    fn(s); persist(true); return true;
+  }
+  function stripSheet(x) { var o = { id: x.id, name: x.name, w: x.w, h: x.h, createdAt: x.createdAt, updatedAt: x.updatedAt, updatedBy: x.updatedBy || null }; if (x.t) o.t = x.t; return o; }
+  // Cloud saving of Custom Sheets. Beta: the per-computer switch of the Beta write guard. The live app: OFF until the company rule
+  // (tests/firestore-rules-addition.txt) has been published and checked; then this constant is set to true in a later, separate release.
+  var SHEETS_CLOUD_IN_LIVE_APP = false;
+  function sheetsCloudOn() { return window.fiqBetaGuard ? !!window.fiqBetaGuard.sheetsCloud() : SHEETS_CLOUD_IN_LIVE_APP; }
+  function sheetBackend() {
+    if (window.fiqCustomSheetsBackend) return window.fiqCustomSheetsBackend;
+    if (!sheetsCloudOn()) return null; // cloud saving is off until it is switched on (Beta: per computer; live app: after the company rule is published)
+    var u = user(), f = fsFns();
+    if (!u || !u.uid || !u.companyId || !f || !f.setDoc || !f.deleteDoc || !f.getDocs || !f.collection || !f.doc) return null;
+    var db = window.fiqFirestore, col = function () { return f.collection(db, 'companies', u.companyId, 'estimatorSheets'); };
+    return {
+      list: function () {
+        return f.getDocs(col()).then(function (q) {
+          return q.docs.map(function (d) {
+            var x = d.data() || {}, w = Number(x.w), h = Number(x.h); if (!x.name || !isFinite(w) || !isFinite(h)) return null;
+            var r = { id: d.id, name: String(x.name), w: w, h: h, createdAt: x.createdAt || x.updatedAt || '', updatedAt: x.updatedAt || '', updatedBy: x.updatedBy || null }; if (Number(x.t) > 0) r.t = Number(x.t); return r;
+          }).filter(function (x) { return x && !/^_cloudcheck_/.test(x.id); });
+        });
+      },
+      put: function (sh) { var x = stripSheet(sh), d = { name: x.name, w: x.w, h: x.h, createdAt: String(x.createdAt || ''), updatedAt: String(x.updatedAt || ''), updatedBy: x.updatedBy || '' }; if (x.t) d.t = x.t; return f.setDoc(f.doc(db, 'companies', u.companyId, 'estimatorSheets', x.id), d); },
+      remove: function (id) { return f.deleteDoc(f.doc(db, 'companies', u.companyId, 'estimatorSheets', id)); }
+    };
+  }
+  // Real-account check for testing: who is signed in, which company, and a write/read/delete round trip on a throw-away document.
+  function cloudCheck() {
+    var u = user(), f = fsFns(), out = [];
+    out.push('Signed in: ' + (u && u.uid ? 'yes' : 'no') + (u && u.role ? ' (role: ' + u.role + ')' : ''));
+    out.push('Company: ' + (u && u.companyId ? u.companyId : 'none'));
+    if (window.fiqCustomSheetsBackend) { out.push('Test backend in use (not the real cloud).'); return Promise.resolve(out.join('\n')); }
+    if (!sheetsCloudOn()) return Promise.resolve(out.concat(window.fiqBetaGuard ? 'Cloud saving is switched OFF on this Beta computer. Turn it on first (button above), then test again.' : 'Cloud saving of Custom Sheets is not switched on yet. Your sheets are saved on this computer.').join('\n'));
+    if (!u || !u.uid || !u.companyId || !f) return Promise.resolve(out.concat('Cannot test: sign in with a company account first.').join('\n'));
+    var ref = f.doc(window.fiqFirestore, 'companies', u.companyId, 'estimatorSheets', '_cloudcheck_' + u.uid.slice(0, 8));
+    return f.setDoc(ref, { name: '_cloud check (safe to ignore)', w: 1, h: 1, createdAt: '', updatedAt: new Date().toISOString(), updatedBy: u.uid })
+      .then(function () { out.push('Write: OK'); return f.getDoc(ref); })
+      .then(function (snap) { out.push('Read: ' + (snap && snap.exists() ? 'OK' : 'FAILED (missing)')); return f.deleteDoc(ref); })
+      .then(function () { out.push('Delete: OK'); out.push('Result: the company cloud is working for your account.'); return out.join('\n'); })
+      .catch(function (e) { out.push('Result: NOT working (' + ((e && (e.code || e.message)) || 'unknown') + '). If this says permission-denied, the Custom Sheets rule has not been published yet.'); return out.join('\n'); });
+  }
+  function sheetStatusText() {
+    if (csSync.state === 'cloud') return { ok: true, text: '✓ ' + csSync.message };
+    if (csSync.state === 'error') return { ok: false, text: csSync.message };
+    var pending = sheets().some(function (x) { return x.synced === false; });
+    if (csSync.state === 'local') return { ok: false, text: csSync.message };
+    return { ok: !pending, text: pending ? 'Saving…' : 'Checking the company cloud…' };
+  }
+  function refreshSheetUi() {
+    var o = document.getElementById('fiqxCS');
+    if (o) { var a = document.activeElement; if (cs.editing === null && !(a && o.contains(a) && /INPUT|SELECT/.test(a.tagName))) renderSheetManager(); else { var st2 = document.getElementById('fiqxCSStatus'); if (st2) { var z = sheetStatusText(); st2.textContent = z.text; st2.className = z.ok ? 'fiqx-csok' : 'fiqx-cswarn'; } } }
+    var sb = document.getElementById('fiqxSettingsBody'), e = currentEst();
+    if (sb && e && e.draft && !(document.activeElement && sb.contains(document.activeElement))) { pageCur = C.currencyOf(e); sb.innerHTML = settingsBodyHtml(e.draft, false); }
+  }
+  function syncSheets() {
+    var be = sheetBackend();
+    if (!be) { csSync.state = 'local'; csSync.message = !sheetsCloudOn() ? (window.fiqBetaGuard ? 'Cloud saving is switched OFF on this Beta computer, so sheets are saved on this computer only. Turn it on below once the company rule has been checked.' : 'Your sheets are saved on this computer. Saving them in the company cloud is not switched on yet.') : user() && user().uid ? 'The company cloud is not ready. Your sheets are saved on this computer.' : 'Saved on this computer only. Sign in to keep them in your company cloud.'; refreshSheetUi(); return Promise.resolve(); }
+    if (csSync.running) { csSync.again = true; return csSync.p; }
+    csSync.running = true;
+    csSync.p = be.list().then(function (cloud) {
+      var s = st(); if (!s) return;
+      var m = C.mergeSheets(s.customSheets || [], s.customSheetsDeleted || [], cloud);
+      var tasks = m.upload.map(function (sh) { return Promise.resolve().then(function () { return be.put(sh); }).then(function () { return { id: sh.id, up: true, ok: true, at: sh.updatedAt }; }, function (er) { return { id: sh.id, up: true, ok: false, err: er }; }); })
+        .concat(m.remove.map(function (id) { return Promise.resolve().then(function () { return be.remove(id); }).then(function () { return { id: id, up: false, ok: true }; }, function (er) { return { id: id, up: false, ok: false, err: er }; }); }));
+      return Promise.all(tasks).then(function (res) {
+        var upOk = {}, rmOk = {}, failed = res.filter(function (x) { return !x.ok; });
+        res.forEach(function (x) { if (x.ok) (x.up ? upOk : rmOk)[x.id] = x.at || true; });
+        var cur = (s.customSheets || []).reduce(function (o, x) { o[x.id] = x; return o; }, {}); // edits made while this ran stay unsynced
+        var next = m.sheets.map(function (x) { var live = cur[x.id]; if (live && live.updatedAt !== x.updatedAt && live.synced === false) return live; return upOk[x.id] && (!live || live.updatedAt === upOk[x.id]) ? Object.assign({}, x, { synced: true }) : x; });
+        Object.keys(cur).forEach(function (id) { if (!next.some(function (x) { return x.id === id; }) && cur[id].synced === false) next.push(cur[id]); });
+        var before = JSON.stringify([s.customSheets || [], s.customSheetsDeleted || []]);
+        s.customSheets = C.sortSheets(next);
+        s.customSheetsDeleted = m.tombs.filter(function (t) { return !rmOk[t.id]; }).concat((s.customSheetsDeleted || []).filter(function (t) { return !m.tombs.some(function (k) { return k.id === t.id; }) && !m.remove.indexOf && false; }));
+        if (JSON.stringify([s.customSheets, s.customSheetsDeleted]) !== before) persist(true);
+        if (failed.length) { csSync.state = 'error'; csSync.message = 'Some changes could not be saved to the company cloud (' + ((failed[0].err && (failed[0].err.code || failed[0].err.message)) || 'unknown') + '). They are kept on this computer and will be tried again.'; }
+        else { csSync.state = 'cloud'; csSync.message = 'Saved in your company cloud'; }
+      });
+    }).catch(function (er) {
+      csSync.state = 'error'; csSync.message = 'Could not reach the company cloud (' + ((er && (er.code || er.message)) || 'unknown') + '). Your sheets are saved on this computer and will upload later.';
+    }).then(function () { csSync.running = false; refreshSheetUi(); if (csSync.again) { csSync.again = false; return syncSheets(); } });
+    return csSync.p;
+  }
+  function addSheet(fields) { var rec = C.newSheet(fields, who()); if (!writeSheets(function (s) { s.customSheets.push(rec); })) return null; syncSheets(); return rec; }
+  function updateSheet(id, fields) {
+    var ok = writeSheets(function (s) { var i = s.customSheets.findIndex(function (x) { return x.id === id; }); if (i >= 0) s.customSheets[i] = C.editSheet(s.customSheets[i], fields, who()); });
+    if (ok) syncSheets(); return ok;
+  }
+  function deleteSheet(id) {
+    var ok = writeSheets(function (s) { s.customSheets = s.customSheets.filter(function (x) { return x.id !== id; }); s.customSheetsDeleted = s.customSheetsDeleted.filter(function (t) { return t.id !== id; }).concat([{ id: id, at: new Date().toISOString() }]); });
+    if (ok) syncSheets(); return ok;
+  }
+  // Choosing a saved sheet in an estimate copies its size into that estimate's own sheet settings (nothing else changes).
+  function applySavedSheet(e, itemId, sheetId) {
+    var sh = sheets().find(function (x) { return x.id === sheetId; }); if (!sh || !e || !e.draft) return false;
+    setCfg(e, itemId + '|w', { value: String(sh.w) }); setCfg(e, itemId + '|h', { value: String(sh.h) });
+    C.syncDerived(e.draft, priceList(), packFn()); return true;
+  }
+  function sheetPickerHtml(id, c) {
+    var list = sheets(), w = Number(c.w), h = Number(c.h), hit = list.find(function (x) { return x.w === w && x.h === h; }) || list.find(function (x) { return x.w === h && x.h === w; });
+    var dis = canWrite() ? '' : ' disabled';
+    return '<div class="fiqx-row fiqx-cspick"><span class="fiqx-sub">Saved sheets</span><select class="fiqx-in" data-csel="' + esc(id) + '" aria-label="Choose a saved sheet"' + dis + '>' +
+      '<option value="">' + (list.length ? 'Choose a saved sheet…' : 'No saved sheets yet') + '</option>' +
+      list.map(function (x) { return '<option value="' + esc(x.id) + '"' + (hit && hit.id === x.id ? ' selected' : '') + '>' + esc(x.name) + ' · ' + x.w + ' × ' + x.h + ' mm</option>'; }).join('') + '</select>' +
+      '<button class="fiqx-btn" data-act="savesheet" data-id="' + esc(id) + '"' + dis + '>Save this size…</button><button class="fiqx-btn" data-act="managesheets">Manage…</button></div>';
+  }
+  function openSheetManager(prefill) {
+    ensureStyle(); var o = overlay('fiqxCS'); o.style.zIndex = 99998; padForBanner(o);
+    cs.editing = null; cs.error = '';
+    cs.form = prefill && prefill.w ? { name: '', w: String(prefill.w), h: String(prefill.h), t: prefill.t ? String(prefill.t) : '' } : { name: '', w: '', h: '', t: '' };
+    renderSheetManager(); syncSheets();
+    if (prefill && prefill.w) { var n = o.querySelector('[data-csin="name"]'); if (n) n.focus(); }
+  }
+  function renderSheetManager() {
+    var o = document.getElementById('fiqxCS'); if (!o) return;
+    var list = sheets(), can = canWrite(), dis = can ? '' : ' disabled', z = sheetStatusText();
+    var rows = list.map(function (x) {
+      if (cs.editing === x.id) return '<tr><td><input class="fiqx-in wide" value="' + esc(cs.edit.name) + '" data-csedit="name" aria-label="Sheet name"></td><td><input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.edit.w) + '" data-csedit="w" aria-label="Length mm"></td><td><input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.edit.h) + '" data-csedit="h" aria-label="Width mm"></td><td><input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.edit.t) + '" data-csedit="t" aria-label="Thickness mm"></td>' +
+        '<td><button class="fiqx-btn fiqx-pri" data-csact="save" data-id="' + esc(x.id) + '">Save</button> <button class="fiqx-btn" data-csact="cancel">Cancel</button></td></tr>';
+      return '<tr data-sheet-row="' + esc(x.id) + '"><td><strong>' + esc(x.name) + '</strong>' + (x.synced === false ? ' <span class="fiqx-sub">(not in the cloud yet)</span>' : '') + '</td><td>' + x.w + '</td><td>' + x.h + '</td><td>' + (x.t || '') + '</td>' +
+        '<td><button class="fiqx-btn" data-csact="edit" data-id="' + esc(x.id) + '"' + dis + '>Edit</button> <button class="fiqx-btn" data-csact="delete" data-id="' + esc(x.id) + '"' + dis + '>Delete</button></td></tr>';
+    }).join('');
+    o.innerHTML = '<div class="fiqx-win"><div class="fiqx-top"><h2>Custom Sheets</h2><span class="fiqx-sub">Your own sheet sizes. Choose one in any estimate instead of typing the size again.</span><span class="fiqx-sp"></span><button class="fiqx-btn" data-csact="close">Close</button></div>' +
+      '<div class="fiqx-body single"><div>' +
+      '<div class="fiqx-card"><div id="fiqxCSStatus" class="' + (z.ok ? 'fiqx-csok' : 'fiqx-cswarn') + '">' + esc(z.text) + '</div><div class="fiqx-row" style="margin-top:8px"><button class="fiqx-btn" data-csact="check">Test company cloud</button>' + (window.fiqBetaGuard ? '<button class="fiqx-btn" data-csact="betacloud">' + (window.fiqBetaGuard.sheetsCloud() ? 'Turn cloud saving OFF (this Beta computer)' : 'Turn cloud saving ON (this Beta computer)') + '</button>' : '') + '</div><pre id="fiqxCSCheck" class="fiqx-sub" style="white-space:pre-wrap;margin:8px 0 0"></pre>' + (can ? '' : '<div class="fiqx-sub">This Studio window is read-only, so sheets cannot be changed here.</div>') + '</div>' +
+      '<div class="fiqx-card"><h3>Saved sheets</h3>' + (list.length ? '<table class="fiqx-t" id="fiqxCSTable"><thead><tr><th>Name</th><th>Length mm</th><th>Width mm</th><th>Thickness mm</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="fiqx-sub">No saved sheets yet. Add your first one below, for example Standard Melamine 2800 × 2070.</p>') +
+      (cs.editing !== null && cs.error ? '<div class="fiqx-cserr">' + esc(cs.error) + '</div>' : '') + '</div>' +
+      '<div class="fiqx-card"><h3>Add a sheet</h3><div class="fiqx-csform">' +
+      field('Name', '<input class="fiqx-in" value="' + esc(cs.form.name) + '" placeholder="e.g. Standard Melamine" data-csin="name"' + dis + '>') +
+      field('Length mm', '<input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.form.w) + '" placeholder="2800" data-csin="w"' + dis + '>') +
+      field('Width mm', '<input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.form.h) + '" placeholder="2070" data-csin="h"' + dis + '>') +
+      field('Thickness mm', '<input class="fiqx-in num" inputmode="numeric" value="' + esc(cs.form.t) + '" placeholder="optional" data-csin="t"' + dis + '>') +
+      '<button class="fiqx-btn fiqx-pri" data-csact="add"' + dis + '>Save sheet</button></div>' +
+      (cs.editing === null && cs.error ? '<div class="fiqx-cserr">' + esc(cs.error) + '</div>' : '') + '</div></div></div></div>';
+  }
+  document.addEventListener('input', function (ev) {
+    var t = ev.target; if (!t.closest || !t.closest('#fiqxCS')) return;
+    var a = t.getAttribute('data-csin'), b = t.getAttribute('data-csedit');
+    if (a) cs.form[a] = t.value; else if (b) cs.edit[b] = t.value;
+  }, true);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter') return; var t = ev.target; if (!t.closest || !t.closest('#fiqxCS')) return;
+    var btn = t.getAttribute && t.getAttribute('data-csin') ? document.querySelector('#fiqxCS [data-csact="add"]') : (t.getAttribute && t.getAttribute('data-csedit') ? document.querySelector('#fiqxCS [data-csact="save"]') : null);
+    if (btn) { ev.preventDefault(); btn.click(); }
+  }, true);
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('#fiqxCS [data-csact]'); if (!b) return; ev.preventDefault();
+    var act = b.getAttribute('data-csact'), id = b.getAttribute('data-id');
+    if (act === 'close') { var o = document.getElementById('fiqxCS'); if (o) o.remove(); try { document.dispatchEvent(new Event('fiq-sheets-changed')); } catch (x) {} var pl = document.getElementById('fiqxPL'); if (pl) renderPriceList(); else if (view) render(); return; }
+    if (act === 'betacloud' && window.fiqBetaGuard) {
+      var on = !window.fiqBetaGuard.sheetsCloud();
+      if (on && !confirm('Turn ON cloud saving for Custom Sheets on this Beta computer?\n\nThis writes to your real company data (only the Custom Sheets list). Only do this after the Firestore rule has been checked. Use sheet names starting with TEST.')) return;
+      window.fiqBetaGuard.setSheetsCloud(on); csSync.state = 'idle'; renderSheetManager(); return syncSheets();
+    }
+    if (act === 'check') { var pre = document.getElementById('fiqxCSCheck'); if (pre) pre.textContent = 'Testing…'; return cloudCheck().then(function (t) { var q = document.getElementById('fiqxCSCheck'); if (q) q.textContent = t; }); }
+    if (!canWrite()) return;
+    if (act === 'add') {
+      var v = C.validateSheet(cs.form, sheets()); if (!v.ok) { cs.error = v.problems.join(' '); return renderSheetManager(); }
+      addSheet(v.sheet); cs.form = { name: '', w: '', h: '', t: '' }; cs.error = ''; return renderSheetManager();
+    }
+    if (act === 'edit') { var x = sheets().find(function (y) { return y.id === id; }); if (!x) return; cs.editing = id; cs.error = ''; cs.edit = { name: x.name, w: String(x.w), h: String(x.h), t: x.t ? String(x.t) : '' }; return renderSheetManager(); }
+    if (act === 'cancel') { cs.editing = null; cs.error = ''; return renderSheetManager(); }
+    if (act === 'save') {
+      var v2 = C.validateSheet(cs.edit, sheets().filter(function (y) { return y.id !== id; })); if (!v2.ok) { cs.error = v2.problems.join(' '); return renderSheetManager(); }
+      updateSheet(id, v2.sheet); cs.editing = null; cs.error = ''; return renderSheetManager();
+    }
+    if (act === 'delete') {
+      var d = sheets().find(function (y) { return y.id === id; }); if (!d) return;
+      if (!confirm('Delete the saved sheet "' + d.name + '" (' + d.w + ' × ' + d.h + ' mm)?\n\nEstimates that already used this size keep it.')) return;
+      deleteSheet(id); cs.editing = null; return renderSheetManager();
+    }
+  });
+  window.fiqOpenCustomSheets = openSheetManager;
+  window.fiqCustomSheets = { list: sheets, add: function (f) { if (!canWrite()) return { ok: false, problems: ['This Studio window is view only.'] }; var v = C.validateSheet(f, sheets()); if (!v.ok) return v; addSheet(v.sheet); return v; }, remove: function (id) { return canWrite() && deleteSheet(id); }, sync: syncSheets, status: function () { return { state: csSync.state, message: csSync.message }; } };
+  function sheetsCss() {
+    return '.fiqx-cspick{margin:0 0 10px;gap:8px;flex-wrap:wrap;align-items:center}.fiqx-cspick .fiqx-in{min-width:220px;max-width:100%}' +
+      '.fiqx-cur{display:inline-flex;gap:6px;align-items:center}.fiqx-csform{display:grid;grid-template-columns:minmax(160px,2fr) 1fr 1fr 1fr auto;gap:10px;align-items:end}' +
+      '.fiqx-csok{color:#0b4a24;font-weight:800}.fiqx-cswarn{color:#7a4b00;font-weight:800}.fiqx-cserr{color:#8e0f1a;font-weight:800;margin-top:10px}' +
+      '@media(max-width:700px){.fiqx-csform{grid-template-columns:1fr 1fr}.fiqx-csform .fiqx-pri{grid-column:1 / -1}}';
+  }
 
   // ---------- job picker (header button) ----------
   function currentJobId() { try { var c = (0, eval)('typeof project==="function"&&project()'); return c && c.id; } catch (e) { return null; } }
@@ -767,7 +986,7 @@
   // never the old Cutting List route.
   document.addEventListener('click', function (ev) {
     var el = ev.target.closest && ev.target.closest('button,a,[role="button"]'); if (!el) return;
-    if (el.hasAttribute('data-fiqx-from-studio')) return; // the Drawing toolbar button has its own handler
+    if (el.hasAttribute('data-fiqx-from-studio') || el.hasAttribute('data-fiqx-job-est')) return; // these buttons have their own handlers
     if (el.hasAttribute('data-fiqx-header-estimator') || (!el.closest('#fiqxEst,#fiqxPL,.fiqx-side') && /^\W*estimator\s*$/i.test(String(el.textContent || '').trim()))) {
       ev.preventDefault(); ev.stopImmediatePropagation(); openPicker();
     }
@@ -798,17 +1017,48 @@
     ev.preventDefault(); ev.stopImmediatePropagation();
     openFromStudio();
   }, true);
-  function openFromStudio() {
-    var pid = currentJobId(); if (!pid || !jobById(pid)) { alert('Open or choose a job first.'); return; }
+  // Opens the Estimator for one job: a first estimate copies the job panels in; otherwise the newest estimate that
+  // already holds Studio panels opens; otherwise the list of estimates. Used by the Drawing button and every job card.
+  function openForJob(pid) {
+    if (!pid || !jobById(pid)) { alert('Open or choose a job first.'); return; }
     ensureStyle(); loadAdmins();
     var list = jobEstimates(pid);
-    // No estimate yet: make one with the whole job copied in, one section per room, and open it.
     if (!list.length) { var n = newEstimateFor(pid, true); if (n) { view = { projectId: pid, mode: 'edit', estId: n.id }; render(); } return; }
-    // Otherwise open the newest estimate that already holds Studio panels; if none does, show the list.
     var linked = list.filter(function (x) { return !!sourceVersion(x); }).sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); })[0];
     if (linked) return openEstimator(pid, linked.id);
     openEstimator(pid);
   }
+  function openFromStudio() { openForJob(currentJobId()); }
+  // The Estimator button lives on every job card, not only on a brand new site job: Job Overview cards, and each job
+  // in the customer card (Jobs tab and Site Measurements tab). Added to the screen, never into the job itself.
+  function jobEstBtn(pid, extraClass) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'fiqx-job-est-btn' + (extraClass ? ' ' + extraClass : '');
+    b.setAttribute('data-fiqx-job-est', pid); b.textContent = '🧮 Estimator'; b.title = 'Open the Estimator for this job. The panels come with it; nothing in the design changes.'; return b;
+  }
+  function decorateJobCards() {
+    document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function (row) {
+      var box = row.querySelector('.jor-top-actions'); if (!box || box.querySelector('.fiqx-job-est-btn')) return;
+      box.insertBefore(jobEstBtn(row.getAttribute('data-open-job-card')), box.firstChild);
+    });
+    document.querySelectorAll('.customer-job-head').forEach(function (head) {
+      var box = head.querySelector('.customer-job-sheet-btns'), src = head.querySelector('[data-job-sheet]'); if (!box || !src || box.querySelector('.fiqx-job-est-btn')) return;
+      box.insertBefore(jobEstBtn(src.getAttribute('data-job-sheet')), box.firstChild);
+    });
+    document.querySelectorAll('.customer-tab-panel[data-tab-panel="site"]').forEach(function (panel) {
+      var seen = {}; panel.querySelectorAll('.customer-job-head').forEach(function (h) { var b = h.querySelector('[data-fiqx-job-est]'); if (b) seen[b.getAttribute('data-fiqx-job-est')] = true; });
+      panel.querySelectorAll('[data-open-site-room-project]').forEach(function (rowBtn) {
+        var pid = rowBtn.getAttribute('data-open-site-room-project'); if (!pid || seen[pid]) return; seen[pid] = true;
+        var j = jobById(pid), head = document.createElement('div'); head.className = 'customer-job-head';
+        var nm = document.createElement('span'); nm.textContent = (j && (j.name || j.customer)) || 'Job'; head.appendChild(nm);
+        var wrap = document.createElement('span'); wrap.className = 'customer-job-sheet-btns'; wrap.appendChild(jobEstBtn(pid)); head.appendChild(wrap);
+        rowBtn.parentNode.insertBefore(head, rowBtn);
+      });
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-fiqx-job-est]'); if (!b) return;
+    ev.preventDefault(); ev.stopImmediatePropagation(); openForJob(b.getAttribute('data-fiqx-job-est'));
+  }, true);
   window.fiqOpenEstimatorFromStudio = openFromStudio;
   queueStudioButton();
 
@@ -828,7 +1078,7 @@
       if (move) move.parentNode.insertBefore(btn, move); else row.appendChild(btn);
     });
   }
-  new MutationObserver(function (muts) { for (var i = 0; i < muts.length; i++) if (muts[i].addedNodes.length) { decorateCards(); addHeaderButton(); queueStudioButton(); break; } }).observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(function (muts) { for (var i = 0; i < muts.length; i++) if (muts[i].addedNodes.length) { decorateCards(); decorateJobCards(); addHeaderButton(); queueStudioButton(); break; } }).observe(document.documentElement, { childList: true, subtree: true });
   addHeaderButton();
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-fiqx-estimate],[data-fiqx-open-est],[data-fiqx-new-est],[data-fiqx-pricelist]'); if (!b) return;
@@ -847,7 +1097,7 @@
       var list = jobEstimates(p.id);
       return '<h4>' + esc(p.name || p.customer || 'Job') + '</h4>' + list.map(function (e) {
         var last = e.versions[e.versions.length - 1];
-        return '<button type="button" class="fiqx-clrow" data-fiqx-open-est="' + esc(e.id) + '"><span><strong>' + esc(e.name) + '</strong> ' + statusChip(e) + '</span><span class="fiqx-sub">' + (last ? 'V' + last.n + ' · ' + money(C.suggestedOf(e)) : 'draft') + '</span></button>';
+        return '<button type="button" class="fiqx-clrow" data-fiqx-open-est="' + esc(e.id) + '"><span><strong>' + esc(e.name) + '</strong> ' + statusChip(e) + '</span><span class="fiqx-sub">' + (last ? 'V' + last.n + ' · ' + money(C.suggestedOf(e), C.currencyOf(e, last)) : 'draft') + '</span></button>';
       }).join('') + '<button type="button" class="fiqx-btn" data-fiqx-new-est="' + esc(p.id) + '">+ New estimate</button>';
     }).join('');
     ensureStyle();

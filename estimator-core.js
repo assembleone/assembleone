@@ -21,7 +21,7 @@
   function euros(c) { return Math.round(c) / 100; }
   function parseAmount(v) {
     if (v === null || v === undefined) return null;
-    var s = String(v).trim().replace(/\s|€/g, '');
+    var s = String(v).trim().replace(/\s|[€£$]|kr\.?|dkk|sek|nok|chf|eur|gbp|usd/gi, '');
     if (!s) return null;
     if (s.indexOf(',') >= 0 && s.indexOf('.') < 0) s = s.replace(',', '.'); else s = s.replace(/,/g, '');
     var n = Number(s);
@@ -34,6 +34,80 @@
   }
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function norm(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+
+  // ---------- Currency (21 Nov 2026) ----------
+  // A currency is a label only: nothing here converts money. Each estimate keeps its own currency, and a saved version
+  // keeps the currency it was saved in. An estimate or version with none (everything made before this) is EUR.
+  var CURRENCIES = [
+    ['EUR', 'Euro', '€'], ['GBP', 'British Pound', '£'], ['USD', 'US Dollar', '$'], ['DKK', 'Danish Krone', 'DKK'],
+    ['SEK', 'Swedish Krona', 'SEK'], ['NOK', 'Norwegian Krone', 'NOK'], ['CHF', 'Swiss Franc', 'CHF']
+  ];
+  function currencyCode(c) {
+    var u = String(c || '').trim().toUpperCase();
+    for (var i = 0; i < CURRENCIES.length; i++) if (CURRENCIES[i][0] === u) return u;
+    return 'EUR';
+  }
+  function currencySymbol(c) {
+    var code = currencyCode(c);
+    for (var i = 0; i < CURRENCIES.length; i++) if (CURRENCIES[i][0] === code) return CURRENCIES[i][2];
+    return '€';
+  }
+  function currencyOf(est, version) { return currencyCode((version && version.currency) || (est && est.currency)); }
+  function formatMoney(v, c) {
+    if (v === null || v === undefined || v === '') return '—';
+    var n = Number(v); if (!isFinite(n)) return '—';
+    var sym = currencySymbol(c), body = n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (sym.length > 1 ? sym + ' ' : sym) + body;
+  }
+
+  // ---------- Custom sheets (21 Nov 2026) ----------
+  // The company's own named sheet sizes ("Standard Melamine 2800 x 2070"). Pure helpers: Studio keeps them in state.customSheets
+  // and the company's cloud storage, and merges the two with mergeSheets. An estimate copies a size as plain numbers, so
+  // editing or deleting a saved sheet never changes an estimate that already used it.
+  var SHEET_LIMITS = { min: 300, max: 10000 };
+  function validateSheet(fields, others) {
+    var f = fields || {}, name = String(f.name || '').trim().replace(/\s+/g, ' '), w = parseAmount(f.w), h = parseAmount(f.h), problems = [];
+    var tRaw = (f.t === undefined || f.t === null) ? '' : String(f.t).trim(), t = null;
+    if (tRaw !== '') { t = parseAmount(tRaw); if (t === null || t < 1 || t > 200) problems.push('Thickness must be a number from 1 to 200 mm (or leave it empty).'); }
+    if (!name) problems.push('Give the sheet a name.');
+    else if (name.length > 60) problems.push('The name is too long (60 characters at most).');
+    else if ((others || []).some(function (o) { return norm(o.name) === norm(name); })) problems.push('A saved sheet called "' + name + '" already exists.');
+    [['Length', w], ['Width', h]].forEach(function (x) {
+      if (x[1] === null || x[1] < SHEET_LIMITS.min || x[1] > SHEET_LIMITS.max) problems.push(x[0] + ' must be a number from ' + SHEET_LIMITS.min + ' to ' + SHEET_LIMITS.max + ' mm.');
+    });
+    var sheet = null; if (!problems.length) { sheet = { name: name, w: Math.round(w), h: Math.round(h) }; if (t !== null) sheet.t = Math.round(t * 10) / 10; }
+    return { ok: !problems.length, problems: problems, sheet: sheet };
+  }
+  function newSheet(fields, who, now) {
+    var at = now || new Date().toISOString(), o = { id: newId('shs'), name: fields.name, w: fields.w, h: fields.h, createdAt: at, updatedAt: at, updatedBy: who || null, synced: false };
+    if (fields.t !== undefined && fields.t !== null) o.t = fields.t; return o;
+  }
+  function editSheet(sheet, fields, who, now) {
+    var out = clone(sheet); out.name = fields.name; out.w = fields.w; out.h = fields.h; if (fields.t !== undefined && fields.t !== null) out.t = fields.t; else delete out.t;
+    out.updatedAt = now || new Date().toISOString(); out.updatedBy = who || null; out.synced = false; return out;
+  }
+  function sortSheets(list) { return (list || []).slice().sort(function (a, b) { return String(a.name).toLowerCase().localeCompare(String(b.name).toLowerCase()) || String(a.id).localeCompare(String(b.id)); }); }
+  // local: saved list (synced:false = not yet in the cloud), tombs: [{id,at}] deleted here but maybe not yet in the cloud, cloud: what the cloud holds.
+  // Newest change wins per sheet. Nothing typed here is ever dropped because the cloud could not be reached.
+  function mergeSheets(local, tombs, cloud) {
+    var L = {}, K = {}, T = {}, out = [], upload = [], remove = [], keepTombs = [];
+    (local || []).forEach(function (x) { L[x.id] = x; }); (cloud || []).forEach(function (x) { K[x.id] = x; }); (tombs || []).forEach(function (x) { T[x.id] = x; });
+    var fromCloud = function (c) { var o = clone(c); o.synced = true; return o; };
+    Object.keys(K).forEach(function (id) {
+      var c = K[id], l = L[id];
+      if (T[id]) { remove.push(id); keepTombs.push(T[id]); return; }
+      if (!l) { out.push(fromCloud(c)); return; }
+      if (l.synced === false) { if (String(l.updatedAt) >= String(c.updatedAt)) { out.push(l); upload.push(l); } else out.push(fromCloud(c)); return; }
+      out.push(String(c.updatedAt) > String(l.updatedAt) ? fromCloud(c) : l);
+    });
+    Object.keys(L).forEach(function (id) {
+      if (K[id] || T[id]) return;
+      var l = L[id];
+      if (l.synced === false) { out.push(l); upload.push(l); }
+      // a sheet that was in the cloud and is now gone was deleted from another computer
+    });
+    return { sheets: sortSheets(out), upload: upload, remove: remove, tombs: keepTombs };
+  }
 
   // ---------- Price list (section 8) ----------
   function emptyPriceList() {
@@ -103,7 +177,7 @@
   function newEstimate(opts, pl) {
     return {
       id: newId('est'), customerId: opts.customerId || null, customer: opts.customer || '', projectId: opts.projectId,
-      name: opts.name || 'Estimate', status: 'draft', createdAt: new Date().toISOString(),
+      name: opts.name || 'Estimate', currency: currencyCode(opts.currency || (pl && pl.currency)), status: 'draft', createdAt: new Date().toISOString(),
       wonAt: null, lostAt: null, lostReason: '', archived: false,
       draft: emptyVersion(pl), versions: []
     };
@@ -427,7 +501,7 @@
     var draft = est.draft; syncDerived(draft, pl, packFn);
     var problems = validateForSave(draft); if (problems.length) return { ok: false, problems: problems };
     var v = clone(draft); v.n = (est.versions.length ? est.versions[est.versions.length - 1].n : 0) + 1;
-    v.savedAt = new Date().toISOString(); v.savedBy = who || null; v.results = compute(v);
+    v.savedAt = new Date().toISOString(); v.savedBy = who || null; v.currency = currencyCode(est.currency); v.results = compute(v);
     est.versions.push(v); if (est.status === 'draft') est.status = 'saved';
     est.draft = null;
     return { ok: true, version: v };
@@ -465,6 +539,8 @@
 
   return {
     CATEGORIES: CATEGORIES, UNITS: UNITS, DEFAULT_SHEET: DEFAULT_SHEET,
+    CURRENCIES: CURRENCIES, currencyCode: currencyCode, currencySymbol: currencySymbol, currencyOf: currencyOf, formatMoney: formatMoney,
+    SHEET_LIMITS: SHEET_LIMITS, validateSheet: validateSheet, newSheet: newSheet, editSheet: editSheet, sortSheets: sortSheets, mergeSheets: mergeSheets,
     cents: cents, euros: euros, parseAmount: parseAmount, newId: newId, clone: clone, norm: norm,
     emptyPriceList: emptyPriceList, normalisePriceList: normalisePriceList, makeItem: makeItem, findItem: findItem,
     importBrowserPrices: importBrowserPrices,
