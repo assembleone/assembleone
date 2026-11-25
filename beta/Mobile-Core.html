@@ -1296,6 +1296,10 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .mobile-job-panels-figure span{font-size:11px;letter-spacing:.4px}
 .mobile-job-select{position:absolute;top:-6px;left:-6px;z-index:2;background:#fff;border-radius:7px;padding:1px;line-height:0;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .mobile-job-select input{width:20px;height:20px;display:block}
+/* The tick box sits in its own strip in the card's top-left corner instead of over the icon (25 Nov 2026). */
+#jobList .job.has-select{position:relative;padding-top:42px}
+#jobList .job.has-select .mobile-job-media{position:static}
+#jobList .job.has-select .mobile-job-select{top:10px;left:12px}
 .mobile-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;padding:10px 12px;border-radius:12px;background:#eef6ff;border:1px solid #c8d8f7}
 .mobile-bulk-toolbar.hidden{display:none}
 .mobile-bulk-toolbar span{font-weight:800;color:#174E98;font-size:13px}
@@ -2376,7 +2380,7 @@ function renderProjects(){
   const siblingCards=siteCard?1:cardsForProject(p).length;
   const deleteHtml=(safetyCopy||siblingCards>1)?'':`<button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button>`;
   const metaCounts=siteCard?`${siteCount.rooms} room${siteCount.rooms===1?'':'s'} · ${siteCount.photos} photo${siteCount.photos===1?'':'s'} · ${siteCount.sizes} size${siteCount.sizes===1?'':'s'}`:`${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}`;
-  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${siteCard?'':badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${metaCounts}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
+  return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}${selectHtml?' has-select':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${siteCard?'':badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${metaCounts}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
  }
  // A job assigned to someone else's email never appears on this phone at all -- not
  // greyed out, not visible-but-locked, just not in the list, the same way it would look
