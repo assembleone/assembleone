@@ -4324,6 +4324,14 @@ const MEDIA_URL_CACHE_KEY='fiq_studio_media_url_cache_v1';
 let mediaUrlCache=null;
 function mediaUrlCacheGet(k){if(!mediaUrlCache){try{mediaUrlCache=JSON.parse(localStorage.getItem(MEDIA_URL_CACHE_KEY)||'{}')||{}}catch(e){mediaUrlCache={}}}return mediaUrlCache[k]||null}
 function mediaUrlCacheSet(k,v){mediaUrlCacheGet(k);mediaUrlCache[k]=v;const keys=Object.keys(mediaUrlCache);if(keys.length>4000)keys.slice(0,keys.length-4000).forEach(x=>delete mediaUrlCache[x]);try{localStorage.setItem(MEDIA_URL_CACHE_KEY,JSON.stringify(mediaUrlCache))}catch(e){}}
+function mediaUrlCacheForget(k){mediaUrlCacheGet(k);delete mediaUrlCache[k];try{localStorage.setItem(MEDIA_URL_CACHE_KEY,JSON.stringify(mediaUrlCache))}catch(e){}}
+// What the person is told when photos/drawings cannot be uploaded. The job is never sent half-finished.
+function fiqStorageFailureMessage(e){
+  const m=String((e&&((e.code||'')+' '+(e.message||'')))||e||'');
+  if(/402|quota|billing|payment|exceeded/i.test(m))return 'Photo storage is not accepting files right now (a Firebase billing or plan problem). The job was NOT sent, so nothing reaches the phone without its drawings. Fix the billing, then press Send to Mobile again.';
+  if(/unauthorized|403|permission/i.test(m))return 'Photo storage refused the upload (permission). The job was NOT sent. Sign out and back in, then try again; if it keeps happening tell support.';
+  return "Could not upload this job's photos and drawings right now, so the job was NOT sent. Check your connection and press Send to Mobile again.";
+}
 async function mediaContentHash(value){
   if(!(window.crypto&&crypto.subtle&&window.TextEncoder))return null;
   const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
@@ -4335,12 +4343,16 @@ async function uploadIfHeavyDataUri(value,path,jobFolder){
   if(!ref||!uploadString||!getDownloadURL||!window.fiqStorage)throw new Error('Photo storage is not ready. Please retry.');
   const hash=jobFolder?await mediaContentHash(value):null;
   if(hash)path=jobFolder+'/h/'+hash+(/^data:image\/png/i.test(value)?'.png':'.jpg');
-  const cached=hash&&mediaUrlCacheGet(path);if(cached)return cached;
   const objRef=ref(window.fiqStorage,path);
+  // A remembered link is never trusted on its own: Storage must confirm the file is still there and readable right now.
+  // A dead remembered link (billing problem, deleted file) used to be sent to the phone as a "?" picture (25 Nov 2026).
+  const cached=hash&&mediaUrlCacheGet(path);
+  if(cached){try{const fresh=await getDownloadURL(objRef);if(fresh){mediaUrlCacheSet(path,fresh);return fresh}}catch(e){}mediaUrlCacheForget(path)}
   let url=null;
   if(hash){try{url=await getDownloadURL(objRef)}catch(e){url=null}}
   if(!url){await uploadString(objRef,value,'data_url');url=await getDownloadURL(objRef)}
-  if(hash&&url)mediaUrlCacheSet(path,url);
+  if(!url)throw new Error('Photo storage did not return a link for an uploaded file.');
+  if(hash)mediaUrlCacheSet(path,url);
   return url;
 }
 async function offloadHeavyMediaForMobileSync(project,companyId){
@@ -4405,7 +4417,7 @@ async function sendPackToPhoneDirectly(pack){
      if(packet.project)projectForCloud=await offloadHeavyMediaForMobileSync(packet.project,user.companyId);
    }catch(e){
      console.error("Uploading job photos/drawings to Storage failed",e);
-     cloudError="Could not upload this job's photos and drawings right now. Check your connection and try again.";
+     cloudError=fiqStorageFailureMessage(e);
    }
    if(!cloudError){
      const envelope={kind:"studioToMobilePacket",status:"waiting",companyId:user.companyId,createdBy:user.uid,createdByEmail:user.email||"",createdAt:fs.serverTimestamp(),...packet};
