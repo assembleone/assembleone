@@ -12399,6 +12399,13 @@ body.fiq-locked .app{display:none!important}
 .panel-check-return-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .panel-check-return-strip button{white-space:nowrap}
 </style>
+<style id="fiq-panel-check-spacing">
+/* Panel Check: spacing only (approved 25 Nov 2026). Space above the green "All panels checked" strip, and the
+   "x of y panels checked and ready" line sits close to the blue instruction box under it. No other change. */
+#screen-parts #panelCheckCuttingListStrip .panel-check-return-strip{margin-top:32px}
+#screen-parts #partsSummary .panel-check-summary{margin-bottom:6px}
+#screen-parts #partsSummary .panel-check-summary + .panel-review-instruction{margin-top:6px}
+</style>
 <style id="fiq-sent-cutting-list-style">
 .fiq-job-sheet{width:min(980px,100%);max-height:92vh;overflow:auto;border-radius:20px 20px 0 0}
 .fiq-job-sheet .fiq-job-sub{color:var(--muted,#5b6b7f);font-weight:700;margin-top:-6px}
