@@ -971,10 +971,26 @@
     if (list.length) return openEstimator(pid);
     var n = newEstimateFor(pid); if (n) { view = { projectId: pid, mode: 'edit', estId: n.id }; render(); }
   }, true);
+  // The Estimator icon (agreed flat calculator, 25 Nov 2026): navy frame, white face, mint display, navy keys, one tall green key.
+  // Inline vector so it stays sharp at any size; it replaces the old emoji in front of the word "Estimator" and nothing else.
+  function calcIconSvg() {
+    var k = '', rows = [563, 715, 867], cols = [316, 485, 654], r, c;
+    for (r = 0; r < 3; r++) for (c = 0; c < 3; c++) k += '<rect x="' + cols[c] + '" y="' + rows[r] + '" width="129" height="116" rx="32"/>';
+    return '<svg class="fiqx-calc-icon" xmlns="http://www.w3.org/2000/svg" viewBox="190 110 898 1018" width="1.1em" height="1.25em" aria-hidden="true" focusable="false" style="vertical-align:-0.25em;margin-right:0.4em;flex:none">' +
+      '<rect x="190" y="110" width="898" height="1018" rx="150" fill="#07213b"/>' +
+      '<rect x="265" y="193" width="745" height="857" rx="86" fill="#fff"/>' +
+      '<rect x="320" y="258" width="637" height="239" rx="42" fill="#07213b"/>' +
+      '<rect x="360" y="300" width="557" height="155" rx="26" fill="#c2e6a4"/>' +
+      '<g fill="#07213b">' + k + '</g>' +
+      '<rect x="820" y="563" width="141" height="422" rx="36" fill="#3fae06"/></svg>';
+  }
+  function setEstimatorLabel(el) {
+    el.textContent = ''; el.insertAdjacentHTML('beforeend', calcIconSvg()); el.appendChild(document.createTextNode('Estimator'));
+  }
   function addHeaderButton() {
     if (headerFailed || document.getElementById('fiqxHeaderEstimator')) return;
     var right = document.querySelector('.header .header-right'); if (!right) return;
-    var b = document.createElement('button'); b.className = 'btn'; b.id = 'fiqxHeaderEstimator'; b.type = 'button'; b.textContent = '🧮 Estimator'; b.title = 'Internal costing: materials, markup, labour, tax and profit';
+    var b = document.createElement('button'); b.className = 'btn'; b.id = 'fiqxHeaderEstimator'; b.type = 'button'; setEstimatorLabel(b); b.title = 'Internal costing: materials, markup, labour, tax and profit';
     b.setAttribute('data-fiqx-header-estimator', '1');
     try {
       var before = right.querySelector('#manageFittersBtn') || right.querySelector('#refreshBomBtn');
@@ -1005,7 +1021,7 @@
     if (!btn) {
       ensureStyle();
       btn = document.createElement('button'); btn.className = 'btn'; btn.id = 'fiqxStudioEstimatorBtn'; btn.type = 'button';
-      btn.setAttribute('data-fiqx-from-studio', '1'); btn.textContent = '🧮 Estimator';
+      btn.setAttribute('data-fiqx-from-studio', '1'); setEstimatorLabel(btn);
       btn.title = 'Open the Estimator for this job. The panels come with it; nothing in the design changes.';
       site.parentNode.insertBefore(btn, site.nextSibling);
     } else if (btn.previousElementSibling !== site) site.parentNode.insertBefore(btn, site.nextSibling);
@@ -1033,7 +1049,7 @@
   // in the customer card (Jobs tab and Site Measurements tab). Added to the screen, never into the job itself.
   function jobEstBtn(pid, extraClass) {
     var b = document.createElement('button'); b.type = 'button'; b.className = 'fiqx-job-est-btn' + (extraClass ? ' ' + extraClass : '');
-    b.setAttribute('data-fiqx-job-est', pid); b.textContent = '🧮 Estimator'; b.title = 'Open the Estimator for this job. The panels come with it; nothing in the design changes.'; return b;
+    b.setAttribute('data-fiqx-job-est', pid); setEstimatorLabel(b); b.title = 'Open the Estimator for this job. The panels come with it; nothing in the design changes.'; return b;
   }
   function decorateJobCards() {
     document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function (row) {
