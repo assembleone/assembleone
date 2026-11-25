@@ -2210,6 +2210,79 @@ function projectRoomDisplay(p){
  const name=cab?.roomName||cab?.room||cab?.name||t('proj.projectFallback');
  return {icon:roomIconFromName(name,name),name};
 }
+// ---- Job delete safety (25 Nov 2026) --------------------------------------------------------
+// Deleting a job from the phone removes the WHOLE job (every room), so it must be deliberate,
+// must say what it removes, must warn about unsent work, and must be undoable for 30 days.
+const FIQ_DELETED_JOBS_KEY='fiq_recently_deleted_jobs_v1',FIQ_DELETED_JOBS_DAYS=30,FIQ_DELETED_JOBS_MAX=6;
+function fiqTr(key,fallback,args){try{const v=t(key,args);return v&&v!==key?v:fallback}catch(e){return fallback}}
+function fiqReadDeletedJobs(){try{const a=JSON.parse(localStorage.getItem(FIQ_DELETED_JOBS_KEY)||'[]');return Array.isArray(a)?a.filter(e=>e&&e.project&&e.project.id):[]}catch(e){return[]}}
+function fiqWriteDeletedJobs(list){try{localStorage.setItem(FIQ_DELETED_JOBS_KEY,JSON.stringify(list));return true}catch(e){console.error('Recently deleted copy could not be saved',e);return false}}
+function fiqPurgeOldDeletedJobs(){
+ const list=fiqReadDeletedJobs(),cut=Date.now()-FIQ_DELETED_JOBS_DAYS*864e5,keep=[];
+ list.forEach(e=>{if(e.deletedAt>=cut)keep.push(e);else{try{deleteAllPhotosForProject(e.project)}catch(_){}}});
+ if(keep.length!==list.length)fiqWriteDeletedJobs(keep);
+ return keep;
+}
+// Keeps a copy of the job (photo bytes stay where they are on the phone) before it is removed.
+// Returns false when no copy could be kept, so the caller falls back to the old behaviour.
+function fiqKeepDeletedJob(p){
+ try{
+  const restore=[];let json;
+  try{externalizeProjectPhotos(p,restore);json=JSON.stringify(p)}finally{restore.forEach(r=>{r.obj[r.key]=r.val})}
+  if(pendingPhotoWrites.length)schedulePhotoPersist();
+  if(!json||json.length>3000000)return false;
+  const list=fiqReadDeletedJobs().filter(e=>e.project.id!==p.id);
+  list.unshift({deletedAt:Date.now(),project:JSON.parse(json)});
+  while(list.length>FIQ_DELETED_JOBS_MAX){const old=list.pop();try{deleteAllPhotosForProject(old.project)}catch(_){}}
+  return fiqWriteDeletedJobs(list);
+ }catch(e){console.error('Could not keep a copy of the deleted job',e);return false}
+}
+async function fiqRestoreDeletedJob(id){
+ const list=fiqReadDeletedJobs(),e=list.find(x=>x.project.id===id);if(!e)return false;
+ const proj=e.project;
+ try{await hydrateAllPhotos({projects:[proj]})}catch(err){console.error('Photo hydration failed on restore',err)}
+ if(!state.projects.some(x=>x.id===proj.id))state.projects.unshift(proj);
+ state.deletedProjectIds=(state.deletedProjectIds||[]).filter(x=>x!==proj.id);
+ if(save()===false){alert(fiqTr('msg.storageQuota','This phone is out of storage space for this app, so the job could not be put back.'));return false}
+ fiqWriteDeletedJobs(list.filter(x=>x!==e));
+ renderAll();
+ return true;
+}
+function fiqJobHasUnsentProgress(p){
+ try{
+  if(pendingStudioSyncEntries().some(x=>x.projectId===p.id))return true;
+  if(p.studioSyncBlocked)return true;
+  if(p.pendingStudioReceiptDocId&&!p.studioReceivedAt)return true;
+  const last=Date.parse(p.lastStudioSync||'')||0;
+  const latest=(p.cabinets||[]).reduce((m,c)=>(c.parts||[]).reduce((m2,pt)=>Math.max(m2,Date.parse(pt.lastScannedAt||'')||0),m),0);
+  return latest>last;
+ }catch(e){return true}
+}
+function fiqConfirmDeleteWholeJob(p){
+ const rooms=(p.rooms||[]).filter(r=>r&&r.name).map(r=>r.name);
+ const name=p.name||p.customer||fiqTr('proj.projectFallback','this job');
+ const roomLine=rooms.length>1?'\n\nThis removes ALL '+rooms.length+' rooms ('+rooms.slice(0,6).join(', ')+(rooms.length>6?', ...':'')+'), not just one.':'';
+ if(!confirm('Remove the WHOLE job "'+name+'" from this phone?'+roomLine+'\n\nStudio keeps its own copy. A copy also stays on this phone for '+FIQ_DELETED_JOBS_DAYS+' days under "Recently deleted", so you can put it back.'))return false;
+ if(fiqJobHasUnsentProgress(p)&&!confirm('WARNING: "'+name+'" has panel checks, notes or changes that have not reached Studio yet.\n\nRemove it anyway? You can still put it back from "Recently deleted".'))return false;
+ return true;
+}
+// The list is redrawn every few seconds, so which sections are open is remembered here.
+const fiqSafetyOpen={remove:false,deleted:true};
+function fiqJobSafetyHtml(){
+ let removable=[],deleted=[];
+ try{
+  removable=state.projects.filter(p=>isStudioJob(p)&&cardsForProject(p).length>1&&!p.mobileMovedToLibraryAt);
+  deleted=fiqPurgeOldDeletedJobs();
+ }catch(e){console.error(e)}
+ const removeHtml=removable.length?'<details class="mobile-archived-jobs fiq-job-safety" data-fiq-section="remove"'+(fiqSafetyOpen.remove?' open':'')+'><summary>Remove a whole job from this phone ('+removable.length+') ›</summary>'+removable.map(p=>{const n=cardsForProject(p).length;return '<div class="fiq-safety-row" style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 4px"><span><b>'+safe(p.name||p.customer||'Job')+'</b><br><small>'+n+' rooms - removes every room</small></span><button type="button" class="btn danger" data-fiq-remove-job="'+safe(p.id)+'">Remove whole job...</button></div>'}).join('')+'</details>':'';
+ const restoreHtml=deleted.length?'<details class="mobile-archived-jobs fiq-job-safety" data-fiq-section="deleted"'+(fiqSafetyOpen.deleted?' open':'')+'><summary>Recently deleted ('+deleted.length+') ›</summary>'+deleted.map(e=>{const days=Math.max(0,Math.floor((Date.now()-e.deletedAt)/864e5)),left=Math.max(0,FIQ_DELETED_JOBS_DAYS-days);return '<div class="fiq-safety-row" style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 4px"><span><b>'+safe(e.project.name||e.project.customer||'Job')+'</b><br><small>Removed '+(days===0?'today':days+' day'+(days===1?'':'s')+' ago')+' - kept '+left+' more days</small></span><button type="button" class="btn primary" data-fiq-restore-job="'+safe(e.project.id)+'">Put back</button></div>'}).join('')+'</details>':'';
+ return removeHtml+restoreHtml;
+}
+let fiqLastReceiveProblemAt=0;
+window.fiqNotifyReceiveProblem=function(e){
+ const now=Date.now();if(now-fiqLastReceiveProblemAt<60000)return;fiqLastReceiveProblemAt=now;
+ try{alert('A job from Studio reached this phone but could not be added ('+(e&&e.message?e.message:'unknown problem')+'). Nothing has been lost. Ask the office to press Send to Mobile again.')}catch(_){}
+};
 function renderProjects(){
  const box=$("#jobList");
  // Show/hide the two rows of actions and the two static list headings to match whichever
@@ -2297,7 +2370,11 @@ function renderProjects(){
   const siteCount=siteCard?siteMeasureCounts(p):null;
   const receivedAt=siteCard&&p.mobileArchived?Date.parse(p.studioReceivedAt||p.mobileArchivedAt||''):NaN;
   const safetyBadge=safetyCopy&&Number.isFinite(receivedAt)?`<span class="job-status-badge finished">Received ${safe(new Date(receivedAt).toLocaleDateString([],{day:'numeric',month:'short'}))}</span>`:'';
-  const deleteHtml=safetyCopy?'':`<button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button>`;
+  // A job with several rooms shows one card per room, but deleting removes the WHOLE job. A bin on a room
+  // card made it far too easy to lose every room by mistake (25 Nov 2026), so multi-room jobs have no bin
+  // here; they are removed from the deliberate "Remove a whole job" section at the bottom of the list.
+  const siblingCards=siteCard?1:cardsForProject(p).length;
+  const deleteHtml=(safetyCopy||siblingCards>1)?'':`<button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button>`;
   const metaCounts=siteCard?`${siteCount.rooms} room${siteCount.rooms===1?'':'s'} · ${siteCount.photos} photo${siteCount.photos===1?'':'s'} · ${siteCount.sizes} size${siteCount.sizes===1?'':'s'}`:`${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}`;
   return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${siteCard?'':badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${metaCounts}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
  }
@@ -2354,7 +2431,7 @@ function renderProjects(){
  // Site Measure (Mobile-created) and Jobs (Studio-sent) never share a list -- only one
  // half is ever drawn into #jobList at a time, matching whichever half of the header/
  // actions above was just shown.
- box.innerHTML=isJobsMode?(installHtml+archivedInstallHtml+jobsEmptyHtml):(siteHtml+archivedSiteHtml);
+ box.innerHTML=isJobsMode?(installHtml+archivedInstallHtml+jobsEmptyHtml+fiqJobSafetyHtml()):(siteHtml+archivedSiteHtml);
  // §5, extended for per-room dispatch: opening a single card stays byte-identical to
  // before for a no-rooms job -- activeCardKeys just becomes the one-item array that keeps
  // every combined-mode check (activeCardKeys.length>1) naturally false in the ordinary,
@@ -2388,8 +2465,11 @@ function renderProjects(){
   // A Site Measure with work Studio has not received: Send to Studio first, or Delete anyway
   // behind a second warning (siteUnsentDeleteDialog). Everything else as before.
   if(siteHasUnsentWork(p)){siteUnsentDeleteDialog(p);return}
-  if(!confirm(t('msg.confirmDeleteProjectFromPhone',[p.name||t('proj.projectFallback')])))return;deleteJobFromPhone(p)});
- function deleteJobFromPhone(p){if(typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);[...mobileSelectedCardKeys].forEach(k=>{if(parseCardKey(k).projectId===p.id)mobileSelectedCardKeys.delete(k)});if(Array.isArray(state.activeCardKeys))state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()}
+  if(!fiqConfirmDeleteWholeJob(p))return;deleteJobFromPhone(p)});
+ $$("[data-fiq-remove-job]").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.fiqRemoveJob);if(!p)return;if(!fiqConfirmDeleteWholeJob(p))return;deleteJobFromPhone(p)});
+ $$("details.fiq-job-safety").forEach(d=>d.addEventListener('toggle',()=>{fiqSafetyOpen[d.dataset.fiqSection]=d.open}));
+ $$("[data-fiq-restore-job]").forEach(b=>b.onclick=()=>{fiqRestoreDeletedJob(b.dataset.fiqRestoreJob)});
+ function deleteJobFromPhone(p){const keptCopy=fiqKeepDeletedJob(p);if(!keptCopy&&typeof deleteAllPhotosForProject==='function')deleteAllPhotosForProject(p);state.projects=state.projects.filter(x=>x.id!==p.id);state.deletedProjectIds=state.deletedProjectIds||[];if(!state.deletedProjectIds.includes(p.id))state.deletedProjectIds.push(p.id);[...mobileSelectedCardKeys].forEach(k=>{if(parseCardKey(k).projectId===p.id)mobileSelectedCardKeys.delete(k)});if(Array.isArray(state.activeCardKeys))state.activeCardKeys=state.activeCardKeys.filter(k=>parseCardKey(k).projectId!==p.id);if(state.currentProject===p.id){state.currentProject=null;state.currentCabinet=null;state.currentPart=null;state.currentRoom=null}save();renderAll()}
  window.fiqDeleteJobFromPhone=deleteJobFromPhone;
  $$(".mobile-job-select-checkbox").forEach(cb=>cb.onchange=()=>{
   if(cb.checked)mobileSelectedCardKeys.add(cb.dataset.selectCard);else mobileSelectedCardKeys.delete(cb.dataset.selectCard);
@@ -6547,7 +6627,7 @@ main{padding-bottom:calc(140px + env(safe-area-inset-bottom))!important}
           if(await save()===false){p._lastStudioPacketAt=0;throw new Error('Mobile could not save the update. Receipt was not confirmed.')}
           await window.removeMobilePacket(packet);
           lastApplied={packet,p,units,panels,pieces,isNote};
-        }catch(e){console.error("Failed to apply a queued Studio packet",e)}
+        }catch(e){console.error("Failed to apply a queued Studio packet",e);if(typeof window.fiqNotifyReceiveProblem==='function')window.fiqNotifyReceiveProblem(e)}
       }
       if(!lastApplied)return;
       const {packet,p,units,panels,pieces,isNote}=lastApplied;
