@@ -131,6 +131,10 @@
     '@media(max-width:600px){.fiqx-ov{padding:0}.fiqx-win{border-radius:0}.fiqx-nav{grid-template-columns:1fr 1fr}.fiqx-nav .fiqx-npri{grid-column:1 / -1}.fiqx-title{font-size:23px}.fiqx-mbig{font-size:30px}.fiqx-mrow{grid-template-columns:minmax(0,1fr) auto}.fiqx-mcost{grid-column:1 / -1;text-align:left}.fiqx-mprice{align-items:flex-start}.fiqx-body{padding:10px}.fiqx-total b{font-size:34px}}' +
     '.fiqx-job-est-btn{height:36px;padding:0 14px;border:2px solid #101418;background:#fff;color:#101418;border-radius:9px;font:800 14px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap}.fiqx-job-est-btn:hover{background:#eef1f5}' +
     '.jor-top-actions .fiqx-job-est-btn{height:48px;border-radius:12px}' +
+    // Job Overview: the card lays its controls out in a fixed grid (studio-patch.js), so the Estimator button used to land in the
+    // 36px WhatsApp cell and show as a small box with the word outside it. It now has its own row under the controls, as a full pill.
+    '.job-overview-row .jor-card-top .fiqx-job-est-btn{grid-column:1 / -1;grid-row:3;justify-self:start;width:auto;height:40px;padding:0 16px;border-radius:12px;display:inline-flex;align-items:center}' +
+    '@container(max-width:510px){.job-overview-row .jor-card-top .fiqx-job-est-btn{grid-row:4}}' +
     '.fiqx-est-btn{margin-left:6px}.fiqx-cl{margin-bottom:14px}.fiqx-cl h4{margin:6px 0}.fiqx-cl .fiqx-clrow{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid #c9d1db;border-radius:8px;margin:4px 0;background:#fff;color:#101418;cursor:pointer;width:100%;font:inherit;text-align:left}';
   function ensureStyle() { if (document.getElementById('fiqx-style')) return; var s = document.createElement('style'); s.id = 'fiqx-style'; s.textContent = css + sheetsCss(); document.head.appendChild(s); }
 
