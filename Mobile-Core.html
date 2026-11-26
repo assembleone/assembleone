@@ -1291,6 +1291,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .mobile-job-media{position:relative;width:100%}
 .mobile-job-thumb{width:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;background:#eceef3}
 .mobile-job-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.fiq-room-directions{display:block;width:100%;margin-top:8px;border:2px solid #174E98!important;color:#174E98!important;background:#fff!important;font-weight:900}
 .mobile-job-panels-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:6px}.mobile-job-panels-row .mobile-job-panels-figure{margin-top:0}.mobile-job-panel-range{font-weight:900;font-size:15px;color:#0B2545;letter-spacing:.2px}
 .mobile-job-panels-figure{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:4px 10px;border-radius:999px;background:#174E98;color:#fff;font-weight:900}
 .mobile-job-panels-figure b{font-size:15px}
@@ -2321,7 +2322,18 @@ function renderProjects(){
  // catch-all, or null for a no-rooms project's single implicit card. Only ever expanded
  // into more than one card for a real installation job (see cardsForProject's own caller
  // below) -- a Site Measure visit still renders as one card per project, unchanged.
- // Panel number range for a room card (26 Nov 2026, Mads): read straight from the real panel references in the room
+ // One tap to directions (26 Nov 2026, Mads): the exact pin when the job has one, otherwise its address. Used by the
+// pin on the job card and the Directions button inside the job.
+function fiqOpenDirections(p){
+ const addr=String((p&&p.address)||'').trim();
+ let url='';
+ if(p&&p.geoLat!=null&&p.geoLng!=null&&isFinite(Number(p.geoLat))&&isFinite(Number(p.geoLng)))url='https://www.google.com/maps/dir/?api=1&destination='+Number(p.geoLat)+','+Number(p.geoLng);
+ else if(addr)url='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(addr);
+ if(!url){alert(t('mobile.noAddressOnFile'));return false}
+ window.open(url,'_blank');return true;
+}
+window.fiqOpenDirections=fiqOpenDirections;
+// Panel number range for a room card (26 Nov 2026, Mads): read straight from the real panel references in the room
 // (the same pt.code the fitter sees in Panel Check, e.g. KB1 ... KB12), never a separate numbering. Consecutive
 // numbers join into one range; a room whose numbers are not consecutive (panels added later, or deleted) shows each
 // run, e.g. "KB1 - KB5, KB20 - KB22", so the card never claims a number the room does not have.
@@ -3618,6 +3630,7 @@ function renderRoomDetail(r){
   <div class="room-status-progress"><div class="room-status-progress-label">${checkedCount}/${roomUnitTotal} ${t('detail.checkPanelsAccounted')}</div><div class="job-panelcheck-bar"><i style="width:${pct}%"></i></div></div>
  </div>
  <button type="button" class="btn primary" id="openCuttingList" style="width:100%;min-height:54px;margin-top:12px">📋 ${t('detail.cuttingList')}</button>
+ ${(p&&((p.geoLat!=null&&p.geoLng!=null)||addr))?`<button type="button" class="btn fiq-room-directions" id="roomDirectionsNow" style="min-height:50px">📍 ${t('mobile.openDirections')}</button>`:''}
  ${combinedStripHtml}
  ${r.mobileJobCompleted?`<div class="job-finished-banner">✓ Job Completed</div>`:''}
  <section class="room-section installer-design-section room-design-max" id="designGuideSection"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🖼️ ${t('detail.designGuide')}</h3><span class="room-count">${designCount}</span></div><div class="room-photo-grid">${designCount?r.designImages.map(ph=>`<div class="room-photo-tile"><img src="${ph.data}"><div class="design-caption">${safe(ph.name)||t('detail.view')}</div></div>`).join(''):`<div class="room-empty">${t('detail.noDesignViews')}</div>`}</div></section>
@@ -3697,6 +3710,7 @@ function renderRoomDetail(r){
  // hidden until the row is expanded.
  const custToggle=document.getElementById('roomCustomerToggle'),custDetail=document.getElementById('roomCustomerDetail');
  if(custToggle&&custDetail)custToggle.onclick=()=>{const open=custDetail.classList.toggle('hidden');custToggle.setAttribute('aria-expanded',open?'false':'true')};
+ $('#roomDirectionsNow')?.addEventListener('click',()=>window.fiqOpenDirections(p));
  $('#roomOpenMaps')?.addEventListener('click',()=>{
   if(p&&p.geoLat!=null){window.open(`https://www.google.com/maps/search/?api=1&query=${p.geoLat},${p.geoLng}`,'_blank');return}
   if(!addr){alert(t('mobile.noAddressOnFile'));return}
@@ -4883,12 +4897,29 @@ function setNumberStatus(text,warn){
  el.textContent=text||'';el.classList.toggle('warn',!!warn);
  clearTimeout(numberStatusTimer);if(text)numberStatusTimer=setTimeout(()=>{el.textContent=''},2600);
 }
+async function ocrLocalBase(){
+ for(const b of ['assets/ocr/','../assets/ocr/']){
+  try{const u=new URL(b,document.baseURI).href;const r=await fetch(u+'eng.traineddata.gz',{method:'HEAD'});
+   if(r.ok&&!/text\/html/i.test(r.headers.get('content-type')||''))return u}catch(e){}
+ }
+ return null;
+}
 function ensureNumberReader(){
  if(numberWorker)return Promise.resolve(numberWorker);
  if(!numberWorkerPromise)numberWorkerPromise=(async()=>{
   const el=$('#numberScanStatus');if(el){clearTimeout(numberStatusTimer);el.classList.remove('warn');el.textContent='Preparing the number reader…'}
-  if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
-  const w=await Tesseract.createWorker('eng',1);
+  // Own copy first (assets/ocr, no internet download of ~15MB), the CDN only as a backup.
+  let w=null;
+  try{
+   const base=await ocrLocalBase();
+   if(base){
+    if(typeof Tesseract==='undefined')await loadScriptOnce(base+'tesseract.min.js');
+    w=await Tesseract.createWorker('eng',1,{workerPath:base+'worker.min.js',corePath:base,langPath:base,gzip:true});
+   }
+  }catch(e){w=null;console.warn('Local number reader failed, using CDN',e)}
+  if(!w){
+   if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
+   w=await Tesseract.createWorker('eng',1);
   // Normal text, one line (the guide band holds the number line only; sparse mode lost
   // the piece dash, 7002-2 -> 7002 2). A digits-only list made the box and sticker edges read as extra
   // digits joined onto the number (7001 -> 700188); now edges read as separate marks.
