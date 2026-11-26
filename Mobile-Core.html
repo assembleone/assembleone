@@ -1292,7 +1292,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .mobile-job-thumb{width:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;background:#eceef3}
 .mobile-job-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .fiq-room-directions{display:block;width:100%;margin-top:8px;border:2px solid #174E98!important;color:#174E98!important;background:#fff!important;font-weight:900}
-.mobile-job-panels-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:6px}.mobile-job-panels-row .mobile-job-panels-figure{margin-top:0}.mobile-job-panel-range{font-weight:900;font-size:15px;color:#0B2545;letter-spacing:.2px}
+.mobile-job-panels-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:6px}.mobile-job-panels-row .mobile-job-panels-figure{margin-top:0}.mobile-job-panel-range{font-weight:900;font-size:15px;color:#0B2545;letter-spacing:.2px}.mobile-job-ref{flex-basis:100%;display:flex;flex-direction:column;gap:1px;margin-top:2px}.mobile-job-ref-label{font-size:10px;font-weight:900;letter-spacing:.8px;color:#5B6B82;text-transform:uppercase}.mobile-job-panels-row.has-ref{flex-wrap:nowrap;gap:0;margin:10px 0 0;padding:12px 12px;border-radius:16px;background:#E8F1FE}.has-ref .mobile-job-panels-figure{background:transparent;color:#0B2545;padding:0 10px 0 0;margin:0;gap:4px;align-items:baseline;border-right:2px solid #BFD3F2;border-radius:0;white-space:nowrap}.has-ref .mobile-job-panels-figure b{font-size:26px;line-height:1}.has-ref .mobile-job-panels-figure span{font-size:13px;letter-spacing:.2px}.has-ref .mobile-job-ref{flex:1 1 auto;min-width:0;margin:0 0 0 10px;gap:0}.has-ref .mobile-job-ref-label{font-size:10.5px;letter-spacing:.1px;color:#12388F;white-space:nowrap}.has-ref .mobile-job-panel-range{font-size:18px;line-height:1.15;color:#12388F;letter-spacing:0;overflow-wrap:anywhere}
 .mobile-job-panels-figure{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:4px 10px;border-radius:999px;background:#174E98;color:#fff;font-weight:900}
 .mobile-job-panels-figure b{font-size:15px}
 .mobile-job-panels-figure span{font-size:11px;letter-spacing:.4px}
@@ -2419,7 +2419,9 @@ function jobCard(card){
   // qty-aware total (Math.max(1,qty) per row), scoped to just this card's own cabinets.
   const panelTotal=ready&&typeof scanTotalsForCabinets==='function'?scanTotalsForCabinets(cabinets).total:0;
   const panelRange=ready?fiqPanelRangeText(cabinets.flatMap(c=>c.parts||[])):'';
-  const panelsFigureHtml=panelTotal?`<div class="mobile-job-panels-row"><div class="mobile-job-panels-figure"><b>${panelTotal}</b><span>${panelTotal===1?t('mobile.panelSingular'):t('mobile.panelPlural')}</span></div>${panelRange?`<span class="mobile-job-panel-range">${safe(panelRange)}</span>`:''}</div>`:'';
+  // 26 Nov 2026 (Mads): the range is labelled REFERENCE NUMBERS (trade-neutral wording). Label only; values unchanged.
+  const refLabel=(()=>{const l=t('mobile.referenceNumbers');return l==='mobile.referenceNumbers'?'REFERENCE NUMBERS':l})();
+  const panelsFigureHtml=panelTotal?`<div class="mobile-job-panels-row${panelRange?' has-ref':''}"><div class="mobile-job-panels-figure"><b>${panelTotal}</b><span>${panelTotal===1?t('mobile.panelSingular'):t('mobile.panelPlural')}</span></div>${panelRange?`<div class="mobile-job-ref"><span class="mobile-job-ref-label">${safe(refLabel)}</span><span class="mobile-job-panel-range">${safe(panelRange)}</span></div>`:''}</div>`:'';
   // §5: a checkbox on real installation jobs only, mirroring Studio Build 1's own
   // card-selection shape, feeding the "Open N jobs together" bulk toolbar below. Keyed by
   // this card's own key (not just the project id) so two room-cards of the same job can be
