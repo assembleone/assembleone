@@ -4897,12 +4897,29 @@ function setNumberStatus(text,warn){
  el.textContent=text||'';el.classList.toggle('warn',!!warn);
  clearTimeout(numberStatusTimer);if(text)numberStatusTimer=setTimeout(()=>{el.textContent=''},2600);
 }
+async function ocrLocalBase(){
+ for(const b of ['assets/ocr/','../assets/ocr/']){
+  try{const u=new URL(b,document.baseURI).href;const r=await fetch(u+'eng.traineddata.gz',{method:'HEAD'});
+   if(r.ok&&!/text\/html/i.test(r.headers.get('content-type')||''))return u}catch(e){}
+ }
+ return null;
+}
 function ensureNumberReader(){
  if(numberWorker)return Promise.resolve(numberWorker);
  if(!numberWorkerPromise)numberWorkerPromise=(async()=>{
   const el=$('#numberScanStatus');if(el){clearTimeout(numberStatusTimer);el.classList.remove('warn');el.textContent='Preparing the number reader…'}
-  if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
-  const w=await Tesseract.createWorker('eng',1);
+  // Own copy first (assets/ocr, no internet download of ~15MB), the CDN only as a backup.
+  let w=null;
+  try{
+   const base=await ocrLocalBase();
+   if(base){
+    if(typeof Tesseract==='undefined')await loadScriptOnce(base+'tesseract.min.js');
+    w=await Tesseract.createWorker('eng',1,{workerPath:base+'worker.min.js',corePath:base,langPath:base,gzip:true});
+   }
+  }catch(e){w=null;console.warn('Local number reader failed, using CDN',e)}
+  if(!w){
+   if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
+   w=await Tesseract.createWorker('eng',1);
   // Normal text, one line (the guide band holds the number line only; sparse mode lost
   // the piece dash, 7002-2 -> 7002 2). A digits-only list made the box and sticker edges read as extra
   // digits joined onto the number (7001 -> 700188); now edges read as separate marks.
