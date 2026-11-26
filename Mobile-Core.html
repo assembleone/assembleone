@@ -5077,6 +5077,18 @@ function numberScanProjects(){
  if(combinedCheckActive()){const ids=new Set(state.activeCardKeys.map(k=>parseCardKey(k).projectId));return state.projects.filter(p=>ids.has(p.id))}
  const p=project();return p?[p]:[];
 }
+// Same customer, same rule (26 Nov 2026, Mads): a panel that is not in the open job is also looked for in the
+// customer's other live jobs on the phone (same customer name, not finished, visible to this person). The open
+// job always wins; other jobs are only asked when it has no such panel.
+function numberScanExtraProjects(primary){
+ try{
+  if(combinedCheckActive()||!primary.length)return [];
+  const key=x=>String((x&&x.customer)||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const k=key(primary[0]);if(!k)return [];
+  const ids=new Set(primary.map(x=>x.id));
+  return state.projects.filter(x=>x&&!ids.has(x.id)&&key(x)===k&&!x.mobileArchived&&isStudioJob(x)&&(typeof canSeeJob!=='function'||canSeeJob(x,null)));
+ }catch(e){return []}
+}
 function resolvePanelNumber(token,projects){
  if(String(token).startsWith('R:'))return resolveScanRef(String(token).slice(2),projects);
  const m=String(token).match(/^(\d+)(?:-(\d+))?$/);if(!m)return {kind:'unclear'};
@@ -5098,8 +5110,8 @@ let numberDropped='',numberCut=false;
 function numberTextFromResult(data){return (data&&data.text)||''}
 // One camera frame's reading: one clear panel number, or nothing (unclear, or two labels).
 function readNumberFrame(text){
- const projects=numberScanProjects();
- const res=panelNumberTokens(text).map(t=>resolvePanelNumber(t,projects)).filter(r=>r.kind!=='unclear');
+ const projects=numberScanProjects(),extra=numberScanExtraProjects(projects);
+ const res=panelNumberTokens(text).map(t=>{const r=resolvePanelNumber(t,projects);if(r.kind==='nomatch'&&extra.length){const r2=resolvePanelNumber(t,extra);if(r2.kind!=='nomatch')return r2}return r}).filter(r=>r.kind!=='unclear');
  const matches=res.filter(r=>r.kind==='match'),pool=matches.length?matches:res;
  const keys=[...new Set(pool.map(numberResultKey))];
  return keys.length===1?pool[0]:null;
