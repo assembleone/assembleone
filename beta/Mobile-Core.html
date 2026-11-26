@@ -4920,6 +4920,7 @@ function ensureNumberReader(){
   if(!w){
    if(typeof Tesseract==='undefined')await loadScriptOnce(TESSERACT_URL);
    w=await Tesseract.createWorker('eng',1);
+  }
   // Normal text, one line (the guide band holds the number line only; sparse mode lost
   // the piece dash, 7002-2 -> 7002 2). A digits-only list made the box and sticker edges read as extra
   // digits joined onto the number (7001 -> 700188); now edges read as separate marks.
