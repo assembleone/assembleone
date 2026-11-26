@@ -3942,6 +3942,8 @@ function mergeStudioProject(incoming){
   // was originally guarding: a fitter's own site-measure address/notes, entered before the
   // job ever reached Studio at all.
   incoming.address=incoming.address||old.address||"";incoming.phone=incoming.phone||old.phone||"";incoming.notes=incoming.notes||old.notes||"";
+  // The location pin: a resend from Studio that has no pin of its own must never wipe the pin this phone already has (it used to, so directions stopped working once the job came back from Studio).
+  if((incoming.geoLat==null||incoming.geoLng==null)&&old.geoLat!=null&&old.geoLng!=null){incoming.geoLat=old.geoLat;incoming.geoLng=old.geoLng}
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;
     // Studio made a piece of this panel unique: progress this phone keyed by the old piece order
     // is not merged back (it would put the moved piece back); Studio's progress is kept as sent.
