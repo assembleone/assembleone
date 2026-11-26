@@ -4754,7 +4754,9 @@ function openScannedText(text){
   if(state.scanMode==='check'){
    const keys=Array.isArray(state.activeCardKeys)&&state.activeCardKeys.length?state.activeCardKeys:(state.currentProject?[state.currentProject]:[]);
    const open=keys.map(k=>typeof parseCardKey==='function'?parseCardKey(k).projectId:k);
-   const other=open.length&&!open.includes(q.projectId)?state.projects.find(x=>x.id===q.projectId):null;
+   let other=open.length&&!open.includes(q.projectId)?state.projects.find(x=>x.id===q.projectId):null;
+   // Same customer, same rule (26 Nov 2026, Mads): a label of another live job of the same customer is accepted.
+   if(other&&typeof fiqSameCustomerLive==='function'&&fiqSameCustomerLive(other,open))other=null;
    if(other){const box=document.querySelector('#scanResult');if(box)box.textContent='This label is from another job ('+(other.name||other.customer||'job')+'). Open that job to check it.';if(typeof playScanErrorFeedback==='function')playScanErrorFeedback();return true}
   }
   if(openPanelRoute(q)){handlePanelIdentified();restorePointerIfCombined();return true}
@@ -5080,6 +5082,13 @@ function numberScanProjects(){
 // Same customer, same rule (26 Nov 2026, Mads): a panel that is not in the open job is also looked for in the
 // customer's other live jobs on the phone (same customer name, not finished, visible to this person). The open
 // job always wins; other jobs are only asked when it has no such panel.
+function fiqSameCustomerLive(other,openIds){
+ try{
+  const key=x=>String((x&&x.customer)||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const k=key(other);if(!k||other.mobileArchived||!isStudioJob(other))return false;
+  return openIds.some(id=>{const o=state.projects.find(x=>x.id===id);return !!o&&key(o)===k});
+ }catch(e){return false}
+}
 function numberScanExtraProjects(primary){
  try{
   if(combinedCheckActive()||!primary.length)return [];
