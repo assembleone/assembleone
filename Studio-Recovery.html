@@ -7872,8 +7872,8 @@ body.guide-only .a131-back-studio{display:block}
  const css=document.createElement('style');css.textContent=
   '.fiq-wardrobe-bar{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}'+
   '.fiq-wardrobe-bar select{height:28px;max-width:190px;border:1px solid #cfd6e4;border-radius:8px;background:#fff;color:#23364e;font:700 12px Inter,Arial,sans-serif;padding:0 6px}'+
-  '.fiq-wardrobe-bar .fiq-next-wardrobe{height:28px;padding:0 10px;font-size:12px;font-weight:800;white-space:nowrap;border-radius:8px;background:#e6f5dc;border:1px solid #6bbf3a;color:#1f5d12;display:inline-flex;align-items:center;gap:4px}'+
-  '.fiq-wardrobe-bar .fiq-next-wardrobe:hover{background:#d5eec5}.fiq-wardrobe-bar .fiq-nw-plus{font-size:16px;font-weight:900;line-height:1}'+
+  '.fiq-wardrobe-bar .fiq-next-wardrobe{height:28px;box-sizing:border-box;padding:0 10px;font-size:11.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap;border-radius:8px;background:#0B2545;border:2px solid #2F8CFF;color:#fff;display:inline-flex;align-items:center;gap:6px}'+
+  '.fiq-wardrobe-bar .fiq-next-wardrobe:hover{background:#12335f;border-color:#58a3ff}.fiq-wardrobe-bar .fiq-next-wardrobe svg{flex:none;display:block}.fiq-wardrobe-bar .fiq-nw-arrow{font-size:14px;font-weight:900;line-height:1}'+
   '.fiq-nw-dialog .a100-edit-sheet{max-width:420px}.fiq-nw-dialog label{display:block;margin:10px 0 4px;font-weight:800}'+
   '.fiq-nw-dialog input,.fiq-nw-dialog select{width:100%;box-sizing:border-box;height:40px;border:1px solid #cfd6e4;border-radius:10px;padding:0 10px;font:600 15px Inter,Arial,sans-serif}'+
   '.fiq-nw-dialog .a100-edit-sheet{max-height:92vh;overflow-y:auto}#fiqNwRoomCards{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}#fiqNwRoomCards[hidden]{display:none}#fiqNwRoomCards .room-type-btn{min-height:0;height:auto;padding:8px 4px;font-size:12px;line-height:1.2}#fiqNwRoomCards .room-type-btn b{display:block;font-size:22px;margin-bottom:2px}#fiqNwRoomCards .room-type-btn.active{outline:3px solid #4da721;background:#eaf7e1}'+
@@ -7896,7 +7896,7 @@ body.guide-only .a131-back-studio{display:block}
   if(!bar){
    bar=document.createElement('div');bar.id='fiqWardrobeBar';bar.className='fiq-wardrobe-bar';
    bar.innerHTML='<select id="fiqWardrobeSelect" aria-label="Open wardrobe" title="Open another wardrobe of this job"></select>'+
-    '<button type="button" class="btn fiq-next-wardrobe" id="fiqNextWardrobeBtn" title="Keep this wardrobe and start the next one. Nothing is deleted."><b class="fiq-nw-plus" aria-hidden="true">＋</b>Next wardrobe</button>';
+    '<button type="button" class="btn fiq-next-wardrobe" id="fiqNextWardrobeBtn" title="Keep this build and start the next one. Nothing is deleted." aria-label="Next build or design"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" aria-hidden="true"><rect x="6.5" y="1" width="10.5" height="8.5" rx="1.6" stroke="#fff" stroke-width="1.3"/><rect x="3.75" y="3.75" width="10.5" height="8.5" rx="1.6" fill="#0B2545" stroke="#fff" stroke-width="1.3"/><rect x="1" y="6.5" width="10.5" height="8.5" rx="1.6" fill="#fff"/></svg>NEXT BUILD / DESIGN <span class="fiq-nw-arrow" aria-hidden="true">\u2192</span></button>';
    bar.querySelector('#fiqWardrobeSelect').addEventListener('change',e=>openWardrobe(e.target.value));
    bar.querySelector('#fiqNextWardrobeBtn').addEventListener('click',e=>{e.preventDefault();openDialog(null)});
   }
