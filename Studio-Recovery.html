@@ -10016,7 +10016,7 @@ body.fiq-locked .app{display:none!important}
     // Always shown in full (no collapse) -- the point is to see the actual sheet layout
     // before sending the cutting list, not something to click open first.
     box.innerHTML='<div class="est-mat-card">'+
-      '<div class="est-mat-title"><svg viewBox="0 0 48 48" fill="none" stroke="#0B2545" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M24 5 4 15l20 10 20-10L24 5Z"/><path d="M4 24l20 10 20-10"/><path d="M4 33l20 10 20-10"/></svg><span>Sheet count</span></div>'+
+      '<div class="est-mat-title"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M24 5 4 15l20 10 20-10L24 5Z"/><path d="M4 24l20 10 20-10"/><path d="M4 33l20 10 20-10"/></svg><span>Sheet count</span></div>'+
       warn+
       '<details class="fiq-sheet-layout"'+(window.__fiqSheetLayoutOpen?' open':'')+'><summary>Show sheet layout</summary>'+
       '<div id="estimatedMaterialsBody"></div>'+
@@ -12436,7 +12436,7 @@ body.fiq-locked .app{display:none!important}
 /* Sheet count / All panels checked / instruction / progress: approved layout (26 Nov 2026). Look and spacing only. */
 #screen-parts #estimatedMaterialsCard:not(:empty){margin-top:56px}
 #screen-parts #estimatedMaterialsCard .est-mat-card{margin:0;padding:0;border:1px solid #d7dfea;border-radius:18px;overflow:hidden;background:#fff}
-#screen-parts #estimatedMaterialsCard .est-mat-title{display:flex;align-items:center;gap:14px;margin:0;padding:14px 22px;background:#cfe2fb;color:#0B2545;font-size:26px;font-weight:900;line-height:1.1}
+#screen-parts #estimatedMaterialsCard .est-mat-title{display:flex;align-items:center;gap:14px;margin:0;padding:16px 22px;background:#0B2545;color:#fff;font-size:26px;font-weight:900;line-height:1.1}
 #screen-parts #estimatedMaterialsCard .est-mat-title svg{flex:none;width:40px;height:40px}
 #screen-parts #estimatedMaterialsCard .est-mat-missing-warn{margin:14px 22px 0}
 #screen-parts #estimatedMaterialsCard .fiq-sheet-layout{padding:0 22px}
