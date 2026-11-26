@@ -4458,7 +4458,21 @@ async function sendPackToPhoneDirectly(pack){
 // Drawing: they are never sent to Mobile. Only the copy that goes to the phone leaves them
 // out -- Studio keeps them, and they reach Mobile once they are finished.
 function fiqPanelFinished(pt){return typeof window.fiqPanelMissingFields==='function'?!window.fiqPanelMissingFields(pt).length:true}
+// Location pin follows the visit into the job: when a site visit is added to a job, the job takes the visit's pin
+// (and address/phone if the job has none), so Mobile can give directions from inside the job. Also repairs jobs that
+// were linked before this existed, the next time they are sent to Mobile.
+function fiqAdoptVisitLocation(tgt){
+ try{
+  if(!tgt||!tgt.id)return false;let changed=false;
+  const visits=(state.projects||[]).filter(q=>q&&q.linkedToProjectId===tgt.id).sort((a,b)=>(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0));
+  if(tgt.geoLat==null||tgt.geoLng==null){const v=visits.find(q=>q.geoLat!=null&&q.geoLng!=null);if(v){tgt.geoLat=v.geoLat;tgt.geoLng=v.geoLng;changed=true}}
+  ["address","phone"].forEach(k=>{if(!String(tgt[k]||"").trim()){const v=visits.find(q=>String(q[k]||"").trim());if(v){tgt[k]=v[k];changed=true}}});
+  return changed;
+ }catch(e){console.warn("fiqAdoptVisitLocation",e);return false}
+}
+window.fiqAdoptVisitLocation=fiqAdoptVisitLocation;
 function fiqProjectForMobile(p){
+ fiqAdoptVisitLocation(p);
  // Panel Number labels: every panel the phone receives already has its fixed label number.
  fiqEnsureLabelNumbers(p);
  const copy=JSON.parse(JSON.stringify(p));delete copy.sentCuttingLists;
@@ -14690,6 +14704,7 @@ document.addEventListener('click',function(e){
   src.linkedToProjectId=tgt.id;src.linkedAt=now;
   (state.projects||[]).forEach(q=>{if(q.linkedToProjectId===src.id)q.linkedToProjectId=tgt.id});
   src.customerId=tgt.customerId;src.customer=nameOf(tgt)||src.customer;
+  if(typeof window.fiqAdoptVisitLocation==="function")window.fiqAdoptVisitLocation(tgt);
   src.isNewFromSite=false;src.overviewFinishedAt=src.overviewFinishedAt||now;src.movedToLibraryAt=src.movedToLibraryAt||now;src.updatedAt=now;tgt.updatedAt=now;
   // A customer record made only for this visit (a misspelt name) is removed; its details fill gaps.
   if(oldCustomer&&oldCustomer!==tgt.customerId&&!(state.projects||[]).some(q=>q.customerId===oldCustomer)){

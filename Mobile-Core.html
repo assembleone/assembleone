@@ -1291,6 +1291,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .mobile-job-media{position:relative;width:100%}
 .mobile-job-thumb{width:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;background:#eceef3}
 .mobile-job-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.mobile-job-panels-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:6px}.mobile-job-panels-row .mobile-job-panels-figure{margin-top:0}.mobile-job-panel-range{font-weight:900;font-size:15px;color:#0B2545;letter-spacing:.2px}
 .mobile-job-panels-figure{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:4px 10px;border-radius:999px;background:#174E98;color:#fff;font-weight:900}
 .mobile-job-panels-figure b{font-size:15px}
 .mobile-job-panels-figure span{font-size:11px;letter-spacing:.4px}
@@ -2320,7 +2321,30 @@ function renderProjects(){
  // catch-all, or null for a no-rooms project's single implicit card. Only ever expanded
  // into more than one card for a real installation job (see cardsForProject's own caller
  // below) -- a Site Measure visit still renders as one card per project, unchanged.
- function jobCard(card){
+ // Panel number range for a room card (26 Nov 2026, Mads): read straight from the real panel references in the room
+// (the same pt.code the fitter sees in Panel Check, e.g. KB1 ... KB12), never a separate numbering. Consecutive
+// numbers join into one range; a room whose numbers are not consecutive (panels added later, or deleted) shows each
+// run, e.g. "KB1 - KB5, KB20 - KB22", so the card never claims a number the room does not have.
+function fiqPanelRangeText(parts){
+ try{
+  const groups=[];
+  (parts||[]).forEach(pt=>{
+   const m=/^(.*?)(\d+)$/.exec(String((pt&&pt.code)||'').trim());if(!m)return;
+   let g=groups.find(x=>x.prefix===m[1]);if(!g){g={prefix:m[1],nums:new Map()};groups.push(g)}
+   g.nums.set(Number(m[2]),m[2]);
+  });
+  const runs=[];
+  groups.forEach(g=>{
+   const ns=[...g.nums.keys()].sort((x,y)=>x-y);let start=null,prev=null;
+   const push=()=>{if(start===null)return;const a=g.prefix+g.nums.get(start),b=g.prefix+g.nums.get(prev);runs.push(start===prev?a:a+' \u2013 '+b)};
+   ns.forEach(n=>{if(start===null){start=prev=n}else if(n===prev+1){prev=n}else{push();start=prev=n}});
+   push();
+  });
+  if(!runs.length)return '';
+  return runs.length>3?runs.slice(0,3).join(', ')+' \u2026':runs.join(', ');
+ }catch(e){return ''}
+}
+function jobCard(card){
   const p=card.project;
   const ready=isInstallationJob(p);
   const cabinets=ready?cardCabinets(card):(p.cabinets||[]);
@@ -2362,7 +2386,8 @@ function renderProjects(){
   // A standalone, prominent "N PANELS" figure -- reuses scanTotalsForCabinets()'s already
   // qty-aware total (Math.max(1,qty) per row), scoped to just this card's own cabinets.
   const panelTotal=ready&&typeof scanTotalsForCabinets==='function'?scanTotalsForCabinets(cabinets).total:0;
-  const panelsFigureHtml=panelTotal?`<div class="mobile-job-panels-figure"><b>${panelTotal}</b><span>${panelTotal===1?t('mobile.panelSingular'):t('mobile.panelPlural')}</span></div>`:'';
+  const panelRange=ready?fiqPanelRangeText(cabinets.flatMap(c=>c.parts||[])):'';
+  const panelsFigureHtml=panelTotal?`<div class="mobile-job-panels-row"><div class="mobile-job-panels-figure"><b>${panelTotal}</b><span>${panelTotal===1?t('mobile.panelSingular'):t('mobile.panelPlural')}</span></div>${panelRange?`<span class="mobile-job-panel-range">${safe(panelRange)}</span>`:''}</div>`:'';
   // §5: a checkbox on real installation jobs only, mirroring Studio Build 1's own
   // card-selection shape, feeding the "Open N jobs together" bulk toolbar below. Keyed by
   // this card's own key (not just the project id) so two room-cards of the same job can be
@@ -3942,6 +3967,8 @@ function mergeStudioProject(incoming){
   // was originally guarding: a fitter's own site-measure address/notes, entered before the
   // job ever reached Studio at all.
   incoming.address=incoming.address||old.address||"";incoming.phone=incoming.phone||old.phone||"";incoming.notes=incoming.notes||old.notes||"";
+  // The location pin: a resend from Studio that has no pin of its own must never wipe the pin this phone already has (it used to, so directions stopped working once the job came back from Studio).
+  if((incoming.geoLat==null||incoming.geoLng==null)&&old.geoLat!=null&&old.geoLng!=null){incoming.geoLat=old.geoLat;incoming.geoLng=old.geoLng}
   incoming.cabinets.forEach(ic=>{const oc=old.cabinets?.find(x=>x.id===ic.id);if(!oc)return;ic.parts?.forEach(ip=>{const op=oc.parts?.find(x=>x.id===ip.id);if(!op)return;
     // Studio made a piece of this panel unique: progress this phone keyed by the old piece order
     // is not merged back (it would put the moved piece back); Studio's progress is kept as sent.
