@@ -72,9 +72,9 @@
     if(!p)return;
     var url='';
     if(p.geoLat!=null&&p.geoLng!=null){
-      url='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(String(p.geoLat)+','+String(p.geoLng));
+      url='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(String(p.geoLat)+','+String(p.geoLng));
     }else if(String(p.address||'').trim()){
-      url='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(String(p.address).trim());
+      url='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(String(p.address).trim());
     }
     if(url)window.open(url,'_blank','noopener');
   }
