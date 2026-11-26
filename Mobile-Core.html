@@ -1866,6 +1866,7 @@ async function hydrateAllPhotos(st){
  await Promise.all(tasks);
 }
 function save(){
+ state.lastActiveAt=Date.now();
  const restore=[];
  let json=null,ok=false;
  try{
@@ -2021,6 +2022,8 @@ function applyPanelRoute(route){
 // load. Without this, load() below only ever runs once at startup and the new
 // #panel=... in the URL would be silently ignored.
 window.addEventListener("hashchange",()=>{const route=parsePanelHash();if(route)applyPanelRoute(route)});
+// Keep the saved screen current when the phone sleeps or the app is closed, so it can start where the fitter left off.
+document.addEventListener('visibilitychange',()=>{if(document.hidden){try{save()}catch(e){}}});window.addEventListener('pagehide',()=>{try{save()}catch(e){}});
 async function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x)state=x}catch(e){};if(!Array.isArray(state.activeCardKeys))state.activeCardKeys=state.currentProject?[state.currentProject]:[];try{await hydrateAllPhotos(state)}catch(e){console.error("Photo hydration failed",e)}const route=parsePanelHash();if(route){applyPanelRoute(route)}else{restoreScreenAfterLoad()}if(typeof applyScanModeUI==='function')applyScanModeUI()}
 function restoreScreenAfterLoad(){
  if(state.projectsListMode==='site')projectsListMode='site';
@@ -2028,6 +2031,23 @@ function restoreScreenAfterLoad(){
  if(s==='newSiteJob'&&siteJob&&p.nsjStep){show('newSiteJob');return}
  if((s==='siteVisitSummary'||s==='measure')&&siteJob){show('siteVisitSummary');return}
  if(s==='sentToStudio'||(s==='projects'&&projectsListMode==='site')){projectsListMode='site';show('projects');return}
+ // Start where the fitter left off (26 Nov 2026, Mads): after the phone slept or the app was closed, a Studio job's
+ // Rooms / Scan / Install screen comes back as it was, if the app was used in the last 8 hours. Nothing else changes:
+ // the Jobs button in the bottom bar still goes to the list.
+ try{
+  const fresh=Number(state.lastActiveAt||0)>Date.now()-8*3600*1000;
+  if(fresh&&p&&isStudioJob(p)&&!p.mobileArchived&&(typeof canSeeJob!=='function'||canSeeJob(p,null))&&(s==='scan'||s==='install'||s==='drawings')){
+   if(s==='drawings'&&!(typeof currentRoom==='function'&&currentRoom())){/* no room open: fall through to the list */}
+   else{
+    jobConfirmedThisSession=true;
+    projectsListMode='jobs';state.projectsListMode='jobs';
+    renderAll();applyI18n();paintLangButtons();
+    show(s);
+    if(s==='drawings'){try{const cr=currentRoom();if(cr&&typeof renderRoomDetail==='function')renderRoomDetail(cr)}catch(e){console.error(e)}}
+    return;
+   }
+  }
+ }catch(e){console.error('Resume failed, opening the list',e)}
  if(projectsListMode==='site')projectsListMode='jobs';
  state.screen='projects';state.projectsListMode=projectsListMode;
  $$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.screen==='projects'));
