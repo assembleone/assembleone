@@ -7880,22 +7880,22 @@ body.guide-only .a131-back-studio{display:block}
   '.fiq-nw-note{margin-top:10px;font-size:13px;color:#5b6b85}.fiq-nw-warn{margin-top:10px;font-size:13px;color:#8a5a00}';
  document.head.appendChild(css);
  const roomOf=(p,c)=>(p.rooms||[]).find(r=>r.id===c.roomId);
- const wardrobeLabel=(p,c)=>{const r=roomOf(p,c);return (r&&r.name&&r.name!==c.name?r.name+' · ':'')+(c.name||'Wardrobe')};
+ const wardrobeLabel=(p,c)=>{const r=roomOf(p,c);return (r&&r.name&&r.name!==c.name?r.name+' · ':'')+(c.name||'Design')};
  // The next name: Wardrobe A -> Wardrobe B, Wardrobe 2 -> Wardrobe 3, otherwise Wardrobe N.
  function nextName(p,c){
   const used=new Set((p.cabinets||[]).map(x=>String(x.name||'').trim().toLowerCase())),n=String(c&&c.name||'').trim();
-  let m=n.match(/^(.*?)(\d+)$/),cand=[];
+  let m=/^wardrobe\b/i.test(n)?null:n.match(/^(.*?)(\d+)$/),cand=[];
   if(m)for(let i=Number(m[2])+1;i<Number(m[2])+50;i++)cand.push(m[1]+i);
-  else if((m=n.match(/^(.*\s)([A-Y])$/)))for(let k=m[2].charCodeAt(0)+1;k<=90;k++)cand.push(m[1]+String.fromCharCode(k));
-  for(let i=(p.cabinets||[]).length+1;i<(p.cabinets||[]).length+60;i++)cand.push('Wardrobe '+i);
-  return cand.find(x=>!used.has(x.toLowerCase()))||'Wardrobe';
+  else if(!/^wardrobe\b/i.test(n)&&(m=n.match(/^(.*\s)([A-Y])$/)))for(let k=m[2].charCodeAt(0)+1;k<=90;k++)cand.push(m[1]+String.fromCharCode(k));
+  for(let i=(p.cabinets||[]).length+1;i<(p.cabinets||[]).length+60;i++)cand.push('Design '+i);
+  return cand.find(x=>!used.has(x.toLowerCase()))||'Design';
  }
  function ensure(){
   const head=document.querySelector('#screen-mark .fiq-measure-head');if(!head)return;
   let bar=document.getElementById('fiqWardrobeBar');
   if(!bar){
    bar=document.createElement('div');bar.id='fiqWardrobeBar';bar.className='fiq-wardrobe-bar';
-   bar.innerHTML='<select id="fiqWardrobeSelect" aria-label="Open wardrobe" title="Open another wardrobe of this job"></select>'+
+   bar.innerHTML='<select id="fiqWardrobeSelect" aria-label="Open design" title="Open another design of this job"></select>'+
     '<button type="button" class="btn fiq-next-wardrobe" id="fiqNextWardrobeBtn" title="Keep this build and start the next one. Nothing is deleted." aria-label="Next build or design"><svg width="18" height="16" viewBox="0 0 18 16" fill="none" aria-hidden="true"><rect x="6.5" y="1" width="10.5" height="8.5" rx="1.6" stroke="#fff" stroke-width="1.3"/><rect x="3.75" y="3.75" width="10.5" height="8.5" rx="1.6" fill="#0B2545" stroke="#fff" stroke-width="1.3"/><rect x="1" y="6.5" width="10.5" height="8.5" rx="1.6" fill="#fff"/></svg>NEXT BUILD / DESIGN <span class="fiq-nw-arrow" aria-hidden="true">\u2192</span></button>';
    bar.querySelector('#fiqWardrobeSelect').addEventListener('change',e=>openWardrobe(e.target.value));
    bar.querySelector('#fiqNextWardrobeBtn').addEventListener('click',e=>{e.preventDefault();openDialog(null)});
@@ -7923,16 +7923,16 @@ body.guide-only .a131-back-studio{display:block}
   const rooms=p.rooms||[],cur=c?c.roomId:(rooms[0]&&rooms[0].id)||'';
   const incomplete=c?(c.parts||[]).filter(x=>typeof window.fiqPanelMissingFields==='function'&&window.fiqPanelMissingFields(x).length):[];
   const o=document.createElement('div');o.className='a100-edit-dialog fiq-nw-dialog';
-  o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="fiqNwTitle"><h2 id="fiqNwTitle">Next wardrobe</h2>'+
+  o.innerHTML='<div class="a100-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="fiqNwTitle"><h2 id="fiqNwTitle">Next build / design</h2>'+
    '<label for="fiqNwName">Name</label><input id="fiqNwName" autocomplete="off" value="'+safe(nextName(p,c))+'">'+
    '<label for="fiqNwRoom">Room</label><select id="fiqNwRoom">'+rooms.map(r=>'<option value="'+safe(r.id)+'"'+(r.id===cur?' selected':'')+'>'+safe(r.name||'Room')+(r.scanCode?' ('+safe(r.scanCode)+')':'')+'</option>').join('')+'<option value="__new__"'+(rooms.length?'':' selected')+'>+ New room…</option></select>'+
    '<div id="fiqNwRoomCards" class="room-type-grid"'+(rooms.length?' hidden':'')+' style="margin-top:8px">'+(typeof studioRoomTypes!=='undefined'?studioRoomTypes:[]).map(([nm,ic])=>'<button type="button" class="room-type-btn" data-nw-type="'+safe(nm)+'" data-nw-icon="'+ic+'"><b>'+ic+'</b>'+safe(typeof roomTypeLabel==='function'?roomTypeLabel(nm):nm)+'</button>').join('')+'</div>'+
    '<input id="fiqNwNewRoom" autocomplete="off" placeholder="New room name, e.g. Bedroom 2"'+(rooms.length?' hidden':'')+' style="margin-top:6px">'+
    // A new room's scan code: suggested from its name, editable, never one the job already uses.
    '<div id="fiqNwCodeRow"'+(rooms.length?' hidden':'')+'><label for="fiqNwRoomCode">Room scan code</label><input id="fiqNwRoomCode" maxlength="4" autocomplete="off" style="width:110px;text-transform:uppercase;font-weight:900;letter-spacing:.06em"><div class="fiq-nw-note" id="fiqNwCodeMsg">Panels in this room are numbered with these letters and the job number, for example KB12.</div></div>'+
-   '<div class="fiq-nw-note">'+(c?safe(c.name||'This wardrobe')+' is kept with its drawing, panels, Cutting List and Panel Check. Open it again any time from the wardrobe list.':'')+'</div>'+
-   (incomplete.length?'<div class="fiq-nw-warn">'+incomplete.map(x=>safe(x.code)).join(', ')+' '+(incomplete.length===1?'is':'are')+' not complete yet and stay'+(incomplete.length===1?'s':'')+' in '+safe(c.name||'this wardrobe')+' to finish later.</div>':'')+
-   '<div class="a100-edit-actions"><button type="button" class="btn" data-nw-cancel>Cancel</button><button type="button" class="btn primary" data-nw-go>Start next wardrobe</button></div></div>';
+   '<div class="fiq-nw-note">'+(c?safe(c.name||'This design')+' is kept with its drawing, panels, Cutting List and Panel Check. Open it again any time from the design list.':'')+'</div>'+
+   (incomplete.length?'<div class="fiq-nw-warn">'+incomplete.map(x=>safe(x.code)).join(', ')+' '+(incomplete.length===1?'is':'are')+' not complete yet and stay'+(incomplete.length===1?'s':'')+' in '+safe(c.name||'this design')+' to finish later.</div>':'')+
+   '<div class="a100-edit-actions"><button type="button" class="btn" data-nw-cancel>Cancel</button><button type="button" class="btn primary" data-nw-go>Start next design</button></div></div>';
   document.body.appendChild(o);
   const name=o.querySelector('#fiqNwName'),room=o.querySelector('#fiqNwRoom'),newRoom=o.querySelector('#fiqNwNewRoom');
   const codeRow=o.querySelector('#fiqNwCodeRow'),code=o.querySelector('#fiqNwRoomCode'),codeMsg=o.querySelector('#fiqNwCodeMsg');let codeTyped=false;
@@ -7963,7 +7963,7 @@ body.guide-only .a131-back-studio{display:block}
    p.cabinets.push(nc);p.updatedAt=Date.now();
    switchToProject(p.id,nc.id);state.currentRoom=roomId||null;state.currentPart=null;state.selectedCopy=-1;
    save();close();renderAll();show('mark');
-   if(typeof toast==='function')toast(nm+' started. '+(c?(c.name||'The previous wardrobe')+' is kept with everything.':''));
+   if(typeof toast==='function')toast(nm+' started. '+(c?(c.name||'The previous design')+' is kept with everything.':''));
    if(typeof after==='function')setTimeout(after,0);
   };
   setTimeout(()=>{name.focus();name.select()},0);
