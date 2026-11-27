@@ -4020,7 +4020,7 @@ function isCompleteSupplierPart(p){
 function supplierParts(){return cabinetParts().filter(isCompleteSupplierPart)}
 function renderCutting(){
  const allRows=cabinetParts();
- allRows.forEach(p=>{const m=materialForPanel(p);if(m&&!p.material)p.material=m});
+ allRows.forEach(p=>{const m=materialForPanel(p);if(m&&!p.material){const was=typeof panelIsReviewed==='function'&&panelIsReviewed(p);p.material=m;if(was&&typeof panelReviewSignature==='function')p.reviewSignature=panelReviewSignature(p)}});
  const rows=supplierParts(),missing=allRows.length-rows.length;
  const warning=$("#cuttingValidation");
  if(warning){warning.style.display=missing?"block":"none";warning.innerHTML=missing?"⚠️ "+(missing===1?t("studio.supplier.incompletePartsWarningSingular",[missing]):t("studio.supplier.incompletePartsWarningPlural",[missing])):"";}
@@ -5393,7 +5393,7 @@ $("#makeUniqueBtn").onclick=async()=>{const c=cabinet(),p=part(),i=Number(state.
 
 function buildCuttingPrint(){
  const p=project(),c=cabinet();
- cabinetParts().forEach(x=>{const m=materialForPanel(x);if(m&&!x.material)x.material=m});
+ cabinetParts().forEach(x=>{const m=materialForPanel(x);if(m&&!x.material){const was=typeof panelIsReviewed==='function'&&panelIsReviewed(x);x.material=m;if(was&&typeof panelReviewSignature==='function')x.reviewSignature=panelReviewSignature(x)}});
  const rows=supplierParts();
  const el=$("#cuttingPrintArea");
  if(!p||!c){el.innerHTML="<p>No wardrobe selected.</p>";return}
@@ -8854,6 +8854,12 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     if(!p||!p.reviewSignature)return false;
     const current=sig(p),stored=String(p.reviewSignature);
     if(stored===current)return true;
+    // 27 Nov 2026: opening the Cutting List writes the job's own material onto panels that had none (blank -> the same
+    // material the panel already showed). That is not a change to the panel, so an approval made while the material
+    // was blank still stands when the panel carries exactly the job's fallback material.
+    try{const fb=typeof materialForPanel==='function'?String(materialForPanel({})||'').trim():'';
+     if(fb&&String(p.material||'').trim()===fb){const blank=sig(Object.assign({},p,{material:''}));
+      if(stored===blank||['ready','missing','damaged','installed'].some(status=>stored===blank+'|'+status))return true}}catch(e){}
     // Compatibility with every panel approved before Repair 32, when the live status
     // was incorrectly appended to the stored signature.
     return ['ready','missing','damaged','installed'].some(status=>stored===current+'|'+status);
