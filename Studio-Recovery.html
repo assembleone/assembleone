@@ -8857,9 +8857,10 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     // 27 Nov 2026: opening the Cutting List writes the job's own material onto panels that had none (blank -> the same
     // material the panel already showed). That is not a change to the panel, so an approval made while the material
     // was blank still stands when the panel carries exactly the job's fallback material.
-    try{const fb=typeof materialForPanel==='function'?String(materialForPanel({})||'').trim():'';
-     if(fb&&String(p.material||'').trim()===fb){const blank=sig(Object.assign({},p,{material:''}));
-      if(stored===blank||['ready','missing','damaged','installed'].some(status=>stored===blank+'|'+status))return true}}catch(e){}
+    try{const fb=typeof materialForPanel==='function'?String(materialForPanel({})||'').trim():'',own=String(p.material||'').trim();
+     // blank and the job's own fallback material mean the same board, in either direction (approved blank, now filled in; or approved filled in, now blank again)
+     if(fb&&(own===fb||own==='')){const alts=[sig(Object.assign({},p,{material:''})),sig(Object.assign({},p,{material:fb}))];
+      if(alts.some(a=>stored===a||['ready','missing','damaged','installed'].some(status=>stored===a+'|'+status)))return true}}catch(e){}
     // Compatibility with every panel approved before Repair 32, when the live status
     // was incorrectly appended to the stored signature.
     return ['ready','missing','damaged','installed'].some(status=>stored===current+'|'+status);
@@ -14142,7 +14143,9 @@ document.addEventListener('mousedown',function(e){
     const all=cabinetParts(),list=supplierParts();
     const room=(pr.rooms||[]).find(r=>r.id===c.roomId);
     const where=[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
-    if(all.length>list.length)out.incomplete.push({where:where||'Unit',n:all.length-list.length});
+    if(all.length>list.length){const ids=new Set(list.map(p=>String(p.id)));const why=all.filter(p=>!ids.has(String(p.id))).map(p=>{let m=[];try{m=typeof window.panelMissingItems==='function'?window.panelMissingItems(p):[]}catch(e){}
+      return (p.code||'?')+' '+(m.length?'is missing '+m.join(', '):'was changed since it was checked, check it again')});
+      out.incomplete.push({where:where||'Unit',n:all.length-list.length,why})}
     if(!list.length)continue;
     out.units.push({id:c.id,where,room:room&&room.name||'',n:list.length});
     list.forEach(p=>out.panels.push({p,copy:Object.assign({},p,{material:String(materialForPanel(p)||'').trim()}),where,room:room&&room.name||'',unit:c.name||''}));
@@ -14209,7 +14212,7 @@ document.addEventListener('mousedown',function(e){
   const sel=document.getElementById('supplierSystemSelect'),sys=window.FIQ_SUPPLIER_ADAPTERS&&window.FIQ_SUPPLIER_ADAPTERS[sel&&sel.value]||{fileLabel:'Standard CSV'};
   const mats=Object.values(d.materials||{});
   ui.box.innerHTML=
-   (d.incomplete.length?'<div class="fjc-warn">⚠ Not complete, so left out: '+d.incomplete.map(x=>esc(x.where)+' ('+x.n+')').join(', ')+'. Finish them in Panel Check to include them.</div>':'')+
+   (d.incomplete.length?'<div class="fjc-warn">⚠ Not complete, so left out: '+d.incomplete.map(x=>esc(x.where)+' ('+x.n+')'+(x.why&&x.why.length?': '+x.why.map(esc).join('; '):'')).join(', ')+'. Finish them in Panel Check to include them.</div>':'')+
    '<div class="fjc-card"><h3>Production file for the supplier</h3><button type="button" class="btn primary" data-job-file>⇩ Download whole job production file</button> <button type="button" class="btn primary" data-job-pdf>🖨 Download Supplier PDF (whole job)</button> <button type="button" class="btn primary" data-job-wa style="background:#25d366;border-color:#25d366">Send by WhatsApp</button><label class="fiq-stickers-tick"><input type="checkbox" data-stickers-tick> Include stickers in the PDF and WhatsApp</label>'+
    '<p class="fjc-note">'+esc(sys.fileLabel)+' CSV for the whole job, one row per panel with its quantity, with the room and wardrobe on every row. Change the supplier system under "This wardrobe".</p><p class="fjc-note" data-job-file-status aria-live="polite"></p></div>'+
    '<div class="fjc-card"><h3>Sheet estimate for your quote</h3><p class="fjc-note" style="margin:0 0 8px">Panels of the same material and thickness from every room share sheets, so offcuts are used across rooms. For quoting only; not sent to the supplier.</p>'+
