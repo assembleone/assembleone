@@ -7123,7 +7123,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
   }
 
   function unlockApp(user, claims, offline){
-    if(!offline) rememberOnlineUnlock(user, claims);
+    if(!offline){ rememberOnlineUnlock(user, claims); try{startKeepPictures()}catch(e){} }
     window.fittersiqUser = { uid:user.uid, email:user.email, companyId:claims.companyId||null, role:claims.role||null, isAdmin: claims.fittersiq_admin===true, fitterId: claims.fitterId||null };
     document.body.classList.remove('fiq-locked');
     $('fiqAuthGate').style.display='none';
@@ -7297,6 +7297,34 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
       }
       el.textContent='Offline – showing jobs saved on this phone';
     }catch(e){}
+  }
+  // While there is signal, quietly ask for each drawing kept in cloud storage (and the QR reader file) so the saved-app
+  // worker keeps a copy and they show with no signal. Checks again every two minutes and whenever signal comes back.
+  var keptPics={}, keepStarted=false;
+  function keepPicturesOffline(){
+    try{
+      if(navigator.onLine===false||!('serviceWorker' in navigator)||!navigator.serviceWorker.controller) return;
+      var STORE=/^https:\/\/(firebasestorage\.googleapis\.com|[^\/]*\.firebasestorage\.app|storage\.googleapis\.com)\//;
+      var urls=[];
+      function add(v){ if(typeof v==='string'&&STORE.test(v)&&!keptPics[v.split('?')[0]]) urls.push(v) }
+      ((typeof state!=='undefined'&&state&&state.projects)||[]).forEach(function(p){
+        (p.cabinets||[]).forEach(function(c){ if(c&&c.drawingType!=='pdf') add(c.drawing) });
+        (p.rooms||[]).forEach(function(r){ (r.designImages||[]).forEach(function(d){ add(d&&d.data) }) });
+      });
+      var i=0;
+      (function next(){
+        if(i>=urls.length||i>=60||navigator.onLine===false) return;
+        var u=urls[i++], k=u.split('?')[0]; keptPics[k]=1;
+        fetch(u,{mode:'no-cors'}).catch(function(){ delete keptPics[k] }).then(function(){ setTimeout(next,150) });
+      })();
+      fetch('https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',{mode:'no-cors'}).catch(function(){});
+    }catch(e){}
+  }
+  function startKeepPictures(){
+    if(keepStarted) return; keepStarted=true;
+    setTimeout(keepPicturesOffline,5000);
+    setInterval(keepPicturesOffline,120000);
+    window.addEventListener('online',function(){ setTimeout(keepPicturesOffline,1500) });
   }
   function tryOfflineUnlock(user, e){
     if(!user||!looksOffline(e)) return false;

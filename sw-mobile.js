@@ -6,8 +6,58 @@
    - Only the app's own files and pinned library versions are saved. Firebase data calls
      (Firestore, Auth, Storage), photos, maps and anything that is not a plain GET are never touched.
    - Job data is NOT stored here. It stays where it always was (the phone's own storage). */
-const VERSION = 'fiq-mobile-offline-v1';
+const VERSION = 'fiq-mobile-offline-v2';
+const PICS = 'fiq-mobile-pics-v1';
 const NETWORK_WAIT_MS = 5000;
+
+// Number reader files (about 11 MB). Saved once, in the background, so the number scanner works with no signal.
+const OCR_FILES = ['eng.traineddata.gz', 'tesseract-core-lstm.wasm.js', 'tesseract-core-simd-lstm.wasm.js', 'tesseract.min.js', 'worker.min.js'];
+const OCR_BASE = new URL('./assets/ocr/', self.location.href).href;
+async function precacheOcr() {
+  try {
+    const cache = await caches.open(VERSION);
+    for (const f of OCR_FILES) {
+      try {
+        const url = OCR_BASE + f;
+        if (await cache.match(keyFor(url))) continue;
+        const res = await fetch(url);
+        await putIfGood(cache, url, res);
+      } catch (e) {}
+    }
+  } catch (e) {}
+}
+
+// Drawings and photos kept in cloud storage: saved the first time they load so they show with no signal.
+function isStoragePicture(href) {
+  return /^https:\/\/(firebasestorage\.googleapis\.com|[^\/]*\.firebasestorage\.app|storage\.googleapis\.com)\//.test(href);
+}
+// True only when the page asking is the Mobile app (Studio shares this site and is left alone).
+async function fromMobile(event) {
+  try {
+    if (!event.clientId) return false;
+    const c = await self.clients.get(event.clientId);
+    return !!c && /\/Mobile\.html(\?|#|$)/.test(c.url);
+  } catch (e) { return false; }
+}
+async function storagePicture(event, request) {
+  if (!(await fromMobile(event))) return fetch(request);
+  const cache = await caches.open(PICS);
+  const key = keyFor(request.url);
+  const saved = await cache.match(key);
+  const live = (async function () {
+    let res;
+    try { res = await fetch(request.url, { mode: 'cors', credentials: 'omit' }); }
+    catch (e) { res = await fetch(request); }
+    if (res && (res.ok || res.type === 'opaque')) { try { await cache.put(key, res.clone()); } catch (e) {} }
+    return res;
+  })();
+  live.catch(function () {});
+  if (!saved) return live;
+  event.waitUntil(live.catch(function () {}));
+  const slow = new Promise(function (resolve) { setTimeout(function () { resolve(saved); }, 4000); });
+  const fresh = live.then(function (res) { return (res && (res.ok || res.type === 'opaque')) ? res : saved; }, function () { return saved; });
+  return Promise.race([fresh, slow]);
+}
 
 // Libraries pinned to an exact version: safe to keep and serve straight from the phone.
 const PINNED = [
@@ -161,12 +211,26 @@ async function cacheFirst(event, request) {
 
 self.addEventListener('fetch', function (event) {
   const request = event.request;
+  if (request.method === 'HEAD') {
+    // The number reader checks its own files with a HEAD request before it starts.
+    let hu; try { hu = new URL(request.url); } catch (e) { return; }
+    if (hu.origin === self.location.origin && hu.pathname.indexOf('/assets/ocr/') !== -1) {
+      event.respondWith((async function () {
+        const cache = await caches.open(VERSION);
+        const saved = await cache.match(keyFor(request.url));
+        if (saved) return new Response(null, { status: 200, headers: { 'Content-Type': saved.headers.get('Content-Type') || 'application/octet-stream' } });
+        return fetch(request);
+      })());
+    }
+    return;
+  }
   if (request.method !== 'GET') return;
   let url;
   try { url = new URL(request.url); } catch (e) { return; }
 
   if (url.origin !== self.location.origin) {
-    if (isPinned(url.href)) event.respondWith(cacheFirst(event, request));
+    if (isPinned(url.href)) { event.respondWith(cacheFirst(event, request)); return; }
+    if (isStoragePicture(url.href) && (request.destination === 'image' || request.destination === '')) { event.respondWith(storagePicture(event, request)); return; }
     return; // Firebase data calls, maps, geocoding etc. go straight to the network.
   }
 
@@ -180,3 +244,5 @@ self.addEventListener('fetch', function (event) {
   if (rel.indexOf('/assets/ocr/') === 0) { event.respondWith(cacheFirst(event, request)); return; }
   if (OWN_PATHS.indexOf(rel) !== -1) event.respondWith(networkFirst(event, request));
 });
+
+self.addEventListener('activate', function (event) { event.waitUntil(precacheOcr()); });
