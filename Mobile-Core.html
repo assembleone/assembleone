@@ -7122,7 +7122,8 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     showState('fiqStateSignIn');
   }
 
-  function unlockApp(user, claims){
+  function unlockApp(user, claims, offline){
+    if(!offline) rememberOnlineUnlock(user, claims);
     window.fittersiqUser = { uid:user.uid, email:user.email, companyId:claims.companyId||null, role:claims.role||null, isAdmin: claims.fittersiq_admin===true, fitterId: claims.fitterId||null };
     document.body.classList.remove('fiq-locked');
     $('fiqAuthGate').style.display='none';
@@ -7135,15 +7136,15 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     // (set at signup, see completeOnboarding); a fitter's lives on their own roster entry
     // (set when the boss added them in Studio) since a paired fitter's Auth account has no
     // name of its own. Fetched once here rather than on every action.
-    if(claims.companyId){
+    if(claims.companyId && !offline){
       if(claims.role==='company_owner'){
         authFns.getDoc(authFns.doc(db,'companies',claims.companyId)).then(function(snap){
-          if(snap.exists())window.fittersiqUser.name = snap.data().ownerName || '';
+          if(snap.exists()){window.fittersiqUser.name = snap.data().ownerName || '';rememberOfflineName(window.fittersiqUser.name)}
           if(snap.exists()&&typeof window.fiqTrialBanner==='function')window.fiqTrialBanner(snap.data());
         }).catch(function(){});
       }else if(claims.fitterId){
         authFns.getDoc(authFns.doc(db,'companies',claims.companyId,'fitters',claims.fitterId)).then(function(snap){
-          if(snap.exists())window.fittersiqUser.name = snap.data().name || '';
+          if(snap.exists()){window.fittersiqUser.name = snap.data().name || '';rememberOfflineName(window.fittersiqUser.name)}
         }).catch(function(){});
       }
       // The normal receive path (mobileInboxPackets/receiveStudioDirect, defined further
@@ -7255,9 +7256,62 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
     try{ var payEl=$('fiqSuspendedPay'); if(payEl && claims && claims.role==='company_owner' && window.fiqPayButtons){ payEl.innerHTML='Pay by card and continue straight away: '+window.fiqPayButtons(claims.companyId,user.email,'font-weight:800;margin:0 6px'); payEl.hidden=false; } }catch(e){}
   }
 
+  // Offline open (Beta). A phone that has already signed in AND passed every online check (company
+  // active, device approved, right company) can open with no signal and show the jobs saved on it.
+  // The very first sign-in, or a different account, always needs signal. The saved record only
+  // holds who signed in and their role; no password, no job data. It stops working after 14 days
+  // without a successful online check, and every online open refreshes it.
+  var OFFLINE_KEY='fiq_offline_unlock_v1', OFFLINE_DAYS=14;
+  function rememberOnlineUnlock(user, claims){
+    try{
+      var old=null; try{old=JSON.parse(localStorage.getItem(OFFLINE_KEY)||'null')}catch(e){}
+      localStorage.setItem(OFFLINE_KEY, JSON.stringify({uid:user.uid,email:user.email||'',at:Date.now(),
+        name:(old&&old.uid===user.uid&&old.name)||'',
+        claims:{companyId:claims.companyId||null,role:claims.role||null,fittersiq_admin:claims.fittersiq_admin===true,fitterId:claims.fitterId||null}}));
+    }catch(e){}
+  }
+  function rememberOfflineName(name){
+    try{var r=JSON.parse(localStorage.getItem(OFFLINE_KEY)||'null'); if(r){r.name=name||''; localStorage.setItem(OFFLINE_KEY,JSON.stringify(r))}}catch(e){}
+  }
+  function offlineRecord(user){
+    try{
+      var r=JSON.parse(localStorage.getItem(OFFLINE_KEY)||'null');
+      if(!r||!user||r.uid!==user.uid||!r.claims) return null;
+      if(!(Date.now()-r.at<OFFLINE_DAYS*864e5)) return null;
+      return r;
+    }catch(e){return null}
+  }
+  function looksOffline(e){
+    if(typeof navigator!=='undefined'&&navigator.onLine===false) return true;
+    var c=String(e&&e.code||''), m=String(e&&e.message||'');
+    return /unavailable|network-request-failed|deadline-exceeded/.test(c)||/offline|network|failed to fetch/i.test(m);
+  }
+  function showOfflinePill(){
+    try{
+      var el=document.getElementById('fiqOfflinePill');
+      if(!el){
+        el=document.createElement('div'); el.id='fiqOfflinePill';
+        el.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom));z-index:99999;background:#1f2937;color:#fff;font:700 12px/1.3 Inter,Arial,sans-serif;padding:8px 14px;border-radius:999px;box-shadow:0 2px 10px rgba(0,0,0,.3);max-width:92vw;text-align:center';
+        document.body.appendChild(el);
+        window.addEventListener('online',function(){ el.textContent='Back online – tap to refresh'; el.style.background='#047857'; el.onclick=function(){location.reload()}; });
+      }
+      el.textContent='Offline – showing jobs saved on this phone';
+    }catch(e){}
+  }
+  function tryOfflineUnlock(user, e){
+    if(!user||!looksOffline(e)) return false;
+    var r=offlineRecord(user); if(!r) return false;
+    unlockApp(user, r.claims, true);
+    try{ if(window.fittersiqUser&&r.name) window.fittersiqUser.name=r.name }catch(x){}
+    showOfflinePill();
+    return true;
+  }
+
   async function evaluate(user){
     if(!user){ if(deviceWaitPoll){ clearInterval(deviceWaitPoll); deviceWaitPoll = null; } lockToSignIn(); return; }
-    var tokenResult = await user.getIdTokenResult();
+    if(typeof navigator!=='undefined'&&navigator.onLine===false&&tryOfflineUnlock(user,null)) return;
+    var tokenResult;
+    try{ tokenResult = await user.getIdTokenResult(); }catch(e){ if(tryOfflineUnlock(user,e)) return; throw e; }
     var claims = tokenResult.claims || {};
     // A fitter who joined through the six-digit company pairing code has
     // already authenticated -- redeeming that code IS their sign-in, and
@@ -7285,6 +7339,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
           return;
         }
       }catch(e){
+        if(tryOfflineUnlock(user,e)) return;
         showPausedPay(claims, user);
         showState('fiqStateSuspended');
         return;

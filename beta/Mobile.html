@@ -35,6 +35,10 @@
   }catch(e){}
 })();
 </script>
+<script>
+// Offline copy (Beta): keeps the app on the phone so it opens with no signal. Safe to fail.
+try{ if('serviceWorker' in navigator){ window.addEventListener('load',function(){ navigator.serviceWorker.register('sw-mobile.js',{scope:'./'}).catch(function(){}); }); } }catch(e){}
+</script>
 </head>
 <body>
 <div id="loader">Opening FittersIQ Mobile BETA…</div>
