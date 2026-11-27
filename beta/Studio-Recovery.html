@@ -8857,9 +8857,10 @@ body.fiq-drawing-locked #screen-mark :is(#fThickness,#fLength,#fWidth,#fQty,#fQt
     // 27 Nov 2026: opening the Cutting List writes the job's own material onto panels that had none (blank -> the same
     // material the panel already showed). That is not a change to the panel, so an approval made while the material
     // was blank still stands when the panel carries exactly the job's fallback material.
-    try{const fb=typeof materialForPanel==='function'?String(materialForPanel({})||'').trim():'',own=String(p.material||'').trim();
-     // blank and the job's own fallback material mean the same board, in either direction (approved blank, now filled in; or approved filled in, now blank again)
-     if(fb&&(own===fb||own==='')){const alts=[sig(Object.assign({},p,{material:''})),sig(Object.assign({},p,{material:fb}))];
+    try{const pj=typeof project==='function'?project():null,cb=typeof cabinet==='function'?cabinet():null,own=String(p.material||'').trim();
+     const cands=[...new Set([pj&&pj.defaultMaterial,cb&&cb.lastMaterial].map(x=>String(x||'').trim()).filter(Boolean))];
+     // blank and one of the job's own materials (its default, or the wardrobe's last material) mean the same board, in either direction (approved blank, now filled in; or approved filled in, now blank again)
+     if(cands.length&&(own===''||cands.includes(own))){const alts=[sig(Object.assign({},p,{material:''}))].concat(cands.map(m=>sig(Object.assign({},p,{material:m}))));
       if(alts.some(a=>stored===a||['ready','missing','damaged','installed'].some(status=>stored===a+'|'+status)))return true}}catch(e){}
     // Compatibility with every panel approved before Repair 32, when the live status
     // was incorrectly appended to the stored signature.
@@ -14144,7 +14145,9 @@ document.addEventListener('mousedown',function(e){
     const room=(pr.rooms||[]).find(r=>r.id===c.roomId);
     const where=[room&&room.name,c.name].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
     if(all.length>list.length){const ids=new Set(list.map(p=>String(p.id)));const why=all.filter(p=>!ids.has(String(p.id))).map(p=>{let m=[];try{m=typeof window.panelMissingItems==='function'?window.panelMissingItems(p):[]}catch(e){}
-      return (p.code||'?')+' '+(m.length?'is missing '+m.join(', '):'was changed since it was checked, check it again')});
+      let why2='was changed since it was checked, check it again';
+      try{const st=String(p.reviewSignature||'');if(!st)why2='has not been checked yet';else{const nm=['name','length','width','thickness','quantity','material','long edges','short edges','notes'],a=st.split('|'),b=String(window.panelReviewSignature(p)).split('|'),d=nm.map((n,i)=>a[i]!==b[i]?n+' ('+(a[i]===''||a[i]===undefined?'blank':a[i])+' to '+(b[i]===''||b[i]===undefined?'blank':b[i])+')':'').filter(Boolean);if(d.length)why2='was changed since it was checked: '+d.join(', ')+'. Check it again'}}catch(e){}
+      return (p.code||'?')+' '+(m.length?'is missing '+m.join(', '):why2)});
       out.incomplete.push({where:where||'Unit',n:all.length-list.length,why})}
     if(!list.length)continue;
     out.units.push({id:c.id,where,room:room&&room.name||'',n:list.length});
