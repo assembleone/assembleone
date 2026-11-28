@@ -3652,6 +3652,7 @@ function renderRoomDetail(r){
   <div class="room-status-progress"><div class="room-status-progress-label">${checkedCount}/${roomUnitTotal} ${t('detail.checkPanelsAccounted')}</div><div class="job-panelcheck-bar"><i style="width:${pct}%"></i></div></div>
  </div>
  <button type="button" class="btn primary" id="openCuttingList" style="width:100%;min-height:54px;margin-top:12px">📋 ${t('detail.cuttingList')}</button>
+ ${r.mobileJobCompleted?'':`<button type="button" class="btn" id="finishJobBtn2" style="width:100%;min-height:54px;margin-top:10px;font-weight:900;font-size:16px;border:2px solid #5d874d;background:#eef7ea;color:#2f5a23">✓ Complete Job</button>`}
  ${(p&&((p.geoLat!=null&&p.geoLng!=null)||addr))?`<button type="button" class="btn fiq-room-directions" id="roomDirectionsNow" style="min-height:50px">📍 ${t('mobile.openDirections')}</button>`:''}
  ${combinedStripHtml}
  ${r.mobileJobCompleted?`<div class="job-finished-banner">✓ Job Completed</div>`:''}
@@ -3757,7 +3758,8 @@ function renderRoomDetail(r){
  // still-open TV Wall's own card key untouched, exactly as its own Panel Check progress
  // already stays untouched. (Whole-project archiving off the Jobs list is a separate,
  // still-whole-project decision -- see archiveIfFinishedInstallation -- unaffected here.)
- $('#finishJobBtn')?.addEventListener('click',()=>{
+ $('#finishJobBtn2')?.addEventListener('click',()=>{const m=$('#finishJobBtn');if(m)m.click()});
+$('#finishJobBtn')?.addEventListener('click',()=>{
   if(!requireLeadFitter(p,'finish this job'))return;
   if(!confirm('Complete '+(r.name||'this job')+' and send Job Completed to Studio?'))return;
   r.mobileJobCompleted=true;r.mobileJobCompletedAt=new Date().toISOString();
