@@ -3701,6 +3701,26 @@ function renderRoomDetail(r){
   </div>
  </div>`;
  $('#backRooms').onclick=()=>{state.currentRoom=null;save();show('projects')};
+ // Bound first so nothing later in this render can stop Complete Job from working.
+ $('#finishJobBtn')?.addEventListener('click',()=>{
+  if(!requireLeadFitter(p,'finish this job'))return;
+  if(!confirm('Complete '+(r.name||'this job')+' and send Job Completed to Studio?'))return;
+  r.mobileJobCompleted=true;r.mobileJobCompletedAt=new Date().toISOString();
+  // Completion is a fitter decision, not a scan requirement. Keep panel/check data as
+  // optional progress only, and mirror completion onto the parent project when this is
+  // the only room or when every real room is now complete so Studio's general job card
+  // can turn green even for legacy/unassigned cabinet jobs.
+  const realRooms=(p.rooms||[]).filter(x=>x&&x.id);
+  if(realRooms.length<=1||realRooms.every(x=>!!x.mobileJobCompleted)){
+   p.mobileJobCompleted=true;
+   p.mobileJobCompletedAt=r.mobileJobCompletedAt;
+  }
+  if(Array.isArray(state.activeCardKeys)){
+   const thisKey=cardKey({project:p,room:r});
+   state.activeCardKeys=state.activeCardKeys.filter(k=>k!==thisKey);
+  }
+  save();try{exportJob(p.id)}catch(e){console.warn('send job completed',e)}show('projects');
+ });
  // renderRoomDetail() regenerates #roomToolsMenu on every call (unlike Studio's own static
  // #toolsMenu, bound once at load), so the toggle is rebound each render but the "click
  // outside closes it" listener is bound to document exactly once for the whole session --
@@ -3766,25 +3786,6 @@ function renderRoomDetail(r){
  // still-open TV Wall's own card key untouched, exactly as its own Panel Check progress
  // already stays untouched. (Whole-project archiving off the Jobs list is a separate,
  // still-whole-project decision -- see archiveIfFinishedInstallation -- unaffected here.)
- $('#finishJobBtn')?.addEventListener('click',()=>{
-  if(!requireLeadFitter(p,'finish this job'))return;
-  if(!confirm('Complete '+(r.name||'this job')+' and send Job Completed to Studio?'))return;
-  r.mobileJobCompleted=true;r.mobileJobCompletedAt=new Date().toISOString();
-  // Completion is a fitter decision, not a scan requirement. Keep panel/check data as
-  // optional progress only, and mirror completion onto the parent project when this is
-  // the only room or when every real room is now complete so Studio's general job card
-  // can turn green even for legacy/unassigned cabinet jobs.
-  const realRooms=(p.rooms||[]).filter(x=>x&&x.id);
-  if(realRooms.length<=1||realRooms.every(x=>!!x.mobileJobCompleted)){
-   p.mobileJobCompleted=true;
-   p.mobileJobCompletedAt=r.mobileJobCompletedAt;
-  }
-  if(Array.isArray(state.activeCardKeys)){
-   const thisKey=cardKey({project:p,room:r});
-   state.activeCardKeys=state.activeCardKeys.filter(k=>k!==thisKey);
-  }
-  save();exportJob(p.id);show('projects');
- });
 }
 // Build 2 (§B): a plain, session-only filter over the compact Panels list -- resets to
 // "all" whenever a different room is opened, but survives this same room's own re-renders
