@@ -1117,7 +1117,7 @@
       var host = rowBtn.closest('.customer-tab-row-wrap') || rowBtn;
       if (!host || !host.parentNode) return;
       var has = host.parentNode.querySelector('[data-fiqx-back-new="' + pid + '"]');
-      var wanted = !!(p && p.movedToLibraryAt && !p.linkedToProjectId && !p.isNewFromSite);
+      var wanted = !!(p && p.movedToLibraryAt && !p.isNewFromSite);
       if (!wanted) { if (has) has.remove(); return; }
       if (has) return;
       var b = document.createElement('button'); b.type = 'button'; b.className = 'fiqx-tab-btn'; b.style.margin = '4px 0 8px';
@@ -1130,6 +1130,8 @@
     var b = ev.target.closest && ev.target.closest('[data-fiqx-back-new]'); if (!b) return;
     ev.preventDefault(); ev.stopImmediatePropagation();
     var p = rawProject(b.getAttribute('data-fiqx-back-new')); if (!p) return;
+    // A job that was added to another customer as a visit is separated first, then put back.
+    if (p.linkedToProjectId && typeof window.fiqSeparateVisit === 'function') { try { window.fiqSeparateVisit(p.id); } catch (e) {} p = rawProject(p.id) || p; }
     p.isNewFromSite = true; delete p.movedToLibraryAt; delete p.overviewFinishedAt; delete p.newJobSeenAt; p.updatedAt = Date.now();
     (p.rooms || []).forEach(function (r) { if (r && r.movedToLibraryAt) { delete r.movedToLibraryAt; r.finished = false; delete r.finishedAt; } });
     try { (0, eval)('save();renderAll()'); } catch (e) {}
