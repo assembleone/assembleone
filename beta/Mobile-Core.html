@@ -3702,9 +3702,10 @@ function renderRoomDetail(r){
  </div>`;
  $('#backRooms').onclick=()=>{state.currentRoom=null;save();show('projects')};
  // Bound first so nothing later in this render can stop Complete Job from working.
- $('#finishJobBtn')?.addEventListener('click',()=>{
-  if(!requireLeadFitter(p,'finish this job'))return;
-  if(!confirm('Complete '+(r.name||'this job')+' and send Job Completed to Studio?'))return;
+ $('#finishJobBtn')?.addEventListener('click',async()=>{
+  document.getElementById('roomToolsMenu')?.classList.remove('open');
+  if(!(await fiqRequireLeadFitter(p,'finish this job')))return;
+  if(!(await fiqAskBox('Complete '+(r.name||'this job')+' and send Job Completed to Studio?',{yes:'Complete Job'})))return;
   r.mobileJobCompleted=true;r.mobileJobCompletedAt=new Date().toISOString();
   // Completion is a fitter decision, not a scan requirement. Keep panel/check data as
   // optional progress only, and mirror completion onto the parent project when this is
@@ -3800,6 +3801,33 @@ function statusLabel(status){return status==='installed'?t('install.installedLab
 // name the Lead Fitter as a workflow safeguard, exactly the same trust level the rest of
 // the fitter system already runs on. A single-fitter job has nothing to gate: that one
 // fitter is the job by definition.
+
+// In-app question box (a phone can silently block the browser's own confirm()/prompt() boxes,
+// which made Complete Job look dead). Resolves true/false, or the typed text when askName is set.
+function fiqAskBox(text,opts){
+ opts=opts||{};
+ return new Promise(res=>{
+  const old=document.getElementById('fiqAskBox');if(old)old.remove();
+  const w=document.createElement('div');w.id='fiqAskBox';
+  w.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(20,18,35,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  w.innerHTML='<div style="background:#fff;border-radius:18px;padding:20px;max-width:340px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35)"><div style="font-size:17px;font-weight:800;line-height:1.35;white-space:pre-line;color:#1f1b34">'+esc(text)+'</div>'+(opts.input?'<input id="fiqAskInput" type="text" style="margin-top:12px;width:100%;box-sizing:border-box;padding:12px;font-size:16px;border:2px solid #dedce6;border-radius:12px">':'')+'<div style="display:flex;gap:10px;margin-top:16px"><button type="button" id="fiqAskNo" class="btn" style="flex:1;min-height:48px">Cancel</button><button type="button" id="fiqAskYes" class="btn primary" style="flex:1;min-height:48px">'+esc(opts.yes||'Yes')+'</button></div></div>';
+  document.body.appendChild(w);
+  const done=v=>{w.remove();res(v)};
+  w.querySelector('#fiqAskNo').onclick=()=>done(opts.input?null:false);
+  w.querySelector('#fiqAskYes').onclick=()=>done(opts.input?(w.querySelector('#fiqAskInput').value||''):true);
+  const i=w.querySelector('#fiqAskInput');if(i)setTimeout(()=>i.focus(),50);
+ });
+}
+async function fiqRequireLeadFitter(p,label){
+ const lead=(p&&p.assignedFitter||'').trim();
+ const others=(p&&p.otherFitters||[]).filter(Boolean);
+ if(!lead||!others.length)return true;
+ const who=await fiqAskBox('Only the Lead Fitter ('+lead+') can '+label+'.\nType the Lead Fitter\'s name to confirm:',{input:true,yes:'OK'});
+ if(who===null)return false;
+ if(who.trim().toLowerCase()!==lead.toLowerCase()){await fiqAskBox('That name does not match the Lead Fitter ('+lead+'). Not done.',{yes:'OK'});return false}
+ return true;
+}
 function requireLeadFitter(p,label){
  const lead=(p&&p.assignedFitter||'').trim();
  const others=(p&&p.otherFitters||[]).filter(Boolean);
