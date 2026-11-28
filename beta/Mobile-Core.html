@@ -2449,7 +2449,7 @@ function jobCard(card){
   // card made it far too easy to lose every room by mistake (25 Nov 2026), so multi-room jobs have no bin
   // here; they are removed from the deliberate "Remove a whole job" section at the bottom of the list.
   const siblingCards=siteCard?1:cardsForProject(p).length;
-  const deleteHtml=(safetyCopy||siblingCards>1)?'':`<button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button>`;
+  const deleteHtml=(safetyCopy&&siteCard)?`<button type="button" class="btn back-to-site-measure" data-id="${p.id}">↩ Back to Site Measure</button>`:(safetyCopy||siblingCards>1)?'':`<button class="btn danger delete-mobile-job" data-id="${p.id}" aria-label="Delete project">🗑</button>`;
   const metaCounts=siteCard?`${siteCount.rooms} room${siteCount.rooms===1?'':'s'} · ${siteCount.photos} photo${siteCount.photos===1?'':'s'} · ${siteCount.sizes} size${siteCount.sizes===1?'':'s'}`:`${rooms} ${rooms===1?t('proj.room'):t('proj.rooms')} · ${units} ${units===1?t('proj.unit'):t('proj.units')}`;
   return `<div class="job${mobileSelectedCardKeys.has(key)?' mobile-job-selected':''}${selectHtml?' has-select':''}"><div class="mobile-job-media">${selectHtml}${thumbHtml}</div><div><div class="job-title">${safe(titleName)}</div><div class="job-room-name">${safe(display.name)}</div>${newBadge}${siteCard?'':badge}${syncBadge}${safetyBadge}<div class="job-meta">${safe(p.customer)||t('proj.noCustomer')}<br>${metaCounts}</div>${locLine}${p.notes?`<div class="job-note">📝 ${safe(p.notes)}</div>`:''}${panelsFigureHtml}${pcHtml}</div><div class="mobile-job-actions"><button class="btn primary open-job" data-card-key="${safe(key)}">${t('proj.open')}</button>${deleteHtml}</div></div>`;
  }
@@ -2535,6 +2535,17 @@ function jobCard(card){
   // each photo one tap from editing. Installation jobs open as before.
   if(!isStudioJob(p)){state.currentRoom=null;save();show('siteVisitSummary');return}
   show(isInstallationJob(p)&&!(p.rooms&&p.rooms.length)?"install":"drawings");
+ });
+ // A job already sent to Studio can come back to the working Site Measure list (e.g. after it was
+ // put back in New Site Jobs in Studio) and be sent again. Nothing is deleted.
+ $$(".back-to-site-measure").forEach(b=>b.onclick=async()=>{
+  const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;
+  if(!(await fiqAskBox('Bring "'+(p.name||p.customerName||'this job')+'" back to Site Measure so you can send it to Studio again?',{yes:'Back to Site Measure'})))return;
+  p.mobileArchived=false;p.mobileArchivedAt=null;p.studioReceivedAt=null;p.siteReceiptRetries=0;
+  if(p.siteTransfer){p.siteTransfer.receipt=null;p.siteTransfer.receivedAt=null;p.siteTransfer.status='';p.siteTransfer.writtenFingerprint=null;p.siteTransfer.writtenTransferId=null}
+  p.pendingStudioReceiptDocId=null;
+  save();renderAll();
+  await fiqAskBox('Done. It is back in your Site Measure list. Open it and tap Send to Studio.',{yes:'OK'});
  });
  $$(".delete-mobile-job").forEach(b=>b.onclick=()=>{const p=state.projects.find(x=>x.id===b.dataset.id);if(!p)return;
   // A Site Measure with work Studio has not received: Send to Studio first, or Delete anyway
