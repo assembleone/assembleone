@@ -1080,6 +1080,7 @@
   // Jobs / Site Measurements / Estimate, in solid colour so they are easy to see.
   function placeTabRowButtons() {
     document.querySelectorAll('.customer-card-tabs').forEach(function (bar) {
+      var dt = bar.querySelector('.customer-tab[data-tab="documents"].active'), jt = bar.querySelector('.customer-tab[data-tab="jobs"]'); if (dt && jt) jt.click();
       var card = bar.parentNode, scope = card && card.parentNode || document;
       var first = (scope.querySelector('[data-open-site-room-project]') || document.querySelector('.customer-tab-panel [data-open-site-room-project]'));
       var pid = first && first.getAttribute('data-open-site-room-project');
@@ -1103,7 +1104,8 @@
   }
   (function () {
     var st = document.createElement('style');
-    st.textContent = '.customer-card-tabs{display:flex;align-items:center;flex-wrap:wrap}.fiqx-tab-btns{margin-left:auto;display:inline-flex;gap:8px;padding:4px 0}' +
+    st.textContent = '.customer-card-tabs{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:6px 0}.fiqx-tab-btns{display:inline-flex;gap:8px}' +
+      '.customer-card-tabs .customer-tab{height:38px;padding:0 16px;border:0;border-bottom:0;border-radius:10px;background:#dbeafe;color:#1e40af;font:800 14px Inter,Arial,sans-serif;white-space:nowrap}.customer-card-tabs .customer-tab:hover{background:#bfdbfe}.customer-card-tabs .customer-tab.active{background:#0b2a5b;color:#fff;border-bottom:0}.customer-card-tabs .customer-tab[data-tab="documents"]{display:none}' +
       '.fiqx-tab-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border:0;border-radius:10px;background:#2563eb;color:#fff;font:800 14px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap;box-shadow:0 1px 3px rgba(37,99,235,.35)}.fiqx-tab-btn:hover{background:#1d4ed8}.fiqx-tab-btn svg{width:18px;height:18px;flex:none}';
     (document.head || document.documentElement).appendChild(st);
   })();
