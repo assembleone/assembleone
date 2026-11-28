@@ -1338,6 +1338,8 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 .mobile-tools .tools-menu.open{display:block}
 .mobile-tools .tools-menu .btn{width:100%;margin-top:6px}
 .mobile-tools .tools-menu .btn:first-child{margin-top:0}
+.mobile-tools .tools-menu .tools-done{padding:12px 10px;font-weight:900;font-size:15px;color:#2f5a23;white-space:nowrap}
+.mobile-tools .tools-menu .btn.danger{font-weight:900;font-size:15px;white-space:nowrap;color:#a13a30}
 
 /* Build 2, §7/§11: compact consolidated room-detail screen. */
 .room-compact-header{display:flex;align-items:center;gap:10px;padding:6px 2px 10px}
@@ -3643,7 +3645,7 @@ function renderRoomDetail(r){
   <div class="studio-tools mobile-tools">
    <button type="button" class="btn tools-toggle" id="roomToolsToggleBtn" aria-label="${t('mobile.menuAria')}">⋯</button>
    <div class="tools-menu" id="roomToolsMenu">
-    ${r.mobileJobCompleted?'':`<button type="button" class="btn danger" id="finishJobBtn">✓ Complete Job</button>`}
+    ${r.mobileJobCompleted?`<div class="tools-done">✓ Job Completed</div>`:`<button type="button" class="btn danger" id="finishJobBtn">✓ Complete Job</button>`}
    </div>
   </div>
  </div>
@@ -3652,7 +3654,6 @@ function renderRoomDetail(r){
   <div class="room-status-progress"><div class="room-status-progress-label">${checkedCount}/${roomUnitTotal} ${t('detail.checkPanelsAccounted')}</div><div class="job-panelcheck-bar"><i style="width:${pct}%"></i></div></div>
  </div>
  <button type="button" class="btn primary" id="openCuttingList" style="width:100%;min-height:54px;margin-top:12px">📋 ${t('detail.cuttingList')}</button>
- ${r.mobileJobCompleted?'':`<button type="button" class="btn" id="finishJobBtn2" style="width:100%;min-height:54px;margin-top:10px;font-weight:900;font-size:16px;border:2px solid #5d874d;background:#eef7ea;color:#2f5a23">✓ Complete Job</button>`}
  ${(p&&((p.geoLat!=null&&p.geoLng!=null)||addr))?`<button type="button" class="btn fiq-room-directions" id="roomDirectionsNow" style="min-height:50px">📍 ${t('mobile.openDirections')}</button>`:''}
  ${combinedStripHtml}
  ${r.mobileJobCompleted?`<div class="job-finished-banner">✓ Job Completed</div>`:''}
@@ -3758,8 +3759,7 @@ function renderRoomDetail(r){
  // still-open TV Wall's own card key untouched, exactly as its own Panel Check progress
  // already stays untouched. (Whole-project archiving off the Jobs list is a separate,
  // still-whole-project decision -- see archiveIfFinishedInstallation -- unaffected here.)
- $('#finishJobBtn2')?.addEventListener('click',()=>{const m=$('#finishJobBtn');if(m)m.click()});
-$('#finishJobBtn')?.addEventListener('click',()=>{
+ $('#finishJobBtn')?.addEventListener('click',()=>{
   if(!requireLeadFitter(p,'finish this job'))return;
   if(!confirm('Complete '+(r.name||'this job')+' and send Job Completed to Studio?'))return;
   r.mobileJobCompleted=true;r.mobileJobCompletedAt=new Date().toISOString();
