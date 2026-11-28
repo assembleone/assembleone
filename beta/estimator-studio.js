@@ -1055,6 +1055,33 @@
     var b = document.createElement('button'); b.type = 'button'; b.className = 'fiqx-job-est-btn' + (extraClass ? ' ' + extraClass : '');
     b.setAttribute('data-fiqx-job-est', pid); setEstimatorLabel(b); b.title = 'Open the Estimator for this job. The panels come with it; nothing in the design changes.'; return b;
   }
+  // Site Measurements tab: one button that goes straight to the drawing (Start design / Continue design).
+  // The Estimate tab already covers estimating, so the duplicate Estimator button is swapped out here.
+  function designState(pid) {
+    var j = jobById(pid), cabs = (j && j.cabinets) || [];
+    var started = cabs.some(function (c) { return c && ((c.parts || []).length || (c.drawing && !c.siteReference)); });
+    var target = cabs.filter(function (c) { return c && (c.parts || []).length; })[0] || cabs[0] || null;
+    return { started: started, cabinetId: target ? target.id : null };
+  }
+  function designBtn(pid) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'fiqx-job-est-btn fiqx-job-design-btn';
+    b.setAttribute('data-fiqx-job-design', pid);
+    b.textContent = designState(pid).started ? '\u270F\uFE0F Continue design' : '\u270F\uFE0F Start design';
+    b.title = 'Go straight to the drawing for this job.'; return b;
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-fiqx-job-design]'); if (!b) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    var pid = b.getAttribute('data-fiqx-job-design'), ds = designState(pid);
+    try { (0, eval)('state.currentProject=' + JSON.stringify(pid) + ';state.currentCabinet=' + JSON.stringify(ds.cabinetId) + ';state.currentPart=null;renderAll();show("mark")'); }
+    catch (e) { alert('Could not open the drawing. Open the job and choose Drawing.'); }
+  }, true);
+  function swapSiteEstimatorForDesign() {
+    document.querySelectorAll('.customer-tab-panel[data-tab-panel="site"] [data-fiqx-job-est]').forEach(function (old) {
+      var pid = old.getAttribute('data-fiqx-job-est'); if (!pid) return;
+      old.parentNode.replaceChild(designBtn(pid), old);
+    });
+  }
   function decorateJobCards() {
     document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function (row) {
       var box = row.querySelector('.jor-top-actions'); if (!box || box.querySelector('.fiqx-job-est-btn')) return;
@@ -1065,7 +1092,7 @@
       box.insertBefore(jobEstBtn(src.getAttribute('data-job-sheet')), box.firstChild);
     });
     document.querySelectorAll('.customer-tab-panel[data-tab-panel="site"]').forEach(function (panel) {
-      var seen = {}; panel.querySelectorAll('.customer-job-head').forEach(function (h) { var b = h.querySelector('[data-fiqx-job-est]'); if (b) seen[b.getAttribute('data-fiqx-job-est')] = true; });
+      var seen = {}; panel.querySelectorAll('.customer-job-head').forEach(function (h) { var b = h.querySelector('[data-fiqx-job-est],[data-fiqx-job-design]'); if (b) seen[b.getAttribute('data-fiqx-job-est')||b.getAttribute('data-fiqx-job-design')] = true; });
       panel.querySelectorAll('[data-open-site-room-project]').forEach(function (rowBtn) {
         var pid = rowBtn.getAttribute('data-open-site-room-project'); if (!pid || seen[pid]) return; seen[pid] = true;
         var j = jobById(pid), head = document.createElement('div'); head.className = 'customer-job-head';
@@ -1074,6 +1101,7 @@
         rowBtn.parentNode.insertBefore(head, rowBtn);
       });
     });
+    swapSiteEstimatorForDesign();
   }
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-fiqx-job-est]'); if (!b) return;
