@@ -1603,7 +1603,7 @@ window.dispatchEvent(new Event('fiqFirebaseReady'));
 
 <dialog id="detailDialog">
   <div class="modal">
-    <div class="modal-head"><div><h2 id="dCompany"></h2><p id="dEmail"></p></div><button class="close" onclick="document.getElementById('detailDialog').close()">×</button></div>
+    <div class="modal-head"><div><h2 id="dCompany"></h2><p id="dOwner" style="margin:4px 0 0;font-size:18px;font-weight:800;color:#0b2545"></p><p id="dEmail"></p></div><button class="close" onclick="document.getElementById('detailDialog').close()">×</button></div>
     <div id="dStatus"></div>
     <div class="detail-grid">
       <div><small>PLAN</small><strong id="dPlan"></strong></div>
@@ -1665,10 +1665,10 @@ function updateMetrics(){
 function renderCustomers(){
   const filter=$("statusFilter")?$("statusFilter").value:"all";
   const q=$("customerSearch")?$("customerSearch").value.trim().toLowerCase():"";
-  const list=customers.filter(c=>(filter==="all"||c.status===filter)&&(!q||c.company.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)));
+  const list=customers.filter(c=>(filter==="all"||c.status===filter)&&(!q||c.company.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||String(c.owner||'').toLowerCase().includes(q)));
   if($("rows")) $("rows").innerHTML=list.map(c=>`
   <div class="customer-row launch-row">
-    <div class="company"><span class="badge">${initials(c.company)}</span><div><strong>${H(c.company)}</strong><small>${H(c.email)}</small></div></div>
+    <div class="company"><span class="badge">${initials(c.company)}</span><div><strong>${H(c.company)}</strong><small>${c.owner?H(c.owner)+" · ":""}${H(c.email)}</small></div></div>
     <span class="${c.plan==="Professional"?"plan-pro":"plan-standard"}">${H(c.plan)}</span>
     <span><b class="status ${statClass(c.status)}">${H(c.status)}</b></span>
     <span>${H(c.users)}</span>
@@ -1691,7 +1691,7 @@ if($("cancelAdd")) $("cancelAdd").addEventListener("click",()=>$("addDialog").cl
 
 function openCustomer(id){
   const c=customers.find(x=>String(x.id)===String(id));if(!c)return;
-  $("dCompany").textContent=c.company;$("dEmail").textContent=c.email;$("dStatus").innerHTML=`<span class="status ${statClass(c.status)}">${H(c.status)}</span>`;
+  $("dCompany").textContent=c.company;if($("dOwner")){$("dOwner").textContent=c.owner?"Owner: "+c.owner:"";$("dOwner").style.display=c.owner?"":"none"}$("dEmail").textContent=c.email;$("dStatus").innerHTML=`<span class="status ${statClass(c.status)}">${H(c.status)}</span>`;
   $("dPlan").textContent=c.plan;$("dUsers").textContent=c.users;$("dRenewal").textContent=c.renewal;$("dLast").textContent=c.last;
   if($("dAccount"))$("dAccount").innerHTML="";if(c.real&&typeof window.fiqAccountPanel==="function")window.fiqAccountPanel(c);
   if($("detailDialog")?.showModal)$("detailDialog").showModal();
@@ -1704,7 +1704,7 @@ document.querySelectorAll('[data-hint="payment"]').forEach(b=>b.addEventListener
 // Export: the live customer list as a spreadsheet file (CSV).
 if($("exportReport")) $("exportReport").addEventListener("click",()=>{
   const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
-  const rows=[["Company","Email","Plan","Status","Users","Renewal","Cloud backup"]].concat(customers.map(c=>[c.company,c.email,c.plan,c.status,c.users,c.renewal,c.cloudBackup?"On":"Off"]));
+  const rows=[["Company","Owner","Email","Plan","Status","Users","Renewal","Cloud backup"]].concat(customers.map(c=>[c.company,c.owner||"",c.email,c.plan,c.status,c.users,c.renewal,c.cloudBackup?"On":"Off"]));
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(q).join(",")).join("\r\n")],{type:"text/csv"}));
   a.download="FittersIQ customers "+new Date().toISOString().slice(0,10)+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});
 if($("globalSearch")) $("globalSearch").addEventListener("input",e=>{const q=e.target.value.trim();if(q){go("customers");$("customerSearch").value=q;renderCustomers()}});
@@ -1798,6 +1798,7 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
           id: d.id,
           company: c.name || 'Unnamed company',
           email: c.ownerEmail || '—',
+          owner: c.ownerName || '',
           plan: c.plan || 'Trial',
           status: statusWord(c),
           users: '1 / ' + (c.maxUsers || 1),
@@ -1947,6 +1948,11 @@ body.fiq-locked > *:not(#fiqAuthGate):not(script):not(style){display:none!import
         var devices = [], problems = [];
         hs.forEach(function(h){ var d = h.data(); if(d.retiredAt || d.test) return;
           var last = ms(d.heartbeatAt), since = ms(d.pendingSince), quiet = now - last > 15*60000;
+          // A device that has not reported for over a day is not "failing right now": show it as not reporting, don't raise the alarm.
+          if(last && now - last > 24*3600*1000 && (d.state === 'failed' || d.state === 'pending')){
+            devices.push((d.kind === 'phone' ? 'Phone ' : 'Studio ') + esc(d.deviceName || d.kind) + ': not reporting, last report ' + ago(last) + ' (was ' + esc(d.state) + (d.lastError ? ': ' + esc(d.lastError) : '') + ')');
+            return;
+          }
           if(d.kind === 'studio' && d.state === 'failed') problems.push((d.deviceName||'Studio') + ': backup failing' + (d.lastError ? ' (' + d.lastError + ')' : ''));
           else if(d.kind === 'studio' && d.state === 'pending' && since && now - since > 20*60000) problems.push((d.deviceName||'Studio') + ': work not backed up for ' + ago(since).replace(' ago',''));
           if(d.kind === 'phone' && (d.waitingUploads||0) > 0 && since && now - since > 30*60000) problems.push((d.deviceName||'Phone') + ': ' + d.waitingUploads + ' waiting to upload for ' + ago(since).replace(' ago',''));
