@@ -1109,6 +1109,32 @@
       '.fiqx-tab-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border:0;border-radius:10px;background:#2563eb;color:#fff;font:800 14px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap;box-shadow:0 1px 3px rgba(37,99,235,.35)}.fiqx-tab-btn:hover{background:#1d4ed8}.fiqx-tab-btn svg{width:18px;height:18px;flex:none}';
     (document.head || document.documentElement).appendChild(st);
   })();
+  // Put a job back into New Site Jobs after it was moved to the Library (undo of "Move to Library").
+  function rawProject(pid) { try { var st = (0, eval)('state'); return (st.projects || []).find(function (x) { return x && x.id === pid; }) || null; } catch (e) { return null; } }
+  function addBackToNewButtons() {
+    document.querySelectorAll('.customer-tab-panel[data-tab-panel="site"] [data-open-site-room-project]').forEach(function (rowBtn) {
+      var pid = rowBtn.getAttribute('data-open-site-room-project'), p = pid && rawProject(pid);
+      var host = rowBtn.closest('.customer-tab-row-wrap') || rowBtn;
+      if (!host || !host.parentNode) return;
+      var has = host.parentNode.querySelector('[data-fiqx-back-new="' + pid + '"]');
+      var wanted = !!(p && p.movedToLibraryAt && !p.linkedToProjectId && !p.isNewFromSite);
+      if (!wanted) { if (has) has.remove(); return; }
+      if (has) return;
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'fiqx-tab-btn'; b.style.margin = '4px 0 8px';
+      b.setAttribute('data-fiqx-back-new', pid); b.textContent = '\u21A9 Put back in New Site Jobs';
+      b.title = 'Undo Move to Library: this job shows again under New Site Jobs. Nothing is changed or lost.';
+      host.parentNode.insertBefore(b, host.nextSibling);
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-fiqx-back-new]'); if (!b) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    var p = rawProject(b.getAttribute('data-fiqx-back-new')); if (!p) return;
+    p.isNewFromSite = true; delete p.movedToLibraryAt; delete p.overviewFinishedAt; delete p.newJobSeenAt; p.updatedAt = Date.now();
+    (p.rooms || []).forEach(function (r) { if (r && r.movedToLibraryAt) { delete r.movedToLibraryAt; r.finished = false; delete r.finishedAt; } });
+    try { (0, eval)('save();renderAll()'); } catch (e) {}
+    try { if (typeof window.toast === 'function') window.toast('Back in New Site Jobs: ' + (p.customer || p.name || 'job')); } catch (e) {}
+  }, true);
   function decorateJobCards() {
     document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function (row) {
       var box = row.querySelector('.jor-top-actions'); if (!box || box.querySelector('.fiqx-job-est-btn')) return;
@@ -1131,6 +1157,7 @@
       });
     });
     placeTabRowButtons();
+    addBackToNewButtons();
   }
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-fiqx-job-est]'); if (!b) return;
