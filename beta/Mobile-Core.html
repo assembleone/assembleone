@@ -3652,7 +3652,7 @@ function renderRoomDetail(r){
   <div class="studio-tools mobile-tools">
    <button type="button" class="btn tools-toggle" id="roomToolsToggleBtn" aria-label="${t('mobile.menuAria')}">⋯</button>
    <div class="tools-menu" id="roomToolsMenu">
-    ${r.mobileJobCompleted?`<div class="tools-done">✓ Job Completed</div>`:`<button type="button" class="btn danger" id="finishJobBtn">✓ Complete Job</button>`}
+    ${r.mobileJobCompleted?`<div class="tools-done">✓ Job Completed</div><button type="button" class="btn danger" id="resendJobCompletedBtn">Send to Studio again</button>`:`<button type="button" class="btn danger" id="finishJobBtn">✓ Complete Job</button>`}
    </div>
   </div>
  </div>
@@ -3702,6 +3702,13 @@ function renderRoomDetail(r){
  </div>`;
  $('#backRooms').onclick=()=>{state.currentRoom=null;save();show('projects')};
  // Bound first so nothing later in this render can stop Complete Job from working.
+ $('#resendJobCompletedBtn')?.addEventListener('click',async()=>{
+  document.getElementById('roomToolsMenu')?.classList.remove('open');
+  if(!(await fiqAskBox('Send "Job Completed" for '+(r.name||'this job')+' to Studio now?',{yes:'Send to Studio'})))return;
+  try{await exportJob(p.id)}catch(e){console.warn('resend job completed',e)}
+  const ok=p.lastStudioSync&&(Date.now()-new Date(p.lastStudioSync).getTime()<60000)&&!p.studioSyncBlocked;
+  await fiqAskBox(ok?'Sent. Studio now shows this job as completed. You can move it to the Library there.':'Not sent yet. It is saved on this phone and will send to Studio by itself when there is signal. Keep FittersIQ open for a minute.',{yes:'OK'});
+ });
  $('#finishJobBtn')?.addEventListener('click',async()=>{
   document.getElementById('roomToolsMenu')?.classList.remove('open');
   if(!(await fiqRequireLeadFitter(p,'finish this job')))return;
