@@ -1076,22 +1076,49 @@
     try { (0, eval)('state.currentProject=' + JSON.stringify(pid) + ';state.currentCabinet=' + JSON.stringify(ds.cabinetId) + ';state.currentPart=null;renderAll();show("mark")'); }
     catch (e) { alert('Could not open the drawing. Open the job and choose Drawing.'); }
   }, true);
-  function swapSiteEstimatorForDesign() {
-    document.querySelectorAll('.customer-tab-panel[data-tab-panel="site"] [data-fiqx-job-est]').forEach(function (old) {
-      var pid = old.getAttribute('data-fiqx-job-est'); if (!pid) return;
-      old.parentNode.replaceChild(designBtn(pid), old);
+  // Tab row: Estimator (with its calculator icon) and Start/Continue design sit on the right of
+  // Jobs / Site Measurements / Estimate, in solid colour so they are easy to see.
+  function placeTabRowButtons() {
+    document.querySelectorAll('.customer-card-tabs').forEach(function (bar) {
+      var card = bar.parentNode, scope = card && card.parentNode || document;
+      var first = (scope.querySelector('[data-open-site-room-project]') || document.querySelector('.customer-tab-panel [data-open-site-room-project]'));
+      var pid = first && first.getAttribute('data-open-site-room-project');
+      if (!pid) { var js = (scope.querySelector('[data-job-sheet]') || document.querySelector('.customer-tab-panel [data-job-sheet]')); pid = js && js.getAttribute('data-job-sheet'); }
+      var wrap = bar.querySelector('.fiqx-tab-btns');
+      if (!pid || !jobById(pid)) { if (wrap) wrap.remove(); return; }
+      if (!wrap) {
+        wrap = document.createElement('span'); wrap.className = 'fiqx-tab-btns';
+        var est = document.createElement('button'); est.type = 'button'; est.className = 'fiqx-tab-btn'; est.setAttribute('data-fiqx-job-est', pid); setEstimatorLabel(est);
+        est.title = 'Open the Estimator for this job. Nothing in the design changes.';
+        var des = document.createElement('button'); des.type = 'button'; des.className = 'fiqx-tab-btn'; des.setAttribute('data-fiqx-job-design', pid);
+        des.title = 'Go straight to the drawing for this job.';
+        wrap.appendChild(est); wrap.appendChild(des); bar.appendChild(wrap);
+      }
+      var e2 = wrap.querySelector('[data-fiqx-job-est]'), d2 = wrap.querySelector('[data-fiqx-job-design]');
+      if (e2.getAttribute('data-fiqx-job-est') !== pid) e2.setAttribute('data-fiqx-job-est', pid);
+      if (d2.getAttribute('data-fiqx-job-design') !== pid) d2.setAttribute('data-fiqx-job-design', pid);
+      var label = '\u270F\uFE0F ' + (designState(pid).started ? 'Continue design' : 'Start design');
+      if (d2.textContent !== label) d2.textContent = label;
     });
   }
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '.customer-card-tabs{display:flex;align-items:center;flex-wrap:wrap}.fiqx-tab-btns{margin-left:auto;display:inline-flex;gap:8px;padding:4px 0}' +
+      '.fiqx-tab-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border:0;border-radius:10px;background:#2563eb;color:#fff;font:800 14px Inter,Arial,sans-serif;cursor:pointer;white-space:nowrap;box-shadow:0 1px 3px rgba(37,99,235,.35)}.fiqx-tab-btn:hover{background:#1d4ed8}.fiqx-tab-btn svg{width:18px;height:18px;flex:none}';
+    (document.head || document.documentElement).appendChild(st);
+  })();
   function decorateJobCards() {
     document.querySelectorAll('.job-overview-row[data-open-job-card]').forEach(function (row) {
       var box = row.querySelector('.jor-top-actions'); if (!box || box.querySelector('.fiqx-job-est-btn')) return;
       box.insertBefore(jobEstBtn(row.getAttribute('data-open-job-card')), box.firstChild);
     });
     document.querySelectorAll('.customer-job-head').forEach(function (head) {
+      if (head.closest('.customer-tab-panel[data-tab-panel="site"]')) return;
       var box = head.querySelector('.customer-job-sheet-btns'), src = head.querySelector('[data-job-sheet]'); if (!box || !src || box.querySelector('.fiqx-job-est-btn')) return;
       box.insertBefore(jobEstBtn(src.getAttribute('data-job-sheet')), box.firstChild);
     });
     document.querySelectorAll('.customer-tab-panel[data-tab-panel="site"]').forEach(function (panel) {
+      return; // buttons now live on the tab row (see placeTabRowButtons)
       var seen = {}; panel.querySelectorAll('.customer-job-head').forEach(function (h) { var b = h.querySelector('[data-fiqx-job-est],[data-fiqx-job-design]'); if (b) seen[b.getAttribute('data-fiqx-job-est')||b.getAttribute('data-fiqx-job-design')] = true; });
       panel.querySelectorAll('[data-open-site-room-project]').forEach(function (rowBtn) {
         var pid = rowBtn.getAttribute('data-open-site-room-project'); if (!pid || seen[pid]) return; seen[pid] = true;
@@ -1101,7 +1128,7 @@
         rowBtn.parentNode.insertBefore(head, rowBtn);
       });
     });
-    swapSiteEstimatorForDesign();
+    placeTabRowButtons();
   }
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest && ev.target.closest('[data-fiqx-job-est]'); if (!b) return;
