@@ -7,7 +7,7 @@
      (Firestore, Auth, Storage), photos, maps and anything that is not a plain GET are never touched.
    - Job data is NOT stored here. It stays where it always was (the phone's own storage). */
 const VERSION = 'fiq-mobile-beta-offline-v2';
-const PICS = 'fiq-mobile-beta-pics-v1';
+const PICS = 'fiq-mobile-beta-pics-v2';
 const NETWORK_WAIT_MS = 5000;
 
 // Number reader files (about 11 MB). Saved once, in the background, so the number scanner works with no signal.
@@ -162,6 +162,7 @@ self.addEventListener('install', function (event) {
 self.addEventListener('activate', function (event) {
   event.waitUntil((async function () {
     const names = await caches.keys();
+    await Promise.all(names.filter(function (n) { return n.indexOf('fiq-mobile-beta-pics-') === 0 && n !== PICS; }).map(function (n) { return caches.delete(n); }));
     await Promise.all(names.filter(function (n) { return n.indexOf('fiq-mobile-beta-offline-') === 0 && n !== VERSION; })
       .map(function (n) { return caches.delete(n); }));
     await self.clients.claim();
@@ -226,7 +227,8 @@ self.addEventListener('fetch', function (event) {
 
   if (url.origin !== self.location.origin) {
     if (isPinned(url.href)) { event.respondWith(cacheFirst(event, request)); return; }
-    if (isStoragePicture(url.href) && (request.destination === 'image' || request.destination === '')) { event.respondWith(storagePicture(event, request)); return; }
+    // Only plain picture downloads (alt=media, no login header). Firebase Storage's own calls (upload, getDownloadURL, metadata) carry a login header and must reach the network untouched.
+    if (isStoragePicture(url.href) && /[?&]alt=media/.test(url.search) && !request.headers.has('authorization') && (request.destination === 'image' || request.destination === '')) { event.respondWith(storagePicture(event, request)); return; }
     return; // Firebase data calls, maps, geocoding etc. go straight to the network.
   }
 
