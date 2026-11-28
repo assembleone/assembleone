@@ -328,7 +328,7 @@ nav{grid-template-columns:repeat(5,1fr);align-items:stretch}
 .mobile-sent-jobs{border-top:2px solid #bbf7d0;padding-top:4px}
 .site-unsent-overlay{position:fixed;inset:0;z-index:1200;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px}
 .site-unsent-sheet{background:#fff;border-radius:18px;padding:18px;width:min(420px,100%);display:grid;gap:10px}.site-unsent-sheet h3{margin:0;font-size:19px}.site-unsent-sheet p{margin:0;font-size:15px;line-height:1.45}.site-unsent-sheet .btn{width:100%;min-height:48px;font-weight:900}.site-unsent-sheet .btn.danger{color:#b42318;border-color:#f3b4ae}
-.site-received-banner{position:fixed;left:12px;right:12px;top:calc(56px + env(safe-area-inset-top));z-index:2147483647;background:#16a34a;color:#fff;font-weight:900;font-size:16px;padding:14px 16px;border-radius:14px;box-shadow:0 8px 24px #0004;transform:translateY(-150%);transition:transform .25s}.site-received-banner.show{transform:none}
+.site-received-banner{position:fixed;left:12px;right:12px;top:calc(56px + env(safe-area-inset-top));z-index:2147483647;background:#16a34a;color:#fff;font-weight:900;font-size:16px;padding:14px 16px;border-radius:14px;box-shadow:0 8px 24px #0004;transform:translateY(-300%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .25s,opacity .25s,visibility 0s linear .25s}.site-received-banner.show{transform:none;opacity:1;visibility:visible;transition:transform .25s,opacity .25s}
 .mobile-archived-jobs summary{cursor:pointer;font-size:17px;font-weight:900;color:#16a34a;padding:12px 4px;list-style:none}
 .mobile-archived-jobs summary::-webkit-details-marker{display:none}
 .mobile-archived-jobs[open] summary{margin-bottom:6px}
